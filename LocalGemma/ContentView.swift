@@ -1,0 +1,2730 @@
+import Foundation
+import PhotosUI
+import SwiftUI
+import UIKit
+import UniformTypeIdentifiers
+
+enum AppThemeMode: String, CaseIterable, Identifiable {
+    case dark
+    case light
+
+    var id: String { rawValue }
+
+    var icon: String {
+        switch self {
+        case .dark:
+            return "sun.max.fill"
+        case .light:
+            return "moon.fill"
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .dark:
+            return "暗色"
+        case .light:
+            return "亮色"
+        }
+    }
+
+    var colorScheme: ColorScheme {
+        switch self {
+        case .dark:
+            return .dark
+        case .light:
+            return .light
+        }
+    }
+
+    var toggled: AppThemeMode {
+        self == .dark ? .light : .dark
+    }
+}
+
+struct AppThemePalette {
+    let mode: AppThemeMode
+
+    var isDark: Bool { mode == .dark }
+    var primaryText: Color { isDark ? .white : Color(red: 0.08, green: 0.1, blue: 0.14) }
+    var secondaryText: Color { primaryText.opacity(isDark ? 0.62 : 0.66) }
+    var tertiaryText: Color { primaryText.opacity(isDark ? 0.42 : 0.46) }
+    var inverseText: Color { isDark ? .black : .white }
+    var accent: Color { isDark ? .cyan : Color(red: 0.0, green: 0.45, blue: 0.78) }
+    var success: Color { isDark ? .green : Color(red: 0.03, green: 0.5, blue: 0.28) }
+    var warning: Color { isDark ? .orange : Color(red: 0.78, green: 0.38, blue: 0.0) }
+    var surface: Color { isDark ? Color.white.opacity(0.1) : Color.white.opacity(0.72) }
+    var recessedSurface: Color { isDark ? Color.black.opacity(0.28) : Color.white.opacity(0.84) }
+    var chipSurface: Color { isDark ? Color.white.opacity(0.08) : Color(red: 0.93, green: 0.96, blue: 1.0) }
+    var border: Color { isDark ? Color.white.opacity(0.14) : Color.black.opacity(0.1) }
+    var subtleBorder: Color { isDark ? Color.white.opacity(0.08) : Color.black.opacity(0.06) }
+    var grid: Color { isDark ? Color.white.opacity(0.12) : Color.black.opacity(0.06) }
+
+    var backgroundColors: [Color] {
+        if isDark {
+            return [
+                Color(red: 0.035, green: 0.046, blue: 0.078),
+                Color(red: 0.02, green: 0.024, blue: 0.042),
+                Color(red: 0.047, green: 0.058, blue: 0.092)
+            ]
+        }
+
+        return [
+            Color(red: 0.96, green: 0.985, blue: 1.0),
+            Color(red: 0.925, green: 0.955, blue: 0.99),
+            Color(red: 0.985, green: 0.99, blue: 0.97)
+        ]
+    }
+}
+
+enum WorkspaceLayoutMode: Equatable {
+    case portrait
+    case landscapeCompact
+    case landscapeRegular
+
+    static func resolve(for size: CGSize) -> WorkspaceLayoutMode {
+        guard size.width > size.height, size.width >= 700 else {
+            return .portrait
+        }
+
+        return size.height < 520 || size.width < 980 ? .landscapeCompact : .landscapeRegular
+    }
+
+    var usesSidebar: Bool {
+        self != .portrait
+    }
+
+    func sidebarWidth(for size: CGSize) -> CGFloat {
+        switch self {
+        case .portrait:
+            return 0
+        case .landscapeCompact:
+            return min(max(size.width * 0.30, 250), 310)
+        case .landscapeRegular:
+            return min(max(size.width * 0.32, 320), 390)
+        }
+    }
+}
+
+enum WallpaperImportError: LocalizedError, Equatable {
+    case unreadableImage
+    case encodingFailed
+
+    var errorDescription: String? {
+        switch self {
+        case .unreadableImage:
+            return "无法读取这张图片，请换一张照片。"
+        case .encodingFailed:
+            return "壁纸压缩失败，请换一张照片。"
+        }
+    }
+}
+
+enum WallpaperImageProcessor {
+    static let defaultMaxPixel: CGFloat = 1800
+    static let defaultCompressionQuality: CGFloat = 0.78
+
+    static func optimizedJPEGData(
+        from data: Data,
+        maxPixel: CGFloat = defaultMaxPixel,
+        compressionQuality: CGFloat = defaultCompressionQuality
+    ) throws -> Data {
+        guard let image = UIImage(data: data) else {
+            throw WallpaperImportError.unreadableImage
+        }
+
+        return try optimizedJPEGData(
+            from: image,
+            maxPixel: maxPixel,
+            compressionQuality: compressionQuality
+        )
+    }
+
+    static func optimizedJPEGData(
+        from image: UIImage,
+        maxPixel: CGFloat = defaultMaxPixel,
+        compressionQuality: CGFloat = defaultCompressionQuality
+    ) throws -> Data {
+        let targetSize = scaledPixelSize(for: image, maxPixel: maxPixel)
+        guard targetSize.width > 0, targetSize.height > 0 else {
+            throw WallpaperImportError.unreadableImage
+        }
+
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = true
+
+        let renderer = UIGraphicsImageRenderer(size: targetSize, format: format)
+        let renderedImage = renderer.image { context in
+            UIColor.black.setFill()
+            context.fill(CGRect(origin: .zero, size: targetSize))
+            image.draw(in: CGRect(origin: .zero, size: targetSize))
+        }
+
+        guard let jpegData = renderedImage.jpegData(compressionQuality: compressionQuality) else {
+            throw WallpaperImportError.encodingFailed
+        }
+
+        return jpegData
+    }
+
+    static func scaledPixelSize(for image: UIImage, maxPixel: CGFloat = defaultMaxPixel) -> CGSize {
+        let sourceSize: CGSize
+        if let cgImage = image.cgImage {
+            sourceSize = CGSize(width: cgImage.width, height: cgImage.height)
+        } else {
+            sourceSize = CGSize(width: image.size.width * image.scale, height: image.size.height * image.scale)
+        }
+
+        return scaledPixelSize(
+            width: sourceSize.width,
+            height: sourceSize.height,
+            maxPixel: maxPixel
+        )
+    }
+
+    static func scaledPixelSize(width: CGFloat, height: CGFloat, maxPixel: CGFloat = defaultMaxPixel) -> CGSize {
+        guard width > 0, height > 0, maxPixel > 0 else {
+            return .zero
+        }
+
+        let scale = min(1, maxPixel / max(width, height))
+        return CGSize(
+            width: max(1, (width * scale).rounded()),
+            height: max(1, (height * scale).rounded())
+        )
+    }
+}
+
+private struct AppThemeKey: EnvironmentKey {
+    static let defaultValue = AppThemePalette(mode: .dark)
+}
+
+extension EnvironmentValues {
+    var appTheme: AppThemePalette {
+        get { self[AppThemeKey.self] }
+        set { self[AppThemeKey.self] = newValue }
+    }
+}
+
+struct ContentView: View {
+    @EnvironmentObject private var catalog: ModelCatalog
+    @EnvironmentObject private var inference: InferenceEngine
+    @EnvironmentObject private var optimizer: DeviceOptimizer
+
+    @State private var selectedTab: WorkspaceTab = ContentView.initialTab
+    @AppStorage("appThemeMode") private var themeModeStorage = AppThemeMode.dark.rawValue
+    @AppStorage("customWallpaperImageData") private var wallpaperImageData: Data = Data()
+
+    var body: some View {
+        let themeMode = AppThemeMode(rawValue: themeModeStorage) ?? .dark
+        let theme = AppThemePalette(mode: themeMode)
+        let selectedValidation = catalog.validation(for: catalog.selectedModel)
+
+        NavigationStack {
+            ZStack {
+                AppBackground(theme: theme, wallpaperData: wallpaperImageData)
+
+                GeometryReader { proxy in
+                    let layoutMode = WorkspaceLayoutMode.resolve(for: proxy.size)
+                    if layoutMode.usesSidebar {
+                        landscapeLayout(
+                            themeMode: themeMode,
+                            selectedValidation: selectedValidation,
+                            size: proxy.size,
+                            layoutMode: layoutMode
+                        )
+                    } else {
+                        portraitLayout(themeMode: themeMode, selectedValidation: selectedValidation)
+                    }
+                }
+            }
+            .environment(\.appTheme, theme)
+            .preferredColorScheme(themeMode.colorScheme)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar(.hidden, for: .navigationBar)
+        }
+    }
+
+    private static var initialTab: WorkspaceTab {
+        ProcessInfo.processInfo.arguments.contains("--open-models") ? .models : .chat
+    }
+
+    private var currentTheme: AppThemePalette {
+        AppThemePalette(mode: AppThemeMode(rawValue: themeModeStorage) ?? .dark)
+    }
+
+    private func headerView(themeMode: AppThemeMode, selectedValidation: ArtifactValidationResult) -> some View {
+        HeaderView(
+            model: catalog.selectedModel,
+            readiness: optimizer.deploymentReadiness,
+            tokensPerSecond: inference.currentTokensPerSecond,
+            memoryUsageMB: inference.memoryUsageMB,
+            backend: inference.currentBackend,
+            availability: selectedValidation.availability,
+            isGenerating: inference.isGenerating,
+            isSimulated: inference.lastResultWasSimulated,
+            themeMode: themeMode,
+            toggleTheme: {
+                withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
+                    themeModeStorage = themeMode.toggled.rawValue
+                }
+            },
+            showModels: {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.82)) {
+                    selectedTab = .models
+                }
+            }
+        )
+    }
+
+    private func portraitLayout(themeMode: AppThemeMode, selectedValidation: ArtifactValidationResult) -> some View {
+        VStack(spacing: 0) {
+            headerView(themeMode: themeMode, selectedValidation: selectedValidation)
+                .padding(.horizontal, 18)
+                .padding(.top, 8)
+
+            tabPicker
+                .padding(.horizontal, 18)
+                .padding(.top, 14)
+
+            workspacePages(themeMode: themeMode)
+        }
+    }
+
+    private func landscapeLayout(
+        themeMode: AppThemeMode,
+        selectedValidation: ArtifactValidationResult,
+        size: CGSize,
+        layoutMode: WorkspaceLayoutMode
+    ) -> some View {
+        let theme = currentTheme
+        let sidebarWidth = layoutMode.sidebarWidth(for: size)
+
+        return HStack(spacing: 0) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    headerView(themeMode: themeMode, selectedValidation: selectedValidation)
+                    sidebarTabPicker
+                }
+                .padding(.horizontal, 18)
+                .padding(.vertical, 14)
+            }
+            .scrollIndicators(.hidden)
+            .frame(width: sidebarWidth)
+            .background(.ultraThinMaterial)
+            .overlay(alignment: .trailing) {
+                Rectangle()
+                    .fill(theme.border)
+                    .frame(width: 1)
+            }
+
+            workspacePageContent(themeMode: themeMode)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+
+    private func workspacePages(themeMode: AppThemeMode) -> some View {
+        TabView(selection: $selectedTab) {
+            ChatWorkspace()
+                .tag(WorkspaceTab.chat)
+
+            ModelLibraryView()
+                .tag(WorkspaceTab.models)
+
+            PromptTemplatesWorkspace {
+                withAnimation(.spring(response: 0.28, dampingFraction: 0.84)) {
+                    selectedTab = .chat
+                }
+            }
+            .tag(WorkspaceTab.prompts)
+
+            SettingsWorkspace(
+                themeMode: themeMode,
+                wallpaperData: wallpaperImageData,
+                toggleTheme: {
+                    withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
+                        themeModeStorage = themeMode.toggled.rawValue
+                    }
+                },
+                setWallpaperData: { data in
+                    wallpaperImageData = data
+                },
+                clearWallpaper: {
+                    wallpaperImageData = Data()
+                }
+            )
+            .tag(WorkspaceTab.settings)
+        }
+        .tabViewStyle(.page(indexDisplayMode: .never))
+    }
+
+    @ViewBuilder
+    private func workspacePageContent(themeMode: AppThemeMode) -> some View {
+        switch selectedTab {
+        case .chat:
+            ChatWorkspace()
+        case .models:
+            ModelLibraryView()
+        case .prompts:
+            PromptTemplatesWorkspace {
+                withAnimation(.spring(response: 0.28, dampingFraction: 0.84)) {
+                    selectedTab = .chat
+                }
+            }
+        case .settings:
+            SettingsWorkspace(
+                themeMode: themeMode,
+                wallpaperData: wallpaperImageData,
+                toggleTheme: {
+                    withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
+                        themeModeStorage = themeMode.toggled.rawValue
+                    }
+                },
+                setWallpaperData: { data in
+                    wallpaperImageData = data
+                },
+                clearWallpaper: {
+                    wallpaperImageData = Data()
+                }
+            )
+        }
+    }
+
+    private var tabPicker: some View {
+        let theme = currentTheme
+
+        return HStack(spacing: 8) {
+            ForEach(WorkspaceTab.allCases) { tab in
+                Button {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.82)) {
+                        selectedTab = tab
+                    }
+                } label: {
+                    Label(tab.title, systemImage: tab.icon)
+                        .font(.system(size: 13, weight: .semibold))
+                        .labelStyle(.titleAndIcon)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background {
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(selectedTab == tab ? theme.accent.opacity(0.18) : theme.chipSurface)
+                                .overlay {
+                                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                        .stroke(selectedTab == tab ? theme.accent.opacity(0.58) : theme.subtleBorder, lineWidth: 1)
+                                }
+                        }
+                        .foregroundStyle(selectedTab == tab ? theme.primaryText : theme.secondaryText)
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("workspace-tab-\(tab.rawValue)")
+            }
+        }
+    }
+
+    private var sidebarTabPicker: some View {
+        let theme = currentTheme
+
+        return VStack(spacing: 8) {
+            ForEach(WorkspaceTab.allCases) { tab in
+                Button {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.82)) {
+                        selectedTab = tab
+                    }
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: tab.icon)
+                            .font(.system(size: 15, weight: .bold))
+                            .frame(width: 24)
+                        Text(tab.title)
+                            .font(.system(size: 14, weight: .black))
+                        Spacer()
+                        if selectedTab == tab {
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 11, weight: .black))
+                        }
+                    }
+                    .foregroundStyle(selectedTab == tab ? theme.inverseText : theme.primaryText)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 11)
+                    .background(selectedTab == tab ? theme.accent : theme.chipSurface, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 13, style: .continuous)
+                            .stroke(selectedTab == tab ? theme.accent.opacity(0.6) : theme.border, lineWidth: 1)
+                    }
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("workspace-sidebar-tab-\(tab.rawValue)")
+            }
+        }
+    }
+}
+
+enum WorkspaceTab: String, CaseIterable, Identifiable {
+    case chat
+    case models
+    case prompts
+    case settings
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .chat:
+            return "推理"
+        case .models:
+            return "模型"
+        case .prompts:
+            return "提示词"
+        case .settings:
+            return "设置"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .chat:
+            return "bubble.left.and.text.bubble.right.fill"
+        case .models:
+            return "square.stack.3d.up.fill"
+        case .prompts:
+            return "text.badge.plus"
+        case .settings:
+            return "gearshape.fill"
+        }
+    }
+}
+
+struct AppBackground: View {
+    let theme: AppThemePalette
+    var wallpaperData: Data = Data()
+
+    var body: some View {
+        ZStack {
+            if let image = UIImage(data: wallpaperData) {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .overlay {
+                        LinearGradient(
+                            colors: [
+                                (theme.isDark ? Color.black : Color.white).opacity(theme.isDark ? 0.64 : 0.58),
+                                (theme.isDark ? Color.black : Color.white).opacity(theme.isDark ? 0.42 : 0.44)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    }
+            } else {
+                LinearGradient(
+                    colors: theme.backgroundColors,
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            }
+        }
+        .ignoresSafeArea()
+        .overlay(alignment: .topTrailing) {
+            LinearGradient(
+                colors: [theme.accent.opacity(theme.isDark ? 0.18 : 0.22), Color.clear],
+                startPoint: .topTrailing,
+                endPoint: .bottomLeading
+            )
+            .frame(height: 280)
+            .rotationEffect(.degrees(-12))
+            .allowsHitTesting(false)
+        }
+        .overlay(alignment: .bottomLeading) {
+            LinearGradient(
+                colors: [theme.success.opacity(theme.isDark ? 0.11 : 0.14), Color.clear],
+                startPoint: .bottomLeading,
+                endPoint: .topTrailing
+            )
+            .frame(height: 260)
+            .rotationEffect(.degrees(10))
+            .allowsHitTesting(false)
+        }
+        .overlay {
+            GridTexture(color: theme.grid)
+                .opacity(theme.isDark ? 0.18 : 0.28)
+                .ignoresSafeArea()
+        }
+    }
+}
+
+struct GridTexture: View {
+    let color: Color
+
+    var body: some View {
+        Canvas { context, size in
+            let spacing: CGFloat = 28
+            var path = Path()
+
+            var x: CGFloat = 0
+            while x <= size.width {
+                path.move(to: CGPoint(x: x, y: 0))
+                path.addLine(to: CGPoint(x: x, y: size.height))
+                x += spacing
+            }
+
+            var y: CGFloat = 0
+            while y <= size.height {
+                path.move(to: CGPoint(x: 0, y: y))
+                path.addLine(to: CGPoint(x: size.width, y: y))
+                y += spacing
+            }
+
+            context.stroke(path, with: .color(color), lineWidth: 0.35)
+        }
+    }
+}
+
+struct HeaderView: View {
+    @Environment(\.appTheme) private var theme
+
+    let model: LocalModel
+    let readiness: Double
+    let tokensPerSecond: Double
+    let memoryUsageMB: Int
+    let backend: ComputeBackend
+    let availability: ArtifactAvailability
+    let isGenerating: Bool
+    let isSimulated: Bool
+    let themeMode: AppThemeMode
+    let toggleTheme: () -> Void
+    let showModels: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .center, spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("LOCAL GEMMA")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(theme.accent)
+                        .tracking(1.2)
+
+                    Text("iPhone 端侧大模型")
+                        .font(.system(size: 27, weight: .heavy, design: .rounded))
+                        .foregroundStyle(theme.primaryText)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.84)
+                }
+
+                Spacer()
+
+                Button(action: toggleTheme) {
+                    Image(systemName: themeMode.icon)
+                        .font(.system(size: 17, weight: .bold))
+                        .frame(width: 42, height: 42)
+                        .background(theme.chipSurface, in: Circle())
+                        .overlay(Circle().stroke(theme.border, lineWidth: 1))
+                        .foregroundStyle(theme.primaryText)
+                }
+                .accessibilityLabel("Toggle theme")
+
+                Button(action: showModels) {
+                    Image(systemName: "square.stack.3d.up.fill")
+                        .font(.system(size: 17, weight: .bold))
+                        .frame(width: 42, height: 42)
+                        .background(theme.accent.opacity(0.2), in: Circle())
+                        .overlay(Circle().stroke(theme.accent.opacity(0.45), lineWidth: 1))
+                        .foregroundStyle(theme.primaryText)
+                }
+                .accessibilityLabel("Open model library")
+            }
+
+            ModelCapsule(
+                model: model,
+                readiness: readiness,
+                tokensPerSecond: tokensPerSecond,
+                memoryUsageMB: memoryUsageMB,
+                backend: backend,
+                availability: availability,
+                isGenerating: isGenerating,
+                isSimulated: isSimulated
+            )
+        }
+    }
+}
+
+struct ModelCapsule: View {
+    @Environment(\.appTheme) private var theme
+
+    let model: LocalModel
+    let readiness: Double
+    let tokensPerSecond: Double
+    let memoryUsageMB: Int
+    let backend: ComputeBackend
+    let availability: ArtifactAvailability
+    let isGenerating: Bool
+    let isSimulated: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 11) {
+            HStack(spacing: 12) {
+                ZStack {
+                    Circle()
+                        .fill(theme.accent.opacity(0.18))
+                    Image(systemName: "bolt.horizontal.circle.fill")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(theme.accent)
+                }
+                .frame(width: 42, height: 42)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 6) {
+                        Text(model.name)
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundStyle(theme.primaryText)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+
+                        StatusBadge(state: model.installState)
+
+                        Text(isSimulated ? "SIM" : "REAL")
+                            .font(.system(size: 9, weight: .black))
+                            .foregroundStyle(isSimulated ? theme.accent : theme.success)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 3)
+                            .background((isSimulated ? theme.accent : theme.success).opacity(0.13), in: Capsule())
+                    }
+
+                    Text(statusText)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(theme.secondaryText)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.78)
+                }
+
+                Spacer(minLength: 0)
+
+                ReadinessRing(progress: readiness)
+                    .frame(width: 54, height: 54)
+            }
+
+            HStack(spacing: 8) {
+                HeaderMetricChip(title: "速度", value: String(format: "%.1f tok/s", tokensPerSecond), icon: "speedometer", tint: theme.accent)
+                HeaderMetricChip(title: "内存", value: compactMemoryValue, icon: "memorychip.fill", tint: theme.success)
+                HeaderMetricChip(title: backend.shortTitle, value: availabilityMetricValue, icon: availabilityIcon, tint: statusTint)
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .stroke(theme.border, lineWidth: 1)
+        }
+    }
+
+    private var compactMemoryValue: String {
+        memoryUsageMB >= 1000
+            ? String(format: "%.1fG", Double(memoryUsageMB) / 1000)
+            : "\(memoryUsageMB)M"
+    }
+
+    private var availabilityMetricValue: String {
+        if isGenerating {
+            return "生成中"
+        }
+
+        switch availability {
+        case .missing:
+            return "待导入"
+        case .staged:
+            return "待校验"
+        case .verified:
+            return "已就绪"
+        }
+    }
+
+    private var statusText: String {
+        if isGenerating {
+            return "\(backend.title) 正在流式输出"
+        }
+
+        switch availability {
+        case .missing:
+            return "\(model.parameterCount) · \(model.quantization) · 本地模拟"
+        case .staged:
+            return "\(model.parameterCount) · 文件暂存，等待校验"
+        case .verified:
+            return "\(backend.title) 已准备好"
+        }
+    }
+
+    private var statusTint: Color {
+        if isGenerating {
+            return theme.success
+        }
+
+        switch availability {
+        case .missing:
+            return theme.warning
+        case .staged:
+            return theme.accent
+        case .verified:
+            return theme.success
+        }
+    }
+
+    private var availabilityIcon: String {
+        if isGenerating {
+            return "bolt.fill"
+        }
+
+        switch availability {
+        case .missing:
+            return "tray"
+        case .staged:
+            return "checkmark.seal"
+        case .verified:
+            return "checkmark.seal.fill"
+        }
+    }
+}
+
+struct HeaderMetricChip: View {
+    @Environment(\.appTheme) private var theme
+
+    let title: String
+    let value: String
+    let icon: String
+    let tint: Color
+
+    var body: some View {
+        HStack(spacing: 7) {
+            Image(systemName: icon)
+                .font(.system(size: 11, weight: .black))
+                .foregroundStyle(tint)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title)
+                    .font(.system(size: 8, weight: .black))
+                    .foregroundStyle(theme.tertiaryText)
+                Text(value)
+                    .font(.system(size: 11, weight: .heavy, design: .rounded))
+                    .foregroundStyle(theme.primaryText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+            }
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, minHeight: 36)
+        .padding(.horizontal, 9)
+        .padding(.vertical, 6)
+        .background(theme.recessedSurface, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+    }
+}
+
+struct StatusBadge: View {
+    let state: ModelInstallState
+
+    var body: some View {
+        Text(state.title)
+            .font(.system(size: 9, weight: .black))
+            .textCase(.uppercase)
+            .foregroundStyle(state.tint)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 3)
+            .background(state.tint.opacity(0.12), in: Capsule())
+            .overlay(Capsule().stroke(state.tint.opacity(0.35), lineWidth: 1))
+    }
+}
+
+struct ReadinessRing: View {
+    @Environment(\.appTheme) private var theme
+    let progress: Double
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .stroke(theme.border.opacity(0.7), lineWidth: 7)
+            Circle()
+                .trim(from: 0, to: min(max(progress, 0), 1))
+                .stroke(
+                    AngularGradient(colors: [.cyan, .green, .blue, .cyan], center: .center),
+                    style: StrokeStyle(lineWidth: 7, lineCap: .round)
+                )
+                .rotationEffect(.degrees(-90))
+
+            VStack(spacing: 1) {
+                Text("\(Int(progress * 100))")
+                    .font(.system(size: 15, weight: .black, design: .rounded))
+                    .foregroundStyle(theme.primaryText)
+                Text("READY")
+                    .font(.system(size: 7, weight: .bold))
+                    .foregroundStyle(theme.secondaryText)
+            }
+        }
+        .frame(width: 66, height: 66)
+        .accessibilityLabel("Deployment readiness \(Int(progress * 100)) percent")
+    }
+}
+
+struct ChatWorkspace: View {
+    @EnvironmentObject private var catalog: ModelCatalog
+    @EnvironmentObject private var inference: InferenceEngine
+    @Environment(\.appTheme) private var theme
+    @State private var exportPayload: ExportPayload?
+
+    var body: some View {
+        GeometryReader { proxy in
+            let layoutMode = WorkspaceLayoutMode.resolve(for: proxy.size)
+            let isLandscape = layoutMode.usesSidebar
+
+            if isLandscape {
+                HStack(spacing: 0) {
+                    SessionBar(
+                        sessions: inference.sessions,
+                        activeSessionID: inference.activeSessionID,
+                        layout: .vertical,
+                        create: {
+                            inference.createSession()
+                        },
+                        select: { session in
+                            inference.selectSession(session)
+                        },
+                        delete: { session in
+                            inference.deleteSession(session)
+                        },
+                        export: prepareExport
+                    )
+                    .padding(14)
+                    .frame(width: min(max(proxy.size.width * 0.28, 240), 310))
+                    .background(.ultraThinMaterial)
+                    .overlay(alignment: .trailing) {
+                        Rectangle()
+                            .fill(theme.border)
+                            .frame(width: 1)
+                    }
+
+                    chatSurface
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            } else {
+                VStack(spacing: 10) {
+                    SessionBar(
+                        sessions: inference.sessions,
+                        activeSessionID: inference.activeSessionID,
+                        layout: .horizontal,
+                        create: {
+                            inference.createSession()
+                        },
+                        select: { session in
+                            inference.selectSession(session)
+                        },
+                        delete: { session in
+                            inference.deleteSession(session)
+                        },
+                        export: prepareExport
+                    )
+                    .padding(.horizontal, 18)
+                    .padding(.top, 12)
+
+                    chatSurface
+                }
+            }
+        }
+        .sheet(item: $exportPayload) { payload in
+            ExportSessionView(payload: payload)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+        }
+    }
+
+    private var chatSurface: some View {
+        let selectedModel = catalog.selectedModel
+        let selectedValidation = catalog.validation(for: catalog.selectedModel)
+
+        return VStack(spacing: 10) {
+            ChatTranscript(messages: inference.messages)
+
+            ComposerBar(
+                text: $inference.inputText,
+                isGenerating: inference.isGenerating,
+                send: {
+                    inference.send(
+                        using: selectedModel,
+                        availability: selectedValidation.availability
+                    )
+                },
+                stop: inference.stop
+            )
+            .padding(.horizontal, 18)
+            .padding(.bottom, 12)
+        }
+    }
+
+    private func prepareExport() {
+        let selectedModel = catalog.selectedModel
+        let activeSession = inference.activeSession
+        let fileURL = try? inference.exportActiveSessionMarkdownFile(modelName: selectedModel.name)
+        exportPayload = ExportPayload(
+            title: activeSession?.title ?? "会话",
+            messageCount: activeSession?.messages.count ?? inference.messages.count,
+            text: inference.exportActiveSessionText(modelName: selectedModel.name),
+            fileURL: fileURL
+        )
+    }
+}
+
+struct ExportPayload: Identifiable {
+    let id = UUID()
+    let title: String
+    let messageCount: Int
+    let text: String
+    let fileURL: URL?
+
+    var existingFileURL: URL? {
+        guard let fileURL, FileManager.default.fileExists(atPath: fileURL.path) else {
+            return nil
+        }
+        return fileURL
+    }
+}
+
+enum SessionBarLayout {
+    case horizontal
+    case vertical
+}
+
+struct SessionBar: View {
+    @Environment(\.appTheme) private var theme
+
+    let sessions: [ChatSession]
+    let activeSessionID: UUID
+    var layout: SessionBarLayout = .horizontal
+    let create: () -> Void
+    let select: (ChatSession) -> Void
+    let delete: (ChatSession) -> Void
+    let export: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                Label("会话", systemImage: "clock.arrow.circlepath")
+                    .font(.system(size: 14, weight: .black))
+                    .foregroundStyle(theme.primaryText)
+
+                Spacer(minLength: 0)
+
+                Button(action: export) {
+                    Image(systemName: "square.and.arrow.up.fill")
+                        .font(.system(size: 13, weight: .black))
+                        .frame(width: 34, height: 34)
+                        .background(theme.chipSurface, in: Circle())
+                        .overlay(Circle().stroke(theme.border, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(theme.primaryText)
+                .accessibilityLabel("Export conversation")
+
+                Button(action: create) {
+                    Image(systemName: "plus.message.fill")
+                        .font(.system(size: 13, weight: .black))
+                        .frame(width: 34, height: 34)
+                        .background(theme.accent, in: Circle())
+                        .foregroundStyle(theme.inverseText)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("New conversation")
+            }
+
+            sessionList
+        }
+    }
+
+    @ViewBuilder
+    private var sessionList: some View {
+        if layout == .vertical {
+            ScrollView {
+                LazyVStack(spacing: 8) {
+                    ForEach(sessions) { session in
+                        SessionChip(
+                            session: session,
+                            isActive: session.id == activeSessionID,
+                            layout: .vertical,
+                            select: { select(session) },
+                            delete: { delete(session) }
+                        )
+                    }
+                }
+            }
+            .scrollIndicators(.hidden)
+        } else {
+            ScrollView(.horizontal) {
+                HStack(spacing: 8) {
+                    ForEach(sessions) { session in
+                        SessionChip(
+                            session: session,
+                            isActive: session.id == activeSessionID,
+                            layout: .horizontal,
+                            select: { select(session) },
+                            delete: { delete(session) }
+                        )
+                    }
+                }
+            }
+            .scrollIndicators(.hidden)
+        }
+    }
+}
+
+struct SessionChip: View {
+    @Environment(\.appTheme) private var theme
+
+    let session: ChatSession
+    let isActive: Bool
+    var layout: SessionBarLayout = .horizontal
+    let select: () -> Void
+    let delete: () -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Button(action: select) {
+                HStack(spacing: 7) {
+                    Image(systemName: isActive ? "message.fill" : "message")
+                        .font(.system(size: 11, weight: .bold))
+                    Text(session.title)
+                        .font(.system(size: 12, weight: .black))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.76)
+                    if layout == .vertical {
+                        Spacer(minLength: 0)
+                    }
+                }
+                .frame(maxWidth: layout == .vertical ? .infinity : 160, alignment: .leading)
+                .foregroundStyle(isActive ? theme.inverseText : theme.primaryText)
+            }
+            .buttonStyle(.plain)
+
+            Button(action: delete) {
+                Image(systemName: "trash.fill")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(isActive ? theme.inverseText.opacity(0.82) : theme.warning)
+            }
+            .buttonStyle(.plain)
+            .disabled(isActive && session.messages.count <= 2 && session.title == "新对话")
+            .opacity(isActive && session.messages.count <= 2 && session.title == "新对话" ? 0.32 : 1)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .frame(maxWidth: layout == .vertical ? .infinity : nil, alignment: .leading)
+        .background(isActive ? theme.accent : theme.chipSurface, in: Capsule())
+        .overlay(Capsule().stroke(isActive ? theme.accent.opacity(0.7) : theme.border, lineWidth: 1))
+    }
+}
+
+struct ChatTranscript: View {
+    let messages: [ChatMessage]
+
+    var body: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(spacing: 12) {
+                    ForEach(messages) { message in
+                        ChatBubble(message: message)
+                            .id(message.id)
+                    }
+                }
+                .padding(.horizontal, 18)
+                .padding(.vertical, 10)
+            }
+            .scrollIndicators(.hidden)
+            .onChange(of: messages) { _, messages in
+                guard let last = messages.last else { return }
+                withAnimation(.easeOut(duration: 0.22)) {
+                    proxy.scrollTo(last.id, anchor: .bottom)
+                }
+            }
+        }
+    }
+}
+
+struct ExportSessionView: View {
+    @Environment(\.appTheme) private var theme
+    let payload: ExportPayload
+    @State private var didCopyText = false
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                HStack(spacing: 12) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(theme.accent.opacity(0.16))
+                        Image(systemName: "doc.text.fill")
+                            .font(.system(size: 20, weight: .black))
+                            .foregroundStyle(theme.accent)
+                    }
+                    .frame(width: 48, height: 48)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(payload.title)
+                            .font(.system(size: 17, weight: .black, design: .rounded))
+                            .foregroundStyle(theme.primaryText)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.76)
+                        Text("\(payload.messageCount) 条消息 · Markdown")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(theme.secondaryText)
+                    }
+
+                    Spacer()
+                }
+                .padding(18)
+                .background(.ultraThinMaterial)
+
+                ScrollView {
+                    Text(payload.text)
+                        .font(.system(size: 13, weight: .medium, design: .monospaced))
+                        .foregroundStyle(theme.primaryText)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .textSelection(.enabled)
+                        .padding(18)
+                }
+
+                VStack(spacing: 10) {
+                    if let fileURL = payload.existingFileURL {
+                        ShareLink(item: fileURL) {
+                            Label("分享 Markdown 文件", systemImage: "square.and.arrow.up.fill")
+                                .font(.system(size: 15, weight: .black))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 14)
+                                .background(theme.accent, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                                .foregroundStyle(theme.inverseText)
+                        }
+                        .buttonStyle(.plain)
+                    } else {
+                        ShareLink(item: payload.text) {
+                            Label("分享文本内容", systemImage: "text.quote")
+                                .font(.system(size: 15, weight: .black))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 14)
+                                .background(theme.accent, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                                .foregroundStyle(theme.inverseText)
+                        }
+                        .buttonStyle(.plain)
+                    }
+
+                    Button {
+                        UIPasteboard.general.string = payload.text
+                        withAnimation(.spring(response: 0.26, dampingFraction: 0.82)) {
+                            didCopyText = true
+                        }
+                    } label: {
+                        Label(didCopyText ? "已复制" : "复制全文", systemImage: didCopyText ? "checkmark.circle.fill" : "doc.on.doc.fill")
+                            .font(.system(size: 13, weight: .black))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(theme.chipSurface, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 13, style: .continuous)
+                                    .stroke(theme.border, lineWidth: 1)
+                            }
+                            .foregroundStyle(theme.primaryText)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 18)
+                .padding(.vertical, 12)
+                .background(.ultraThinMaterial)
+            }
+            .background(AppBackground(theme: theme))
+            .navigationTitle("导出会话")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    if let fileURL = payload.existingFileURL {
+                        ShareLink(item: fileURL) {
+                            Image(systemName: "square.and.arrow.up.fill")
+                        }
+                    } else {
+                        ShareLink(item: payload.text) {
+                            Image(systemName: "text.quote")
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+struct ChatBubble: View {
+    @Environment(\.appTheme) private var theme
+    let message: ChatMessage
+
+    var body: some View {
+        HStack(alignment: .bottom, spacing: 8) {
+            if message.role == .user {
+                Spacer(minLength: 40)
+            }
+
+            VStack(alignment: bubbleAlignment, spacing: 6) {
+                Text(roleTitle)
+                    .font(.system(size: 10, weight: .black))
+                    .foregroundStyle(roleTint.opacity(0.82))
+
+                Text(message.text.isEmpty ? "正在生成..." : message.text)
+                    .font(.system(size: 15, weight: .medium))
+                    .lineSpacing(4)
+                    .foregroundStyle(message.role == .system ? theme.secondaryText : theme.primaryText)
+                    .textSelection(.enabled)
+
+                HStack(spacing: 4) {
+                    Image(systemName: "number")
+                        .font(.system(size: 9, weight: .bold))
+                Text("\(message.tokens) tokens")
+                    .font(.system(size: 10, weight: .semibold))
+            }
+                .foregroundStyle(theme.tertiaryText)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .background(bubbleBackground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(roleTint.opacity(message.role == .system ? 0.12 : 0.32), lineWidth: 1)
+            }
+            .frame(maxWidth: message.role == .user ? 310 : .infinity, alignment: message.role == .user ? .trailing : .leading)
+
+            if message.role != .user {
+                Spacer(minLength: 24)
+            }
+        }
+    }
+
+    private var roleTitle: String {
+        switch message.role {
+        case .user:
+            return "你"
+        case .assistant:
+            return "本地模型"
+        case .system:
+            return "状态"
+        }
+    }
+
+    private var roleTint: Color {
+        switch message.role {
+        case .user:
+            return .green
+        case .assistant:
+            return .cyan
+        case .system:
+            return .orange
+        }
+    }
+
+    private var bubbleAlignment: HorizontalAlignment {
+        message.role == .user ? .trailing : .leading
+    }
+
+    private var bubbleBackground: some ShapeStyle {
+        switch message.role {
+        case .user:
+            return LinearGradient(colors: [theme.success.opacity(theme.isDark ? 0.28 : 0.16), theme.accent.opacity(theme.isDark ? 0.18 : 0.14)], startPoint: .topLeading, endPoint: .bottomTrailing)
+        case .assistant:
+            return LinearGradient(colors: [theme.surface, theme.accent.opacity(theme.isDark ? 0.08 : 0.1)], startPoint: .topLeading, endPoint: .bottomTrailing)
+        case .system:
+            return LinearGradient(colors: [theme.warning.opacity(0.12), theme.surface], startPoint: .topLeading, endPoint: .bottomTrailing)
+        }
+    }
+}
+
+struct PromptTemplatesWorkspace: View {
+    @EnvironmentObject private var catalog: ModelCatalog
+    @EnvironmentObject private var inference: InferenceEngine
+    @Environment(\.appTheme) private var theme
+    @State private var selectedCategory: PromptTemplateCategory?
+
+    let openChat: () -> Void
+
+    var body: some View {
+        let model = catalog.selectedModel
+        let validation = catalog.validation(for: model)
+        let templates = PromptTemplateLibrary.templates(in: selectedCategory)
+
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                SectionHeader(
+                    eyebrow: "PROMPTS",
+                    title: "预设提示词",
+                    subtitle: "把常用本地部署、隐私、安全和产品表达整理成可复用模板。"
+                )
+
+                PromptCategorySelector(selectedCategory: $selectedCategory)
+
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 230), spacing: 12)], alignment: .leading, spacing: 12) {
+                    ForEach(templates) { template in
+                        PromptTemplateCard(
+                            template: template,
+                            isGenerating: inference.isGenerating,
+                            apply: {
+                                inference.applyTemplate(template)
+                                openChat()
+                            },
+                            send: {
+                                inference.useTemplate(
+                                    template,
+                                    model: model,
+                                    availability: validation.availability
+                                )
+                                openChat()
+                            }
+                        )
+                    }
+                }
+            }
+            .padding(.horizontal, 18)
+            .padding(.top, 16)
+            .padding(.bottom, 28)
+        }
+        .scrollIndicators(.hidden)
+    }
+}
+
+struct PromptCategorySelector: View {
+    @Environment(\.appTheme) private var theme
+    @Binding var selectedCategory: PromptTemplateCategory?
+
+    var body: some View {
+        ScrollView(.horizontal) {
+            HStack(spacing: 8) {
+                categoryButton(title: "全部", icon: "square.grid.2x2.fill", isSelected: selectedCategory == nil) {
+                    selectedCategory = nil
+                }
+
+                ForEach(PromptTemplateCategory.allCases) { category in
+                    categoryButton(title: category.title, icon: category.icon, isSelected: selectedCategory == category) {
+                        selectedCategory = category
+                    }
+                }
+            }
+        }
+        .scrollIndicators(.hidden)
+    }
+
+    private func categoryButton(title: String, icon: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: icon)
+                .font(.system(size: 11, weight: .black))
+                .labelStyle(.titleAndIcon)
+                .foregroundStyle(isSelected ? theme.inverseText : theme.secondaryText)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 7)
+                .background(isSelected ? theme.accent : theme.chipSurface, in: Capsule())
+                .overlay(Capsule().stroke(isSelected ? theme.accent.opacity(0.7) : theme.border, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+struct PromptTemplateCard: View {
+    @Environment(\.appTheme) private var theme
+
+    let template: PresetPromptTemplate
+    let isGenerating: Bool
+    let apply: () -> Void
+    let send: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 11) {
+            HStack(alignment: .top, spacing: 10) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(template.category.accentColor.opacity(0.16))
+                    Image(systemName: template.icon)
+                        .font(.system(size: 17, weight: .black))
+                        .foregroundStyle(template.category.accentColor)
+                }
+                .frame(width: 38, height: 38)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(template.title)
+                        .font(.system(size: 15, weight: .black, design: .rounded))
+                        .foregroundStyle(theme.primaryText)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.78)
+                    Text(template.subtitle)
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(theme.tertiaryText)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                }
+
+                Spacer(minLength: 0)
+
+                Text(template.category.title)
+                    .font(.system(size: 9, weight: .black))
+                    .foregroundStyle(template.category.accentColor)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 4)
+                    .background(template.category.accentColor.opacity(0.12), in: Capsule())
+            }
+
+            Text(template.prompt)
+                .font(.system(size: 11, weight: .semibold))
+                .lineSpacing(2)
+                .foregroundStyle(theme.secondaryText)
+                .lineLimit(3)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Spacer(minLength: 0)
+
+            HStack(spacing: 8) {
+                Button(action: apply) {
+                    Label("填入", systemImage: "text.cursor")
+                        .font(.system(size: 11, weight: .black))
+                        .foregroundStyle(theme.primaryText)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 9)
+                        .background(template.category.accentColor.opacity(0.18), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .stroke(template.category.accentColor.opacity(0.34), lineWidth: 1)
+                        }
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Apply \(template.title) template")
+
+                Button(action: send) {
+                    Image(systemName: "paperplane.fill")
+                        .font(.system(size: 12, weight: .black))
+                        .frame(width: 36, height: 34)
+                        .background(template.category.accentColor, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .foregroundStyle(theme.inverseText)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Send \(template.title) template")
+            }
+        }
+        .foregroundStyle(theme.primaryText)
+        .padding(13)
+        .frame(width: 230, alignment: .topLeading)
+        .frame(minHeight: 168, alignment: .topLeading)
+        .background(templateBackground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(template.category.accentColor.opacity(0.24), lineWidth: 1)
+        }
+        .disabled(isGenerating)
+        .opacity(isGenerating ? 0.5 : 1)
+    }
+
+    private var templateBackground: some ShapeStyle {
+        LinearGradient(
+            colors: [
+                Color.white.opacity(0.1),
+                template.category.accentColor.opacity(0.09),
+                theme.isDark ? Color.black.opacity(0.18) : Color.white.opacity(0.82)
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+}
+
+struct ComposerBar: View {
+    @Environment(\.appTheme) private var theme
+
+    @Binding var text: String
+    let isGenerating: Bool
+    let send: () -> Void
+    let stop: () -> Void
+
+    var body: some View {
+        HStack(alignment: .bottom, spacing: 10) {
+            HStack(alignment: .bottom, spacing: 10) {
+                Image(systemName: "bubble.left.and.text.bubble.right.fill")
+                    .font(.system(size: 15, weight: .black))
+                    .foregroundStyle(theme.accent)
+                    .frame(width: 24, height: 24)
+                    .padding(.bottom, 10)
+
+                TextField("问本地模型任何问题", text: $text, axis: .vertical)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(theme.primaryText)
+                    .lineLimit(1...4)
+                    .padding(.vertical, 12)
+            }
+            .padding(.horizontal, 13)
+            .background(theme.recessedSurface, in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 17, style: .continuous)
+                    .stroke(theme.border, lineWidth: 1)
+            }
+
+            Button {
+                isGenerating ? stop() : send()
+            } label: {
+                Image(systemName: isGenerating ? "stop.fill" : "arrow.up")
+                    .font(.system(size: 16, weight: .black))
+                    .frame(width: 48, height: 48)
+                    .background(isGenerating ? Color.red.opacity(0.9) : theme.accent, in: Circle())
+                    .foregroundStyle(theme.inverseText)
+            }
+            .buttonStyle(.plain)
+            .disabled(isSendDisabled)
+            .opacity(isSendDisabled ? 0.55 : 1)
+            .accessibilityLabel(isGenerating ? "Stop generation" : "Send prompt")
+        }
+        .padding(8)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .stroke(isGenerating ? theme.success.opacity(0.32) : theme.accent.opacity(0.18), lineWidth: 1)
+        }
+    }
+
+    private var isSendDisabled: Bool {
+        text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && isGenerating == false
+    }
+}
+
+struct ModelLibraryView: View {
+    @EnvironmentObject private var catalog: ModelCatalog
+    var isModal = false
+    @State private var importTargetModel: LocalModel?
+    @State private var isShowingFileImporter = false
+    @State private var operationErrorTitle = "操作失败"
+    @State private var operationErrorMessage: String?
+
+    var body: some View {
+        ZStack {
+            if isModal {
+                Color(red: 0.045, green: 0.047, blue: 0.055).ignoresSafeArea()
+            }
+
+            GeometryReader { proxy in
+                ScrollView {
+                    deploymentContent(size: proxy.size)
+                        .padding(.horizontal, 18)
+                        .padding(.top, isModal ? 22 : 16)
+                        .padding(.bottom, 28)
+                }
+                .scrollIndicators(.hidden)
+            }
+        }
+        .fileImporter(
+            isPresented: $isShowingFileImporter,
+            allowedContentTypes: [.item],
+            allowsMultipleSelection: true
+        ) { result in
+            handleImport(result)
+        }
+        .alert(
+            operationErrorTitle,
+            isPresented: Binding(
+                get: { operationErrorMessage != nil },
+                set: { isPresented in
+                    if isPresented == false {
+                        operationErrorMessage = nil
+                    }
+                }
+            )
+        ) {
+            Button("好", role: .cancel) {}
+        } message: {
+            Text(operationErrorMessage ?? "")
+        }
+    }
+
+    private var selectedModelID: Binding<UUID> {
+        Binding(
+            get: { catalog.selectedModel.id },
+            set: { id in
+                guard let model = catalog.models.first(where: { $0.id == id }) else { return }
+                withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+                    catalog.select(model)
+                }
+            }
+        )
+    }
+
+    @ViewBuilder
+    private func deploymentContent(size: CGSize) -> some View {
+        let model = catalog.selectedModel
+        let validation = catalog.validation(for: model)
+        let report = LocalRuntimePlanner.preparationReport(for: model, validation: validation)
+        let deploymentState = catalog.deploymentState(for: model)
+        let isLandscape = size.width > size.height && size.width > 620
+
+        VStack(alignment: .leading, spacing: 16) {
+            SectionHeader(
+                eyebrow: "MODEL DEPLOY",
+                title: "本地模型部署",
+                subtitle: "面向 iPhone 的端侧 runtime 控制台，集中管理权重、性能预算和启动状态。"
+            )
+
+            if isLandscape {
+                HStack(alignment: .top, spacing: 14) {
+                    VStack(spacing: 14) {
+                        ModelSelectorPanel(
+                            models: catalog.models,
+                            selectedModelID: selectedModelID,
+                            selectedModel: model,
+                            validation: validation,
+                            deploymentState: deploymentState
+                        )
+
+                        DeploymentPowerButton(
+                            model: model,
+                            validation: validation,
+                            deploymentState: deploymentState,
+                            toggle: { catalog.toggleDeployment(for: model) }
+                        )
+
+                        ArtifactActionPanel(
+                            validation: validation,
+                            download: { catalog.simulateDownload(for: model) },
+                            uninstall: { uninstall(model) },
+                            scan: { catalog.refreshArtifactStatus(for: model) },
+                            importFiles: {
+                                importTargetModel = model
+                                isShowingFileImporter = true
+                            }
+                        )
+                    }
+                    .frame(width: min(max(size.width * 0.36, 300), 390))
+
+                    VStack(spacing: 14) {
+                        ModelSummaryPanel(model: model, validation: validation)
+                        ModelParametersPanel(model: model)
+                        ModelPerformancePanel(model: model, validation: validation, report: report)
+                        ModelAdvicePanel(model: model, report: report)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+            } else {
+                ModelSelectorPanel(
+                    models: catalog.models,
+                    selectedModelID: selectedModelID,
+                    selectedModel: model,
+                    validation: validation,
+                    deploymentState: deploymentState
+                )
+
+                DeploymentPowerButton(
+                    model: model,
+                    validation: validation,
+                    deploymentState: deploymentState,
+                    toggle: { catalog.toggleDeployment(for: model) }
+                )
+
+                ArtifactActionPanel(
+                    validation: validation,
+                    download: { catalog.simulateDownload(for: model) },
+                    uninstall: { uninstall(model) },
+                    scan: { catalog.refreshArtifactStatus(for: model) },
+                    importFiles: {
+                        importTargetModel = model
+                        isShowingFileImporter = true
+                    }
+                )
+
+                ModelSummaryPanel(model: model, validation: validation)
+                ModelParametersPanel(model: model)
+                ModelPerformancePanel(model: model, validation: validation, report: report)
+                ModelAdvicePanel(model: model, report: report)
+            }
+        }
+    }
+
+    private func handleImport(_ result: Result<[URL], Error>) {
+        defer {
+            importTargetModel = nil
+        }
+
+        guard let targetModel = importTargetModel else {
+            operationErrorTitle = "导入失败"
+            operationErrorMessage = "没有选中要导入的模型。"
+            return
+        }
+
+        do {
+            let urls = try result.get()
+            try catalog.importArtifacts(for: targetModel, sourceURLs: urls)
+        } catch let error as ArtifactImportError {
+            operationErrorTitle = "导入失败"
+            operationErrorMessage = error.message
+        } catch {
+            operationErrorTitle = "导入失败"
+            operationErrorMessage = error.localizedDescription
+        }
+    }
+
+    private func uninstall(_ model: LocalModel) {
+        do {
+            try catalog.uninstallArtifacts(for: model)
+        } catch {
+            operationErrorTitle = "卸载失败"
+            operationErrorMessage = error.localizedDescription
+        }
+    }
+}
+
+struct ModelSelectorPanel: View {
+    @Environment(\.appTheme) private var theme
+
+    let models: [LocalModel]
+    @Binding var selectedModelID: UUID
+    let selectedModel: LocalModel
+    let validation: ArtifactValidationResult
+    let deploymentState: ModelDeploymentState
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 10) {
+                Label("选择模型", systemImage: "slider.horizontal.3")
+                    .font(.system(size: 14, weight: .black))
+                    .foregroundStyle(theme.primaryText)
+
+                Spacer()
+
+                Text("\(models.count) 个候选")
+                    .font(.system(size: 10, weight: .black))
+                    .foregroundStyle(theme.tertiaryText)
+            }
+
+            Picker(selection: $selectedModelID) {
+                ForEach(models) { model in
+                    Text(model.name).tag(model.id)
+                }
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: "chevron.down.circle.fill")
+                        .font(.system(size: 17, weight: .bold))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(selectedModel.name)
+                            .font(.system(size: 17, weight: .black, design: .rounded))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.74)
+                        Text("\(selectedModel.parameterCount) · \(selectedModel.quantization)")
+                            .font(.system(size: 11, weight: .semibold))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.74)
+                    }
+                    Spacer()
+                }
+            }
+            .pickerStyle(.menu)
+            .tint(theme.primaryText)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 12)
+            .background(theme.recessedSurface, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(theme.accent.opacity(0.24), lineWidth: 1)
+            }
+
+            HStack(spacing: 8) {
+                StatusBadge(state: selectedModel.installState)
+                AvailabilityBadge(availability: validation.availability)
+                DeploymentBadge(state: deploymentState)
+            }
+        }
+        .panelStyle(border: theme.accent.opacity(0.24))
+    }
+}
+
+struct AvailabilityBadge: View {
+    let availability: ArtifactAvailability
+
+    var body: some View {
+        Text(availability.title)
+            .font(.system(size: 9, weight: .black))
+            .textCase(.uppercase)
+            .foregroundStyle(tint)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 3)
+            .background(tint.opacity(0.12), in: Capsule())
+            .overlay(Capsule().stroke(tint.opacity(0.34), lineWidth: 1))
+    }
+
+    private var tint: Color {
+        switch availability {
+        case .missing:
+            return .orange
+        case .staged:
+            return .cyan
+        case .verified:
+            return .green
+        }
+    }
+}
+
+struct DeploymentBadge: View {
+    let state: ModelDeploymentState
+
+    var body: some View {
+        Text(state.title)
+            .font(.system(size: 9, weight: .black))
+            .textCase(.uppercase)
+            .foregroundStyle(state == .running ? .green : .white.opacity(0.58))
+            .padding(.horizontal, 6)
+            .padding(.vertical, 3)
+            .background((state == .running ? Color.green : Color.white).opacity(state == .running ? 0.14 : 0.08), in: Capsule())
+            .overlay(Capsule().stroke((state == .running ? Color.green : Color.white).opacity(0.26), lineWidth: 1))
+    }
+}
+
+struct DeploymentPowerButton: View {
+    let model: LocalModel
+    let validation: ArtifactValidationResult
+    let deploymentState: ModelDeploymentState
+    let toggle: () -> Void
+
+    private var isRunning: Bool {
+        deploymentState == .running
+    }
+
+    var body: some View {
+        Button(action: toggle) {
+            HStack(spacing: 14) {
+                ZStack {
+                    Circle()
+                        .fill(iconBackground)
+                    Image(systemName: isRunning ? "stop.fill" : "power")
+                        .font(.system(size: 25, weight: .black))
+                }
+                .frame(width: 58, height: 58)
+
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(isRunning ? "关闭模型部署" : "启动模型部署")
+                        .font(.system(size: 21, weight: .heavy, design: .rounded))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+                    Text(deploymentSubtitle)
+                        .font(.system(size: 12, weight: .bold))
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer(minLength: 0)
+
+                Image(systemName: isRunning ? "pause.circle.fill" : "play.circle.fill")
+                    .font(.system(size: 26, weight: .bold))
+                    .opacity(0.84)
+            }
+            .foregroundStyle(isRunning ? .white : .black)
+            .padding(16)
+            .frame(maxWidth: .infinity, minHeight: 92)
+            .background(buttonFill, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(isRunning ? Color.red.opacity(0.36) : Color.white.opacity(0.42), lineWidth: 1)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("model-deployment-power")
+    }
+
+    private var buttonFill: some ShapeStyle {
+        LinearGradient(
+            colors: isRunning
+                ? [Color.red.opacity(0.92), Color.orange.opacity(0.72)]
+                : [Color.cyan, Color.green.opacity(0.88)],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
+    private var iconBackground: Color {
+        isRunning ? Color.black.opacity(0.2) : Color.white.opacity(0.4)
+    }
+
+    private var deploymentSubtitle: String {
+        if isRunning {
+            return "\(model.name) 正在\(validation.availability == .verified ? "真实 runtime" : "模拟 runtime")运行"
+        }
+        return validation.availability == .verified
+            ? "已校验权重，启动后接入 \(model.deploymentProfile.primaryBackend.shortTitle)"
+            : "未校验权重，启动后走本地模拟部署"
+    }
+}
+
+struct ArtifactActionPanel: View {
+    @Environment(\.appTheme) private var theme
+
+    let validation: ArtifactValidationResult
+    let download: () -> Void
+    let uninstall: () -> Void
+    let scan: () -> Void
+    let importFiles: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("模型文件")
+                .font(.system(size: 14, weight: .black))
+                .foregroundStyle(theme.primaryText)
+
+            HStack(spacing: 10) {
+                ArtifactActionButton(
+                    title: "下载模型",
+                    subtitle: validation.availability == .missing ? "模拟暂存" : "重新暂存",
+                    icon: "arrow.down.circle.fill",
+                    isDestructive: false,
+                    action: download
+                )
+
+                ArtifactActionButton(
+                    title: "卸载模型",
+                    subtitle: "移除本地文件",
+                    icon: "trash.circle.fill",
+                    isDestructive: true,
+                    action: uninstall
+                )
+            }
+
+            HStack(spacing: 10) {
+                Button(action: scan) {
+                    Label("扫描本地", systemImage: "folder.badge.gearshape")
+                        .frame(maxWidth: .infinity)
+                }
+                .compactUtilityStyle()
+
+                Button(action: importFiles) {
+                    Label("导入文件", systemImage: "square.and.arrow.down.fill")
+                        .frame(maxWidth: .infinity)
+                }
+                .compactUtilityStyle()
+            }
+        }
+        .panelStyle()
+    }
+}
+
+struct ArtifactActionButton: View {
+    let title: String
+    let subtitle: String
+    let icon: String
+    let isDestructive: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 8) {
+                Image(systemName: icon)
+                    .font(.system(size: 23, weight: .black))
+                Spacer(minLength: 0)
+                Text(title)
+                    .font(.system(size: 15, weight: .black, design: .rounded))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.74)
+                Text(subtitle)
+                    .font(.system(size: 10, weight: .bold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.78)
+                    .opacity(0.68)
+            }
+            .foregroundStyle(isDestructive ? .white : .black)
+            .frame(maxWidth: .infinity, minHeight: 86, alignment: .leading)
+            .padding(12)
+            .background(
+                LinearGradient(
+                    colors: isDestructive
+                        ? [Color.red.opacity(0.88), Color.red.opacity(0.55)]
+                        : [Color.cyan, Color.green.opacity(0.78)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ),
+                in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+struct ModelSummaryPanel: View {
+    @Environment(\.appTheme) private var theme
+
+    let model: LocalModel
+    let validation: ArtifactValidationResult
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(iconFill)
+                    Image(systemName: model.family == "Gemma" ? "sparkles" : "cube.transparent.fill")
+                        .font(.system(size: 22, weight: .black))
+                        .foregroundStyle(model.family == "Gemma" ? theme.accent : theme.secondaryText)
+                }
+                .frame(width: 50, height: 50)
+
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(model.name)
+                        .font(.system(size: 19, weight: .heavy, design: .rounded))
+                        .foregroundStyle(theme.primaryText)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                    Text(model.summary)
+                        .font(.system(size: 12, weight: .medium))
+                        .lineSpacing(2)
+                        .foregroundStyle(theme.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer(minLength: 0)
+            }
+
+            FlowLayout(items: model.capabilities) { capability in
+                Text(capability)
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(theme.secondaryText)
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 6)
+                    .background(.white.opacity(0.08), in: Capsule())
+            }
+
+            Text(validation.summary)
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(theme.secondaryText)
+                .lineLimit(2)
+        }
+        .panelStyle(border: theme.border)
+    }
+
+    private var iconFill: some ShapeStyle {
+        LinearGradient(
+            colors: model.family == "Gemma"
+                ? [Color.cyan.opacity(0.22), Color.green.opacity(0.14)]
+                : [theme.surface, theme.chipSurface],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+}
+
+struct ModelParametersPanel: View {
+    let model: LocalModel
+
+    var body: some View {
+        DetailPanel(title: "参数", icon: "number.square.fill") {
+            DetailRow(title: "模型家族", value: model.family)
+            DetailRow(title: "参数规模", value: model.parameterCount)
+            DetailRow(title: "量化格式", value: model.quantization)
+            DetailRow(title: "上下文长度", value: "\(model.contextLength) tokens")
+            DetailRow(title: "文件格式", value: model.artifactManifest.fileFormat)
+            DetailRow(title: "包体大小", value: model.sizeOnDisk)
+        }
+    }
+}
+
+struct ModelPerformancePanel: View {
+    let model: LocalModel
+    let validation: ArtifactValidationResult
+    let report: RuntimePreparationReport
+
+    var body: some View {
+        DetailPanel(title: "性能", icon: "speedometer") {
+            DetailRow(title: "预计速度", value: String(format: "%.1f tok/s", model.tokensPerSecond))
+            DetailRow(title: "内存预算", value: model.memoryFootprint)
+            DetailRow(title: "主后端", value: report.activeBackend.title)
+            DetailRow(title: "回退后端", value: report.fallbackBackend.title)
+            DetailRow(title: "KV cache", value: model.deploymentProfile.kvCachePolicy)
+            DetailRow(title: "权重状态", value: validation.availability.title)
+        }
+    }
+}
+
+struct ModelAdvicePanel: View {
+    let model: LocalModel
+    let report: RuntimePreparationReport
+
+    var body: some View {
+        DetailPanel(title: "建议", icon: "lightbulb.fill") {
+            if report.blockers.isEmpty == false {
+                ForEach(report.blockers, id: \.self) { blocker in
+                    AdviceRow(text: blocker, icon: "exclamationmark.triangle.fill", tint: .orange)
+                }
+            }
+
+            ForEach(report.nextSteps, id: \.self) { step in
+                AdviceRow(text: step, icon: "checkmark.seal.fill", tint: .green)
+            }
+
+            AdviceRow(
+                text: "建议在 \(model.deploymentProfile.preferredChipClass) 上使用 \(model.deploymentProfile.thermalStrategy)。",
+                icon: "cpu.fill",
+                tint: .cyan
+            )
+        }
+    }
+}
+
+struct DetailPanel<Content: View>: View {
+    @Environment(\.appTheme) private var theme
+
+    let title: String
+    let icon: String
+    let content: Content
+
+    init(title: String, icon: String, @ViewBuilder content: () -> Content) {
+        self.title = title
+        self.icon = icon
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label(title, systemImage: icon)
+                .font(.system(size: 14, weight: .black))
+                .foregroundStyle(theme.primaryText)
+
+            VStack(spacing: 9) {
+                content
+            }
+        }
+        .panelStyle()
+    }
+}
+
+struct DetailRow: View {
+    @Environment(\.appTheme) private var theme
+
+    let title: String
+    let value: String
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Text(title)
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(theme.tertiaryText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.76)
+
+            Spacer(minLength: 12)
+
+            Text(value)
+                .font(.system(size: 12, weight: .black, design: .rounded))
+                .foregroundStyle(theme.primaryText)
+                .multilineTextAlignment(.trailing)
+                .lineLimit(2)
+                .minimumScaleFactor(0.72)
+        }
+        .frame(maxWidth: .infinity, minHeight: 24)
+    }
+}
+
+struct AdviceRow: View {
+    @Environment(\.appTheme) private var theme
+
+    let text: String
+    let icon: String
+    let tint: Color
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 9) {
+            Image(systemName: icon)
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(tint)
+                .frame(width: 16)
+
+            Text(text)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(theme.secondaryText)
+                .lineSpacing(2)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Spacer(minLength: 0)
+        }
+    }
+}
+
+struct SettingsWorkspace: View {
+    @EnvironmentObject private var optimizer: DeviceOptimizer
+    @Environment(\.appTheme) private var theme
+    @State private var selectedWallpaperItem: PhotosPickerItem?
+    @State private var isImportingWallpaper = false
+    @State private var wallpaperImportError: String?
+
+    let themeMode: AppThemeMode
+    let wallpaperData: Data
+    let toggleTheme: () -> Void
+    let setWallpaperData: (Data) -> Void
+    let clearWallpaper: () -> Void
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                SectionHeader(
+                    eyebrow: "SETTINGS",
+                    title: "设置",
+                    subtitle: "集中管理外观、端侧运行策略、内存预算和离线隐私保护。"
+                )
+
+                ThemePreferencePanel(themeMode: themeMode, toggleTheme: toggleTheme)
+                WallpaperPreferencePanel(
+                    wallpaperData: wallpaperData,
+                    selectedItem: $selectedWallpaperItem,
+                    isImporting: isImportingWallpaper,
+                    clearWallpaper: clearWallpaper
+                )
+
+                SectionHeader(
+                    eyebrow: "APPLE SILICON",
+                    title: "芯片部署优化",
+                    subtitle: "面向 iPhone 统一内存、Metal 预热、热状态和离线推理路径。"
+                )
+
+                ChipReadinessCard(progress: optimizer.deploymentReadiness, thermalState: optimizer.thermalState)
+
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                    ForEach(optimizer.metrics) { metric in
+                        OptimizerMetricCard(metric: metric)
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("运行策略")
+                        .font(.system(size: 15, weight: .black))
+                        .foregroundStyle(theme.primaryText)
+
+                    ForEach(optimizer.switches) { item in
+                        OptimizationToggleRow(
+                            item: item,
+                            toggle: { optimizer.toggle(item) }
+                        )
+                    }
+                }
+                .panelStyle(border: theme.border)
+            }
+            .padding(.horizontal, 18)
+            .padding(.top, 16)
+            .padding(.bottom, 28)
+        }
+        .scrollIndicators(.hidden)
+        .onChange(of: selectedWallpaperItem) { _, item in
+            guard let item else { return }
+            Task {
+                await MainActor.run {
+                    isImportingWallpaper = true
+                    wallpaperImportError = nil
+                }
+
+                do {
+                    guard let data = try await item.loadTransferable(type: Data.self) else {
+                        throw WallpaperImportError.unreadableImage
+                    }
+                    let jpegData = try WallpaperImageProcessor.optimizedJPEGData(from: data)
+                    await MainActor.run {
+                        setWallpaperData(jpegData)
+                        selectedWallpaperItem = nil
+                        isImportingWallpaper = false
+                    }
+                } catch {
+                    await MainActor.run {
+                        selectedWallpaperItem = nil
+                        isImportingWallpaper = false
+                        wallpaperImportError = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                    }
+                }
+            }
+        }
+        .alert(
+            "壁纸导入失败",
+            isPresented: Binding(
+                get: { wallpaperImportError != nil },
+                set: { isPresented in
+                    if isPresented == false {
+                        wallpaperImportError = nil
+                    }
+                }
+            )
+        ) {
+            Button("好", role: .cancel) {}
+        } message: {
+            Text(wallpaperImportError ?? "")
+        }
+    }
+}
+
+struct ThemePreferencePanel: View {
+    @Environment(\.appTheme) private var theme
+
+    let themeMode: AppThemeMode
+    let toggleTheme: () -> Void
+
+    var body: some View {
+        HStack(spacing: 14) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(theme.accent.opacity(0.16))
+                Image(systemName: themeMode.icon)
+                    .font(.system(size: 22, weight: .black))
+                    .foregroundStyle(theme.accent)
+            }
+            .frame(width: 52, height: 52)
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text("外观模式")
+                    .font(.system(size: 16, weight: .black, design: .rounded))
+                    .foregroundStyle(theme.primaryText)
+                Text(themeMode.title)
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(theme.secondaryText)
+            }
+
+            Spacer()
+
+            Button(action: toggleTheme) {
+                Image(systemName: themeMode.icon)
+                    .font(.system(size: 15, weight: .black))
+                    .frame(width: 42, height: 42)
+                    .background(theme.accent, in: Circle())
+                    .foregroundStyle(theme.inverseText)
+            }
+            .buttonStyle(.plain)
+        }
+        .panelStyle(border: theme.accent.opacity(0.26))
+    }
+}
+
+struct WallpaperPreferencePanel: View {
+    @Environment(\.appTheme) private var theme
+
+    let wallpaperData: Data
+    @Binding var selectedItem: PhotosPickerItem?
+    let isImporting: Bool
+    let clearWallpaper: () -> Void
+
+    var body: some View {
+        HStack(spacing: 14) {
+            wallpaperPreview
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text("壁纸")
+                    .font(.system(size: 16, weight: .black, design: .rounded))
+                    .foregroundStyle(theme.primaryText)
+                Text(statusText)
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(theme.secondaryText)
+            }
+
+            Spacer()
+
+            HStack(spacing: 8) {
+                PhotosPicker(selection: $selectedItem, matching: .images) {
+                    ZStack {
+                        Image(systemName: "photo.on.rectangle.angled")
+                            .font(.system(size: 14, weight: .black))
+                            .opacity(isImporting ? 0 : 1)
+                        if isImporting {
+                            ProgressView()
+                                .tint(theme.inverseText)
+                        }
+                    }
+                    .frame(width: 40, height: 40)
+                    .background(theme.accent, in: Circle())
+                    .foregroundStyle(theme.inverseText)
+                }
+                .buttonStyle(.plain)
+                .disabled(isImporting)
+                .accessibilityLabel("Choose wallpaper from photo library")
+
+                Button(action: clearWallpaper) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 12, weight: .black))
+                        .frame(width: 40, height: 40)
+                        .background(theme.chipSurface, in: Circle())
+                        .overlay(Circle().stroke(theme.border, lineWidth: 1))
+                        .foregroundStyle(theme.primaryText)
+                }
+                .buttonStyle(.plain)
+                .disabled(wallpaperData.isEmpty || isImporting)
+                .opacity(wallpaperData.isEmpty || isImporting ? 0.42 : 1)
+                .accessibilityLabel("Clear custom wallpaper")
+            }
+        }
+        .panelStyle(border: theme.border)
+    }
+
+    private var statusText: String {
+        if isImporting {
+            return "正在处理相册图片"
+        }
+        return wallpaperData.isEmpty ? "系统背景" : "相册图片已启用"
+    }
+
+    @ViewBuilder
+    private var wallpaperPreview: some View {
+        if let image = UIImage(data: wallpaperData) {
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFill()
+                .frame(width: 58, height: 58)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(theme.border, lineWidth: 1)
+                }
+        } else {
+            ZStack {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: theme.backgroundColors,
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                Image(systemName: "photo.fill")
+                    .font(.system(size: 20, weight: .black))
+                    .foregroundStyle(theme.accent)
+            }
+            .frame(width: 58, height: 58)
+            .overlay {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(theme.border, lineWidth: 1)
+            }
+        }
+    }
+}
+
+struct OptimizerDashboard: View {
+    @EnvironmentObject private var optimizer: DeviceOptimizer
+    var isModal = false
+
+    var body: some View {
+        ZStack {
+            if isModal {
+                Color(red: 0.045, green: 0.047, blue: 0.055).ignoresSafeArea()
+            }
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    SectionHeader(
+                        eyebrow: "APPLE SILICON",
+                        title: "芯片部署优化",
+                        subtitle: "面向 iPhone 统一内存、Metal 预热、热状态和离线推理路径。"
+                    )
+
+                    ChipReadinessCard(progress: optimizer.deploymentReadiness, thermalState: optimizer.thermalState)
+
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                        ForEach(optimizer.metrics) { metric in
+                            OptimizerMetricCard(metric: metric)
+                        }
+                    }
+
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("运行策略")
+                            .font(.system(size: 15, weight: .black))
+                            .foregroundStyle(.white)
+
+                        ForEach(optimizer.switches) { item in
+                            OptimizationToggleRow(
+                                item: item,
+                                toggle: { optimizer.toggle(item) }
+                            )
+                        }
+                    }
+                    .panelStyle()
+                }
+                .padding(.horizontal, 18)
+                .padding(.top, isModal ? 22 : 16)
+                .padding(.bottom, 28)
+            }
+        }
+    }
+}
+
+struct ChipReadinessCard: View {
+    @Environment(\.appTheme) private var theme
+
+    let progress: Double
+    let thermalState: String
+
+    var body: some View {
+        HStack(spacing: 16) {
+            ReadinessRing(progress: progress)
+                .frame(width: 86, height: 86)
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("A17 Pro / M 系列准备度")
+                    .font(.system(size: 16, weight: .black, design: .rounded))
+                    .foregroundStyle(theme.primaryText)
+
+                Text("热状态 \(thermalState) · 模拟 Metal 预热 · 离线隐私保护开启")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(theme.secondaryText)
+                    .lineSpacing(2)
+
+                ProgressView(value: progress)
+                    .tint(.cyan)
+            }
+        }
+        .panelStyle(border: theme.accent.opacity(0.3))
+    }
+}
+
+struct OptimizerMetricCard: View {
+    @Environment(\.appTheme) private var theme
+
+    let metric: OptimizerMetric
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text(metric.label)
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(theme.secondaryText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.78)
+                Spacer()
+                Circle()
+                    .fill(metric.tint)
+                    .frame(width: 8, height: 8)
+            }
+
+            Text(metric.value)
+                .font(.system(size: 19, weight: .black, design: .rounded))
+                .foregroundStyle(theme.primaryText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+
+            Text(metric.detail)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(theme.secondaryText)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+
+            ProgressView(value: metric.progress)
+                .tint(metric.tint)
+        }
+        .frame(maxWidth: .infinity, minHeight: 142, alignment: .topLeading)
+        .panelStyle()
+    }
+}
+
+struct OptimizationToggleRow: View {
+    @Environment(\.appTheme) private var theme
+
+    let item: OptimizationSwitch
+    let toggle: () -> Void
+
+    var body: some View {
+        Button(action: toggle) {
+            HStack(spacing: 12) {
+                Image(systemName: item.isEnabled ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundStyle(item.isEnabled ? theme.success : theme.tertiaryText)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(item.title)
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(theme.primaryText)
+                    Text(item.subtitle)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(theme.secondaryText)
+                        .lineLimit(2)
+                }
+
+                Spacer()
+            }
+            .padding(12)
+            .background(theme.recessedSurface, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+struct SectionHeader: View {
+    @Environment(\.appTheme) private var theme
+
+    let eyebrow: String
+    let title: String
+    let subtitle: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(eyebrow)
+                .font(.system(size: 10, weight: .black))
+                .foregroundStyle(theme.accent)
+                .tracking(1.3)
+            Text(title)
+                .font(.system(size: 24, weight: .heavy, design: .rounded))
+                .foregroundStyle(theme.primaryText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+            Text(subtitle)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(theme.secondaryText)
+                .lineSpacing(3)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+struct FlowLayout<Data: RandomAccessCollection, Content: View>: View where Data.Element: Hashable {
+    let items: Data
+    let content: (Data.Element) -> Content
+
+    init(items: Data, @ViewBuilder content: @escaping (Data.Element) -> Content) {
+        self.items = items
+        self.content = content
+    }
+
+    var body: some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 72), spacing: 8)], alignment: .leading, spacing: 8) {
+            ForEach(Array(items), id: \.self) { item in
+                content(item)
+            }
+        }
+    }
+}
+
+extension View {
+    func panelStyle(border: Color = Color.primary.opacity(0.12)) -> some View {
+        self
+            .padding(14)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(border, lineWidth: 1)
+            }
+    }
+
+    func primaryActionStyle(isActive: Bool) -> some View {
+        self
+            .font(.system(size: 13, weight: .bold))
+            .foregroundStyle(isActive ? .black : Color.primary)
+            .padding(.vertical, 11)
+            .background(isActive ? Color.cyan : Color.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(isActive ? Color.cyan.opacity(0.6) : Color.primary.opacity(0.12), lineWidth: 1)
+            }
+            .buttonStyle(.plain)
+    }
+
+    func secondaryActionStyle() -> some View {
+        self
+            .font(.system(size: 13, weight: .bold))
+            .foregroundStyle(Color.primary)
+            .padding(.vertical, 11)
+            .background(Color.green.opacity(0.16), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(Color.green.opacity(0.32), lineWidth: 1)
+            }
+            .buttonStyle(.plain)
+    }
+
+    func compactUtilityStyle() -> some View {
+        self
+            .font(.system(size: 12, weight: .bold))
+            .foregroundStyle(Color.primary.opacity(0.86))
+            .padding(.vertical, 10)
+            .background(Color.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 11, style: .continuous)
+                    .stroke(Color.primary.opacity(0.14), lineWidth: 1)
+            }
+            .buttonStyle(.plain)
+    }
+}

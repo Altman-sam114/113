@@ -1,0 +1,682 @@
+import XCTest
+@testable import LocalGemma
+
+@MainActor
+final class LocalGemmaTests: XCTestCase {
+    func testDefaultCatalogStartsWithGemmaSimulation() {
+        let catalog = ModelCatalog()
+
+        XCTAssertEqual(catalog.selectedModel.name, "Gemma 1.5B Local")
+        XCTAssertEqual(catalog.selectedModel.parameterCount, "1.5B")
+        XCTAssertEqual(catalog.selectedModel.installState, .simulated)
+        XCTAssertTrue(catalog.selectedModel.summary.contains("不下载") || catalog.selectedModel.summary.contains("暂未下载"))
+    }
+
+    func testSimulationProviderMentionsNoRealWeights() {
+        let model = ModelCatalog.defaultModels[0]
+        let response = GemmaSimulationProvider().response(for: "说明 iPhone 芯片部署优化", model: model)
+
+        XCTAssertTrue(response.contains("模拟"))
+        XCTAssertTrue(response.contains("Metal"))
+        XCTAssertTrue(response.contains("Gemma"))
+    }
+
+    func testGemmaManifestRequiresManualImport() {
+        let model = ModelCatalog.defaultModels[0]
+        let report = LocalRuntimePlanner.preparationReport(for: model)
+
+        XCTAssertEqual(model.artifactManifest.allowsNetworkDownload, false)
+        XCTAssertTrue(model.artifactManifest.requiredFiles.contains("gemma-1.5b-it-q4.mlmodelc"))
+        XCTAssertEqual(report.canRunRealWeights, false)
+        XCTAssertEqual(report.activeBackend, .coreMLANE)
+        XCTAssertEqual(report.fallbackBackend, .metalPerformanceShaders)
+        XCTAssertFalse(report.blockers.isEmpty)
+    }
+
+    func testArtifactValidatorReportsMissingFiles() {
+        let model = ModelCatalog.defaultModels[0]
+        let validation = LocalArtifactValidator.validate(
+            manifest: model.artifactManifest,
+            presentFiles: []
+        )
+        let report = LocalRuntimePlanner.preparationReport(for: model, validation: validation)
+
+        XCTAssertEqual(validation.availability, .missing)
+        XCTAssertEqual(validation.missingFiles, model.artifactManifest.requiredFiles)
+        XCTAssertFalse(validation.hasRequiredFiles)
+        XCTAssertFalse(validation.canPromoteToRealRuntime)
+        XCTAssertTrue(validation.summary.contains("缺少"))
+        XCTAssertFalse(report.canRunRealWeights)
+        XCTAssertTrue(report.blockers[0].contains("缺少本地 artifact"))
+    }
+
+    func testArtifactValidatorStagesFilesWithoutTrustedHash() {
+        let model = ModelCatalog.defaultModels[0]
+        let validation = LocalArtifactValidator.validate(
+            manifest: model.artifactManifest,
+            presentFiles: Set(model.artifactManifest.requiredFiles)
+        )
+        let report = LocalRuntimePlanner.preparationReport(for: model, validation: validation)
+
+        XCTAssertEqual(validation.availability, .staged)
+        XCTAssertTrue(validation.hasRequiredFiles)
+        XCTAssertFalse(validation.hasConcreteExpectedHash)
+        XCTAssertFalse(validation.hasVerifiedHash)
+        XCTAssertFalse(validation.canPromoteToRealRuntime)
+        XCTAssertFalse(report.canRunRealWeights)
+        XCTAssertTrue(report.blockers[0].contains("官方 SHA-256"))
+    }
+
+    func testArtifactValidatorVerifiesConcreteHash() {
+        let expectedHash = String(repeating: "a", count: 64)
+        let manifest = ModelArtifactManifest(
+            modelFileName: "test-gemma.mlmodelc",
+            tokenizerFileName: "test-tokenizer.model",
+            fileFormat: "Core ML compiled package",
+            storageDirectory: "Application Support/LocalModels",
+            expectedSHA256: expectedHash,
+            allowsNetworkDownload: false,
+            importInstruction: "手动导入测试模型。"
+        )
+        let model = LocalModel(
+            name: "Gemma Test",
+            family: "Gemma",
+            parameterCount: "1.5B",
+            quantization: "4-bit",
+            sizeOnDisk: "1 GB",
+            contextLength: 4096,
+            tokensPerSecond: 36,
+            memoryFootprint: "1.8 GB",
+            installState: .notDownloaded,
+            summary: "Test model",
+            capabilities: [],
+            artifactManifest: manifest,
+            deploymentProfile: AppleSiliconDeploymentProfile(
+                preferredChipClass: "A17 Pro",
+                recommendedMemoryBudget: "1.8 GB",
+                primaryBackend: .coreMLANE,
+                fallbackBackend: .metalPerformanceShaders,
+                kvCachePolicy: "Paged KV cache",
+                thermalStrategy: "Nominal",
+                maxActiveTokens: 4096
+            )
+        )
+        let validation = LocalArtifactValidator.validate(
+            manifest: manifest,
+            presentFiles: Set(manifest.requiredFiles),
+            observedSHA256: expectedHash
+        )
+        let report = LocalRuntimePlanner.preparationReport(for: model, validation: validation)
+
+        XCTAssertEqual(validation.availability, .verified)
+        XCTAssertTrue(validation.hasConcreteExpectedHash)
+        XCTAssertTrue(validation.hasVerifiedHash)
+        XCTAssertTrue(validation.canPromoteToRealRuntime)
+        XCTAssertTrue(report.canRunRealWeights)
+        XCTAssertTrue(report.blockers.isEmpty)
+        XCTAssertTrue(report.nextSteps.contains { $0.contains("预热") })
+    }
+
+    func testArtifactStoreVerifiesFilesFromDisk() throws {
+        let directoryURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("LocalGemmaTests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+        defer {
+            try? FileManager.default.removeItem(at: directoryURL)
+        }
+
+        let modelFileName = "disk-gemma.bin"
+        let tokenizerFileName = "disk-tokenizer.model"
+        try Data("abc".utf8).write(to: directoryURL.appendingPathComponent(modelFileName))
+        try Data("tokenizer".utf8).write(to: directoryURL.appendingPathComponent(tokenizerFileName))
+
+        let manifest = ModelArtifactManifest(
+            modelFileName: modelFileName,
+            tokenizerFileName: tokenizerFileName,
+            fileFormat: "Core ML compiled package",
+            storageDirectory: directoryURL.path,
+            expectedSHA256: "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+            allowsNetworkDownload: false,
+            importInstruction: "手动导入测试模型。"
+        )
+
+        let validation = ModelArtifactStore.validate(
+            manifest: manifest,
+            directoryURL: directoryURL
+        )
+
+        XCTAssertEqual(validation.availability, .verified)
+        XCTAssertEqual(validation.observedSHA256, manifest.expectedSHA256)
+        XCTAssertTrue(validation.hasVerifiedHash)
+        XCTAssertTrue(validation.canPromoteToRealRuntime)
+        XCTAssertEqual(Set(validation.presentFiles), Set(manifest.requiredFiles))
+    }
+
+    func testArtifactStoreImportsSelectedFilesIntoDestination() throws {
+        let sourceDirectoryURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("LocalGemmaImportSource-\(UUID().uuidString)", isDirectory: true)
+        let destinationDirectoryURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("LocalGemmaImportDestination-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: sourceDirectoryURL, withIntermediateDirectories: true)
+        defer {
+            try? FileManager.default.removeItem(at: sourceDirectoryURL)
+            try? FileManager.default.removeItem(at: destinationDirectoryURL)
+        }
+
+        let modelFileName = "import-gemma.bin"
+        let tokenizerFileName = "import-tokenizer.model"
+        let modelURL = sourceDirectoryURL.appendingPathComponent(modelFileName)
+        let tokenizerURL = sourceDirectoryURL.appendingPathComponent(tokenizerFileName)
+        try Data("abc".utf8).write(to: modelURL)
+        try Data("tokenizer".utf8).write(to: tokenizerURL)
+
+        let manifest = ModelArtifactManifest(
+            modelFileName: modelFileName,
+            tokenizerFileName: tokenizerFileName,
+            fileFormat: "Core ML compiled package",
+            storageDirectory: destinationDirectoryURL.path,
+            expectedSHA256: "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+            allowsNetworkDownload: false,
+            importInstruction: "手动导入测试模型。"
+        )
+
+        let validation = try ModelArtifactStore.importArtifacts(
+            manifest: manifest,
+            sourceURLs: [modelURL, tokenizerURL],
+            destinationDirectoryURL: destinationDirectoryURL
+        )
+
+        XCTAssertTrue(FileManager.default.fileExists(atPath: destinationDirectoryURL.appendingPathComponent(modelFileName).path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: destinationDirectoryURL.appendingPathComponent(tokenizerFileName).path))
+        XCTAssertEqual(validation.availability, .verified)
+        XCTAssertEqual(validation.observedSHA256, manifest.expectedSHA256)
+        XCTAssertFalse(validation.networkDownloadAllowed)
+    }
+
+    func testArtifactStoreRemovesManagedFiles() throws {
+        let directoryURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("LocalGemmaRemoveDestination-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+        defer {
+            try? FileManager.default.removeItem(at: directoryURL)
+        }
+
+        let modelFileName = "remove-gemma.bin"
+        let tokenizerFileName = "remove-tokenizer.model"
+        try Data("abc".utf8).write(to: directoryURL.appendingPathComponent(modelFileName))
+        try Data("tokenizer".utf8).write(to: directoryURL.appendingPathComponent(tokenizerFileName))
+
+        let manifest = ModelArtifactManifest(
+            modelFileName: modelFileName,
+            tokenizerFileName: tokenizerFileName,
+            fileFormat: "Core ML compiled package",
+            storageDirectory: directoryURL.path,
+            expectedSHA256: String(repeating: "d", count: 64),
+            allowsNetworkDownload: false,
+            importInstruction: "手动导入测试模型。"
+        )
+
+        let validation = try ModelArtifactStore.removeArtifacts(
+            manifest: manifest,
+            destinationDirectoryURL: directoryURL
+        )
+
+        XCTAssertEqual(validation.availability, .missing)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: directoryURL.appendingPathComponent(modelFileName).path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: directoryURL.appendingPathComponent(tokenizerFileName).path))
+        XCTAssertEqual(validation.missingFiles, manifest.requiredFiles)
+    }
+
+    func testArtifactStoreImportsCoreMLPackageDirectory() throws {
+        let sourceDirectoryURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("LocalGemmaPackageSource-\(UUID().uuidString)", isDirectory: true)
+        let destinationDirectoryURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("LocalGemmaPackageDestination-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: sourceDirectoryURL, withIntermediateDirectories: true)
+        defer {
+            try? FileManager.default.removeItem(at: sourceDirectoryURL)
+            try? FileManager.default.removeItem(at: destinationDirectoryURL)
+        }
+
+        let modelFileName = "package-gemma.mlmodelc"
+        let tokenizerFileName = "package-tokenizer.model"
+        let modelPackageURL = sourceDirectoryURL.appendingPathComponent(modelFileName, isDirectory: true)
+        try FileManager.default.createDirectory(at: modelPackageURL, withIntermediateDirectories: true)
+        try Data("compiled-coreml".utf8).write(to: modelPackageURL.appendingPathComponent("model.mil"))
+        try Data("metadata".utf8).write(to: modelPackageURL.appendingPathComponent("metadata.json"))
+        let tokenizerURL = sourceDirectoryURL.appendingPathComponent(tokenizerFileName)
+        try Data("tokenizer".utf8).write(to: tokenizerURL)
+
+        let expectedHash = try XCTUnwrap(ModelArtifactHasher.sha256Hex(for: modelPackageURL))
+        let manifest = ModelArtifactManifest(
+            modelFileName: modelFileName,
+            tokenizerFileName: tokenizerFileName,
+            fileFormat: "Core ML compiled package",
+            storageDirectory: destinationDirectoryURL.path,
+            expectedSHA256: expectedHash,
+            allowsNetworkDownload: false,
+            importInstruction: "手动导入测试模型。"
+        )
+
+        let validation = try ModelArtifactStore.importArtifacts(
+            manifest: manifest,
+            sourceURLs: [modelPackageURL, tokenizerURL],
+            destinationDirectoryURL: destinationDirectoryURL
+        )
+
+        XCTAssertTrue(FileManager.default.fileExists(atPath: destinationDirectoryURL.appendingPathComponent(modelFileName).path))
+        XCTAssertEqual(validation.availability, .verified)
+        XCTAssertEqual(validation.observedSHA256, expectedHash)
+        XCTAssertTrue(validation.fileStatuses.first(where: { $0.fileName == modelFileName })?.isDirectory == true)
+    }
+
+    func testArtifactStoreRejectsIncompleteImportSelection() throws {
+        let sourceDirectoryURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("LocalGemmaIncompleteSource-\(UUID().uuidString)", isDirectory: true)
+        let destinationDirectoryURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("LocalGemmaIncompleteDestination-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: sourceDirectoryURL, withIntermediateDirectories: true)
+        defer {
+            try? FileManager.default.removeItem(at: sourceDirectoryURL)
+            try? FileManager.default.removeItem(at: destinationDirectoryURL)
+        }
+
+        let modelURL = sourceDirectoryURL.appendingPathComponent("missing-tokenizer-gemma.bin")
+        try Data("abc".utf8).write(to: modelURL)
+        let manifest = ModelArtifactManifest(
+            modelFileName: "missing-tokenizer-gemma.bin",
+            tokenizerFileName: "missing-tokenizer.model",
+            fileFormat: "Core ML compiled package",
+            storageDirectory: destinationDirectoryURL.path,
+            expectedSHA256: String(repeating: "c", count: 64),
+            allowsNetworkDownload: false,
+            importInstruction: "手动导入测试模型。"
+        )
+
+        XCTAssertThrowsError(
+            try ModelArtifactStore.importArtifacts(
+                manifest: manifest,
+                sourceURLs: [modelURL],
+                destinationDirectoryURL: destinationDirectoryURL
+            )
+        ) { error in
+            XCTAssertEqual(error as? ArtifactImportError, .missingRequiredFiles(["missing-tokenizer.model"]))
+        }
+        XCTAssertFalse(FileManager.default.fileExists(atPath: destinationDirectoryURL.path))
+    }
+
+    func testCatalogStagesManualImportPreview() {
+        let catalog = ModelCatalog()
+        let model = catalog.selectedModel
+
+        XCTAssertEqual(catalog.validation(for: model).availability, .missing)
+
+        catalog.stageManualImportPreview(for: model)
+
+        XCTAssertEqual(catalog.validation(for: catalog.selectedModel).availability, .staged)
+        XCTAssertEqual(catalog.selectedModel.installState, .simulated)
+        XCTAssertTrue(catalog.selectedModel.summary.contains("SHA-256"))
+        XCTAssertFalse(
+            LocalRuntimePlanner
+                .preparationReport(for: catalog.selectedModel, validation: catalog.validation(for: catalog.selectedModel))
+                .canRunRealWeights
+        )
+    }
+
+    func testCatalogDeploymentRunsOnlySelectedModel() {
+        let catalog = ModelCatalog()
+        let gemma = catalog.selectedModel
+        let qwen = catalog.models[1]
+
+        XCTAssertEqual(catalog.deploymentState(for: gemma), .stopped)
+
+        catalog.startDeployment(for: gemma)
+
+        XCTAssertTrue(catalog.isDeploymentRunning(for: gemma))
+        XCTAssertEqual(catalog.selectedModel.id, gemma.id)
+
+        catalog.startDeployment(for: qwen)
+
+        XCTAssertFalse(catalog.isDeploymentRunning(for: gemma))
+        XCTAssertTrue(catalog.isDeploymentRunning(for: qwen))
+        XCTAssertEqual(catalog.selectedModel.id, qwen.id)
+
+        catalog.toggleDeployment(for: qwen)
+
+        XCTAssertEqual(catalog.deploymentState(for: qwen), .stopped)
+    }
+
+    func testCatalogUninstallStopsDeploymentAndMarksModelUndownloaded() throws {
+        let directoryURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("LocalGemmaCatalogUninstall-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+        defer {
+            try? FileManager.default.removeItem(at: directoryURL)
+        }
+
+        let model = ModelCatalog.defaultModels[0]
+        for fileName in model.artifactManifest.requiredFiles {
+            let url = directoryURL.appendingPathComponent(fileName)
+            if fileName.hasSuffix(".mlmodelc") {
+                try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+                try Data("compiled-gemma".utf8).write(to: url.appendingPathComponent("model.mil"))
+            } else {
+                try Data("tokenizer".utf8).write(to: url)
+            }
+        }
+
+        let catalog = ModelCatalog(
+            models: [model],
+            autoScanLocalArtifacts: true,
+            artifactDirectoryURL: directoryURL
+        )
+
+        catalog.startDeployment(for: catalog.selectedModel)
+        XCTAssertTrue(catalog.isDeploymentRunning(for: catalog.selectedModel))
+
+        try catalog.uninstallArtifacts(for: catalog.selectedModel)
+
+        XCTAssertEqual(catalog.deploymentState(for: catalog.selectedModel), .stopped)
+        XCTAssertEqual(catalog.validation(for: catalog.selectedModel).availability, .missing)
+        XCTAssertEqual(catalog.selectedModel.installState, .notDownloaded)
+        XCTAssertTrue(catalog.selectedModel.summary.contains("未下载"))
+    }
+
+    func testCatalogAutoScanRestoresExistingLocalArtifacts() throws {
+        let directoryURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("LocalGemmaAutoScan-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+        defer {
+            try? FileManager.default.removeItem(at: directoryURL)
+        }
+
+        let model = ModelCatalog.defaultModels[0]
+        for fileName in model.artifactManifest.requiredFiles {
+            let url = directoryURL.appendingPathComponent(fileName)
+            if fileName.hasSuffix(".mlmodelc") {
+                try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+                try Data("compiled-gemma".utf8).write(to: url.appendingPathComponent("model.mil"))
+            } else {
+                try Data("tokenizer".utf8).write(to: url)
+            }
+        }
+
+        let catalog = ModelCatalog(
+            models: [model],
+            autoScanLocalArtifacts: true,
+            artifactDirectoryURL: directoryURL
+        )
+
+        XCTAssertEqual(catalog.validation(for: catalog.selectedModel).availability, .staged)
+        XCTAssertEqual(catalog.selectedModel.installState, .simulated)
+        XCTAssertTrue(catalog.selectedModel.summary.contains("SHA-256"))
+    }
+
+    func testVerifiedArtifactsEnableRealRuntimePlan() {
+        let model = ModelCatalog.defaultModels[0]
+        let report = LocalRuntimePlanner.preparationReport(for: model, availability: .verified)
+
+        XCTAssertTrue(report.canRunRealWeights)
+        XCTAssertFalse(report.networkDownloadAllowed)
+        XCTAssertTrue(report.blockers.isEmpty)
+        XCTAssertTrue(report.nextSteps.contains { $0.contains("预热") })
+    }
+
+    func testSimulationRuntimeUsesLocalSimulation() {
+        let model = ModelCatalog.defaultModels[0]
+        let result = SimulatedGemmaRuntime().generate(
+            InferenceRequest(prompt: "说明本地部署", model: model)
+        )
+
+        XCTAssertTrue(result.isSimulated)
+        XCTAssertEqual(result.backend, .coreMLANE)
+        XCTAssertTrue(result.text.contains("模拟"))
+        XCTAssertFalse(result.preparationReport.networkDownloadAllowed)
+    }
+
+    func testRealRuntimePlaceholderDoesNotRunWithoutVerifiedArtifacts() {
+        let model = ModelCatalog.defaultModels[0]
+        let result = RealGemmaRuntimePlaceholder().generate(
+            InferenceRequest(prompt: "启动真实模型", model: model)
+        )
+
+        XCTAssertTrue(result.isSimulated)
+        XCTAssertEqual(result.backend, .metalPerformanceShaders)
+        XCTAssertTrue(result.text.contains("不会下载模型"))
+        XCTAssertFalse(result.preparationReport.canRunRealWeights)
+    }
+
+    func testRealRuntimePlaceholderHonorsVerifiedArtifacts() {
+        let model = ModelCatalog.defaultModels[0]
+        let result = RealGemmaRuntimePlaceholder().generate(
+            InferenceRequest(prompt: "启动真实模型", model: model, artifactAvailability: .verified)
+        )
+
+        XCTAssertFalse(result.isSimulated)
+        XCTAssertEqual(result.backend, .coreMLANE)
+        XCTAssertTrue(result.preparationReport.canRunRealWeights)
+    }
+
+    func testOptimizerTogglesChangeReadiness() {
+        let optimizer = DeviceOptimizer()
+        let initialReadiness = optimizer.deploymentReadiness
+        let firstSwitch = optimizer.switches[0]
+
+        optimizer.toggle(firstSwitch)
+
+        XCTAssertNotEqual(optimizer.deploymentReadiness, initialReadiness)
+        XCTAssertFalse(optimizer.switches[0].isEnabled)
+    }
+
+    func testPromptTemplateLibraryProvidesMultipleCategories() {
+        let templates = PromptTemplateLibrary.defaultTemplates
+        let categories = Set(templates.map(\.category))
+
+        XCTAssertGreaterThanOrEqual(templates.count, 6)
+        XCTAssertEqual(categories, Set(PromptTemplateCategory.allCases))
+        XCTAssertTrue(templates.contains { $0.title == "部署方案" && $0.prompt.contains("Gemma 1.5B") })
+        XCTAssertTrue(templates.contains { $0.title == "排障清单" && $0.prompt.contains("SHA-256") })
+        XCTAssertEqual(PromptTemplateLibrary.templates(in: nil), templates)
+        XCTAssertTrue(PromptTemplateLibrary.templates(in: .privacy).allSatisfy { $0.category == .privacy })
+    }
+
+    func testInferenceIgnoresEmptyPrompt() {
+        let engine = InferenceEngine()
+        let initialCount = engine.messages.count
+
+        engine.inputText = "   "
+        engine.send(using: ModelCatalog.defaultModels[0])
+
+        XCTAssertEqual(engine.messages.count, initialCount)
+        XCTAssertFalse(engine.isGenerating)
+    }
+
+    func testInferenceAppliesPromptTemplateWithoutSending() {
+        let engine = InferenceEngine()
+        let template = PromptTemplateLibrary.defaultTemplates[0]
+        let initialCount = engine.messages.count
+
+        engine.applyTemplate(template)
+
+        XCTAssertEqual(engine.inputText, template.prompt)
+        XCTAssertEqual(engine.messages.count, initialCount)
+        XCTAssertFalse(engine.isGenerating)
+        XCTAssertNil(engine.lastPreparationReport)
+    }
+
+    func testInferenceUsesPromptTemplateForGeneration() {
+        let engine = InferenceEngine()
+        let model = ModelCatalog.defaultModels[0]
+        let template = PromptTemplateLibrary.defaultTemplates.first { $0.category == .troubleshooting }!
+
+        engine.useTemplate(template, model: model, availability: .staged)
+        engine.stop()
+
+        XCTAssertEqual(engine.inputText, "")
+        XCTAssertTrue(engine.messages.contains { $0.role == .user && $0.text == template.prompt })
+        XCTAssertEqual(engine.lastPreparationReport?.availability, .staged)
+        XCTAssertEqual(engine.lastPreparationReport?.canRunRealWeights, false)
+    }
+
+    func testInferenceCreatesSelectsAndDeletesNamedSessions() {
+        let engine = InferenceEngine()
+        let firstSession = engine.sessions[0]
+
+        let secondID = engine.createSession(title: "部署讨论")
+
+        XCTAssertEqual(engine.sessions.count, 2)
+        XCTAssertEqual(engine.activeSessionID, secondID)
+        XCTAssertEqual(engine.activeSessionTitle, "部署讨论")
+
+        engine.selectSession(firstSession)
+
+        XCTAssertEqual(engine.activeSessionID, firstSession.id)
+        XCTAssertEqual(engine.messages, firstSession.messages)
+
+        guard let secondSession = engine.sessions.first(where: { $0.id == secondID }) else {
+            return XCTFail("second session should exist")
+        }
+        engine.deleteSession(secondSession)
+
+        XCTAssertEqual(engine.sessions.count, 1)
+        XCTAssertEqual(engine.sessions[0].id, firstSession.id)
+    }
+
+    func testInferenceAutoNamesAndExportsActiveSession() {
+        let engine = InferenceEngine()
+        let model = ModelCatalog.defaultModels[0]
+
+        engine.inputText = "请说明本地部署和隐私保护的组合方案"
+        engine.send(using: model, availability: .staged)
+        engine.stop()
+
+        XCTAssertNotEqual(engine.activeSessionTitle, "新对话")
+        XCTAssertTrue(engine.activeSessionTitle.contains("请说明本地部署"))
+
+        let exported = engine.exportActiveSessionText(modelName: model.name)
+        XCTAssertTrue(exported.contains("# \(engine.activeSessionTitle)"))
+        XCTAssertTrue(exported.contains("模型：\(model.name)"))
+        XCTAssertTrue(exported.contains("## 用户"))
+        XCTAssertTrue(exported.contains("请说明本地部署"))
+
+        let exportDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("LocalGemmaExport-\(UUID().uuidString)", isDirectory: true)
+        try? FileManager.default.createDirectory(at: exportDirectory, withIntermediateDirectories: true)
+        defer {
+            try? FileManager.default.removeItem(at: exportDirectory)
+        }
+
+        let exportURL = try? engine.exportActiveSessionMarkdownFile(
+            modelName: model.name,
+            directoryURL: exportDirectory
+        )
+        XCTAssertEqual(exportURL?.pathExtension, "md")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: exportURL?.path ?? ""))
+        XCTAssertEqual(try? String(contentsOf: exportURL ?? exportDirectory), exported)
+    }
+
+    func testInferenceResetConversationRestoresWelcomeState() {
+        let engine = InferenceEngine()
+        let model = ModelCatalog.defaultModels[0]
+
+        engine.inputText = "说明本地模型"
+        engine.send(using: model)
+        engine.resetConversation()
+
+        XCTAssertEqual(engine.messages.count, 2)
+        XCTAssertEqual(engine.inputText, "")
+        XCTAssertFalse(engine.isGenerating)
+        XCTAssertNil(engine.lastPreparationReport)
+        XCTAssertTrue(engine.lastResultWasSimulated)
+        XCTAssertEqual(engine.currentBackend, .coreMLANE)
+        XCTAssertTrue(engine.messages[0].text.contains("模拟运行"))
+    }
+
+    func testInferenceRecordsSelectedArtifactAvailability() {
+        let engine = InferenceEngine()
+        let model = ModelCatalog.defaultModels[0]
+
+        engine.inputText = "启动真实模型"
+        engine.send(using: model, availability: .staged)
+        engine.stop()
+
+        XCTAssertEqual(engine.lastPreparationReport?.availability, .staged)
+        XCTAssertEqual(engine.lastPreparationReport?.canRunRealWeights, false)
+        XCTAssertEqual(engine.lastPreparationReport?.activeBackend, .coreMLANE)
+    }
+
+    func testWorkspaceLayoutModeResolvesLandscapeVariants() {
+        XCTAssertEqual(
+            WorkspaceLayoutMode.resolve(for: CGSize(width: 390, height: 844)),
+            .portrait
+        )
+        XCTAssertEqual(
+            WorkspaceLayoutMode.resolve(for: CGSize(width: 844, height: 390)),
+            .landscapeCompact
+        )
+        XCTAssertEqual(
+            WorkspaceLayoutMode.resolve(for: CGSize(width: 1180, height: 820)),
+            .landscapeRegular
+        )
+    }
+
+    func testWorkspaceLayoutModeConstrainsSidebarWidth() {
+        let compactWidth = WorkspaceLayoutMode.landscapeCompact.sidebarWidth(
+            for: CGSize(width: 844, height: 390)
+        )
+        let regularWidth = WorkspaceLayoutMode.landscapeRegular.sidebarWidth(
+            for: CGSize(width: 1366, height: 1024)
+        )
+
+        XCTAssertGreaterThanOrEqual(compactWidth, 250)
+        XCTAssertLessThanOrEqual(compactWidth, 310)
+        XCTAssertGreaterThanOrEqual(regularWidth, 320)
+        XCTAssertLessThanOrEqual(regularWidth, 390)
+        XCTAssertEqual(
+            WorkspaceLayoutMode.portrait.sidebarWidth(for: CGSize(width: 390, height: 844)),
+            0
+        )
+    }
+
+    func testWallpaperProcessorScalesImagesWithoutUpscaling() {
+        let large = WallpaperImageProcessor.scaledPixelSize(
+            width: 4000,
+            height: 2000,
+            maxPixel: 1800
+        )
+        let small = WallpaperImageProcessor.scaledPixelSize(
+            width: 900,
+            height: 600,
+            maxPixel: 1800
+        )
+
+        XCTAssertEqual(large.width, 1800)
+        XCTAssertEqual(large.height, 900)
+        XCTAssertEqual(small.width, 900)
+        XCTAssertEqual(small.height, 600)
+    }
+
+    func testExportPayloadOnlySharesExistingFileURL() throws {
+        let directoryURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("LocalGemmaPayload-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+        defer {
+            try? FileManager.default.removeItem(at: directoryURL)
+        }
+
+        let fileURL = directoryURL.appendingPathComponent("conversation.md")
+        let missingURL = directoryURL.appendingPathComponent("missing.md")
+        try Data("hello".utf8).write(to: fileURL)
+
+        XCTAssertEqual(
+            ExportPayload(title: "A", messageCount: 1, text: "hello", fileURL: fileURL).existingFileURL,
+            fileURL
+        )
+        XCTAssertNil(
+            ExportPayload(title: "B", messageCount: 1, text: "hello", fileURL: missingURL).existingFileURL
+        )
+        XCTAssertNil(
+            ExportPayload(title: "C", messageCount: 1, text: "hello", fileURL: nil).existingFileURL
+        )
+    }
+}
