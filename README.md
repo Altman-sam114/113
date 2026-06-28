@@ -9,6 +9,12 @@
 - `LocalGemma/ContentView.swift`：支持暗色/亮色切换的 SwiftUI 界面，包含推理、模型、提示词、设置四个工作区；推理页改成极简会话界面，顶部 Gemma 模型胶囊集中展示运行状态、速度、内存、后端和权重状态；提示词模板独立成页；设置页整合外观、相册壁纸和芯片部署优化；横屏会自动切换为左侧导航/模型状态栏、右侧工作区。
 - `LocalGemmaTests/LocalGemmaTests.swift`：覆盖默认 Gemma 模拟状态、artifact missing/staged/verified 校验、手动导入文件复制、`.mlmodelc` 目录导入、启动自动扫描、本地模型管理状态流转、模拟输出、运行计划、优化开关、预设提示词模板、会话管理、Markdown 会话导出和空输入保护。
 - `Tools/LogicSmoke.swift`：不依赖 iOS runtime 的本地逻辑烟测，用来验证模拟模型、artifact 校验、手动导入文件复制、`.mlmodelc` 目录导入、启动自动扫描、模型管理状态流转、运行计划、提示词模板、会话管理、Markdown 导出与优化状态。
+- `AGENTS.md`：项目入口记忆、基本规则和“人工目标 -> Agent A -> Agent B -> Agent C -> 人工复核”的多 Agent 迭代工作流。
+- `update_log.md`：版本更新记录、历史决策、完成事项和遗留问题。
+- `md/test/test.md`：测试规范、测试分层、命令、触发条件和当前基线。
+- `md/flow/flow.md`：当前核心数据流、执行流、状态对象、边界和未来扩展点。
+- `md/flow/flowchart.md`：与 `flow.md` 同步的 Mermaid 可视化流程图。
+- `md/prompt/`：Agent A 每轮输出给 Agent B 的详细实现提示词归档目录，按版本号管理。
 
 ## 运行方式
 
@@ -201,3 +207,23 @@ Gemma 1.5B 已预留真实模型接入清单：
 ```
 
 说明：当前 Codex 沙箱内的 CoreSimulator 访问受限；本轮尝试请求在沙箱外执行完整 XCTest 时，自动审批先超时，随后返回 `502 Bad Gateway`，因此未重跑模拟器测试。`build-for-testing`、Swift typecheck、测试源码 typecheck 和逻辑烟测已经在工作区内通过。
+
+## 项目管理文档体系
+
+当前已建立多 Agent 协作系统：
+
+- `AGENTS.md`：后续 Agent 的入口规则和协作流程。
+- `update_log.md`：版本历史、关键决策和遗留事项。
+- `md/test/test.md`：测试分层和当前测试基线。
+- `md/flow/flow.md`：当前真实核心逻辑文档。
+- `md/flow/flowchart.md`：给人工快速读懂核心逻辑的 Mermaid 图。
+- `md/prompt/v0（项目管理体系）/v0.2（建立多Agent协作规范）.md`：本轮文档体系搭建的 Agent A 提示词归档。
+
+本轮为文档体系搭建，未修改 Swift 源码，未重跑 XCTest。已完成以下结构检查：
+
+```sh
+find md -maxdepth 4 -type f | sort
+grep -n "Agent A\\|Agent B\\|Agent C\\|README\\|测试规范" AGENTS.md
+```
+
+结果：所需文档结构已创建，`AGENTS.md` 已包含 Agent A/B/C 工作流、README 更新要求和测试规范入口。
