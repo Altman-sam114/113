@@ -2393,6 +2393,9 @@ struct WallpaperPreferencePanel: View {
     let clearWallpaper: () -> Void
 
     var body: some View {
+        let pickerAccent = theme.accent
+        let pickerForeground = theme.inverseText
+
         HStack(spacing: 14) {
             wallpaperPreview
 
@@ -2415,12 +2418,12 @@ struct WallpaperPreferencePanel: View {
                             .opacity(isImporting ? 0 : 1)
                         if isImporting {
                             ProgressView()
-                                .tint(theme.inverseText)
+                                .tint(pickerForeground)
                         }
                     }
                     .frame(width: 40, height: 40)
-                    .background(theme.accent, in: Circle())
-                    .foregroundStyle(theme.inverseText)
+                    .background(pickerAccent, in: Circle())
+                    .foregroundStyle(pickerForeground)
                 }
                 .buttonStyle(.plain)
                 .disabled(isImporting)

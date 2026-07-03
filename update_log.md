@@ -154,3 +154,29 @@
 
 - 配置 `origin` remote 后，按 v0.4 流程执行一次真实 `main` push，等待 `ci-results` workflow 完成，并由 Agent C 下载 `/private/tmp/localgemma-c-review-<run_id>/` 下的结果包核对 manifest、JUnit、日志和 `.xcresult`。
 - 若 GitHub-hosted runner 的可用 iPhone Simulator 名称与本地不同，以 workflow 自动选择结果和 manifest 中的 `destination` 为准。
+
+### v0.5 / 修复云端 Swift 6 构建隔离错误
+
+日期：2026-07-03
+
+核心变更：
+
+- 修复 GitHub Actions run `28669343294` 暴露的 `ContentView.swift` Swift 6 actor isolation 构建错误。
+- `WallpaperPreferencePanel` 在 `PhotosPicker` label 闭包外先读取 `theme.accent` 和 `theme.inverseText`，闭包内只使用局部颜色值，避免从可发送闭包直接引用 main actor-isolated `@Environment`。
+- 本轮不改变 UI 行为、模型 runtime、artifact 校验、会话、壁纸处理或核心流程。
+
+关键文件：
+
+- `LocalGemma/ContentView.swift`
+- `README.md`
+- `update_log.md`
+
+验证结果：
+
+- `git diff --check`：无输出，退出码 0。
+- `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project LocalGemma.xcodeproj -scheme LocalGemma -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath .build/DerivedDataCodex CODE_SIGNING_ALLOWED=NO build-for-testing`：本机输出 `** TEST BUILD SUCCEEDED **`。
+- 本机 CoreSimulator 日志访问仍有沙箱警告，但 generic build-for-testing 成功，不影响本轮修复判断。
+
+遗留事项：
+
+- v0.5 push 后需等待 `ci-results.yml` 最新 run 完成，下载结果包核对 manifest、JUnit、日志和 `.xcresult`。
