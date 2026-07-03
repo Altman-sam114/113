@@ -116,3 +116,37 @@ flowchart TD
     I --> J[写入 UIPasteboard]
 ```
 
+## 7. main 直推与云端结果包验收流
+
+读图说明：这张图展示新的协作闭环。重点是 Agent B 必须在 `main` 上提交并推送，GitHub Actions 生成未加密结果包，Agent C 只能验收 `origin/main` 最新 commit 对应的结果包；失败时通过追加修复 commit 回到同一条主线。
+
+```mermaid
+flowchart TD
+    A[人工提出目标] --> B{是否使用角色前缀}
+    B -- agenta / a: / A: --> C[Agent A<br/>本地分析目标和架构]
+    B -- agentb / b: / B: --> D[Agent B<br/>基于已有提示词实现]
+    B -- agentc / c: / C: --> E[Agent C<br/>验收最新结果包]
+    B -- 无前缀 --> F[普通 Codex 任务<br/>必要时提醒指定角色]
+
+    C --> G[写版本化 Agent B 提示词<br/>md/prompt/v0.../vX.Y...md]
+    G --> D
+    D --> H[git fetch origin<br/>git switch main<br/>git pull --ff-only origin main]
+    H --> I{当前是否为 main 且无无关改动}
+    I -- 否 --> J[报告阻塞<br/>不伪装云端流程]
+    I -- 是 --> K[小步实现 + 更新测试和文档]
+    K --> L[本地轻量检查<br/>diff / plutil / YAML / Probe]
+    L --> M[commit 到 main<br/>主题含版本号]
+    M --> N[git push origin main]
+    N --> O[GitHub Actions<br/>ci-results workflow]
+    O --> P[生成未加密 CI 结果包<br/>manifest + failure summary + JUnit + logs + xcresult]
+    P --> E
+    E --> Q[gh auth login 如需权限<br/>gh run download 到 /private/tmp/localgemma-c-review-run_id]
+    Q --> R{manifest 是否匹配 origin/main 最新 commit / run / attempt}
+    R -- 否 --> S[验收不通过<br/>退回 Agent B]
+    R -- 是 --> T{日志 / JUnit / xcresult 是否通过}
+    T -- 否 --> S
+    T -- 是 --> U[Agent C 确认 main 最新 run 通过]
+    S --> V[Agent B 在 main 上追加修复 commit]
+    V --> N
+    U --> W[人工复核<br/>进入下一轮]
+```

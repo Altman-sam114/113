@@ -1,6 +1,6 @@
 # 项目核心流程文档
 
-一句话总览：本项目是一个 SwiftUI iOS 原型，通过本地模拟 runtime 和严格 artifact 校验流程，验证 iPhone 端侧部署 Gemma 1.5B 的 UI、状态管理、文件导入、会话导出和 Apple Silicon 运行计划。
+一句话总览：本项目是一个 SwiftUI iOS 原型，通过本地模拟 runtime 和严格 artifact 校验流程，验证 iPhone 端侧部署 Gemma 1.5B 的 UI、状态管理、文件导入、会话导出和 Apple Silicon 运行计划；协作流程默认采用 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载结果包验收。
 
 本文只写当前真实链路，不写历史流水账。
 
@@ -72,6 +72,53 @@
 - `ExportSessionView` 优先 `ShareLink(item: fileURL)`；否则 `ShareLink(item: payload.text)`。
 - 复制全文使用系统剪贴板。
 
+## 云端协作流
+
+### 角色入口
+
+- `agenta`、`a:`、`A:` 召唤 Agent A。
+- `agentb`、`b:`、`B:` 召唤 Agent B。
+- `agentc`、`c:`、`C:` 召唤 Agent C。
+- 没有角色前缀时按普通 Codex 任务处理；如任务需要 A/B/C 边界，应提醒人工指定角色或说明本轮按普通任务执行。
+
+### Agent A
+
+- 本地读取入口文档、核心流程、测试规范、prompt README、相关源码和 workflow。
+- 把人工目标拆成版本化 Agent B 提示词。
+- 提示词必须写清本地轻量检查、`main` push、GitHub Actions 结果包、Agent C 下载核对和禁止项。
+- 提示词归档到 `md/prompt/v0（简要标题）/vX.Y（简要说明）.md`。
+
+### Agent B
+
+- 基于最新 `origin/main` 在 `main` 上实现。
+- 本机默认只跑轻量检查，例如 `git diff --check`、`plutil -lint`、YAML 解析、Probe / Fast。
+- 提交本轮相关文件，commit 主题使用 `<版本号>: <一句话概括>`。
+- 直接 `git push origin main`，由 GitHub Actions 运行 build / test / 静态检查 / 项目探针。
+- 如果 `origin` 不存在或没有 push 权限，必须报告阻塞，不能伪装云端验证。
+
+### GitHub Actions
+
+- `.github/workflows/ci-results.yml` 在 `main` push 和 `workflow_dispatch` 触发。
+- CI 运行静态检查、逻辑烟测、Xcode build-for-testing 和可用模拟器 XCTest。
+- CI 上传未加密结果包，不复用任何带密码或私密发布包。
+- 结果包至少包含：
+  - `ci-artifact-manifest.json`
+  - `ci-failure-summary.md`
+  - `junit.xml`
+  - `xcodebuild.log`
+  - `test.log`
+  - `.xcresult` 或等价 Xcode 结果包
+
+### Agent C
+
+- 只验收 `origin/main` 最新 commit 对应的 run 和 artifact。
+- 如需权限，先 `gh auth login`。
+- 用 `gh run download` 把结果包下载到 `/private/tmp/localgemma-c-review-<run_id>/`。
+- 核对 manifest 中的 `branch`、`commitSha`、`runId`、`runAttempt` 与 `origin/main` 最新状态一致。
+- 打开 `ci-failure-summary.md`、`junit.xml`、主日志和 `.xcresult` 或等价结果。
+- 有问题时退回 Agent B 在 `main` 上追加修复 commit；无问题时确认最新 run 通过。
+- 如果 Agent C 自己补文档或修复小问题，也必须追加 commit、push、等待新 run，并重新下载最新结果包。
+
 ## 核心状态对象 / 模块
 
 - `LocalModel`：模型定义、能力、artifact manifest、部署 profile。
@@ -83,6 +130,7 @@
 - `PromptTemplateLibrary`：内置提示词模板。
 - `WorkspaceLayoutMode`：主界面布局断点。
 - `WallpaperImageProcessor`：壁纸数据压缩和尺寸控制。
+- `.github/workflows/ci-results.yml`：云端重验证和 Agent C 结果包生成入口。
 
 ## 关键边界
 
@@ -91,7 +139,9 @@
 - `ModelArtifactStore` 不联网，不下载。
 - `LocalArtifactValidator` 不根据 UI 状态判断，只根据 manifest 和文件/哈希判断。
 - `RealGemmaRuntimePlaceholder` 不执行真实推理。
-- `README.md` 和 UI 文案必须明确当前是模拟输出。
+- README 和 UI 文案必须明确当前是模拟输出。
+- GitHub Actions 只做构建、测试和结果包，不下载模型权重，不执行云端推理。
+- Agent C 不能只看 Agent B 文字汇报，必须核对结果包。
 
 ## 用户入口
 
@@ -107,6 +157,7 @@
 - 模型文件层：`ModelArtifactStore`、`ModelArtifactHasher`、`LocalArtifactValidator`。
 - Runtime 层：`LocalInferenceRuntime`、`SimulatedGemmaRuntime`、`RealGemmaRuntimePlaceholder`。
 - 测试层：`LocalGemmaTests.swift` 和 `Tools/LogicSmoke.swift`。
+- 云端协作层：GitHub Actions CI 结果包、`gh run download`、Agent C manifest / log / JUnit 核对。
 
 ## 已确认的铁律
 
@@ -120,6 +171,7 @@
 - 分享导出不能依赖不存在的文件。
 - 大图壁纸必须压缩和限制尺寸。
 - 横屏断点必须有测试覆盖。
+- 默认协作验证以 `main` push 后的 GitHub Actions 结果包为准。
 
 ## 未来扩展点
 
@@ -129,6 +181,7 @@
 - 支持 concrete SHA-256 的真实 Gemma artifact。
 - 增加 UI Test target 覆盖相册、分享、横屏、导航。
 - 增加持久化会话存储和隐私清理策略。
+- 在有远端仓库后跑通真实 `origin/main` push、CI artifact 下载和 Agent C 结果包复判闭环。
 
 ## 不允许破坏的行为
 
@@ -136,5 +189,4 @@
 - artifact 缺失时不崩溃、不联网、不误报 ready。
 - staged 不能提升为 verified。
 - 卸载 artifact 后必须停止部署。
-- README、测试规范、核心流程图必须跟源码同步。
-
+- README、测试规范、核心流程图必须跟源码和 CI 流程同步。

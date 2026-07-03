@@ -14,7 +14,8 @@
 - `md/test/test.md`：测试规范、测试分层、命令、触发条件和当前基线。
 - `md/flow/flow.md`：当前核心数据流、执行流、状态对象、边界和未来扩展点。
 - `md/flow/flowchart.md`：与 `flow.md` 同步的 Mermaid 可视化流程图。
-- `md/prompt/`：Agent A 每轮输出给 Agent B 的详细实现提示词归档目录，按版本号管理。
+- `md/prompt/`：Agent A 每轮输出给 Agent B 的详细实现提示词归档目录，按版本号管理；`md/prompt/README.md` 说明角色召唤和云端阶段提示词要求。
+- `.github/workflows/ci-results.yml`：`main` push / 手动触发的 GitHub Actions workflow，生成 Agent C 可下载核对的未加密 CI 结果包。
 
 ## 运行方式
 
@@ -57,6 +58,14 @@
 ```
 
 当前工程已允许 iPhone 竖屏和横屏。横屏宽度足够时，App 主界面会切换为左侧状态/导航栏、右侧工作区；模型页仍会在横屏宽度下切换为左侧选择/部署控制、右侧模型详情的两栏布局。
+
+## 协作与云端验证
+
+项目协作默认使用 `main` 直推和云端重验证：Agent B 在本地完成轻量检查后提交并 push 到 `origin/main`，GitHub Actions 运行 `ci-results.yml`，上传包含 manifest、失败摘要、JUnit、日志和 Xcode 结果包的未加密 CI artifact。Agent C 必须下载该结果包，核对 `origin/main` 最新 commit、run id、run attempt 和日志后再给出验收结论。
+
+角色召唤约定：`agenta` / `a:` / `A:` 召唤 Agent A，`agentb` / `b:` / `B:` 召唤 Agent B，`agentc` / `c:` / `C:` 召唤 Agent C。没有角色前缀时按普通 Codex 任务处理。
+
+当前仓库本地检查到尚未配置 `origin` remote；在配置远端之前，真实 `git push origin main`、GitHub Actions 试跑和 Agent C artifact 下载会被视为云端验证阻塞，不能伪装为已完成。
 
 ## 模型状态
 
@@ -152,7 +161,7 @@ Gemma 1.5B 已预留真实模型接入清单：
 
 结果：通过。
 
-同时已生成可测试导入的 `LocalGemma.swiftmodule`，并用 iPhone Simulator 的 XCTest framework 对测试源码做 API 层 typecheck。当前测试源码包含 28 个 `XCTestCase` 测试函数，其中新增了提示词模板库、模板填入输入框、模板直接发送、会话创建/切换/删除和 Markdown 会话导出覆盖：
+同时已生成可测试导入的 `LocalGemma.swiftmodule`，并用 iPhone Simulator 的 XCTest framework 对测试源码做 API 层 typecheck。当前测试源码包含 32 个 `XCTestCase` 测试函数，覆盖提示词模板库、模板填入输入框、模板直接发送、会话创建/切换/删除、Markdown 会话导出、横屏布局、壁纸处理和分享兜底：
 
 ```sh
 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc \
@@ -217,13 +226,17 @@ Gemma 1.5B 已预留真实模型接入清单：
 - `md/test/test.md`：测试分层和当前测试基线。
 - `md/flow/flow.md`：当前真实核心逻辑文档。
 - `md/flow/flowchart.md`：给人工快速读懂核心逻辑的 Mermaid 图。
+- `md/prompt/README.md`：角色召唤、提示词归档和云端阶段要求。
 - `md/prompt/v0（项目管理体系）/v0.2（建立多Agent协作规范）.md`：本轮文档体系搭建的 Agent A 提示词归档。
+- `.github/workflows/ci-results.yml`：main 直推后的云端 CI 结果包 workflow。
 
-本轮为文档体系搭建，未修改 Swift 源码，未重跑 XCTest。已完成以下结构检查：
+v0.4 将协作制度升级为 main 直推、云端重验证和 Agent C 结果包验收。本轮未修改 Swift 源码，未默认重跑本机完整 XCTest。已完成以下本地轻量检查要求：
 
 ```sh
 find md -maxdepth 4 -type f | sort
 grep -n "Agent A\\|Agent B\\|Agent C\\|README\\|测试规范" AGENTS.md
+plutil -lint LocalGemma.xcodeproj/project.pbxproj
+ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'
 ```
 
-结果：所需文档结构已创建，`AGENTS.md` 已包含 Agent A/B/C 工作流、README 更新要求和测试规范入口。
+结果：`git diff --check` 无输出并退出 0；文档结构包含 `md/prompt/README.md`；`AGENTS.md` 覆盖 Agent A/B/C、README 和测试规范入口；`plutil` 输出 `LocalGemma.xcodeproj/project.pbxproj: OK`；Ruby YAML 解析输出 `yaml ok`。由于当前仓库尚未配置 `origin` remote，本轮不能完成真实 `origin/main` push、GitHub Actions 试跑和 Agent C 结果包下载。

@@ -1,0 +1,321 @@
+name: Local Gemma CI Results
+
+"on":
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CI_VERSION: v0.4
+  PROJECT_NAME: Local Gemma iOS Prototype
+  WORKFLOW_DISPLAY_NAME: Local Gemma CI Results
+  SCHEME: LocalGemma
+  XCODE_PROJECT: LocalGemma.xcodeproj
+  DERIVED_DATA_PATH: .derivedData-ci
+  CI_RESULTS_DIR: ci-results
+
+jobs:
+  ci-results:
+    name: Build, test, and package CI results
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Initialize result directories
+        run: |
+          set -euo pipefail
+          mkdir -p "$CI_RESULTS_DIR/outcomes"
+          {
+            echo "Repository: $GITHUB_REPOSITORY"
+            echo "Branch: ${GITHUB_REF_NAME:-unknown}"
+            echo "Commit: $GITHUB_SHA"
+            echo "Run: $GITHUB_RUN_ID"
+            echo "Attempt: $GITHUB_RUN_ATTEMPT"
+            echo "Xcode:"
+            xcodebuild -version
+            echo "Selected developer dir:"
+            xcode-select -p
+          } | tee "$CI_RESULTS_DIR/environment.log"
+
+      - name: Static checks
+        run: |
+          set -u
+          log="$CI_RESULTS_DIR/static-checks.log"
+          status=0
+          {
+            echo "## git diff --check"
+            git diff --check || status=1
+            echo
+            echo "## plutil -lint $XCODE_PROJECT/project.pbxproj"
+            plutil -lint "$XCODE_PROJECT/project.pbxproj" || status=1
+            echo
+            echo "## Ruby YAML parse for ci-results workflow"
+            ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"' || status=1
+          } >"$log" 2>&1
+          if [ "$status" -eq 0 ]; then
+            echo success > "$CI_RESULTS_DIR/outcomes/static"
+          else
+            echo failure > "$CI_RESULTS_DIR/outcomes/static"
+          fi
+          cat "$log"
+          exit 0
+
+      - name: Logic smoke
+        run: |
+          set -u
+          log="$CI_RESULTS_DIR/logic-smoke.log"
+          status=0
+          {
+            echo "## Build LogicSmoke"
+            mkdir -p .build/SwiftSmokeModuleCache .build
+            xcrun swiftc \
+              -sdk "$(xcrun --sdk macosx --show-sdk-path)" \
+              -module-cache-path .build/SwiftSmokeModuleCache \
+              LocalGemma/AppState.swift Tools/LogicSmoke.swift \
+              -o .build/logic-smoke || status=1
+            if [ "$status" -eq 0 ]; then
+              echo
+              echo "## Run LogicSmoke"
+              .build/logic-smoke || status=1
+            fi
+          } >"$log" 2>&1
+          if [ "$status" -eq 0 ]; then
+            echo success > "$CI_RESULTS_DIR/outcomes/logic"
+          else
+            echo failure > "$CI_RESULTS_DIR/outcomes/logic"
+          fi
+          cat "$log"
+          exit 0
+
+      - name: Xcode build for testing
+        run: |
+          set -u
+          log="$CI_RESULTS_DIR/xcodebuild.log"
+          status=0
+          xcodebuild \
+            -project "$XCODE_PROJECT" \
+            -scheme "$SCHEME" \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$DERIVED_DATA_PATH" \
+            -resultBundlePath "$CI_RESULTS_DIR/LocalGemma-build.xcresult" \
+            CODE_SIGNING_ALLOWED=NO \
+            build-for-testing >"$log" 2>&1 || status=$?
+          if [ "$status" -eq 0 ]; then
+            echo success > "$CI_RESULTS_DIR/outcomes/build"
+          else
+            echo failure > "$CI_RESULTS_DIR/outcomes/build"
+          fi
+          cat "$log"
+          exit 0
+
+      - name: XCTest on available iPhone simulator
+        run: |
+          set -u
+          log="$CI_RESULTS_DIR/test.log"
+          if [ "$(cat "$CI_RESULTS_DIR/outcomes/build")" != "success" ]; then
+            echo "Skipping XCTest because build-for-testing did not succeed." > "$log"
+            echo skipped > "$CI_RESULTS_DIR/outcomes/test"
+            echo "not-run-build-failed" > "$CI_RESULTS_DIR/test-destination.txt"
+            cat "$log"
+            exit 0
+          fi
+
+          simulator_name="$(
+            xcrun simctl list devices available |
+              sed -n 's/^[[:space:]]*\(iPhone [^(]*\) (.*/\1/p' |
+              head -n 1 |
+              sed 's/[[:space:]]*$//'
+          )"
+
+          if [ -z "$simulator_name" ]; then
+            echo "Skipping XCTest because no available iPhone simulator was found on the runner." > "$log"
+            echo skipped > "$CI_RESULTS_DIR/outcomes/test"
+            echo "not-run-no-iphone-simulator" > "$CI_RESULTS_DIR/test-destination.txt"
+            cat "$log"
+            exit 0
+          fi
+
+          destination="platform=iOS Simulator,name=$simulator_name"
+          echo "$destination" > "$CI_RESULTS_DIR/test-destination.txt"
+          status=0
+          xcodebuild \
+            -project "$XCODE_PROJECT" \
+            -scheme "$SCHEME" \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination "$destination" \
+            -derivedDataPath "$DERIVED_DATA_PATH" \
+            -resultBundlePath "$CI_RESULTS_DIR/LocalGemma-tests.xcresult" \
+            CODE_SIGNING_ALLOWED=NO \
+            test-without-building >"$log" 2>&1 || status=$?
+          if [ "$status" -eq 0 ]; then
+            echo success > "$CI_RESULTS_DIR/outcomes/test"
+          else
+            echo failure > "$CI_RESULTS_DIR/outcomes/test"
+          fi
+          cat "$log"
+          exit 0
+
+      - name: Generate manifest, JUnit, and failure summary
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import pathlib
+          import xml.etree.ElementTree as ET
+          from datetime import datetime, timezone
+
+          results_dir = pathlib.Path(os.environ["CI_RESULTS_DIR"])
+          outcomes_dir = results_dir / "outcomes"
+
+          def read_text(path, default=""):
+              try:
+                  return pathlib.Path(path).read_text(encoding="utf-8").strip()
+              except FileNotFoundError:
+                  return default
+
+          outcomes = {
+              "static": read_text(outcomes_dir / "static", "skipped"),
+              "logic": read_text(outcomes_dir / "logic", "skipped"),
+              "build": read_text(outcomes_dir / "build", "skipped"),
+              "test": read_text(outcomes_dir / "test", "skipped"),
+          }
+          test_destination = read_text(results_dir / "test-destination.txt", "not-recorded")
+          short_sha = os.environ["GITHUB_SHA"][:7]
+
+          suite = ET.Element(
+              "testsuite",
+              {
+                  "name": "LocalGemmaCI",
+                  "tests": "4",
+                  "failures": str(sum(1 for value in outcomes.values() if value == "failure")),
+                  "skipped": str(sum(1 for value in outcomes.values() if value == "skipped")),
+              },
+          )
+          cases = [
+              ("staticChecks", outcomes["static"], "git diff, plutil, workflow YAML"),
+              ("logicSmoke", outcomes["logic"], "Tools/LogicSmoke.swift"),
+              ("xcodeBuildForTesting", outcomes["build"], "xcodebuild build-for-testing"),
+              ("xctestWithoutBuilding", outcomes["test"], test_destination),
+          ]
+          for name, outcome, detail in cases:
+              case = ET.SubElement(
+                  suite,
+                  "testcase",
+                  {
+                      "classname": "LocalGemmaCI",
+                      "name": name,
+                  },
+              )
+              if outcome == "failure":
+                  failure = ET.SubElement(case, "failure", {"message": f"{name} failed"})
+                  failure.text = detail
+              elif outcome == "skipped":
+                  skipped = ET.SubElement(case, "skipped", {"message": f"{name} skipped"})
+                  skipped.text = detail
+          ET.ElementTree(suite).write(results_dir / "junit.xml", encoding="utf-8", xml_declaration=True)
+
+          failure_lines = [
+              "# CI Failure Summary",
+              "",
+              f"- Branch: {os.environ.get('GITHUB_REF_NAME', 'unknown')}",
+              f"- Commit: {os.environ['GITHUB_SHA']}",
+              f"- Run ID: {os.environ['GITHUB_RUN_ID']}",
+              f"- Run attempt: {os.environ['GITHUB_RUN_ATTEMPT']}",
+              f"- Static checks: {outcomes['static']}",
+              f"- Logic smoke: {outcomes['logic']}",
+              f"- Build: {outcomes['build']}",
+              f"- XCTest: {outcomes['test']}",
+              f"- XCTest destination: {test_destination}",
+              "",
+          ]
+          failing = [name for name, value in outcomes.items() if value == "failure"]
+          skipped = [name for name, value in outcomes.items() if value == "skipped"]
+          if failing or skipped:
+              failure_lines.append("## Attention required")
+              failure_lines.append("")
+              if failing:
+                  failure_lines.append(f"Failed checks: {', '.join(failing)}.")
+              if skipped:
+                  failure_lines.append(f"Skipped checks: {', '.join(skipped)}.")
+              failure_lines.append("Review the matching log files in this result package.")
+          else:
+              failure_lines.append("All required checks passed.")
+          failure_lines.append("")
+          (results_dir / "ci-failure-summary.md").write_text("\n".join(failure_lines), encoding="utf-8")
+
+          manifest = {
+              "version": os.environ["CI_VERSION"],
+              "branch": os.environ.get("GITHUB_REF_NAME", "unknown"),
+              "commitSha": os.environ["GITHUB_SHA"],
+              "shortSha": short_sha,
+              "runId": os.environ["GITHUB_RUN_ID"],
+              "runAttempt": os.environ["GITHUB_RUN_ATTEMPT"],
+              "workflowName": os.environ["WORKFLOW_DISPLAY_NAME"],
+              "createdAt": datetime.now(timezone.utc).isoformat(),
+              "projectName": os.environ["PROJECT_NAME"],
+              "scheme": os.environ["SCHEME"],
+              "destination": test_destination,
+              "resultBundlePath": "ci-results/LocalGemma-build.xcresult",
+              "testResultBundlePath": "ci-results/LocalGemma-tests.xcresult",
+              "junitPath": "ci-results/junit.xml",
+              "buildLogPath": "ci-results/xcodebuild.log",
+              "testLogPath": "ci-results/test.log",
+              "failureSummaryPath": "ci-results/ci-failure-summary.md",
+              "staticChecksOutcome": outcomes["static"],
+              "logicSmokeOutcome": outcomes["logic"],
+              "buildOutcome": outcomes["build"],
+              "testOutcome": outcomes["test"],
+              "projectSpecificReports": [
+                  "ci-results/logic-smoke.log",
+                  "ci-results/static-checks.log",
+                  "ci-results/environment.log",
+              ],
+          }
+          (results_dir / "ci-artifact-manifest.json").write_text(
+              json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Prepare artifact name
+        id: artifact
+        run: |
+          set -euo pipefail
+          short_sha="${GITHUB_SHA:0:7}"
+          branch_slug="$(printf '%s' "${GITHUB_REF_NAME:-main}" | tr '/_' '--')"
+          name="localgemma-ci-${CI_VERSION}-${branch_slug}-${short_sha}-run${GITHUB_RUN_ID}-attempt${GITHUB_RUN_ATTEMPT}"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "$name" > "$CI_RESULTS_DIR/artifact-name.txt"
+
+      - name: Evaluate CI result
+        run: |
+          set -euo pipefail
+          static_outcome="$(cat "$CI_RESULTS_DIR/outcomes/static")"
+          logic_outcome="$(cat "$CI_RESULTS_DIR/outcomes/logic")"
+          build_outcome="$(cat "$CI_RESULTS_DIR/outcomes/build")"
+          test_outcome="$(cat "$CI_RESULTS_DIR/outcomes/test")"
+          cat "$CI_RESULTS_DIR/ci-failure-summary.md"
+          if [ "$static_outcome" != "success" ] ||
+             [ "$logic_outcome" != "success" ] ||
+             [ "$build_outcome" != "success" ] ||
+             [ "$test_outcome" != "success" ]; then
+            exit 1
+          fi
+
+      - name: Upload CI result package
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.artifact.outputs.name }}
+          path: ci-results
+          if-no-files-found: error
