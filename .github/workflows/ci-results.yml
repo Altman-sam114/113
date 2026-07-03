@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 env:
-  CI_VERSION: v0.4
+  CI_VERSION: unversioned
   PROJECT_NAME: Local Gemma iOS Prototype
   WORKFLOW_DISPLAY_NAME: Local Gemma CI Results
   SCHEME: LocalGemma
@@ -31,10 +31,20 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$CI_RESULTS_DIR/outcomes"
+          commit_subject="$(git log -1 --pretty=%s)"
+          commit_version="${commit_subject%%:*}"
+          if [[ "$commit_version" =~ ^v[0-9]+(\.[0-9]+)*$ ]]; then
+            ci_version="$commit_version"
+          else
+            ci_version="unversioned"
+          fi
+          echo "CI_VERSION=$ci_version" >> "$GITHUB_ENV"
           {
             echo "Repository: $GITHUB_REPOSITORY"
             echo "Branch: ${GITHUB_REF_NAME:-unknown}"
             echo "Commit: $GITHUB_SHA"
+            echo "Commit subject: $commit_subject"
+            echo "CI version: $ci_version"
             echo "Run: $GITHUB_RUN_ID"
             echo "Attempt: $GITHUB_RUN_ATTEMPT"
             echo "Xcode:"

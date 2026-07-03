@@ -180,3 +180,31 @@
 遗留事项：
 
 - v0.5 push 后需等待 `ci-results.yml` 最新 run 完成，下载结果包核对 manifest、JUnit、日志和 `.xcresult`。
+
+### v0.6 / 修复 CI 结果包版本追踪
+
+日期：2026-07-03
+
+核心变更：
+
+- 将 `.github/workflows/ci-results.yml` 的 `CI_VERSION` 从固定 `v0.4` 改为从最新 commit 主题开头的 `vX.Y` 自动提取。
+- 同步更新 `md/test/test.md` 和 README，说明 artifact 命名使用 commit 版本号。
+- 本轮不改业务源码、模型 runtime、artifact 校验或 UI 行为。
+
+关键文件：
+
+- `.github/workflows/ci-results.yml`
+- `md/test/test.md`
+- `README.md`
+- `update_log.md`
+
+验证结果：
+
+- `git diff --check`：无输出，退出码 0。
+- `ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'`：输出 `yaml ok`。
+- `rg -n "localgemma-ci-|CI_VERSION|version\\\": \\\"v|v0.6|v0.4" .github/workflows/ci-results.yml md/test/test.md README.md update_log.md`：确认 workflow、测试规范和 README 均说明 commit 版本号驱动 artifact 命名，历史 v0.4 仅保留在对应历史记录中。
+- v0.6 push 后需等待 `ci-results.yml` 最新 run 完成，确认 manifest `version`、artifact 名称、`commitSha`、`runId` 和 `runAttempt` 均与最新 `origin/main` 对齐。
+
+遗留事项：
+
+- 无业务遗留；若 GitHub Actions runner 改变默认 macOS / Xcode 版本，以结果包 `environment.log` 为准。

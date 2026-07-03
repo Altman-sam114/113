@@ -149,10 +149,10 @@ on:
 
 ### 结果包内容
 
-GitHub Actions 上传未加密 artifact，命名格式：
+GitHub Actions 上传未加密 artifact，版本号从最新 commit 主题的第一个 `vX.Y` token 提取。命名格式：
 
 ```text
-localgemma-ci-v0.4-main-<short_sha>-run<run_id>-attempt<run_attempt>
+localgemma-ci-<commit_version>-main-<short_sha>-run<run_id>-attempt<run_attempt>
 ```
 
 最低内容：
@@ -171,7 +171,7 @@ localgemma-ci-v0.4-main-<short_sha>-run<run_id>-attempt<run_attempt>
 
 ```json
 {
-  "version": "v0.4",
+  "version": "vX.Y",
   "branch": "main",
   "commitSha": "...",
   "shortSha": "...",

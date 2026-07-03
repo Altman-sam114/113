@@ -63,6 +63,8 @@
 
 项目协作默认使用 `main` 直推和云端重验证：Agent B 在本地完成轻量检查后提交并 push 到 `origin/main`，GitHub Actions 运行 `ci-results.yml`，上传包含 manifest、失败摘要、JUnit、日志和 Xcode 结果包的未加密 CI artifact。Agent C 必须下载该结果包，核对 `origin/main` 最新 commit、run id、run attempt 和日志后再给出验收结论。
 
+CI artifact 的版本号从最新 commit 主题开头的 `vX.Y` 提取，例如 `v0.6: ...` 会生成 `localgemma-ci-v0.6-main-<sha>-run<run_id>-attempt<attempt>`，避免结果包沿用旧版本号。
+
 角色召唤约定：`agenta` / `a:` / `A:` 召唤 Agent A，`agentb` / `b:` / `B:` 召唤 Agent B，`agentc` / `c:` / `C:` 召唤 Agent C。没有角色前缀时按普通 Codex 任务处理。
 
 当前仓库本地检查到尚未配置 `origin` remote；在配置远端之前，真实 `git push origin main`、GitHub Actions 试跑和 Agent C artifact 下载会被视为云端验证阻塞，不能伪装为已完成。
