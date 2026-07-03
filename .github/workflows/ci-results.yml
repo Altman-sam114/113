@@ -40,6 +40,11 @@ jobs:
           fi
           echo "CI_VERSION=$ci_version" >> "$GITHUB_ENV"
           {
+            echo "COMMIT_SUBJECT<<LOCALGEMMA_COMMIT_SUBJECT"
+            echo "$commit_subject"
+            echo "LOCALGEMMA_COMMIT_SUBJECT"
+          } >> "$GITHUB_ENV"
+          {
             echo "Repository: $GITHUB_REPOSITORY"
             echo "Branch: ${GITHUB_REF_NAME:-unknown}"
             echo "Commit: $GITHUB_SHA"
@@ -52,6 +57,17 @@ jobs:
             echo "Selected developer dir:"
             xcode-select -p
           } | tee "$CI_RESULTS_DIR/environment.log"
+
+      - name: Prepare artifact name
+        id: artifact
+        run: |
+          set -euo pipefail
+          short_sha="${GITHUB_SHA:0:7}"
+          branch_slug="$(printf '%s' "${GITHUB_REF_NAME:-main}" | tr '/_' '--')"
+          name="localgemma-ci-${CI_VERSION}-${branch_slug}-${short_sha}-run${GITHUB_RUN_ID}-attempt${GITHUB_RUN_ATTEMPT}"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "$name" > "$CI_RESULTS_DIR/artifact-name.txt"
+          echo "Artifact name: $name" | tee -a "$CI_RESULTS_DIR/environment.log"
 
       - name: Static checks
         run: |
@@ -200,7 +216,13 @@ jobs:
               "test": read_text(outcomes_dir / "test", "skipped"),
           }
           test_destination = read_text(results_dir / "test-destination.txt", "not-recorded")
+          artifact_name = read_text(results_dir / "artifact-name.txt", "not-recorded")
           short_sha = os.environ["GITHUB_SHA"][:7]
+          repository = os.environ["GITHUB_REPOSITORY"]
+          run_url = (
+              f"{os.environ.get('GITHUB_SERVER_URL', 'https://github.com')}/"
+              f"{repository}/actions/runs/{os.environ['GITHUB_RUN_ID']}"
+          )
 
           suite = ET.Element(
               "testsuite",
@@ -237,8 +259,12 @@ jobs:
           failure_lines = [
               "# CI Failure Summary",
               "",
+              f"- Artifact: {artifact_name}",
+              f"- Repository: {repository}",
               f"- Branch: {os.environ.get('GITHUB_REF_NAME', 'unknown')}",
               f"- Commit: {os.environ['GITHUB_SHA']}",
+              f"- Commit subject: {os.environ.get('COMMIT_SUBJECT', '')}",
+              f"- Run URL: {run_url}",
               f"- Run ID: {os.environ['GITHUB_RUN_ID']}",
               f"- Run attempt: {os.environ['GITHUB_RUN_ATTEMPT']}",
               f"- Static checks: {outcomes['static']}",
@@ -264,10 +290,14 @@ jobs:
           (results_dir / "ci-failure-summary.md").write_text("\n".join(failure_lines), encoding="utf-8")
 
           manifest = {
+              "artifactName": artifact_name,
               "version": os.environ["CI_VERSION"],
+              "repository": repository,
               "branch": os.environ.get("GITHUB_REF_NAME", "unknown"),
               "commitSha": os.environ["GITHUB_SHA"],
               "shortSha": short_sha,
+              "commitSubject": os.environ.get("COMMIT_SUBJECT", ""),
+              "runUrl": run_url,
               "runId": os.environ["GITHUB_RUN_ID"],
               "runAttempt": os.environ["GITHUB_RUN_ATTEMPT"],
               "workflowName": os.environ["WORKFLOW_DISPLAY_NAME"],
@@ -296,16 +326,6 @@ jobs:
               encoding="utf-8",
           )
           PY
-
-      - name: Prepare artifact name
-        id: artifact
-        run: |
-          set -euo pipefail
-          short_sha="${GITHUB_SHA:0:7}"
-          branch_slug="$(printf '%s' "${GITHUB_REF_NAME:-main}" | tr '/_' '--')"
-          name="localgemma-ci-${CI_VERSION}-${branch_slug}-${short_sha}-run${GITHUB_RUN_ID}-attempt${GITHUB_RUN_ATTEMPT}"
-          echo "name=$name" >> "$GITHUB_OUTPUT"
-          echo "$name" > "$CI_RESULTS_DIR/artifact-name.txt"
 
       - name: Evaluate CI result
         run: |

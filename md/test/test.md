@@ -141,9 +141,10 @@ on:
 - `xcodebuild build-for-testing`
 - 自动选择可用 iPhone Simulator 后执行 `xcodebuild test-without-building`
 - 生成 `ci-artifact-manifest.json`
+- 生成 `artifact-name.txt`
 - 生成 `ci-failure-summary.md`
 - 生成 `junit.xml`
-- 上传 `.xcresult`、`xcodebuild.log`、`test.log` 和 manifest
+- 上传 `.xcresult`、`xcodebuild.log`、`test.log`、`logic-smoke.log`、`static-checks.log`、`environment.log` 和 manifest
 
 云端 DerivedData 使用 `.derivedData-ci`，不同于本地推荐的 `.build/DerivedDataCodex`。这是 CI 内部缓存路径差异，不改变工程行为。
 
@@ -158,8 +159,10 @@ localgemma-ci-<commit_version>-main-<short_sha>-run<run_id>-attempt<run_attempt>
 最低内容：
 
 - `ci-artifact-manifest.json`
+- `artifact-name.txt`
 - `ci-failure-summary.md`
 - `junit.xml`
+- `environment.log`
 - `xcodebuild.log`
 - `test.log`
 - `logic-smoke.log`
@@ -171,10 +174,14 @@ localgemma-ci-<commit_version>-main-<short_sha>-run<run_id>-attempt<run_attempt>
 
 ```json
 {
+  "artifactName": "localgemma-ci-vX.Y-main-abcdef0-run123-attempt1",
   "version": "vX.Y",
+  "repository": "owner/repo",
   "branch": "main",
   "commitSha": "...",
   "shortSha": "...",
+  "commitSubject": "vX.Y: 简要说明本轮做了什么",
+  "runUrl": "https://github.com/owner/repo/actions/runs/123",
   "runId": "...",
   "runAttempt": "...",
   "workflowName": "Local Gemma CI Results",
@@ -183,10 +190,13 @@ localgemma-ci-<commit_version>-main-<short_sha>-run<run_id>-attempt<run_attempt>
   "scheme": "LocalGemma",
   "destination": "...",
   "resultBundlePath": "ci-results/LocalGemma-build.xcresult",
+  "testResultBundlePath": "ci-results/LocalGemma-tests.xcresult",
   "junitPath": "ci-results/junit.xml",
   "buildLogPath": "ci-results/xcodebuild.log",
+  "testLogPath": "ci-results/test.log",
   "failureSummaryPath": "ci-results/ci-failure-summary.md",
   "staticChecksOutcome": "success/failure",
+  "logicSmokeOutcome": "success/failure",
   "buildOutcome": "success/failure",
   "testOutcome": "success/failure/skipped",
   "projectSpecificReports": []
@@ -228,8 +238,10 @@ Agent C 必须核对：
 
 - `ci-artifact-manifest.json` 的 `branch` 是 `main`。
 - `commitSha` 等于 `origin/main` 最新 commit。
+- `artifactName` 等于 `artifact-name.txt` 的内容，也等于本次下载的 artifact 名称。
+- `repository`、`commitSubject`、`runUrl` 能定位到本次 `origin/main` 提交和 GitHub Actions run。
 - `runId` 和 `runAttempt` 等于本次下载的 GitHub Actions run。
-- `staticChecksOutcome`、`buildOutcome`、`testOutcome` 与 GitHub Actions UI 和日志一致。
+- `staticChecksOutcome`、`logicSmokeOutcome`、`buildOutcome`、`testOutcome` 与 GitHub Actions UI 和日志一致。
 - `junit.xml` 的失败数与 `ci-failure-summary.md` 一致。
 - `xcodebuild.log`、`test.log`、`.xcresult` 或等价结果存在且可打开。
 - 如果 test 被 `skipped`，必须有明确原因，例如 runner 没有可用 iPhone Simulator。

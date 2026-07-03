@@ -61,13 +61,13 @@
 
 ## 协作与云端验证
 
-项目协作默认使用 `main` 直推和云端重验证：Agent B 在本地完成轻量检查后提交并 push 到 `origin/main`，GitHub Actions 运行 `ci-results.yml`，上传包含 manifest、失败摘要、JUnit、日志和 Xcode 结果包的未加密 CI artifact。Agent C 必须下载该结果包，核对 `origin/main` 最新 commit、run id、run attempt 和日志后再给出验收结论。
+项目协作默认使用 `main` 直推和云端重验证：Agent B 在本地完成轻量检查后提交并 push 到 `origin/main`，GitHub Actions 运行 `ci-results.yml`，上传包含 manifest、失败摘要、JUnit、日志和 Xcode 结果包的未加密 CI artifact。Agent C 必须下载该结果包，核对 `origin/main` 最新 commit、artifact name、run URL、run id、run attempt 和日志后再给出验收结论。
 
-CI artifact 的版本号从最新 commit 主题开头的 `vX.Y` 提取，例如 `v0.6: ...` 会生成 `localgemma-ci-v0.6-main-<sha>-run<run_id>-attempt<attempt>`，避免结果包沿用旧版本号。
+CI artifact 的版本号从最新 commit 主题开头的 `vX.Y` 提取，例如 `v0.7: ...` 会生成 `localgemma-ci-v0.7-main-<sha>-run<run_id>-attempt<attempt>`，避免结果包沿用旧版本号。v0.7 起，`ci-artifact-manifest.json` 明确记录 `artifactName`、`repository`、`commitSubject`、`runUrl`、`runId`、`runAttempt`、各阶段 outcome 和 `destination`；`artifact-name.txt` 必须与 manifest 中的 `artifactName` 一致。
 
 角色召唤约定：`agenta` / `a:` / `A:` 召唤 Agent A，`agentb` / `b:` / `B:` 召唤 Agent B，`agentc` / `c:` / `C:` 召唤 Agent C。没有角色前缀时按普通 Codex 任务处理。
 
-当前仓库本地检查到尚未配置 `origin` remote；在配置远端之前，真实 `git push origin main`、GitHub Actions 试跑和 Agent C artifact 下载会被视为云端验证阻塞，不能伪装为已完成。
+当前本地仓库已配置 `origin` remote，Agent B 可按规则执行 `git push origin main` 触发云端重验证。若后续环境缺少 `origin`、push 权限或 GitHub Actions artifact 下载权限，必须明确报告阻塞，不能伪装为已 push、已运行 CI 或已完成 Agent C 验收。
 
 ## 模型状态
 
@@ -241,7 +241,7 @@ plutil -lint LocalGemma.xcodeproj/project.pbxproj
 ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'
 ```
 
-结果：`git diff --check` 无输出并退出 0；文档结构包含 `md/prompt/README.md`；`AGENTS.md` 覆盖 Agent A/B/C、README 和测试规范入口；`plutil` 输出 `LocalGemma.xcodeproj/project.pbxproj: OK`；Ruby YAML 解析输出 `yaml ok`。由于当前仓库尚未配置 `origin` remote，本轮不能完成真实 `origin/main` push、GitHub Actions 试跑和 Agent C 结果包下载。
+结果：`git diff --check` 无输出并退出 0；文档结构包含 `md/prompt/README.md`；`AGENTS.md` 覆盖 Agent A/B/C、README 和测试规范入口；`plutil` 输出 `LocalGemma.xcodeproj/project.pbxproj: OK`；Ruby YAML 解析输出 `yaml ok`。v0.4 执行环境当时尚未配置 `origin` remote，因此该历史版本未完成真实 `origin/main` push、GitHub Actions 试跑和 Agent C 结果包下载；当前仓库已配置 `origin`，后续以最新 push 触发的结果包为准。
 
 v0.5 修复了 GitHub Actions run `28669343294` 暴露的 Swift 6 actor isolation 构建错误：`WallpaperPreferencePanel` 不再从 `PhotosPicker` 的可发送 label 闭包直接读取 `@Environment` theme，而是在闭包外捕获需要的颜色值。本轮不改变 UI 行为。已完成本机构建验证：
 
@@ -258,3 +258,5 @@ xcodebuild -project LocalGemma.xcodeproj \
 ```
 
 结果：`** TEST BUILD SUCCEEDED **`。最新云端 `ci-results.yml` 结果以本轮 push 后的 GitHub Actions run 和下载结果包为准。
+
+v0.7 校准云端验收闭环：当前仓库已配置 `origin`，CI 结果包 manifest 增加 `artifactName`、`repository`、`commitSubject`、`runUrl` 和各阶段 outcome，Agent C 下载后可直接核对 `artifact-name.txt`、manifest、JUnit、日志和 `.xcresult` 是否对应最新 `origin/main`。本轮不修改 Swift 业务源码、不接真实模型、不改变 UI 行为。

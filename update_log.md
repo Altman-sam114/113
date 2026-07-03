@@ -18,7 +18,7 @@
 - 当前推理：本地模拟 runtime，不下载模型权重，不执行真实模型推理。
 - 当前核心测试：`LocalGemmaTests.swift` 中 32 个 XCTest 方法。
 - 当前核心文档入口：`AGENTS.md`、`md/flow/flow.md`、`md/flow/flowchart.md`、`md/test/test.md`、`md/prompt/README.md`、`README.md`。
-- 当前协作验证：默认 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载未加密 CI 结果包验收；本地仓库当前尚未配置 `origin` remote。
+- 当前协作验证：默认 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载未加密 CI 结果包验收；本地仓库当前已配置 `origin` remote，最终验收仍以最新 `origin/main` 对应的 GitHub Actions run 和结果包为准。
 
 ## 历史记录
 
@@ -152,7 +152,7 @@
 
 遗留事项：
 
-- 配置 `origin` remote 后，按 v0.4 流程执行一次真实 `main` push，等待 `ci-results` workflow 完成，并由 Agent C 下载 `/private/tmp/localgemma-c-review-<run_id>/` 下的结果包核对 manifest、JUnit、日志和 `.xcresult`。
+- 后续已配置 `origin` remote；真实云端闭环应按最新版本 push 后的 `ci-results` run 和 Agent C 下载结果包复判为准。
 - 若 GitHub-hosted runner 的可用 iPhone Simulator 名称与本地不同，以 workflow 自动选择结果和 manifest 中的 `destination` 为准。
 
 ### v0.5 / 修复云端 Swift 6 构建隔离错误
@@ -208,3 +208,39 @@
 遗留事项：
 
 - 无业务遗留；若 GitHub Actions runner 改变默认 macOS / Xcode 版本，以结果包 `environment.log` 为准。
+
+### v0.7 / 校准云端验收闭环
+
+日期：2026-07-03
+
+核心变更：
+
+- 修正 README 和当前状态记录中“尚未配置 origin remote”的过期描述，明确当前本地仓库已配置 `origin`，但最终验收仍以最新 GitHub Actions run 和 Agent C 下载结果包为准。
+- 强化 `.github/workflows/ci-results.yml` 的结果包自描述能力：manifest 增加 `artifactName`、`repository`、`commitSubject`、`runUrl`，并继续记录 `staticChecksOutcome`、`logicSmokeOutcome`、`buildOutcome`、`testOutcome` 和 `destination`。
+- 将 `artifact-name.txt` 提前生成，manifest、failure summary 和 artifact upload 共用同一个 artifact 名称，降低 Agent C 错验旧包的风险。
+- 同步更新测试规范、核心流程文档、Mermaid 流程图和 README 的 Agent C 验收字段要求。
+- 新增本轮 Agent A 提示词归档 `md/prompt/v0（云端验收闭环）/v0.7（云端验收闭环与文档校准）.md`。
+- 本轮不改 Swift 业务源码、模型 runtime、artifact 校验、UI 行为或 XCTest 基线。
+
+关键文件：
+
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（云端验收闭环）/v0.7（云端验收闭环与文档校准）.md`
+- `update_log.md`
+
+验证结果：
+
+- `git diff --check`：无输出，退出码 0。
+- `find md -maxdepth 4 -type f | sort`：确认 v0.7 Agent A 提示词和核心文档仍在归档结构内。
+- `grep -n "Agent A\\|Agent B\\|Agent C\\|README\\|测试规范" AGENTS.md`：确认入口文档仍覆盖角色规则、README 和测试规范入口。
+- `plutil -lint LocalGemma.xcodeproj/project.pbxproj`：输出 `LocalGemma.xcodeproj/project.pbxproj: OK`。
+- `ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'`：输出 `yaml ok`。
+- `rg -n "artifactName|commitSubject|runUrl|logicSmokeOutcome|localgemma-ci-|当前仓库|origin remote|v0.7" .github/workflows/ci-results.yml README.md md/test/test.md md/flow/flow.md md/flow/flowchart.md update_log.md`：确认 workflow 和文档均覆盖 v0.7 结果包字段、origin 当前状态和 artifact 命名。
+
+遗留事项：
+
+- v0.7 push 后需等待最新 `ci-results.yml` run 完成，由 Agent C 下载对应未加密结果包，核对 manifest、`artifact-name.txt`、JUnit、日志和 `.xcresult`。

@@ -103,18 +103,23 @@
 - CI 上传未加密结果包，不复用任何带密码或私密发布包。
 - 结果包至少包含：
   - `ci-artifact-manifest.json`
+  - `artifact-name.txt`
   - `ci-failure-summary.md`
   - `junit.xml`
+  - `environment.log`
+  - `static-checks.log`
+  - `logic-smoke.log`
   - `xcodebuild.log`
   - `test.log`
   - `.xcresult` 或等价 Xcode 结果包
+- manifest 必须自描述 `artifactName`、`repository`、`commitSubject`、`runUrl`、`runId`、`runAttempt`、各阶段 outcome 和自动选择的 `destination`。
 
 ### Agent C
 
 - 只验收 `origin/main` 最新 commit 对应的 run 和 artifact。
 - 如需权限，先 `gh auth login`。
 - 用 `gh run download` 把结果包下载到 `/private/tmp/localgemma-c-review-<run_id>/`。
-- 核对 manifest 中的 `branch`、`commitSha`、`runId`、`runAttempt` 与 `origin/main` 最新状态一致。
+- 核对 manifest 中的 `artifactName`、`branch`、`commitSha`、`commitSubject`、`repository`、`runUrl`、`runId`、`runAttempt` 与 `artifact-name.txt`、本次下载 run 和 `origin/main` 最新状态一致。
 - 打开 `ci-failure-summary.md`、`junit.xml`、主日志和 `.xcresult` 或等价结果。
 - 有问题时退回 Agent B 在 `main` 上追加修复 commit；无问题时确认最新 run 通过。
 - 如果 Agent C 自己补文档或修复小问题，也必须追加 commit、push、等待新 run，并重新下载最新结果包。
@@ -181,7 +186,7 @@
 - 支持 concrete SHA-256 的真实 Gemma artifact。
 - 增加 UI Test target 覆盖相册、分享、横屏、导航。
 - 增加持久化会话存储和隐私清理策略。
-- 在有远端仓库后跑通真实 `origin/main` push、CI artifact 下载和 Agent C 结果包复判闭环。
+- 已配置远端仓库后，下一步是持续用最新 `origin/main` push、CI artifact 下载和 Agent C 结果包复判来闭环每个版本。
 
 ## 不允许破坏的行为
 

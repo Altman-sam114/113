@@ -118,7 +118,7 @@ flowchart TD
 
 ## 7. main 直推与云端结果包验收流
 
-读图说明：这张图展示新的协作闭环。重点是 Agent B 必须在 `main` 上提交并推送，GitHub Actions 生成未加密结果包，Agent C 只能验收 `origin/main` 最新 commit 对应的结果包；失败时通过追加修复 commit 回到同一条主线。
+读图说明：这张图展示新的协作闭环。重点是 Agent B 必须在 `main` 上提交并推送，GitHub Actions 生成带自描述 manifest 的未加密结果包，Agent C 只能验收 `origin/main` 最新 commit 对应的 artifact name、run URL、run id 和 run attempt；失败时通过追加修复 commit 回到同一条主线。
 
 ```mermaid
 flowchart TD
@@ -138,12 +138,12 @@ flowchart TD
     L --> M[commit 到 main<br/>主题含版本号]
     M --> N[git push origin main]
     N --> O[GitHub Actions<br/>ci-results workflow]
-    O --> P[生成未加密 CI 结果包<br/>manifest + failure summary + JUnit + logs + xcresult]
+    O --> P[生成未加密 CI 结果包<br/>artifact name + manifest + failure summary + JUnit + logs + xcresult]
     P --> E
     E --> Q[gh auth login 如需权限<br/>gh run download 到 /private/tmp/localgemma-c-review-run_id]
-    Q --> R{manifest 是否匹配 origin/main 最新 commit / run / attempt}
+    Q --> R{manifest 是否匹配 artifact-name.txt<br/>origin/main 最新 commit / run URL / run / attempt}
     R -- 否 --> S[验收不通过<br/>退回 Agent B]
-    R -- 是 --> T{日志 / JUnit / xcresult 是否通过}
+    R -- 是 --> T{outcome / 日志 / JUnit / xcresult 是否通过}
     T -- 否 --> S
     T -- 是 --> U[Agent C 确认 main 最新 run 通过]
     S --> V[Agent B 在 main 上追加修复 commit]
