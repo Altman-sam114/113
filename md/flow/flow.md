@@ -1,6 +1,6 @@
 # 项目核心流程文档
 
-一句话总览：本项目是一个 SwiftUI iOS 原型，通过本地模拟 runtime 和严格 artifact 校验流程，验证 iPhone 端侧部署 Gemma 1.5B 的 UI、状态管理、文件导入、会话导出和 Apple Silicon 运行计划；协作流程默认采用 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载结果包验收。
+一句话总览：本项目是一个 SwiftUI iOS 原型，通过本地模拟 runtime 和严格 artifact 校验流程，验证 iPhone 与 iPad 端侧部署 Gemma 1.5B 的 UI、状态管理、文件导入、会话导出、大屏布局和 Apple Silicon 运行计划；协作流程默认采用 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载结果包验收。
 
 本文只写当前真实链路，不写历史流水账。
 
@@ -53,9 +53,9 @@
 ### UI 工作区
 
 - `ContentView` 包含四个工作区：推理、模型、提示词、设置。
-- 竖屏使用顶部 header、tab picker 和分页工作区。
-- 横屏使用左侧状态/导航栏和右侧工作区。
-- `WorkspaceLayoutMode` 负责判断 portrait、landscapeCompact、landscapeRegular。
+- 小屏容器使用顶部 header、tab picker 和分页工作区。
+- iPhone 横屏、iPad 大画布或大屏窗口达到断点后使用左侧状态/导航栏和右侧工作区。
+- `WorkspaceLayoutMode` 负责按容器尺寸判断 portrait、landscapeCompact、landscapeRegular；case 名称保留历史兼容，但 v0.8 起含义是单栏、compact 双栏和 regular 大屏双栏。
 
 ### 壁纸
 
@@ -79,7 +79,24 @@
 - `agenta`、`a:`、`A:` 召唤 Agent A。
 - `agentb`、`b:`、`B:` 召唤 Agent B。
 - `agentc`、`c:`、`C:` 召唤 Agent C。
-- 没有角色前缀时按普通 Codex 任务处理；如任务需要 A/B/C 边界，应提醒人工指定角色或说明本轮按普通任务执行。
+- `agentx`、`x:`、`X:` 召唤 Agent X。
+- 没有角色前缀时按普通 Codex 任务处理；如任务需要 A/B/C/X 边界，应提醒人工指定角色或说明本轮按普通任务执行。
+
+### Agent X 主控循环
+
+Agent X 是未来用于总目标 X 的主控调度层，不直接替代 Agent A、Agent B 或 Agent C。它只负责拆轮次、调度顺序、读取每轮结果并决定下一步。
+
+Agent X 循环的当前文档基线：
+
+1. 人工用 `agentx`、`x:` 或 `X:` 给出总目标 X。
+2. Agent X 将总目标拆成一个可独立验证的小轮次。
+3. Agent X 调用 Agent A 写本轮版本化 Agent B 提示词。
+4. Agent B 基于最新 `origin/main` 在 `main` 上实现、轻量检查、commit 并 push。
+5. GitHub Actions 对最新 `origin/main` commit 运行 CI，并上传未加密结果包。
+6. Agent C 下载最新 run 的 artifact，核对 manifest、`artifact-name.txt`、JUnit、日志和 `.xcresult` 或等价结果。
+7. Agent X 根据 Agent C 结论判断：继续下一轮、退回 Agent B 修复、暂停等待人工确认，或宣布总目标完成。
+
+Agent X 不能跳过 Agent C artifact 验收；失败时不能继续下一轮并伪装成功。若连续 3 轮遇到同一阻塞、连续 2 轮没有有效 diff、CI 连续失败且原因相同，或需要账号、权限、密钥、付费服务、人工决策和无法判断归属的工作区冲突，Agent X 必须暂停或停止并报告原因。
 
 ### Agent A
 
@@ -133,9 +150,10 @@
 - `InferenceEngine`：会话、输入、输出、导出、生成状态。
 - `DeviceOptimizer`：Apple Silicon 优化指标和开关。
 - `PromptTemplateLibrary`：内置提示词模板。
-- `WorkspaceLayoutMode`：主界面布局断点。
+- `WorkspaceLayoutMode`：主界面容器尺寸断点，覆盖 iPhone 横屏、iPad 竖屏大画布和大屏窗口。
 - `WallpaperImageProcessor`：壁纸数据压缩和尺寸控制。
 - `.github/workflows/ci-results.yml`：云端重验证和 Agent C 结果包生成入口。
+- `Agent X`：未来多轮总目标调度层，按 Agent A -> Agent B -> Agent C 闭环推进。
 
 ## 关键边界
 
@@ -147,6 +165,8 @@
 - README 和 UI 文案必须明确当前是模拟输出。
 - GitHub Actions 只做构建、测试和结果包，不下载模型权重，不执行云端推理。
 - Agent C 不能只看 Agent B 文字汇报，必须核对结果包。
+- Agent X 不能跳过 Agent C 的最新 artifact 验收，不能把旧 run、旧 artifact 或本地输出冒充云端结果。
+- CI artifact 和 Agent C 下载内容必须保持小数据量，只保留 manifest、JUnit 或摘要、关键日志、失败摘要和必要结果包。
 
 ## 用户入口
 
@@ -162,7 +182,7 @@
 - 模型文件层：`ModelArtifactStore`、`ModelArtifactHasher`、`LocalArtifactValidator`。
 - Runtime 层：`LocalInferenceRuntime`、`SimulatedGemmaRuntime`、`RealGemmaRuntimePlaceholder`。
 - 测试层：`LocalGemmaTests.swift` 和 `Tools/LogicSmoke.swift`。
-- 云端协作层：GitHub Actions CI 结果包、`gh run download`、Agent C manifest / log / JUnit 核对。
+- 云端协作层：Agent X 多轮调度、GitHub Actions CI 结果包、`gh run download`、Agent C manifest / log / JUnit 核对。
 
 ## 已确认的铁律
 
@@ -175,8 +195,9 @@
 - 空 prompt 不创建新消息，不触发生成。
 - 分享导出不能依赖不存在的文件。
 - 大图壁纸必须压缩和限制尺寸。
-- 横屏断点必须有测试覆盖。
+- iPhone 横屏与 iPad 大屏布局断点必须有测试覆盖。
 - 默认协作验证以 `main` push 后的 GitHub Actions 结果包为准。
+- Agent X 循环每轮仍以 Agent B 本地轻量检查、GitHub Actions artifact 和 Agent C 下载复判为准。
 
 ## 未来扩展点
 
@@ -184,7 +205,7 @@
 - 将 `ContentView.swift` 按 workspace 和组件拆分。
 - 接入真实 Core ML / ANE runtime。
 - 支持 concrete SHA-256 的真实 Gemma artifact。
-- 增加 UI Test target 覆盖相册、分享、横屏、导航。
+- 增加 UI Test target 覆盖相册、分享、iPad 大屏布局、导航。
 - 增加持久化会话存储和隐私清理策略。
 - 已配置远端仓库后，下一步是持续用最新 `origin/main` push、CI artifact 下载和 Agent C 结果包复判来闭环每个版本。
 

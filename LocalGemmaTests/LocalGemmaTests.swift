@@ -611,6 +611,10 @@ final class LocalGemmaTests: XCTestCase {
             .portrait
         )
         XCTAssertEqual(
+            WorkspaceLayoutMode.resolve(for: CGSize(width: 430, height: 932)),
+            .portrait
+        )
+        XCTAssertEqual(
             WorkspaceLayoutMode.resolve(for: CGSize(width: 844, height: 390)),
             .landscapeCompact
         )
@@ -620,6 +624,25 @@ final class LocalGemmaTests: XCTestCase {
         )
     }
 
+    func testWorkspaceLayoutModeSupportsIPadWideContainers() {
+        let iPadProPortrait = WorkspaceLayoutMode.resolve(
+            for: CGSize(width: 1024, height: 1366)
+        )
+        let largeWindow = WorkspaceLayoutMode.resolve(
+            for: CGSize(width: 1000, height: 760)
+        )
+        let mediumPortrait = WorkspaceLayoutMode.resolve(
+            for: CGSize(width: 820, height: 1180)
+        )
+
+        XCTAssertEqual(iPadProPortrait, .landscapeRegular)
+        XCTAssertTrue(iPadProPortrait.usesSidebar)
+        XCTAssertEqual(largeWindow, .landscapeRegular)
+        XCTAssertTrue(largeWindow.usesSidebar)
+        XCTAssertEqual(mediumPortrait, .landscapeCompact)
+        XCTAssertTrue(mediumPortrait.usesSidebar)
+    }
+
     func testWorkspaceLayoutModeConstrainsSidebarWidth() {
         let compactWidth = WorkspaceLayoutMode.landscapeCompact.sidebarWidth(
             for: CGSize(width: 844, height: 390)
@@ -627,11 +650,16 @@ final class LocalGemmaTests: XCTestCase {
         let regularWidth = WorkspaceLayoutMode.landscapeRegular.sidebarWidth(
             for: CGSize(width: 1366, height: 1024)
         )
+        let iPadPortraitWidth = WorkspaceLayoutMode.landscapeRegular.sidebarWidth(
+            for: CGSize(width: 1024, height: 1366)
+        )
 
         XCTAssertGreaterThanOrEqual(compactWidth, 250)
         XCTAssertLessThanOrEqual(compactWidth, 310)
         XCTAssertGreaterThanOrEqual(regularWidth, 320)
         XCTAssertLessThanOrEqual(regularWidth, 390)
+        XCTAssertGreaterThanOrEqual(iPadPortraitWidth, 320)
+        XCTAssertLessThanOrEqual(iPadPortraitWidth, 390)
         XCTAssertEqual(
             WorkspaceLayoutMode.portrait.sidebarWidth(for: CGSize(width: 390, height: 844)),
             0

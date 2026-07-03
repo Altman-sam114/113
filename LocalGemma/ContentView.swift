@@ -82,12 +82,20 @@ enum WorkspaceLayoutMode: Equatable {
     case landscapeCompact
     case landscapeRegular
 
+    private static let minimumSidebarWidth: CGFloat = 700
+    private static let regularMinimumWidth: CGFloat = 980
+    private static let regularMinimumHeight: CGFloat = 700
+
     static func resolve(for size: CGSize) -> WorkspaceLayoutMode {
-        guard size.width > size.height, size.width >= 700 else {
+        guard size.width >= minimumSidebarWidth else {
             return .portrait
         }
 
-        return size.height < 520 || size.width < 980 ? .landscapeCompact : .landscapeRegular
+        if size.width >= regularMinimumWidth, size.height >= regularMinimumHeight {
+            return .landscapeRegular
+        }
+
+        return .landscapeCompact
     }
 
     var usesSidebar: Bool {
@@ -603,7 +611,7 @@ struct HeaderView: View {
                         .foregroundStyle(theme.accent)
                         .tracking(1.2)
 
-                    Text("iPhone 端侧大模型")
+                    Text("端侧大模型工作台")
                         .font(.system(size: 27, weight: .heavy, design: .rounded))
                         .foregroundStyle(theme.primaryText)
                         .lineLimit(1)

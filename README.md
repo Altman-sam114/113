@@ -1,27 +1,27 @@
 # Local Gemma iOS Prototype
 
-一个 SwiftUI iOS 原型 App，主打 iPhone 本地部署 Gemma 1.5B 的产品形态。当前版本不下载模型权重，使用本地模拟推理引擎验证 UI、模型管理、流式输出、停止生成和苹果芯片部署优化面板。
+一个 SwiftUI iOS 原型 App，主打 iPhone 与 iPad 本地部署 Gemma 1.5B 的产品形态。当前版本不下载模型权重，使用本地模拟推理引擎验证 UI、模型管理、流式输出、停止生成和苹果芯片部署优化面板。
 
 ## 当前范围
 
-- `LocalGemma.xcodeproj`：可用 Xcode 打开的 iOS 工程。
+- `LocalGemma.xcodeproj`：可用 Xcode 打开的 iOS 工程，当前 app/test target 支持 iPhone 与 iPad。
 - `LocalGemma/AppState.swift`：模型清单、`LocalInferenceRuntime` 协议、模拟/真实占位 runtime、会话管理、导出文本生成、设备优化状态、本地模型 artifact manifest、`ModelArtifactStore`、`ModelArtifactHasher`、`LocalArtifactValidator`、手动导入错误处理和 Apple Silicon 运行计划。
-- `LocalGemma/ContentView.swift`：支持暗色/亮色切换的 SwiftUI 界面，包含推理、模型、提示词、设置四个工作区；推理页改成极简会话界面，顶部 Gemma 模型胶囊集中展示运行状态、速度、内存、后端和权重状态；提示词模板独立成页；设置页整合外观、相册壁纸和芯片部署优化；横屏会自动切换为左侧导航/模型状态栏、右侧工作区。
-- `LocalGemmaTests/LocalGemmaTests.swift`：覆盖默认 Gemma 模拟状态、artifact missing/staged/verified 校验、手动导入文件复制、`.mlmodelc` 目录导入、启动自动扫描、本地模型管理状态流转、模拟输出、运行计划、优化开关、预设提示词模板、会话管理、Markdown 会话导出和空输入保护。
+- `LocalGemma/ContentView.swift`：支持暗色/亮色切换的 SwiftUI 界面，包含推理、模型、提示词、设置四个工作区；推理页改成极简会话界面，顶部 Gemma 模型胶囊集中展示运行状态、速度、内存、后端和权重状态；提示词模板独立成页；设置页整合外观、相册壁纸和芯片部署优化；iPhone 横屏、iPad 竖屏大画布和大屏窗口达到断点后会切换为左侧导航/模型状态栏、右侧工作区。
+- `LocalGemmaTests/LocalGemmaTests.swift`：覆盖默认 Gemma 模拟状态、artifact missing/staged/verified 校验、手动导入文件复制、`.mlmodelc` 目录导入、启动自动扫描、本地模型管理状态流转、模拟输出、运行计划、优化开关、预设提示词模板、会话管理、Markdown 会话导出、iPhone/iPad 布局断点和空输入保护。
 - `Tools/LogicSmoke.swift`：不依赖 iOS runtime 的本地逻辑烟测，用来验证模拟模型、artifact 校验、手动导入文件复制、`.mlmodelc` 目录导入、启动自动扫描、模型管理状态流转、运行计划、提示词模板、会话管理、Markdown 导出与优化状态。
-- `AGENTS.md`：项目入口记忆、基本规则和“人工目标 -> Agent A -> Agent B -> Agent C -> 人工复核”的多 Agent 迭代工作流。
+- `AGENTS.md`：项目入口记忆、基本规则、“人工目标 -> Agent A -> Agent B -> Agent C -> 人工复核”的单轮流程，以及未来 `agentx:` 主控 A/B/C 多轮循环的准备规则。
 - `update_log.md`：版本更新记录、历史决策、完成事项和遗留问题。
 - `md/test/test.md`：测试规范、测试分层、命令、触发条件和当前基线。
 - `md/flow/flow.md`：当前核心数据流、执行流、状态对象、边界和未来扩展点。
 - `md/flow/flowchart.md`：与 `flow.md` 同步的 Mermaid 可视化流程图。
-- `md/prompt/`：Agent A 每轮输出给 Agent B 的详细实现提示词归档目录，按版本号管理；`md/prompt/README.md` 说明角色召唤和云端阶段提示词要求。
+- `md/prompt/`：Agent A 每轮输出给 Agent B 的详细实现提示词归档目录，按版本号管理；`md/prompt/README.md` 说明角色召唤、Agent X 循环提示词管理和云端阶段提示词要求。
 - `.github/workflows/ci-results.yml`：`main` push / 手动触发的 GitHub Actions workflow，生成 Agent C 可下载核对的未加密 CI 结果包。
 
 ## 运行方式
 
 1. 打开 `LocalGemma.xcodeproj`。
 2. 选择 `LocalGemma` scheme。
-3. 选择 iPhone 模拟器或真机。
+3. 选择 iPhone / iPad 模拟器或真机。
 4. 运行 App。
 
 可用以下命令在本机验证构建。当前机器的 `xcode-select` 指向 Command Line Tools，因此命令使用完整 Xcode 路径：
@@ -57,7 +57,7 @@
   test
 ```
 
-当前工程已允许 iPhone 竖屏和横屏。横屏宽度足够时，App 主界面会切换为左侧状态/导航栏、右侧工作区；模型页仍会在横屏宽度下切换为左侧选择/部署控制、右侧模型详情的两栏布局。
+当前工程已允许 iPhone 与 iPad。iPhone 竖屏保持单栏；iPhone 横屏、iPad Pro 竖屏大画布和足够大的窗口达到 `WorkspaceLayoutMode` 断点后，App 主界面会切换为左侧状态/导航栏、右侧工作区；模型页仍会在宽度足够时切换为左侧选择/部署控制、右侧模型详情的两栏布局。当前没有 Mac 独立 target 或 Mac Catalyst target。
 
 ## 协作与云端验证
 
@@ -65,7 +65,9 @@
 
 CI artifact 的版本号从最新 commit 主题开头的 `vX.Y` 提取，例如 `v0.7: ...` 会生成 `localgemma-ci-v0.7-main-<sha>-run<run_id>-attempt<attempt>`，避免结果包沿用旧版本号。v0.7 起，`ci-artifact-manifest.json` 明确记录 `artifactName`、`repository`、`commitSubject`、`runUrl`、`runId`、`runAttempt`、各阶段 outcome 和 `destination`；`artifact-name.txt` 必须与 manifest 中的 `artifactName` 一致。
 
-角色召唤约定：`agenta` / `a:` / `A:` 召唤 Agent A，`agentb` / `b:` / `B:` 召唤 Agent B，`agentc` / `c:` / `C:` 召唤 Agent C。没有角色前缀时按普通 Codex 任务处理。
+角色召唤约定：`agenta` / `a:` / `A:` 召唤 Agent A，`agentb` / `b:` / `B:` 召唤 Agent B，`agentc` / `c:` / `C:` 召唤 Agent C，`agentx` / `x:` / `X:` 召唤 Agent X。没有角色前缀时按普通 Codex 任务处理。
+
+`agentx:` 用于后续启动主控循环。Agent X 接收人工总目标 X，把目标拆成多个小轮次，并按 Agent A 写提示词、Agent B 实现并 push、GitHub Actions 生成 artifact、Agent C 下载验收的顺序推进。Agent X 不直接替代 A/B/C，也不能跳过 Agent C 对最新 artifact 的验收；失败时必须退回修复或暂停，不能继续下一轮伪装成功。
 
 当前本地仓库已配置 `origin` remote，Agent B 可按规则执行 `git push origin main` 触发云端重验证。若后续环境缺少 `origin`、push 权限或 GitHub Actions artifact 下载权限，必须明确报告阻塞，不能伪装为已 push、已运行 CI 或已完成 Agent C 验收。
 
@@ -163,7 +165,7 @@ Gemma 1.5B 已预留真实模型接入清单：
 
 结果：通过。
 
-同时已生成可测试导入的 `LocalGemma.swiftmodule`，并用 iPhone Simulator 的 XCTest framework 对测试源码做 API 层 typecheck。当前测试源码包含 32 个 `XCTestCase` 测试函数，覆盖提示词模板库、模板填入输入框、模板直接发送、会话创建/切换/删除、Markdown 会话导出、横屏布局、壁纸处理和分享兜底：
+同时已生成可测试导入的 `LocalGemma.swiftmodule`，并用 iPhone Simulator 的 XCTest framework 对测试源码做 API 层 typecheck。当前测试源码包含 33 个 `XCTestCase` 测试函数，覆盖提示词模板库、模板填入输入框、模板直接发送、会话创建/切换/删除、Markdown 会话导出、iPhone/iPad 布局断点、壁纸处理和分享兜底：
 
 ```sh
 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc \
@@ -190,7 +192,7 @@ Gemma 1.5B 已预留真实模型接入清单：
 
 结果：通过。
 
-当前这轮已完成 Xcode build system 验证：
+最近一次本地 Xcode build system 验证记录如下。v0.8 本轮未默认重跑完整本机 `xcodebuild build-for-testing` 或模拟器 XCTest，完整 build/test 交由 `main` push 后的 GitHub Actions 结果包验收。
 
 ```sh
 /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild \
@@ -203,7 +205,7 @@ Gemma 1.5B 已预留真实模型接入清单：
   build-for-testing
 ```
 
-结果：`TEST BUILD SUCCEEDED`。
+历史结果：`TEST BUILD SUCCEEDED`。
 
 完整 iPhone 17 Pro 模拟器 XCTest 命令如下：
 
@@ -217,7 +219,7 @@ Gemma 1.5B 已预留真实模型接入清单：
   CODE_SIGNING_ALLOWED=NO
 ```
 
-说明：当前 Codex 沙箱内的 CoreSimulator 访问受限；本轮尝试请求在沙箱外执行完整 XCTest 时，自动审批先超时，随后返回 `502 Bad Gateway`，因此未重跑模拟器测试。`build-for-testing`、Swift typecheck、测试源码 typecheck 和逻辑烟测已经在工作区内通过。
+说明：当前 Codex 沙箱内的 CoreSimulator 访问受限；v0.8 本轮未默认重跑本机完整模拟器 XCTest。已在工作区内完成 `git diff --check`、`plutil -lint`、workflow YAML 解析、33 个测试函数统计、逻辑烟测、Swift typecheck 和测试源码 typecheck；完整 Xcode build/test 以本轮 push 后的 GitHub Actions run 和 Agent C 下载结果包验收为准。
 
 ## 项目管理文档体系
 
@@ -228,7 +230,7 @@ Gemma 1.5B 已预留真实模型接入清单：
 - `md/test/test.md`：测试分层和当前测试基线。
 - `md/flow/flow.md`：当前真实核心逻辑文档。
 - `md/flow/flowchart.md`：给人工快速读懂核心逻辑的 Mermaid 图。
-- `md/prompt/README.md`：角色召唤、提示词归档和云端阶段要求。
+- `md/prompt/README.md`：角色召唤、Agent X 循环提示词管理、提示词归档和云端阶段要求。
 - `md/prompt/v0（项目管理体系）/v0.2（建立多Agent协作规范）.md`：本轮文档体系搭建的 Agent A 提示词归档。
 - `.github/workflows/ci-results.yml`：main 直推后的云端 CI 结果包 workflow。
 
@@ -260,3 +262,5 @@ xcodebuild -project LocalGemma.xcodeproj \
 结果：`** TEST BUILD SUCCEEDED **`。最新云端 `ci-results.yml` 结果以本轮 push 后的 GitHub Actions run 和下载结果包为准。
 
 v0.7 校准云端验收闭环：当前仓库已配置 `origin`，CI 结果包 manifest 增加 `artifactName`、`repository`、`commitSubject`、`runUrl` 和各阶段 outcome，Agent C 下载后可直接核对 `artifact-name.txt`、manifest、JUnit、日志和 `.xcresult` 是否对应最新 `origin/main`。本轮不修改 Swift 业务源码、不接真实模型、不改变 UI 行为。
+
+v0.8 启动 Agent X 第一轮适配体验优化：app/test target 改为 iPhone+iPad，`WorkspaceLayoutMode` 改为按容器尺寸进入 compact 双栏或 regular 大屏双栏，并新增 iPad Pro 竖屏和大屏窗口布局测试。本轮仍不创建 Mac 独立 target 或 Mac Catalyst target，不接真实模型，不下载权重。

@@ -1,6 +1,6 @@
 # 测试规范
 
-本文指导 Agent A、Agent B、Agent C 为 `Local Gemma iOS Prototype` 选择本地轻量检查、云端重验证、结果包下载和验收方式。
+本文指导 Agent A、Agent B、Agent C 和 Agent X 为 `Local Gemma iOS Prototype` 选择本地轻量检查、云端重验证、结果包下载和验收方式。
 
 ## 默认策略
 
@@ -10,6 +10,22 @@
 - Swift / Xcode / UI / 状态流 / workflow 改动完成后，默认 commit 并 push 到 `origin/main`，由 GitHub Actions 运行 build / test。
 - 云端失败时，Agent B 根据结果包中的失败摘要、日志路径和 manifest 修复后继续在 `main` 上追加 commit 并 push。
 - 本项目当前不允许自动下载模型权重；CI 也不能下载 Gemma 或把提示词发往外部推理服务。
+- Agent X 循环中的每一轮仍必须遵守同一验证链：Agent B 本地轻量检查、GitHub Actions artifact、Agent C 下载复判。
+- Agent X 不得跳过 Agent C artifact 验收；失败时不能继续下一轮并伪装为已通过。
+
+## Agent X 循环下的验证规则
+
+Agent X 是主控调度层，不是新的测试豁免层。它每次拆出一轮小目标后，验证责任仍然落在 Agent B、GitHub Actions 和 Agent C 的既有链路上。
+
+Agent X 每轮必须确认：
+
+- Agent A 的本轮提示词写清目标、非目标、关键文件、本地轻量检查、CI、artifact 内容和 Agent C 验收要求。
+- Agent B 基于最新 `origin/main` 在 `main` 上实现，并记录实际运行的本地轻量检查命令和结果。
+- Agent B push 后，GitHub Actions 对最新 commit 生成新的未加密 artifact。
+- Agent C 下载的是最新 `origin/main` commit 对应的 run 和 artifact，并核对 manifest、`artifact-name.txt`、JUnit、日志和 `.xcresult` 或等价结果。
+- Agent C 不通过时，Agent X 只能退回 Agent B 修复或暂停等待人工确认，不能继续下一轮。
+- Agent C 通过但总目标未完成时，Agent X 才能拆下一轮目标。
+- Agent X 触发停止条件时必须报告原因，包括同一阻塞连续 3 轮、连续 2 轮无有效 diff、同因 CI 连续失败、权限/密钥/付费服务/人工决策缺失或工作区冲突。
 
 ## 固定前缀 / 环境要求
 
@@ -29,7 +45,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
 
 - Xcode 位于 `/Applications/Xcode.app/Contents/Developer`。
 - iOS Simulator SDK 可用。
-- 本机完整 XCTest 需要可用模拟器，例如 `iPhone 17` 或本机实际存在的 iPhone 模拟器。
+- 本机完整 XCTest 需要可用模拟器，例如 `iPhone 17`、`iPad Pro` 或本机实际存在的 iOS 模拟器。
 - 网络不是业务测试前提；项目当前不允许自动下载模型权重。
 - 云端 CI 由 `.github/workflows/ci-results.yml` 负责，触发条件是 `main` push 和 `workflow_dispatch`。
 
@@ -42,8 +58,8 @@ xcrun simctl list devices available
 
 当前测试基线：
 
-- `LocalGemmaTests.swift` 当前包含 32 个 `test...` 方法。
-- 业务核心覆盖 artifact、模型状态、runtime plan、模拟/真实占位 runtime、提示词、会话、导出、横屏布局、壁纸处理和分享兜底。
+- `LocalGemmaTests.swift` 当前包含 33 个 `test...` 方法。
+- 业务核心覆盖 artifact、模型状态、runtime plan、模拟/真实占位 runtime、提示词、会话、导出、iPhone/iPad 布局断点、壁纸处理和分享兜底。
 
 统计测试数量：
 
@@ -60,6 +76,7 @@ grep -n "func test" LocalGemmaTests/LocalGemmaTests.swift
 - 文档-only 修改。
 - GitHub Actions workflow 修改。
 - Xcode 工程文件未改业务逻辑但需要语法确认。
+- iPhone/iPad target family 或布局文档同步。
 
 命令：
 
@@ -203,6 +220,26 @@ localgemma-ci-<commit_version>-main-<short_sha>-run<run_id>-attempt<run_attempt>
 }
 ```
 
+## 测试数据与下载容量限制
+
+本项目默认采用小数据量验证策略，避免下载过大 artifact、模型、数据集、缓存或结果包，把本机、CI runner 或临时目录容量撑爆。
+
+规则：
+
+- 测试数据必须尽量小，只覆盖必要边界。
+- CI artifact 只上传必要文件：manifest、artifact 名称、JUnit 或测试摘要、关键日志、失败摘要、必要结果包。
+- 不上传大体积 DerivedData、完整 build cache、无关截图、视频、模型文件、历史 artifact 或重复压缩包。
+- Agent C 下载 artifact 前优先确认只下载最新 run 对应的必要结果包。
+- 下载缓存默认放在 `/private/tmp/localgemma-c-review-<run_id>/`；其它项目可使用 `/private/tmp/<project>-review-<run_id>/`。
+- 下载后应检查目录大小：
+
+```sh
+du -sh /private/tmp/localgemma-c-review-<run_id>/
+```
+
+- 禁止使用非 `Altman-sam114` 的 GitHub 账号伪装完成 push、CI 或 artifact 验收。
+- 禁止默认下载大体积测试数据、模型、历史 artifact 或无关产物。
+
 ## Agent C 结果包下载与核对
 
 Agent C 验收前必须确认本地和远端：
@@ -232,6 +269,12 @@ gh auth login
 mkdir -p /private/tmp/localgemma-c-review-<run_id>
 gh run download <run_id> \
   --dir /private/tmp/localgemma-c-review-<run_id>
+```
+
+下载后检查目录大小：
+
+```sh
+du -sh /private/tmp/localgemma-c-review-<run_id>/
 ```
 
 Agent C 必须核对：
@@ -289,7 +332,7 @@ xcodebuild -project LocalGemma.xcodeproj \
 - 修改 artifact 文件管理、SHA-256、模型部署状态。
 - 修改 `InferenceEngine` 会话、流式生成、导出。
 - 修改提示词模板行为。
-- 修改横屏布局、壁纸、分享兜底。
+- 修改 iPhone 横屏 / iPad 大屏布局、壁纸、分享兜底。
 
 命令：
 
@@ -310,7 +353,7 @@ xcodebuild -project LocalGemma.xcodeproj \
 当前基线：
 
 - 期望结果：`TEST EXECUTE SUCCEEDED`。
-- 当前测试函数数：32。
+- 当前测试函数数：33。
 
 ### Full
 
@@ -319,7 +362,7 @@ xcodebuild -project LocalGemma.xcodeproj \
 触发条件：
 
 - 人工明确要求本机完整验证。
-- 改动 App 启动、导航根结构、Xcode target、Info.plist、权限、横屏主布局。
+- 改动 App 启动、导航根结构、Xcode target、Info.plist、权限、iPad 支持或主布局断点。
 - 接入真实 runtime 或更改模型隐私边界。
 - 发布前或重要里程碑。
 
@@ -364,13 +407,16 @@ xcrun simctl io booted screenshot .build/localgemma-check.png
 
 - App 能安装和启动。
 - 首屏非空，推理页展示模型胶囊、会话栏、消息和输入框。
-- 横屏布局由 `WorkspaceLayoutMode` 测试锁住；如能截横屏图，应人工确认侧栏和工作区无遮挡。
+- iPhone 横屏与 iPad 大屏布局由 `WorkspaceLayoutMode` 测试锁住；如能截图，应人工确认侧栏和工作区无遮挡。
 
 ## 规则
 
 - 每次实现前先读本文件。
 - 不得伪造测试结果。
 - 不得把云端未触发写成云端通过。
+- Agent X 不得跳过 Agent C 下载和 artifact 验收。
+- Agent X 不得在失败、旧 artifact 或同因 CI 连续失败时继续下一轮并伪装成功。
 - 新增或修改测试后，必须同步更新本文件当前基线和 README 验证章节。
 - 失败测试不能只记录为“环境问题”；必须写清楚失败命令、错误摘要和替代验证。
 - 如果没有 `origin`、没有 push 权限或没有 GitHub Actions 权限，必须明确写为云端验证阻塞。
+- 禁止默认下载大体积测试数据、模型、历史 artifact 或无关产物。

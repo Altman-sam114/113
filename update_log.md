@@ -13,12 +13,12 @@
 ## 当前状态
 
 - 项目：`Local Gemma iOS Prototype`
-- 平台：SwiftUI iOS App，Swift 6.0，iOS deployment target 17.0。
+- 平台：SwiftUI iOS App，Swift 6.0，iOS deployment target 17.0，当前 app/test target 支持 iPhone 与 iPad；尚未启用 Mac 独立 target 或 Mac Catalyst target。
 - 当前默认模型：`Gemma 1.5B Local`
 - 当前推理：本地模拟 runtime，不下载模型权重，不执行真实模型推理。
-- 当前核心测试：`LocalGemmaTests.swift` 中 32 个 XCTest 方法。
+- 当前核心测试：`LocalGemmaTests.swift` 中 33 个 XCTest 方法。
 - 当前核心文档入口：`AGENTS.md`、`md/flow/flow.md`、`md/flow/flowchart.md`、`md/test/test.md`、`md/prompt/README.md`、`README.md`。
-- 当前协作验证：默认 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载未加密 CI 结果包验收；本地仓库当前已配置 `origin` remote，最终验收仍以最新 `origin/main` 对应的 GitHub Actions run 和结果包为准。
+- 当前协作验证：默认 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载未加密 CI 结果包验收；本地仓库当前已配置 `origin` remote，最终验收仍以最新 `origin/main` 对应的 GitHub Actions run 和结果包为准；文档已预留未来 `agentx:` 主控 Agent A -> Agent B -> Agent C 多轮循环的规则。
 
 ## 历史记录
 
@@ -244,3 +244,51 @@
 遗留事项：
 
 - v0.7 push 后需等待最新 `ci-results.yml` run 完成，由 Agent C 下载对应未加密结果包，核对 manifest、`artifact-name.txt`、JUnit、日志和 `.xcresult`。
+
+### v0.8 / iPad宽屏与Mac准备度
+
+日期：2026-07-04
+
+核心变更：
+
+- 将未提交文档中冲突的 `v0.5 / 引入 Agent X 循环迭代文档基线` 校准为 `v0.8`；最新已提交版本仍是 `v0.7`，历史 `v0.5 / 修复云端 Swift 6 构建隔离错误` 不改写。
+- 新增 Agent X 召唤、职责、循环判断和停止条件，并用本轮目标启动 Agent X -> Agent A -> Agent B -> Agent C 的第一轮闭环。
+- 将 `LocalGemma` app target 和 `LocalGemmaTests` test target 扩展为 iPhone+iPad。
+- 调整 `WorkspaceLayoutMode`，按容器尺寸进入单栏、compact 双栏或 regular 大屏双栏；iPad Pro 竖屏和大屏窗口可进入 regular 大屏双栏。
+- 新增 iPad Pro 竖屏、大屏窗口和中等 iPad 竖屏布局测试，测试函数数从 32 个增加到 33 个。
+- 同步 flow、flowchart、test、prompt README、README 和入口文档中的 Agent X、iPhone+iPad、大屏断点和小数据量 artifact 规则。
+- 本轮没有创建 Mac 独立 target 或 Mac Catalyst target，没有下载模型权重，没有接入真实模型推理。
+
+关键文件：
+
+- `AGENTS.md`
+- `LocalGemma.xcodeproj/project.pbxproj`
+- `LocalGemma/ContentView.swift`
+- `LocalGemmaTests/LocalGemmaTests.swift`
+- `README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v0（适配体验）/v0.8（iPad宽屏与Mac准备度）.md`
+- `update_log.md`
+
+验证结果：
+
+- `git diff --check`：无输出，退出码 0。
+- `plutil -lint LocalGemma.xcodeproj/project.pbxproj`：输出 `LocalGemma.xcodeproj/project.pbxproj: OK`。
+- `ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'`：输出 `yaml ok`。
+- `grep -n "func test" LocalGemmaTests/LocalGemmaTests.swift`：确认当前 33 个 `test...` 方法。
+- `find md -maxdepth 4 -type f | sort`：确认 v0.8 Agent A 提示词和核心文档仍在归档结构内。
+- `rg -n "TARGETED_DEVICE_FAMILY|WorkspaceLayoutMode|iPad|iPhone\\+iPad|v0.8|Mac" ...`：确认工程、源码、测试和文档均覆盖 iPhone+iPad、布局断点、v0.8 和 Mac 非目标说明。
+- `/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -sdk /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk -module-cache-path .build/SwiftSmokeModuleCache LocalGemma/AppState.swift Tools/LogicSmoke.swift -o .build/logic-smoke`：退出码 0。
+- `.build/logic-smoke`：输出 `Logic smoke passed`。
+- `/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -typecheck ... LocalGemma/AppState.swift LocalGemma/ContentView.swift LocalGemma/LocalGemmaApp.swift`：退出码 0。
+- `/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -emit-module ... LocalGemma/AppState.swift LocalGemma/ContentView.swift LocalGemma/LocalGemmaApp.swift`：退出码 0。
+- `/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -typecheck ... LocalGemmaTests/LocalGemmaTests.swift`：退出码 0。
+- 本轮未默认重跑本机完整 `xcodebuild build-for-testing` 或模拟器 XCTest；完整 build/test 由 push 后 GitHub Actions 结果包和 Agent C 下载复判负责。
+
+遗留事项：
+
+- v0.8 push 后需等待最新 `ci-results.yml` run 完成，由 Agent C 下载对应未加密结果包，核对 manifest、`artifact-name.txt`、JUnit、日志和 `.xcresult`。
+- Mac 方向仍是后续目标；启用 Mac Catalyst 或独立 macOS target 前，需要单独审计 `UIKit`、`PhotosPicker`、分享、剪贴板和文件导入路径。

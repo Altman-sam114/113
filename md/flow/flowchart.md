@@ -63,14 +63,14 @@ flowchart TD
 
 ## 4. UI 布局与工作区流
 
-读图说明：这张图展示 ContentView 如何根据屏幕尺寸选择竖屏或横屏布局，然后进入具体工作区。
+读图说明：这张图展示 ContentView 如何根据容器尺寸选择单栏、compact 双栏或 regular 大屏双栏布局，然后进入具体工作区。iPhone 横屏、iPad 竖屏大画布和大屏窗口都走同一套尺寸断点。
 
 ```mermaid
 flowchart TD
     A[ContentView 获取 GeometryReader 尺寸] --> B[WorkspaceLayoutMode.resolve]
-    B --> C{是否横屏且宽度足够}
-    C -- 否 --> D[竖屏布局<br/>Header + TabPicker + Page TabView]
-    C -- 是 --> E[横屏布局<br/>左侧状态/导航栏 + 右侧工作区]
+    B --> C{是否达到双栏或大屏断点}
+    C -- 否 --> D[单栏布局<br/>Header + TabPicker + Page TabView]
+    C -- 是 --> E[双栏布局<br/>左侧状态/导航栏 + 右侧工作区]
     D --> F{当前 selectedTab}
     E --> F
     F -- 推理 --> G[ChatWorkspace<br/>会话 + 消息 + 输入]
@@ -126,7 +126,9 @@ flowchart TD
     B -- agenta / a: / A: --> C[Agent A<br/>本地分析目标和架构]
     B -- agentb / b: / B: --> D[Agent B<br/>基于已有提示词实现]
     B -- agentc / c: / C: --> E[Agent C<br/>验收最新结果包]
+    B -- agentx / x: / X: --> X0[Agent X<br/>主控多轮目标]
     B -- 无前缀 --> F[普通 Codex 任务<br/>必要时提醒指定角色]
+    X0 --> X1[进入 Agent X 循环图<br/>拆轮次并调度 A/B/C]
 
     C --> G[写版本化 Agent B 提示词<br/>md/prompt/v0.../vX.Y...md]
     G --> D
@@ -149,4 +151,28 @@ flowchart TD
     S --> V[Agent B 在 main 上追加修复 commit]
     V --> N
     U --> W[人工复核<br/>进入下一轮]
+```
+
+## 8. Agent X 主控循环迭代流
+
+读图说明：这张图展示未来人工用 `agentx`、`x:` 或 `X:` 给出总目标后，Agent X 如何拆分轮次并调度 Agent A、Agent B、GitHub Actions 和 Agent C。重点是 Agent X 只能根据 Agent C 对最新 artifact 的验收结论继续、退回、暂停或完成，不能跳过云端结果包复判。
+
+```mermaid
+flowchart TD
+    A[人工给 Agent X 总目标 X] --> B[Agent X 梳理目标边界<br/>确认停止条件]
+    B --> C[Agent X 拆分下一轮小目标]
+    C --> D[Agent A 写版本化提示词<br/>本轮目标 + 非目标 + 验证 + CI + artifact + Agent C 标准]
+    D --> E[Agent B 基于最新 origin/main<br/>在 main 上实现并本地轻量检查]
+    E --> F[Agent B commit 并 push origin main]
+    F --> G[GitHub Actions 运行 ci-results workflow]
+    G --> H[生成小体积未加密 artifact<br/>manifest + artifact-name + JUnit + 关键日志 + 必要 xcresult]
+    H --> I[Agent C 下载最新 run artifact<br/>核对 manifest / JUnit / 日志 / xcresult]
+    I --> J{Agent C 验收是否通过}
+    J -- 不通过 --> K[Agent X 退回 Agent B 修复<br/>同一目标追加修复 commit]
+    K --> E
+    J -- 通过 --> L{总目标 X 是否完成}
+    L -- 是 --> M[Agent X 宣布完成<br/>报告版本 / commit / run / artifact]
+    L -- 否 --> N{是否触发停止条件}
+    N -- 是 --> O[Agent X 暂停等待人工确认<br/>报告阻塞原因]
+    N -- 否 --> C
 ```

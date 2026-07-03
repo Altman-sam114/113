@@ -4,7 +4,7 @@
 
 ## 1. 项目一句话总览
 
-`Local Gemma iOS Prototype` 是一个 SwiftUI iOS 原型 App，用本地模拟 runtime 验证 iPhone 端侧部署 Gemma 1.5B 的产品交互、模型文件管理、artifact 校验、会话导出、横屏布局、相册壁纸和 Apple Silicon 运行计划；当前不下载模型权重，不执行真实模型推理。
+`Local Gemma iOS Prototype` 是一个 SwiftUI iOS 原型 App，用本地模拟 runtime 验证 iPhone 与 iPad 端侧部署 Gemma 1.5B 的产品交互、模型文件管理、artifact 校验、会话导出、大屏双栏布局、相册壁纸和 Apple Silicon 运行计划；当前不下载模型权重，不执行真实模型推理。
 
 ## 2. 必读文件顺序
 
@@ -54,7 +54,7 @@ git remote -v
 - `SimulatedGemmaRuntime` 是默认推理实现。
 - `RealGemmaRuntimePlaceholder` 是真实 runtime 占位，不等于真实模型推理。
 - `ContentView` 和各 workspace 负责 UI，不应绕过状态层直接改核心状态。
-- `WorkspaceLayoutMode` 控制竖屏/横屏主布局；横屏逻辑要有测试锁住。
+- `WorkspaceLayoutMode` 按容器尺寸控制单栏、compact 双栏和 regular 大屏双栏；iPhone 横屏与 iPad 大屏断点要有测试锁住。
 - `WallpaperImageProcessor` 控制相册壁纸压缩和尺寸，避免大图直接进入 `AppStorage`。
 - `ExportPayload` 和导出视图必须处理 Markdown 文件不存在时的文本分享兜底。
 
@@ -63,10 +63,12 @@ git remote -v
 - 用户消息以 `agenta`、`a:` 或 `A:` 开头，表示召唤 Agent A。
 - 用户消息以 `agentb`、`b:` 或 `B:` 开头，表示召唤 Agent B。
 - 用户消息以 `agentc`、`c:` 或 `C:` 开头，表示召唤 Agent C。
-- 没有这些前缀时，按普通 Codex 任务处理；若任务需要 A/B/C 边界，先提醒用户指定角色，或明确本轮按普通任务执行。
+- 用户消息以 `agentx`、`x:` 或 `X:` 开头，表示召唤 Agent X。
+- 没有这些前缀时，按普通 Codex 任务处理；若任务需要 A/B/C/X 边界，先提醒用户指定角色，或明确本轮按普通任务执行。
 - Agent A 最终回复第一行必须写：`我是 Agent A。`
 - Agent B 最终回复第一行必须写：`我是 Agent B。`
 - Agent C 最终回复第一行必须写：`我是 Agent C。`
+- Agent X 最终回复第一行必须写：`我是 Agent X。`
 
 ## 6. main 直推与云端验证总流
 
@@ -85,6 +87,18 @@ git remote -v
   -> 人工复核
 ```
 
+未来 Agent X 主控循环使用同一条云端验证主线：
+
+```text
+人工总目标 X
+  -> Agent X 拆分下一轮小目标
+  -> Agent A 写本轮版本化 Agent B 提示词
+  -> Agent B 基于最新 origin/main 在 main 上实现、检查、commit、push
+  -> GitHub Actions 运行 CI 并上传未加密结果包
+  -> Agent C 下载并验收最新 run 的 artifact
+  -> Agent X 根据 Agent C 结果判断继续、退回、暂停或完成
+```
+
 硬规则：
 
 - `main` 是唯一上传、提交、推送和云端验证分支。
@@ -96,6 +110,37 @@ git remote -v
 - Agent C 发现问题时，不做回滚式处理；默认退回 Agent B 在 `main` 上追加修复 commit，再 push 触发新 run。
 - 任何 Agent 在 `git push origin main` 或改变远端 `main` 前，都必须确认当前分支是 `main`，目标远端是 `origin/main`，且提交范围只包含本轮相关文件。
 - 如果仓库没有配置 `origin` 或没有 GitHub Actions 权限，必须明确报告阻塞；禁止伪装已经 push、已经下载 artifact 或已经云端验收。
+
+### Agent X：主控循环调度
+
+Agent X 是未来用于多轮迭代的主控调度角色，不直接替代 Agent A、Agent B 或 Agent C。
+
+Agent X 必须：
+
+1. 接收人工给出的总目标 X，并拆成多个可独立验证的小轮次。
+2. 每轮按 Agent A -> Agent B -> Agent C 顺序推进。
+3. 要求 Agent A 为每轮生成版本化提示词，写入 `md/prompt/v0（简要标题）/vX.Y（简要说明）.md`。
+4. 等 Agent B 完成实现、轻量检查、commit 和 `git push origin main`。
+5. 等 GitHub Actions 为最新 `origin/main` commit 生成未加密 artifact。
+6. 等 Agent C 下载并核对最新 run 的 manifest、artifact 名称、JUnit、日志和 `.xcresult` 或等价结果。
+7. 根据 Agent C 结论判断下一步：继续下一轮、退回 Agent B 修复、暂停等待人工确认，或宣布总目标完成。
+
+Agent X 循环边界：
+
+- 每轮目标必须服务于人工总目标 X，不能为了推进循环扩大无关范围。
+- 每轮必须留下可追踪证据：本轮版本号、Agent A 提示词路径、Agent B commit、GitHub Actions run、artifact 名称和 Agent C 验收结论。
+- Agent X 可以调度和总结，但不能跳过 Agent A 的提示词、Agent B 的实现 push 或 Agent C 的云端 artifact 验收。
+- Agent X 只能在总目标真实完成且最新 Agent C 验收通过后宣布完成。
+
+Agent X 停止条件：
+
+- 总目标已完成。
+- 连续 3 轮遇到同一阻塞。
+- 连续 2 轮没有产生有效 diff。
+- CI 连续失败且原因相同。
+- 需要账号、权限、密钥、付费服务或人工决策。
+- 当前工作区存在无法判断归属的冲突。
+- 用户要求停止或改变方向。
 
 推荐同步命令：
 
@@ -220,8 +265,9 @@ README 过期视为 bug。测试数量、命令、功能边界、CI 结果包和
 如果是 Agent A，交付 Agent B 提示词路径和本轮版本号，并以 `我是 Agent A。` 开头。
 如果是 Agent B，交付实现结果、本地轻量检查、commit SHA、push 结果和 workflow run 信息，并以 `我是 Agent B。` 开头。
 如果是 Agent C，通过时交付验收结论、版本号、commit hash、run id、artifact 名称、核对文件和建议下一步；不通过时交付问题清单和退回 Agent B 的修复要求，并以 `我是 Agent C。` 开头。
+如果是 Agent X，交付总目标状态、当前轮次、Agent A/B/C 输出摘要、最新 commit/run/artifact、继续/退回/暂停/完成判断，并以 `我是 Agent X。` 开头。
 
-普通 Codex 任务无需冒充 A/B/C 身份，但必须说明实际完成范围和未完成的云端环节。
+普通 Codex 任务无需冒充 A/B/C/X 身份，但必须说明实际完成范围和未完成的云端环节。
 
 ## 13. 禁止项
 
@@ -240,3 +286,10 @@ README 过期视为 bug。测试数量、命令、功能边界、CI 结果包和
 - 禁止把旧 artifact、旧 output 或 checkout 自带报告冒充本轮云端结果。
 - 禁止提交模型、大数据、证书、密码或 secret。
 - 禁止没有权限下载 artifact 时伪装已核对；必须先 `gh auth login` 或说明权限阻塞。
+- 禁止 Agent X 无条件无限循环。
+- 禁止 Agent X 跳过 Agent C 云端 artifact 验收。
+- 禁止 Agent X 把旧 run、旧 artifact、本地输出冒充最新云端结果。
+- 禁止 Agent X 在总目标未完成时宣布完成。
+- 禁止 Agent X 为了循环推进扩大无关改动范围。
+- 禁止使用非 `Altman-sam114` 的 GitHub 账号伪装完成 push、CI 或 artifact 验收。
+- 禁止默认下载大体积测试数据、模型、历史 artifact 或无关产物，导致本机或 CI 容量被撑爆。
