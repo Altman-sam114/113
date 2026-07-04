@@ -179,6 +179,59 @@ jobs:
           cat "$log"
           exit 0
 
+      - name: Mac Catalyst run script contract
+        run: |
+          set -u
+          log="$CI_RESULTS_DIR/mac-catalyst-run-script.log"
+          script_path="script/build_and_run.sh"
+          codex_env_path=".codex/environments/environment.toml"
+          status=0
+          codex_status=0
+          codex_skipped_reason=""
+          {
+            echo "## Mac Catalyst run entrypoint"
+            echo "Script: $script_path"
+            echo
+            echo "## Exists"
+            test -f "$script_path" || status=1
+            echo
+            echo "## Executable"
+            test -x "$script_path" || status=1
+            echo
+            echo "## bash -n"
+            if [ -f "$script_path" ]; then
+              bash -n "$script_path" || status=1
+            else
+              echo "Skipping bash -n because $script_path is missing."
+            fi
+            echo
+            echo "## Optional Codex Run environment"
+            if [ -f "$codex_env_path" ]; then
+              echo "Found $codex_env_path"
+              grep -Fq 'command = "./script/build_and_run.sh"' "$codex_env_path" || codex_status=1
+            else
+              codex_skipped_reason="not-added-in-v1.0-cli-entrypoint-only"
+              echo "Skipping Codex Run environment check: $codex_skipped_reason"
+            fi
+          } >"$log" 2>&1
+          if [ "$status" -eq 0 ]; then
+            echo success > "$CI_RESULTS_DIR/outcomes/mac-run-script"
+          else
+            echo failure > "$CI_RESULTS_DIR/outcomes/mac-run-script"
+          fi
+          if [ -n "$codex_skipped_reason" ]; then
+            echo skipped > "$CI_RESULTS_DIR/outcomes/codex-run-environment"
+            echo "$codex_skipped_reason" > "$CI_RESULTS_DIR/codex-run-environment-skipped-reason.txt"
+          elif [ "$codex_status" -eq 0 ]; then
+            echo success > "$CI_RESULTS_DIR/outcomes/codex-run-environment"
+            echo "" > "$CI_RESULTS_DIR/codex-run-environment-skipped-reason.txt"
+          else
+            echo failure > "$CI_RESULTS_DIR/outcomes/codex-run-environment"
+            echo "" > "$CI_RESULTS_DIR/codex-run-environment-skipped-reason.txt"
+          fi
+          cat "$log"
+          exit 0
+
       - name: XCTest on available iPhone simulator
         run: |
           set -u
@@ -252,6 +305,11 @@ jobs:
               "build": read_text(outcomes_dir / "build", "skipped"),
               "test": read_text(outcomes_dir / "test", "skipped"),
               "macCatalyst": read_text(outcomes_dir / "mac-catalyst", "skipped"),
+              "macRunScript": read_text(outcomes_dir / "mac-run-script", "skipped"),
+              "codexRunEnvironment": read_text(
+                  outcomes_dir / "codex-run-environment",
+                  "skipped",
+              ),
               "macDesigned": read_text(outcomes_dir / "mac-designed", "skipped"),
           }
           test_destination = read_text(results_dir / "test-destination.txt", "not-recorded")
@@ -263,6 +321,10 @@ jobs:
               results_dir / "mac-catalyst-skipped-reason.txt",
               "",
           )
+          codex_run_environment_skipped_reason = read_text(
+              results_dir / "codex-run-environment-skipped-reason.txt",
+              "",
+          )
           artifact_name = read_text(results_dir / "artifact-name.txt", "not-recorded")
           short_sha = os.environ["GITHUB_SHA"][:7]
           repository = os.environ["GITHUB_REPOSITORY"]
@@ -271,22 +333,7 @@ jobs:
               f"{repository}/actions/runs/{os.environ['GITHUB_RUN_ID']}"
           )
 
-          suite = ET.Element(
-              "testsuite",
-              {
-                  "name": "LocalGemmaCI",
-                  "tests": "5",
-                  "failures": str(sum(1 for value in outcomes.values() if value == "failure")),
-                  "skipped": str(
-                      sum(
-                          1
-                          for key, value in outcomes.items()
-                          if value == "skipped" and key != "macDesigned"
-                      )
-                  ),
-              },
-          )
-          cases = [
+          junit_cases = [
               ("staticChecks", outcomes["static"], "git diff, plutil, workflow YAML"),
               ("logicSmoke", outcomes["logic"], "Tools/LogicSmoke.swift"),
               ("xcodeBuildForTesting", outcomes["build"], "xcodebuild build-for-testing"),
@@ -296,8 +343,32 @@ jobs:
                   outcomes["macCatalyst"],
                   mac_catalyst_destination,
               ),
+              (
+                  "macCatalystRunScriptContract",
+                  outcomes["macRunScript"],
+                  "script/build_and_run.sh exists, is executable, and passes bash -n",
+              ),
+              (
+                  "codexRunEnvironment",
+                  outcomes["codexRunEnvironment"],
+                  codex_run_environment_skipped_reason
+                  or ".codex/environments/environment.toml points at ./script/build_and_run.sh",
+              ),
           ]
-          for name, outcome, detail in cases:
+          suite = ET.Element(
+              "testsuite",
+              {
+                  "name": "LocalGemmaCI",
+                  "tests": str(len(junit_cases)),
+                  "failures": str(
+                      sum(1 for _name, value, _detail in junit_cases if value == "failure")
+                  ),
+                  "skipped": str(
+                      sum(1 for _name, value, _detail in junit_cases if value == "skipped")
+                  ),
+              },
+          )
+          for name, outcome, detail in junit_cases:
               case = ET.SubElement(
                   suite,
                   "testcase",
@@ -333,24 +404,49 @@ jobs:
               f"- Mac baseline kind: mac-catalyst",
               f"- Mac Catalyst build: {outcomes['macCatalyst']}",
               f"- Mac Catalyst destination: {mac_catalyst_destination}",
+              f"- Mac Catalyst run script: {outcomes['macRunScript']}",
+              f"- Codex Run environment: {outcomes['codexRunEnvironment']}",
+              f"- Codex Run environment skipped reason: {codex_run_environment_skipped_reason}",
               "",
           ]
-          failing = [name for name, value in outcomes.items() if value == "failure"]
-          skipped = [
-              name
-              for name, value in outcomes.items()
-              if value == "skipped" and name != "macDesigned"
+          required_outcomes = [
+              "static",
+              "logic",
+              "build",
+              "test",
+              "macCatalyst",
+              "macRunScript",
           ]
-          if failing or skipped:
+          optional_outcomes = ["codexRunEnvironment"]
+          failing = [
+              name
+              for name in required_outcomes + optional_outcomes
+              if outcomes[name] == "failure"
+          ]
+          skipped_required = [
+              name
+              for name in required_outcomes
+              if outcomes[name] == "skipped"
+          ]
+          skipped_optional = [
+              name
+              for name in optional_outcomes
+              if outcomes[name] == "skipped"
+          ]
+          if failing or skipped_required:
               failure_lines.append("## Attention required")
               failure_lines.append("")
               if failing:
                   failure_lines.append(f"Failed checks: {', '.join(failing)}.")
-              if skipped:
-                  failure_lines.append(f"Skipped checks: {', '.join(skipped)}.")
+              if skipped_required:
+                  failure_lines.append(f"Skipped required checks: {', '.join(skipped_required)}.")
               failure_lines.append("Review the matching log files in this result package.")
           else:
               failure_lines.append("All required checks passed.")
+              if skipped_optional:
+                  failure_lines.append(
+                      f"Optional checks skipped: {', '.join(skipped_optional)}."
+                  )
           failure_lines.append("")
           (results_dir / "ci-failure-summary.md").write_text("\n".join(failure_lines), encoding="utf-8")
 
@@ -388,12 +484,19 @@ jobs:
               "macCatalystSkippedReason": mac_catalyst_skipped_reason,
               "macDesignedForIPadOutcome": outcomes["macDesigned"],
               "macBaselineNotesPath": "ci-results/mac-baseline-notes.md",
+              "macCatalystRunEntrypoint": "script/build_and_run.sh",
+              "macCatalystRunScriptCheckOutcome": outcomes["macRunScript"],
+              "macCatalystRunScriptLogPath": "ci-results/mac-catalyst-run-script.log",
+              "codexRunEnvironmentPath": ".codex/environments/environment.toml",
+              "codexRunEnvironmentCheckOutcome": outcomes["codexRunEnvironment"],
+              "codexRunEnvironmentSkippedReason": codex_run_environment_skipped_reason,
               "projectSpecificReports": [
                   "ci-results/logic-smoke.log",
                   "ci-results/static-checks.log",
                   "ci-results/environment.log",
                   "ci-results/mac-catalyst-build.log",
                   "ci-results/mac-baseline-notes.md",
+                  "ci-results/mac-catalyst-run-script.log",
               ],
           }
           (results_dir / "ci-artifact-manifest.json").write_text(
@@ -410,12 +513,16 @@ jobs:
           build_outcome="$(cat "$CI_RESULTS_DIR/outcomes/build")"
           test_outcome="$(cat "$CI_RESULTS_DIR/outcomes/test")"
           mac_catalyst_outcome="$(cat "$CI_RESULTS_DIR/outcomes/mac-catalyst")"
+          mac_run_script_outcome="$(cat "$CI_RESULTS_DIR/outcomes/mac-run-script")"
+          codex_run_environment_outcome="$(cat "$CI_RESULTS_DIR/outcomes/codex-run-environment")"
           cat "$CI_RESULTS_DIR/ci-failure-summary.md"
           if [ "$static_outcome" != "success" ] ||
              [ "$logic_outcome" != "success" ] ||
              [ "$build_outcome" != "success" ] ||
              [ "$test_outcome" != "success" ] ||
-             [ "$mac_catalyst_outcome" != "success" ]; then
+             [ "$mac_catalyst_outcome" != "success" ] ||
+             [ "$mac_run_script_outcome" != "success" ] ||
+             [ "$codex_run_environment_outcome" = "failure" ]; then
             exit 1
           fi
 

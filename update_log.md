@@ -13,7 +13,7 @@
 ## 当前状态
 
 - 项目：`Local Gemma iOS Prototype`
-- 平台：SwiftUI iOS App，Swift 6.0，iOS deployment target 17.0，当前 app/test target 支持 iPhone、iPad 和 Mac Catalyst build-for-testing；尚未创建原生 macOS target。
+- 平台：SwiftUI iOS App，Swift 6.0，iOS deployment target 17.0，当前 app/test target 支持 iPhone、iPad 和 Mac Catalyst build-for-testing，并提供项目内 Mac Catalyst 本地 build/run 脚本入口；尚未创建原生 macOS target。
 - 当前默认模型：`Gemma 1.5B Local`
 - 当前推理：本地模拟 runtime，不下载模型权重，不执行真实模型推理。
 - 当前核心测试：`LocalGemmaTests.swift` 中 34 个 XCTest 方法。
@@ -326,6 +326,8 @@
 - `git diff --check`：无输出，退出码 0。
 - `plutil -lint LocalGemma.xcodeproj/project.pbxproj`：输出 `LocalGemma.xcodeproj/project.pbxproj: OK`。
 - `ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'`：输出 `yaml ok`。
+- 从 `.github/workflows/ci-results.yml` 提取 `Generate manifest, JUnit, and failure summary` 内嵌 Python 并执行 `python3 -m py_compile`：退出码 0。
+- 用临时 outcomes 目录 mock 运行内嵌 Python：manifest 输出 `macCatalystRunEntrypoint=script/build_and_run.sh`、`macCatalystRunScriptCheckOutcome=success`、`codexRunEnvironmentCheckOutcome=skipped`、`codexRunEnvironmentSkippedReason=not-added-in-v1.0-cli-entrypoint-only`，JUnit suite 输出 `tests=7 failures=0 skipped=1`。
 - `grep -n "func test" LocalGemmaTests/LocalGemmaTests.swift`：确认当前 34 个 `test...` 方法。
 - `/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -sdk /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk -module-cache-path .build/SwiftSmokeModuleCache LocalGemma/AppState.swift Tools/LogicSmoke.swift -o .build/logic-smoke`：退出码 0。
 - `.build/logic-smoke`：输出 `Logic smoke passed`。
@@ -338,3 +340,51 @@
 
 - v0.9 push 后需等待最新 `ci-results.yml` run 完成，由 Agent C 下载对应未加密结果包，核对 manifest、`artifact-name.txt`、JUnit、iOS 日志、Mac Catalyst 日志、baseline notes 和 `.xcresult`。
 - 当前仅建立 Mac Catalyst build-for-testing 基线，不代表原生 macOS target 或真实模型 runtime 已完成。
+
+### v1.0 / Mac Catalyst窗口与交互基线
+
+日期：2026-07-04
+
+核心变更：
+
+- 新增 `script/build_and_run.sh`，作为项目内 Mac Catalyst 本地 build/run 入口；支持 `run`、`--build-only`、`--verify`、`--logs`、`--telemetry`、`--debug` 和 `--help`。
+- 脚本使用 `LocalGemma.xcodeproj`、`LocalGemma` scheme、`platform=macOS,variant=Mac Catalyst` destination 和 `.build/DerivedDataCodex-MacCatalystRun`，默认会停止旧进程、构建 Debug Catalyst app 并通过 `/usr/bin/open -n` 启动。
+- 修正脚本 stdout/stderr 边界：`xcodebuild` 输出走 stderr，stdout 只保留最终 `.app` 路径，避免 `--verify` 把 build log 当作 app bundle 路径。
+- `.github/workflows/ci-results.yml` 新增 Mac Catalyst run script contract step，检查 `script/build_and_run.sh` 存在、可执行且 `bash -n` 通过；CI 结果包新增 `mac-catalyst-run-script.log`。
+- CI manifest、JUnit 和 failure summary 增加 `macCatalystRunEntrypoint`、`macCatalystRunScriptCheckOutcome`、`macCatalystRunScriptLogPath`、`codexRunEnvironmentPath`、`codexRunEnvironmentCheckOutcome` 和 `codexRunEnvironmentSkippedReason`。
+- 本轮未提交 `.codex/environments/environment.toml`，因为当前 Codex 沙箱下项目内 `.codex` 路径不可写；CI 将 Codex Run action 检查记录为 `skipped`，原因是 `not-added-in-v1.0-cli-entrypoint-only`。
+- 本轮未修改 Swift UI 行为，未新增 XCTest，`LocalGemmaTests.swift` 仍为 34 个测试函数；没有创建原生 macOS target，没有下载模型权重，没有接入真实模型推理。
+
+关键文件：
+
+- `script/build_and_run.sh`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `AGENTS.md`
+- `md/prompt/v1（Mac体验审计）/v1.0（Mac Catalyst窗口与交互基线）.md`
+- `update_log.md`
+
+验证结果：
+
+- `git diff --check`：无输出，退出码 0。
+- `test -f script/build_and_run.sh`：退出码 0。
+- `test -x script/build_and_run.sh`：退出码 0。
+- `bash -n script/build_and_run.sh`：退出码 0。
+- `plutil -lint LocalGemma.xcodeproj/project.pbxproj`：输出 `LocalGemma.xcodeproj/project.pbxproj: OK`。
+- `ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'`：输出 `yaml ok`。
+- `grep -n "func test" LocalGemmaTests/LocalGemmaTests.swift`：确认当前 34 个 `test...` 方法。
+- `find md -maxdepth 4 -type f | sort`：确认 v1.0 Agent A 提示词和核心文档仍在归档结构内。
+- `rg -n "build_and_run|macCatalystRunEntrypoint|macCatalystRunScriptCheckOutcome|codexRunEnvironment|Mac Catalyst|v1.0" script .github/workflows/ci-results.yml README.md md/test/test.md md/flow/flow.md md/flow/flowchart.md update_log.md AGENTS.md`：确认脚本、workflow 和文档均覆盖 v1.0 run 入口、结果包字段和 Codex Run action 跳过原因。
+- `/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -sdk /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk -module-cache-path .build/SwiftSmokeModuleCache LocalGemma/AppState.swift Tools/LogicSmoke.swift -o .build/logic-smoke`：退出码 0。
+- `.build/logic-smoke`：输出 `Logic smoke passed`。
+- `./script/build_and_run.sh --build-only`：退出码 0，输出 `.build/DerivedDataCodex-MacCatalystRun/Build/Products/Debug-maccatalyst/LocalGemma.app`；沙箱内仍有 CoreSimulator 日志警告，但 Mac Catalyst build 成功。
+- `./script/build_and_run.sh --verify`：按审批在沙箱外执行，退出码 0；脚本成功构建、启动并通过 `pgrep -x LocalGemma` 验证进程存在。
+
+遗留事项：
+
+- v1.0 push 后需等待最新 `ci-results.yml` run 完成，由 Agent C 下载对应未加密结果包，核对 manifest、`artifact-name.txt`、JUnit、iOS 日志、Mac Catalyst 日志、run script 日志、baseline notes 和 `.xcresult`。
+- Codex Run action 文件仍未提交；后续如果项目内 `.codex/environments/` 可写，可追加 `.codex/environments/environment.toml` 并将 Run action 指向 `./script/build_and_run.sh`。
+- 当前仍仅是 Mac Catalyst build/run 基线，不代表原生 macOS target 或真实模型 runtime 已完成。

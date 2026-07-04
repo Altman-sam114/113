@@ -76,7 +76,7 @@ grep -n "func test" LocalGemmaTests/LocalGemmaTests.swift
 - 文档-only 修改。
 - GitHub Actions workflow 修改。
 - Xcode 工程文件未改业务逻辑但需要语法确认。
-- iPhone/iPad target family、Mac Catalyst build setting 或布局文档同步。
+- iPhone/iPad target family、Mac Catalyst build/run 入口、build setting 或布局文档同步。
 
 命令：
 
@@ -86,6 +86,9 @@ find md -maxdepth 4 -type f | sort
 grep -n "Agent A\\|Agent B\\|Agent C\\|README\\|测试规范" AGENTS.md
 plutil -lint LocalGemma.xcodeproj/project.pbxproj
 ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'
+test -f script/build_and_run.sh
+test -x script/build_and_run.sh
+bash -n script/build_and_run.sh
 ```
 
 当前基线：
@@ -93,6 +96,7 @@ ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); put
 - `git diff --check` 无输出且退出码为 0。
 - `plutil` 输出 `OK`。
 - Ruby YAML 解析输出 `yaml ok`。
+- Mac Catalyst run script 必须存在、可执行，并通过 `bash -n`。
 
 ### 2. Probe / Fast
 
@@ -157,14 +161,18 @@ on:
 - Probe / Fast 逻辑烟测
 - `xcodebuild build-for-testing`
 - Mac Catalyst `xcodebuild build-for-testing`
+- Mac Catalyst 本地 run 入口静态契约：`script/build_and_run.sh` 存在、可执行、`bash -n` 通过
+- 可选 Codex Run environment 检查：存在 `.codex/environments/environment.toml` 时必须指向 `./script/build_and_run.sh`，不存在时记录 skipped reason
 - 自动选择可用 iPhone Simulator 后执行 `xcodebuild test-without-building`
 - 生成 `ci-artifact-manifest.json`
 - 生成 `artifact-name.txt`
 - 生成 `ci-failure-summary.md`
 - 生成 `junit.xml`
-- 上传 `.xcresult`、`xcodebuild.log`、`test.log`、`mac-catalyst-build.log`、`mac-baseline-notes.md`、`logic-smoke.log`、`static-checks.log`、`environment.log` 和 manifest
+- 上传 `.xcresult`、`xcodebuild.log`、`test.log`、`mac-catalyst-build.log`、`mac-catalyst-run-script.log`、`mac-baseline-notes.md`、`logic-smoke.log`、`static-checks.log`、`environment.log` 和 manifest
 
 云端 DerivedData 使用 `.derivedData-ci`，不同于本地推荐的 `.build/DerivedDataCodex`。这是 CI 内部缓存路径差异，不改变工程行为。
+
+当前 `junit.xml` 的 `LocalGemmaCI` suite 包含 7 个 CI testcase：静态检查、LogicSmoke、iOS build-for-testing、XCTest、Mac Catalyst build-for-testing、Mac Catalyst run script contract 和可选 Codex Run environment。v1.0 未提交 Codex Run action 时，Codex Run environment testcase 允许 `skipped`，但必须有非空 skipped reason；其它 required testcase 必须为 `success`。
 
 ### 结果包内容
 
@@ -188,6 +196,7 @@ localgemma-ci-<commit_version>-main-<short_sha>-run<run_id>-attempt<run_attempt>
 - `LocalGemma-build.xcresult`
 - `LocalGemma-tests.xcresult`，如果模拟器 XCTest 实际运行
 - `mac-catalyst-build.log`
+- `mac-catalyst-run-script.log`
 - `mac-baseline-notes.md`
 - `LocalGemma-maccatalyst-build.xcresult`
 
@@ -228,7 +237,20 @@ localgemma-ci-<commit_version>-main-<short_sha>-run<run_id>-attempt<run_attempt>
   "macCatalystSkippedReason": "",
   "macDesignedForIPadOutcome": "skipped",
   "macBaselineNotesPath": "ci-results/mac-baseline-notes.md",
-  "projectSpecificReports": []
+  "macCatalystRunEntrypoint": "script/build_and_run.sh",
+  "macCatalystRunScriptCheckOutcome": "success/failure/skipped",
+  "macCatalystRunScriptLogPath": "ci-results/mac-catalyst-run-script.log",
+  "codexRunEnvironmentPath": ".codex/environments/environment.toml",
+  "codexRunEnvironmentCheckOutcome": "success/failure/skipped",
+  "codexRunEnvironmentSkippedReason": "not-added-in-v1.0-cli-entrypoint-only",
+  "projectSpecificReports": [
+    "ci-results/logic-smoke.log",
+    "ci-results/static-checks.log",
+    "ci-results/environment.log",
+    "ci-results/mac-catalyst-build.log",
+    "ci-results/mac-baseline-notes.md",
+    "ci-results/mac-catalyst-run-script.log"
+  ]
 }
 ```
 
@@ -298,6 +320,9 @@ Agent C 必须核对：
 - `runId` 和 `runAttempt` 等于本次下载的 GitHub Actions run。
 - `staticChecksOutcome`、`logicSmokeOutcome`、`buildOutcome`、`testOutcome`、`macCatalystBuildOutcome` 与 GitHub Actions UI 和日志一致。
 - `macBaselineKind` 是 `mac-catalyst`，`macCatalystDestination` 指向 Mac Catalyst，`mac-catalyst-build.log` 和 `LocalGemma-maccatalyst-build.xcresult` 存在。
+- `macCatalystRunEntrypoint` 是 `script/build_and_run.sh`，`macCatalystRunScriptCheckOutcome` 是 `success`，`mac-catalyst-run-script.log` 存在且记录文件存在性、可执行权限和 `bash -n` 检查。
+- 如果 `codexRunEnvironmentCheckOutcome` 是 `success`，则 `.codex/environments/environment.toml` 必须存在且 Run command 指向 `./script/build_and_run.sh`。
+- 如果 `codexRunEnvironmentCheckOutcome` 是 `skipped`，则 `codexRunEnvironmentSkippedReason` 必须非空；v1.0 当前未提交 `.codex/environments/environment.toml` 的原因是当前 Codex 沙箱下项目内 `.codex` 路径不可写，manifest 记录为 `not-added-in-v1.0-cli-entrypoint-only`。
 - `mac-baseline-notes.md` 明确这是 Mac Catalyst build-for-testing 基线，不是原生 macOS target，不改变模拟 runtime 边界。
 - `junit.xml` 的失败数与 `ci-failure-summary.md` 一致。
 - `xcodebuild.log`、`test.log`、Mac Catalyst log、`.xcresult` 或等价结果存在且可打开。

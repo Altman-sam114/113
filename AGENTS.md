@@ -4,7 +4,7 @@
 
 ## 1. 项目一句话总览
 
-`Local Gemma iOS Prototype` 是一个 SwiftUI iOS 原型 App，用本地模拟 runtime 验证 iPhone、iPad 与 Mac Catalyst build-for-testing 基线下端侧部署 Gemma 1.5B 的产品交互、模型文件管理、artifact 校验、会话导出、大屏双栏布局、相册壁纸和 Apple Silicon 运行计划；当前不下载模型权重，不执行真实模型推理，也没有原生 macOS target。
+`Local Gemma iOS Prototype` 是一个 SwiftUI iOS 原型 App，用本地模拟 runtime 验证 iPhone、iPad 与 Mac Catalyst build/run 基线下端侧部署 Gemma 1.5B 的产品交互、模型文件管理、artifact 校验、会话导出、大屏双栏布局、相册壁纸和 Apple Silicon 运行计划；当前不下载模型权重，不执行真实模型推理，也没有原生 macOS target。
 
 ## 2. 必读文件顺序
 
@@ -57,6 +57,7 @@ git remote -v
 - `WorkspaceLayoutMode` 按容器尺寸控制单栏、compact 双栏和 regular 大屏双栏；iPhone 横屏、iPad 大屏与 Mac/Catalyst 桌面窗口断点要有测试锁住。
 - `WallpaperImageProcessor` 控制相册壁纸压缩和尺寸，避免大图直接进入 `AppStorage`。
 - `ExportPayload` 和导出视图必须处理 Markdown 文件不存在时的文本分享兜底。
+- `script/build_and_run.sh` 是 Mac Catalyst 本地 build/run/debug/logs 入口，不下载模型权重，不接外部推理服务，不等于原生 macOS target。
 
 ## 5. 角色召唤和身份标识
 

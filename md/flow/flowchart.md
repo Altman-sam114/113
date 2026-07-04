@@ -140,10 +140,10 @@ flowchart TD
     L --> M[commit 到 main<br/>主题含版本号]
     M --> N[git push origin main]
     N --> O[GitHub Actions<br/>ci-results workflow]
-    O --> P[生成未加密 CI 结果包<br/>artifact name + manifest + failure summary + JUnit + logs + xcresult]
+    O --> P[生成未加密 CI 结果包<br/>artifact name + manifest + failure summary + JUnit + logs + xcresult + run script contract]
     P --> E
     E --> Q[gh auth login 如需权限<br/>gh run download 到 /private/tmp/localgemma-c-review-run_id]
-    Q --> R{manifest 是否匹配 artifact-name.txt<br/>origin/main 最新 commit / run URL / run / attempt / Mac baseline}
+    Q --> R{manifest 是否匹配 artifact-name.txt<br/>origin/main 最新 commit / run URL / run / attempt / Mac baseline / run script}
     R -- 否 --> S[验收不通过<br/>退回 Agent B]
     R -- 是 --> T{outcome / 日志 / JUnit / xcresult 是否通过}
     T -- 否 --> S
@@ -175,4 +175,30 @@ flowchart TD
     L -- 否 --> N{是否触发停止条件}
     N -- 是 --> O[Agent X 暂停等待人工确认<br/>报告阻塞原因]
     N -- 否 --> C
+```
+
+## 9. Mac Catalyst 本地运行入口流
+
+读图说明：这张图展示 v1.0 新增的项目内 Mac Catalyst 本地 build/run 入口。重点是脚本只负责本机构建、启动、日志和调试，不下载模型权重、不调用外部推理服务；云端 CI 只检查脚本静态契约，不尝试启动 GUI App。
+
+```mermaid
+flowchart TD
+    A[人工或 Agent 执行<br/>./script/build_and_run.sh] --> B{选择脚本模式}
+    B -- 默认 run --> C[停止旧 LocalGemma 进程]
+    B -- --build-only --> D[只构建 Debug Mac Catalyst App]
+    B -- --verify --> C
+    B -- --logs / --telemetry --> C
+    B -- --debug --> E[lldb 调试入口]
+    C --> F[xcodebuild project LocalGemma.xcodeproj<br/>scheme LocalGemma<br/>destination Mac Catalyst]
+    D --> F
+    F --> G[DerivedData 写入<br/>.build/DerivedDataCodex-MacCatalystRun]
+    G --> H[定位 Build/Products 下的 LocalGemma.app]
+    H --> I{是否需要启动}
+    I -- 否 --> J[输出 app bundle 路径]
+    I -- 是 --> K[/usr/bin/open -n 启动 .app]
+    K --> L{--verify 是否要求进程检查}
+    L -- 是 --> M[pgrep -x LocalGemma<br/>确认进程存在]
+    L -- 否 --> N[进入日志流或普通运行]
+    M --> O[成功或输出签名/窗口服务/沙箱失败原因]
+    E --> F
 ```
