@@ -55,6 +55,7 @@ git remote -v
 - `RealGemmaRuntimePlaceholder` 是真实 runtime 占位，不等于真实模型推理。
 - `ContentView` 和各 workspace 负责 UI，不应绕过状态层直接改核心状态。
 - `WorkspaceLayoutMode` 按容器尺寸控制单栏、compact 双栏和 regular 大屏双栏；iPhone 横屏、iPad 大屏与 Mac/Catalyst 桌面窗口断点要有测试锁住。
+- `WorkspaceTab.shortcutKey` 锁住 Mac/iPad 外接键盘工作区导航，改动快捷键映射时必须同步测试。
 - `WallpaperImageProcessor` 控制相册壁纸压缩和尺寸，避免大图直接进入 `AppStorage`。
 - `ExportPayload` 和导出视图必须处理 Markdown 文件不存在时的文本分享兜底。
 - `script/build_and_run.sh` 是 Mac Catalyst 本地 build/run/debug/logs 入口，不下载模型权重，不接外部推理服务，不等于原生 macOS target。

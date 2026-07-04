@@ -605,6 +605,18 @@ final class LocalGemmaTests: XCTestCase {
         XCTAssertEqual(engine.lastPreparationReport?.activeBackend, .coreMLANE)
     }
 
+    func testWorkspaceTabsExposeKeyboardShortcuts() {
+        let shortcutMap = Dictionary(
+            uniqueKeysWithValues: WorkspaceTab.allCases.map { ($0.title, $0.shortcutKey) }
+        )
+
+        XCTAssertEqual(WorkspaceTab.allCases.map(\.title), ["推理", "模型", "提示词", "设置"])
+        XCTAssertEqual(shortcutMap["推理"], "1")
+        XCTAssertEqual(shortcutMap["模型"], "2")
+        XCTAssertEqual(shortcutMap["提示词"], "3")
+        XCTAssertEqual(shortcutMap["设置"], "4")
+    }
+
     func testWorkspaceLayoutModeResolvesLandscapeVariants() {
         XCTAssertEqual(
             WorkspaceLayoutMode.resolve(for: CGSize(width: 390, height: 844)),

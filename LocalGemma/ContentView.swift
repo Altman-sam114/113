@@ -425,6 +425,7 @@ struct ContentView: View {
                         .foregroundStyle(selectedTab == tab ? theme.primaryText : theme.secondaryText)
                 }
                 .buttonStyle(.plain)
+                .keyboardShortcut(KeyEquivalent(tab.shortcutKey), modifiers: [.command])
                 .accessibilityIdentifier("workspace-tab-\(tab.rawValue)")
             }
         }
@@ -462,6 +463,7 @@ struct ContentView: View {
                     }
                 }
                 .buttonStyle(.plain)
+                .keyboardShortcut(KeyEquivalent(tab.shortcutKey), modifiers: [.command])
                 .accessibilityIdentifier("workspace-sidebar-tab-\(tab.rawValue)")
             }
         }
@@ -475,6 +477,19 @@ enum WorkspaceTab: String, CaseIterable, Identifiable {
     case settings
 
     var id: String { rawValue }
+
+    var shortcutKey: Character {
+        switch self {
+        case .chat:
+            return "1"
+        case .models:
+            return "2"
+        case .prompts:
+            return "3"
+        case .settings:
+            return "4"
+        }
+    }
 
     var title: String {
         switch self {
@@ -1024,6 +1039,7 @@ struct SessionBar: View {
                         .overlay(Circle().stroke(theme.border, lineWidth: 1))
                 }
                 .buttonStyle(.plain)
+                .keyboardShortcut("e", modifiers: [.command, .shift])
                 .foregroundStyle(theme.primaryText)
                 .accessibilityLabel("Export conversation")
 
@@ -1035,6 +1051,7 @@ struct SessionBar: View {
                         .foregroundStyle(theme.inverseText)
                 }
                 .buttonStyle(.plain)
+                .keyboardShortcut("n", modifiers: [.command])
                 .accessibilityLabel("New conversation")
             }
 
@@ -1573,6 +1590,7 @@ struct ComposerBar: View {
                     .foregroundStyle(theme.inverseText)
             }
             .buttonStyle(.plain)
+            .keyboardShortcut(.return, modifiers: [.command])
             .disabled(isSendDisabled)
             .opacity(isSendDisabled ? 0.55 : 1)
             .accessibilityLabel(isGenerating ? "Stop generation" : "Send prompt")

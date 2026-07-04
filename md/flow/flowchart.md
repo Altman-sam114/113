@@ -63,7 +63,7 @@ flowchart TD
 
 ## 4. UI 布局与工作区流
 
-读图说明：这张图展示 ContentView 如何根据容器尺寸选择单栏、compact 双栏或 regular 大屏双栏布局，然后进入具体工作区。iPhone 横屏、iPad 竖屏大画布、Mac Catalyst 和桌面窗口都走同一套尺寸断点。
+读图说明：这张图展示 ContentView 如何根据容器尺寸选择单栏、compact 双栏或 regular 大屏双栏布局，然后进入具体工作区。iPhone 横屏、iPad 竖屏大画布、Mac Catalyst 和桌面窗口都走同一套尺寸断点；Mac Catalyst 和 iPad 外接键盘可通过 `Command+1...4` 切换工作区。
 
 ```mermaid
 flowchart TD
@@ -73,6 +73,8 @@ flowchart TD
     C -- 是 --> E[双栏布局<br/>左侧状态/导航栏 + 右侧工作区]
     D --> F{当前 selectedTab}
     E --> F
+    K[键盘导航<br/>Command+1/2/3/4 切换工作区] --> F
+    L[会话/输入快捷键<br/>Command+N 新建<br/>Command+Shift+E 导出<br/>Command+Return 发送或停止] --> G
     F -- 推理 --> G[ChatWorkspace<br/>会话 + 消息 + 输入]
     F -- 模型 --> H[ModelLibraryView<br/>部署控制台]
     F -- 提示词 --> I[PromptTemplatesWorkspace<br/>模板筛选/填入/发送]
