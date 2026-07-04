@@ -649,6 +649,49 @@ final class LocalGemmaTests: XCTestCase {
         XCTAssertEqual(SelectionAccessibilityMetadata.sessionValue(isActive: false), "未选中")
     }
 
+    func testComposerInputMetadataAndFocusPolicyDescribeEntryPoints() {
+        XCTAssertEqual(ComposerInputMetadata.textFieldLabel, "本地模型输入")
+        XCTAssertTrue(ComposerInputMetadata.textFieldHint.contains("Command Return"))
+        XCTAssertTrue(ComposerInputMetadata.textFieldInputLabels.contains("输入 prompt"))
+
+        XCTAssertEqual(ComposerInputMetadata.actionLabel(isGenerating: false), "发送提示词")
+        XCTAssertEqual(ComposerInputMetadata.actionLabel(isGenerating: true), "停止生成")
+        XCTAssertEqual(
+            ComposerInputMetadata.actionValue(text: "   ", isGenerating: false),
+            "输入为空"
+        )
+        XCTAssertEqual(
+            ComposerInputMetadata.actionValue(text: "说明端侧部署", isGenerating: false),
+            "可发送"
+        )
+        XCTAssertEqual(
+            ComposerInputMetadata.actionValue(text: "", isGenerating: true),
+            "生成中"
+        )
+        XCTAssertTrue(ComposerInputMetadata.isActionDisabled(text: "  \n", isGenerating: false))
+        XCTAssertFalse(ComposerInputMetadata.isActionDisabled(text: "说明端侧部署", isGenerating: false))
+        XCTAssertFalse(ComposerInputMetadata.isActionDisabled(text: "", isGenerating: true))
+
+        XCTAssertEqual(
+            ComposerFocusReason.allCases,
+            [.openChatWorkspace, .createSession, .selectSession, .applyTemplate, .sendTemplate]
+        )
+        XCTAssertTrue(ComposerFocusPolicy.requestsComposerFocus(afterSelecting: .chat))
+        XCTAssertFalse(ComposerFocusPolicy.requestsComposerFocus(afterSelecting: .models))
+        XCTAssertTrue(
+            ComposerFocusReason.allCases.allSatisfy {
+                ComposerFocusPolicy.requestsComposerFocus(after: $0)
+            }
+        )
+
+        let templateRequest = ComposerFocusRequest.initial.next(for: .applyTemplate)
+        XCTAssertEqual(templateRequest.sequence, 1)
+        XCTAssertEqual(templateRequest.reason, .applyTemplate)
+        XCTAssertTrue(templateRequest.shouldFocus)
+        XCTAssertEqual(templateRequest.next(for: .selectSession).sequence, 2)
+        XCTAssertFalse(ComposerFocusRequest.initial.shouldFocus)
+    }
+
     func testWorkspaceLayoutModeResolvesLandscapeVariants() {
         XCTAssertEqual(
             WorkspaceLayoutMode.resolve(for: CGSize(width: 390, height: 844)),

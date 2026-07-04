@@ -236,6 +236,7 @@ struct ContentView: View {
     @EnvironmentObject private var optimizer: DeviceOptimizer
 
     @State private var selectedTab: WorkspaceTab = ContentView.initialTab
+    @State private var composerFocusRequest = ComposerFocusRequest.initial
     @AppStorage("appThemeMode") private var themeModeStorage = AppThemeMode.dark.rawValue
     @AppStorage("customWallpaperImageData") private var wallpaperImageData: Data = Data()
 
@@ -267,15 +268,49 @@ struct ContentView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar(.hidden, for: .navigationBar)
         }
-        .focusedSceneValue(\.workspaceTabSelection, $selectedTab)
+        .focusedSceneValue(\.workspaceTabSelection, workspaceSelection)
     }
 
     private static var initialTab: WorkspaceTab {
         ProcessInfo.processInfo.arguments.contains("--open-models") ? .models : .chat
     }
 
+    private var workspaceSelection: Binding<WorkspaceTab> {
+        Binding(
+            get: { selectedTab },
+            set: { selectWorkspace($0) }
+        )
+    }
+
     private var currentTheme: AppThemePalette {
         AppThemePalette(mode: AppThemeMode(rawValue: themeModeStorage) ?? .dark)
+    }
+
+    private func selectWorkspace(
+        _ tab: WorkspaceTab,
+        focusReason: ComposerFocusReason? = nil
+    ) {
+        selectedTab = tab
+        if ComposerFocusPolicy.requestsComposerFocus(afterSelecting: tab) {
+            requestComposerFocus(for: focusReason ?? .openChatWorkspace)
+        }
+    }
+
+    private func openChatAndFocus(_ reason: ComposerFocusReason) {
+        withAnimation(.spring(response: 0.28, dampingFraction: 0.84)) {
+            selectWorkspace(.chat, focusReason: reason)
+        }
+    }
+
+    private func requestComposerFocus(for reason: ComposerFocusReason) {
+        guard ComposerFocusPolicy.requestsComposerFocus(after: reason) else {
+            return
+        }
+        composerFocusRequest = composerFocusRequest.next(for: reason)
+    }
+
+    private func clearComposerFocusRequest() {
+        composerFocusRequest = .initial
     }
 
     private func headerView(themeMode: AppThemeMode, selectedValidation: ArtifactValidationResult) -> some View {
@@ -296,7 +331,7 @@ struct ContentView: View {
             },
             showModels: {
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.82)) {
-                    selectedTab = .models
+                    selectWorkspace(.models)
                 }
             }
         )
@@ -349,18 +384,18 @@ struct ContentView: View {
     }
 
     private func workspacePages(themeMode: AppThemeMode) -> some View {
-        TabView(selection: $selectedTab) {
-            ChatWorkspace()
+        TabView(selection: workspaceSelection) {
+            ChatWorkspace(
+                composerFocusRequest: composerFocusRequest,
+                requestComposerFocus: requestComposerFocus,
+                clearComposerFocusRequest: clearComposerFocusRequest
+            )
                 .tag(WorkspaceTab.chat)
 
             ModelLibraryView()
                 .tag(WorkspaceTab.models)
 
-            PromptTemplatesWorkspace {
-                withAnimation(.spring(response: 0.28, dampingFraction: 0.84)) {
-                    selectedTab = .chat
-                }
-            }
+            PromptTemplatesWorkspace(openChat: openChatAndFocus)
             .tag(WorkspaceTab.prompts)
 
             SettingsWorkspace(
@@ -387,15 +422,15 @@ struct ContentView: View {
     private func workspacePageContent(themeMode: AppThemeMode) -> some View {
         switch selectedTab {
         case .chat:
-            ChatWorkspace()
+            ChatWorkspace(
+                composerFocusRequest: composerFocusRequest,
+                requestComposerFocus: requestComposerFocus,
+                clearComposerFocusRequest: clearComposerFocusRequest
+            )
         case .models:
             ModelLibraryView()
         case .prompts:
-            PromptTemplatesWorkspace {
-                withAnimation(.spring(response: 0.28, dampingFraction: 0.84)) {
-                    selectedTab = .chat
-                }
-            }
+            PromptTemplatesWorkspace(openChat: openChatAndFocus)
         case .settings:
             SettingsWorkspace(
                 themeMode: themeMode,
@@ -422,7 +457,7 @@ struct ContentView: View {
             ForEach(WorkspaceTab.allCases) { tab in
                 Button {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.82)) {
-                        selectedTab = tab
+                        selectWorkspace(tab)
                     }
                 } label: {
                     Label(tab.title, systemImage: tab.icon)
@@ -457,7 +492,7 @@ struct ContentView: View {
             ForEach(WorkspaceTab.allCases) { tab in
                 Button {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.82)) {
-                        selectedTab = tab
+                        selectWorkspace(tab)
                     }
                 } label: {
                     HStack(spacing: 10) {
@@ -607,6 +642,73 @@ enum SelectionAccessibilityMetadata {
 
     static func sessionValue(isActive: Bool) -> String {
         isActive ? "当前会话" : "未选中"
+    }
+}
+
+enum ComposerFocusReason: String, CaseIterable {
+    case openChatWorkspace
+    case createSession
+    case selectSession
+    case applyTemplate
+    case sendTemplate
+}
+
+struct ComposerFocusRequest: Equatable {
+    let sequence: Int
+    let reason: ComposerFocusReason?
+
+    static let initial = ComposerFocusRequest(sequence: 0, reason: nil)
+
+    var shouldFocus: Bool {
+        sequence > 0 && reason != nil
+    }
+
+    func next(for reason: ComposerFocusReason) -> ComposerFocusRequest {
+        ComposerFocusRequest(sequence: sequence + 1, reason: reason)
+    }
+}
+
+enum ComposerFocusPolicy {
+    static func requestsComposerFocus(after reason: ComposerFocusReason) -> Bool {
+        switch reason {
+        case .openChatWorkspace, .createSession, .selectSession, .applyTemplate, .sendTemplate:
+            return true
+        }
+    }
+
+    static func requestsComposerFocus(afterSelecting tab: WorkspaceTab) -> Bool {
+        tab == .chat
+    }
+}
+
+enum ComposerInputMetadata {
+    static let textFieldLabel = "本地模型输入"
+    static let textFieldHint = "输入 prompt。按 Command Return 发送，普通 Return 可继续换行。"
+    static let textFieldInputLabels = ["本地模型输入", "输入 prompt", "问本地模型"]
+
+    static func actionLabel(isGenerating: Bool) -> String {
+        isGenerating ? "停止生成" : "发送提示词"
+    }
+
+    static func actionValue(text: String, isGenerating: Bool) -> String {
+        if isGenerating {
+            return "生成中"
+        }
+        return isActionDisabled(text: text, isGenerating: isGenerating) ? "输入为空" : "可发送"
+    }
+
+    static func actionHint(text: String, isGenerating: Bool) -> String {
+        if isGenerating {
+            return "停止当前模拟生成。"
+        }
+        if isActionDisabled(text: text, isGenerating: isGenerating) {
+            return "输入内容后可发送。"
+        }
+        return "发送当前输入给本地模拟 runtime。"
+    }
+
+    static func isActionDisabled(text: String, isGenerating: Bool) -> Bool {
+        text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && isGenerating == false
     }
 }
 
@@ -982,6 +1084,20 @@ struct ChatWorkspace: View {
     @Environment(\.appTheme) private var theme
     @State private var exportPayload: ExportPayload?
 
+    let composerFocusRequest: ComposerFocusRequest
+    let requestComposerFocus: (ComposerFocusReason) -> Void
+    let clearComposerFocusRequest: () -> Void
+
+    init(
+        composerFocusRequest: ComposerFocusRequest = .initial,
+        requestComposerFocus: @escaping (ComposerFocusReason) -> Void = { _ in },
+        clearComposerFocusRequest: @escaping () -> Void = {}
+    ) {
+        self.composerFocusRequest = composerFocusRequest
+        self.requestComposerFocus = requestComposerFocus
+        self.clearComposerFocusRequest = clearComposerFocusRequest
+    }
+
     var body: some View {
         GeometryReader { proxy in
             let layoutMode = WorkspaceLayoutMode.resolve(for: proxy.size)
@@ -995,9 +1111,11 @@ struct ChatWorkspace: View {
                         layout: .vertical,
                         create: {
                             inference.createSession()
+                            requestComposerFocus(.createSession)
                         },
                         select: { session in
                             inference.selectSession(session)
+                            requestComposerFocus(.selectSession)
                         },
                         delete: { session in
                             inference.deleteSession(session)
@@ -1024,9 +1142,11 @@ struct ChatWorkspace: View {
                         layout: .horizontal,
                         create: {
                             inference.createSession()
+                            requestComposerFocus(.createSession)
                         },
                         select: { session in
                             inference.selectSession(session)
+                            requestComposerFocus(.selectSession)
                         },
                         delete: { session in
                             inference.deleteSession(session)
@@ -1057,6 +1177,8 @@ struct ChatWorkspace: View {
             ComposerBar(
                 text: $inference.inputText,
                 isGenerating: inference.isGenerating,
+                focusRequest: composerFocusRequest,
+                clearFocusRequest: clearComposerFocusRequest,
                 send: {
                     inference.send(
                         using: selectedModel,
@@ -1458,7 +1580,7 @@ struct PromptTemplatesWorkspace: View {
     @Environment(\.appTheme) private var theme
     @State private var selectedCategory: PromptTemplateCategory?
 
-    let openChat: () -> Void
+    let openChat: (ComposerFocusReason) -> Void
 
     var body: some View {
         let model = catalog.selectedModel
@@ -1482,7 +1604,7 @@ struct PromptTemplatesWorkspace: View {
                             isGenerating: inference.isGenerating,
                             apply: {
                                 inference.applyTemplate(template)
-                                openChat()
+                                openChat(.applyTemplate)
                             },
                             send: {
                                 inference.useTemplate(
@@ -1490,7 +1612,7 @@ struct PromptTemplatesWorkspace: View {
                                     model: model,
                                     availability: validation.availability
                                 )
-                                openChat()
+                                openChat(.sendTemplate)
                             }
                         )
                     }
@@ -1647,9 +1769,12 @@ struct PromptTemplateCard: View {
 
 struct ComposerBar: View {
     @Environment(\.appTheme) private var theme
+    @FocusState private var focusedField: ComposerFocusedField?
 
     @Binding var text: String
     let isGenerating: Bool
+    let focusRequest: ComposerFocusRequest
+    let clearFocusRequest: () -> Void
     let send: () -> Void
     let stop: () -> Void
 
@@ -1661,6 +1786,7 @@ struct ComposerBar: View {
                     .foregroundStyle(theme.accent)
                     .frame(width: 24, height: 24)
                     .padding(.bottom, 10)
+                    .accessibilityHidden(true)
 
                 TextField("问本地模型任何问题", text: $text, axis: .vertical)
                     .textFieldStyle(.plain)
@@ -1668,6 +1794,10 @@ struct ComposerBar: View {
                     .foregroundStyle(theme.primaryText)
                     .lineLimit(1...4)
                     .padding(.vertical, 12)
+                    .focused($focusedField, equals: .input)
+                    .accessibilityLabel(ComposerInputMetadata.textFieldLabel)
+                    .accessibilityHint(ComposerInputMetadata.textFieldHint)
+                    .accessibilityInputLabels(ComposerInputMetadata.textFieldInputLabels)
             }
             .padding(.horizontal, 13)
             .background(theme.recessedSurface, in: RoundedRectangle(cornerRadius: 17, style: .continuous))
@@ -1689,7 +1819,9 @@ struct ComposerBar: View {
             .keyboardShortcut(.return, modifiers: [.command])
             .disabled(isSendDisabled)
             .opacity(isSendDisabled ? 0.55 : 1)
-            .accessibilityLabel(isGenerating ? "Stop generation" : "Send prompt")
+            .accessibilityLabel(ComposerInputMetadata.actionLabel(isGenerating: isGenerating))
+            .accessibilityValue(ComposerInputMetadata.actionValue(text: text, isGenerating: isGenerating))
+            .accessibilityHint(ComposerInputMetadata.actionHint(text: text, isGenerating: isGenerating))
         }
         .padding(8)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
@@ -1697,11 +1829,31 @@ struct ComposerBar: View {
             RoundedRectangle(cornerRadius: 22, style: .continuous)
                 .stroke(isGenerating ? theme.success.opacity(0.32) : theme.accent.opacity(0.18), lineWidth: 1)
         }
+        .onAppear {
+            focusComposerIfNeeded()
+        }
+        .onChange(of: focusRequest.sequence) { _, _ in
+            focusComposerIfNeeded()
+        }
     }
 
     private var isSendDisabled: Bool {
-        text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && isGenerating == false
+        ComposerInputMetadata.isActionDisabled(text: text, isGenerating: isGenerating)
     }
+
+    private func focusComposerIfNeeded() {
+        guard focusRequest.shouldFocus else {
+            return
+        }
+        Task { @MainActor in
+            focusedField = .input
+            clearFocusRequest()
+        }
+    }
+}
+
+private enum ComposerFocusedField: Hashable {
+    case input
 }
 
 struct ModelLibraryView: View {

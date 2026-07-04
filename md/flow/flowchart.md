@@ -79,7 +79,7 @@ flowchart TD
     P --> F
     K[键盘导航<br/>Command+1/2/3/4 切换工作区] --> F
     M[系统菜单<br/>工作区 CommandMenu 复用同一映射] --> F
-    L[会话/输入快捷键<br/>Command+N 新建<br/>Command+Shift+E 导出<br/>Command+Return 发送或停止] --> G
+    L[会话/输入焦点<br/>Command+N 新建<br/>Command+Shift+E 导出<br/>Command+Return 发送或停止<br/>切回推理/会话/模板后聚焦输入] --> G
     F -- 推理 --> G[ChatWorkspace<br/>会话 + 消息 + 输入]
     F -- 模型 --> H[ModelLibraryView<br/>部署控制台]
     F -- 提示词 --> I[PromptTemplatesWorkspace<br/>模板筛选/填入/发送]
