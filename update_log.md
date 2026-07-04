@@ -16,7 +16,7 @@
 - 平台：SwiftUI iOS App，Swift 6.0，iOS deployment target 17.0，当前 app/test target 支持 iPhone、iPad 和 Mac Catalyst build-for-testing，并提供项目内 Mac Catalyst 本地 build/run 脚本入口；尚未创建原生 macOS target。
 - 当前默认模型：`Gemma 1.5B Local`
 - 当前推理：本地模拟 runtime，不下载模型权重，不执行真实模型推理。
-- 当前核心测试：`LocalGemmaTests.swift` 中 39 个 XCTest 方法。
+- 当前核心测试：`LocalGemmaTests.swift` 中 40 个 XCTest 方法。
 - 当前核心文档入口：`AGENTS.md`、`md/flow/flow.md`、`md/flow/flowchart.md`、`md/test/test.md`、`md/prompt/README.md`、`README.md`。
 - 当前协作验证：默认 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载未加密 CI 结果包验收；本地仓库当前已配置 `origin` remote，最终验收仍以最新 `origin/main` 对应的 GitHub Actions run 和结果包为准；文档已预留未来 `agentx:` 主控 Agent A -> Agent B -> Agent C 多轮循环的规则。
 
@@ -610,3 +610,45 @@
 
 - v1.5 push 后需等待最新 `ci-results.yml` run 完成，由 Agent C 下载对应未加密结果包，核对 manifest、`artifact-name.txt`、JUnit、iOS 日志、Mac Catalyst 日志、run script 日志、baseline notes 和 `.xcresult`。
 - 本轮只建立模型页内部布局策略，没有做全局视觉重设、CI 结果包契约重构或真实 runtime 接入。
+
+### v1.6 / 提示词分类筛选辅助语义
+
+日期：2026-07-04
+
+核心变更：
+
+- 新增 `PromptCategoryAccessibilityMetadata`，为提示词页分类筛选 chip 生成稳定 title、label、value、hint、Voice Control input labels 和 accessibility identifier。
+- `PromptCategorySelector` 的“全部/部署/隐私/性能/写作/产品/排障”按钮接入辅助语义，当前筛选项继续通过 `.isSelected` trait 暴露给辅助技术。
+- 新增 `testPromptCategoryAccessibilityMetadataDescribesFilterSelectionAndInputLabels`，测试函数数从 39 个增加到 40 个。
+- 同步 README、测试规范、核心流程文档、Mermaid 流程图和入口规则中的提示词分类筛选辅助语义基线。
+- 本轮没有修改提示词模板业务内容，没有创建原生 macOS target，没有下载模型权重，没有接入真实模型推理。
+
+关键文件：
+
+- `LocalGemma/ContentView.swift`
+- `LocalGemmaTests/LocalGemmaTests.swift`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `AGENTS.md`
+- `md/prompt/v1（Mac体验审计）/v1.6（提示词分类筛选辅助语义）.md`
+- `update_log.md`
+
+验证结果：
+
+- `git diff --check`：无输出，退出码 0。
+- `bash -n script/build_and_run.sh`：退出码 0。
+- `plutil -lint LocalGemma.xcodeproj/project.pbxproj`：输出 `LocalGemma.xcodeproj/project.pbxproj: OK`。
+- `ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'`：输出 `yaml ok`。
+- `grep -n "func test" LocalGemmaTests/LocalGemmaTests.swift`：确认当前 40 个 `test...` 方法。
+- `/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -sdk /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk -module-cache-path .build/SwiftSmokeModuleCache LocalGemma/AppState.swift Tools/LogicSmoke.swift -o .build/logic-smoke`：退出码 0。
+- `.build/logic-smoke`：输出 `Logic smoke passed`。
+- `/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -typecheck -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk -target arm64-apple-ios17.0-simulator -module-cache-path .build/ModuleCache LocalGemma/AppState.swift LocalGemma/ContentView.swift LocalGemma/LocalGemmaApp.swift`：退出码 0。
+- `/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -emit-module -emit-module-path .build/Typecheck/LocalGemma.swiftmodule -module-name LocalGemma -enable-testing -parse-as-library -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk -target arm64-apple-ios17.0-simulator -module-cache-path .build/ModuleCache LocalGemma/AppState.swift LocalGemma/ContentView.swift LocalGemma/LocalGemmaApp.swift`：退出码 0。
+- `/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -typecheck -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk -target arm64-apple-ios17.0-simulator -module-cache-path .build/ModuleCache -I .build/Typecheck -I /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/lib -F /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/Library/Frameworks LocalGemmaTests/LocalGemmaTests.swift`：退出码 0。
+
+遗留事项：
+
+- v1.6 push 后需等待最新 `ci-results.yml` run 完成，由 Agent C 下载对应未加密结果包，核对 manifest、`artifact-name.txt`、JUnit、iOS 日志、Mac Catalyst 日志、run script 日志、baseline notes 和 `.xcresult`。
+- 本轮只建立提示词分类筛选辅助语义，没有做全局视觉重设、完整 UI Test target 或真实 runtime 接入。

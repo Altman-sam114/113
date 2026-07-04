@@ -668,6 +668,41 @@ enum SelectionAccessibilityMetadata {
     }
 }
 
+enum PromptCategoryAccessibilityMetadata {
+    static let allCategoryTitle = "全部"
+    static let allCategoryInputLabels = ["全部提示词", "筛选全部", "显示全部模板"]
+
+    static func title(for category: PromptTemplateCategory?) -> String {
+        category?.title ?? allCategoryTitle
+    }
+
+    static func label(for category: PromptTemplateCategory?) -> String {
+        "筛选提示词 \(title(for: category))"
+    }
+
+    static func identifier(for category: PromptTemplateCategory?) -> String {
+        "prompt-category-\(category?.rawValue ?? "all")"
+    }
+
+    static func value(isSelected: Bool) -> String {
+        isSelected ? "当前筛选" : "未选中"
+    }
+
+    static func hint(for category: PromptTemplateCategory?) -> String {
+        guard let category else {
+            return "显示全部提示词模板。"
+        }
+        return "显示\(category.title)分类的提示词模板。"
+    }
+
+    static func inputLabels(for category: PromptTemplateCategory?) -> [String] {
+        guard let category else {
+            return allCategoryInputLabels
+        }
+        return ["筛选\(category.title)", "\(category.title)提示词", "显示\(category.title)模板"]
+    }
+}
+
 enum ComposerFocusReason: String, CaseIterable {
     case openChatWorkspace
     case createSession
@@ -1656,12 +1691,12 @@ struct PromptCategorySelector: View {
     var body: some View {
         ScrollView(.horizontal) {
             HStack(spacing: 8) {
-                categoryButton(title: "全部", icon: "square.grid.2x2.fill", isSelected: selectedCategory == nil) {
+                categoryButton(category: nil, icon: "square.grid.2x2.fill", isSelected: selectedCategory == nil) {
                     selectedCategory = nil
                 }
 
                 ForEach(PromptTemplateCategory.allCases) { category in
-                    categoryButton(title: category.title, icon: category.icon, isSelected: selectedCategory == category) {
+                    categoryButton(category: category, icon: category.icon, isSelected: selectedCategory == category) {
                         selectedCategory = category
                     }
                 }
@@ -1670,8 +1705,10 @@ struct PromptCategorySelector: View {
         .scrollIndicators(.hidden)
     }
 
-    private func categoryButton(title: String, icon: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
+    private func categoryButton(category: PromptTemplateCategory?, icon: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        let title = PromptCategoryAccessibilityMetadata.title(for: category)
+
+        return Button(action: action) {
             Label(title, systemImage: icon)
                 .font(.system(size: 11, weight: .black))
                 .labelStyle(.titleAndIcon)
@@ -1682,6 +1719,12 @@ struct PromptCategorySelector: View {
                 .overlay(Capsule().stroke(isSelected ? theme.accent.opacity(0.7) : theme.border, lineWidth: 1))
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(PromptCategoryAccessibilityMetadata.label(for: category))
+        .accessibilityValue(PromptCategoryAccessibilityMetadata.value(isSelected: isSelected))
+        .accessibilityHint(PromptCategoryAccessibilityMetadata.hint(for: category))
+        .accessibilityInputLabels(PromptCategoryAccessibilityMetadata.inputLabels(for: category))
+        .accessibilityIdentifier(PromptCategoryAccessibilityMetadata.identifier(for: category))
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 

@@ -480,6 +480,71 @@ final class LocalGemmaTests: XCTestCase {
         XCTAssertTrue(PromptTemplateLibrary.templates(in: .privacy).allSatisfy { $0.category == .privacy })
     }
 
+    func testPromptCategoryAccessibilityMetadataDescribesFilterSelectionAndInputLabels() {
+        XCTAssertEqual(PromptCategoryAccessibilityMetadata.allCategoryTitle, "全部")
+        XCTAssertEqual(PromptCategoryAccessibilityMetadata.title(for: nil), "全部")
+        XCTAssertEqual(
+            PromptCategoryAccessibilityMetadata.label(for: nil),
+            "筛选提示词 全部"
+        )
+        XCTAssertEqual(
+            PromptCategoryAccessibilityMetadata.identifier(for: nil),
+            "prompt-category-all"
+        )
+        XCTAssertEqual(
+            PromptCategoryAccessibilityMetadata.value(isSelected: true),
+            "当前筛选"
+        )
+        XCTAssertEqual(
+            PromptCategoryAccessibilityMetadata.value(isSelected: false),
+            "未选中"
+        )
+        XCTAssertEqual(
+            PromptCategoryAccessibilityMetadata.hint(for: nil),
+            "显示全部提示词模板。"
+        )
+        XCTAssertEqual(
+            PromptCategoryAccessibilityMetadata.inputLabels(for: nil),
+            ["全部提示词", "筛选全部", "显示全部模板"]
+        )
+        XCTAssertEqual(
+            PromptTemplateCategory.allCases.map(\.title),
+            ["部署", "隐私", "性能", "写作", "产品", "排障"]
+        )
+        XCTAssertEqual(
+            Set(
+                PromptTemplateCategory.allCases.map {
+                    PromptCategoryAccessibilityMetadata.identifier(for: $0)
+                }
+            ).count,
+            PromptTemplateCategory.allCases.count
+        )
+        XCTAssertTrue(
+            PromptTemplateCategory.allCases.allSatisfy {
+                !PromptCategoryAccessibilityMetadata.label(for: $0).isEmpty
+                    && !PromptCategoryAccessibilityMetadata.identifier(for: $0).isEmpty
+                    && !PromptCategoryAccessibilityMetadata.hint(for: $0).isEmpty
+                    && !PromptCategoryAccessibilityMetadata.inputLabels(for: $0).isEmpty
+            }
+        )
+        XCTAssertEqual(
+            PromptCategoryAccessibilityMetadata.label(for: .privacy),
+            "筛选提示词 隐私"
+        )
+        XCTAssertEqual(
+            PromptCategoryAccessibilityMetadata.identifier(for: .privacy),
+            "prompt-category-privacy"
+        )
+        XCTAssertEqual(
+            PromptCategoryAccessibilityMetadata.hint(for: .privacy),
+            "显示隐私分类的提示词模板。"
+        )
+        XCTAssertEqual(
+            PromptCategoryAccessibilityMetadata.inputLabels(for: .privacy),
+            ["筛选隐私", "隐私提示词", "显示隐私模板"]
+        )
+    }
+
     func testInferenceIgnoresEmptyPrompt() {
         let engine = InferenceEngine()
         let initialCount = engine.messages.count
