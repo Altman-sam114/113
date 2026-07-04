@@ -1316,4 +1316,85 @@ final class LocalGemmaTests: XCTestCase {
             ExportPayload(title: "C", messageCount: 1, text: "hello", fileURL: nil).existingFileURL
         )
     }
+
+    func testExportSessionActionsExposeAccessibilityMetadata() {
+        XCTAssertEqual(
+            ExportSessionActionAccessibilityMetadata.identifier(for: .shareMarkdownFile),
+            "export-session-action-share-markdown-file"
+        )
+        XCTAssertEqual(
+            ExportSessionActionAccessibilityMetadata.identifier(for: .shareTextFallback),
+            "export-session-action-share-text-fallback"
+        )
+        XCTAssertEqual(
+            ExportSessionActionAccessibilityMetadata.identifier(for: .copyFullText),
+            "export-session-action-copy-full-text"
+        )
+
+        let markdownValue = ExportSessionActionAccessibilityMetadata.value(
+            for: .shareMarkdownFile,
+            messageCount: 3
+        )
+        let markdownHint = ExportSessionActionAccessibilityMetadata.hint(for: .shareMarkdownFile)
+        XCTAssertEqual(
+            ExportSessionActionAccessibilityMetadata.label(for: .shareMarkdownFile),
+            "分享 Markdown 文件"
+        )
+        XCTAssertTrue(markdownValue.contains("本地 Markdown"))
+        XCTAssertTrue(markdownValue.contains("3 条消息"))
+        XCTAssertTrue(markdownHint.contains("本地生成"))
+        XCTAssertTrue(markdownHint.contains("不会发送到云端服务"))
+        XCTAssertTrue(
+            ExportSessionActionAccessibilityMetadata.inputLabels(for: .shareMarkdownFile)
+                .contains("分享 Markdown 文件")
+        )
+
+        let textValue = ExportSessionActionAccessibilityMetadata.value(
+            for: .shareTextFallback,
+            messageCount: 3
+        )
+        let textHint = ExportSessionActionAccessibilityMetadata.hint(for: .shareTextFallback)
+        XCTAssertEqual(
+            ExportSessionActionAccessibilityMetadata.label(for: .shareTextFallback),
+            "分享文本内容"
+        )
+        XCTAssertTrue(textValue.contains("文本分享兜底"))
+        XCTAssertTrue(textValue.contains("3 条消息"))
+        XCTAssertTrue(textHint.contains("Markdown 文件不存在"))
+        XCTAssertTrue(textHint.contains("不会发送到云端服务"))
+        XCTAssertTrue(
+            ExportSessionActionAccessibilityMetadata.inputLabels(for: .shareTextFallback)
+                .contains("文本分享兜底")
+        )
+
+        let copyValue = ExportSessionActionAccessibilityMetadata.value(
+            for: .copyFullText,
+            messageCount: 3
+        )
+        let copyHint = ExportSessionActionAccessibilityMetadata.hint(for: .copyFullText)
+        XCTAssertEqual(
+            ExportSessionActionAccessibilityMetadata.label(for: .copyFullText),
+            "复制全文"
+        )
+        XCTAssertTrue(copyValue.contains("3 条消息"))
+        XCTAssertTrue(copyHint.contains("剪贴板"))
+        XCTAssertTrue(copyHint.contains("不会发送到云端服务"))
+        XCTAssertTrue(
+            ExportSessionActionAccessibilityMetadata.inputLabels(for: .copyFullText)
+                .contains("复制全文")
+        )
+
+        XCTAssertTrue(
+            ExportSessionActionAccessibilityMetadata.Action.allCases.allSatisfy {
+                !ExportSessionActionAccessibilityMetadata.label(for: $0).isEmpty
+                    && !ExportSessionActionAccessibilityMetadata.value(
+                        for: $0,
+                        messageCount: 1
+                    ).isEmpty
+                    && !ExportSessionActionAccessibilityMetadata.hint(for: $0).isEmpty
+                    && !ExportSessionActionAccessibilityMetadata.inputLabels(for: $0).isEmpty
+                    && !ExportSessionActionAccessibilityMetadata.identifier(for: $0).isEmpty
+            }
+        )
+    }
 }

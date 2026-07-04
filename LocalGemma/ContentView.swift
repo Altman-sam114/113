@@ -1589,6 +1589,73 @@ struct ExportPayload: Identifiable {
     }
 }
 
+enum ExportSessionActionAccessibilityMetadata {
+    enum Action: CaseIterable, Identifiable {
+        case shareMarkdownFile
+        case shareTextFallback
+        case copyFullText
+
+        var id: String {
+            ExportSessionActionAccessibilityMetadata.identifier(for: self)
+        }
+    }
+
+    static func label(for action: Action) -> String {
+        switch action {
+        case .shareMarkdownFile:
+            return "分享 Markdown 文件"
+        case .shareTextFallback:
+            return "分享文本内容"
+        case .copyFullText:
+            return "复制全文"
+        }
+    }
+
+    static func value(for action: Action, messageCount: Int) -> String {
+        switch action {
+        case .shareMarkdownFile:
+            return "本地 Markdown 文件，包含 \(messageCount) 条消息。"
+        case .shareTextFallback:
+            return "文本分享兜底，包含 \(messageCount) 条消息。"
+        case .copyFullText:
+            return "复制 \(messageCount) 条消息的导出文本。"
+        }
+    }
+
+    static func hint(for action: Action) -> String {
+        switch action {
+        case .shareMarkdownFile:
+            return "打开系统分享面板，分享本地生成的 Markdown 文件；不会发送到云端服务。"
+        case .shareTextFallback:
+            return "Markdown 文件不存在时分享本地文本内容；不会发送到云端服务。"
+        case .copyFullText:
+            return "将导出文本写入系统剪贴板；不会发送到云端服务。"
+        }
+    }
+
+    static func inputLabels(for action: Action) -> [String] {
+        switch action {
+        case .shareMarkdownFile:
+            return ["分享 Markdown 文件", "分享会话文件", "导出 Markdown"]
+        case .shareTextFallback:
+            return ["分享文本内容", "分享导出文本", "文本分享兜底"]
+        case .copyFullText:
+            return ["复制全文", "复制导出文本", "复制会话内容"]
+        }
+    }
+
+    static func identifier(for action: Action) -> String {
+        switch action {
+        case .shareMarkdownFile:
+            return "export-session-action-share-markdown-file"
+        case .shareTextFallback:
+            return "export-session-action-share-text-fallback"
+        case .copyFullText:
+            return "export-session-action-copy-full-text"
+        }
+    }
+}
+
 enum SessionBarLayout {
     case horizontal
     case vertical
@@ -1833,7 +1900,12 @@ struct ExportSessionView: View {
                 VStack(spacing: 10) {
                     if let fileURL = payload.existingFileURL {
                         ShareLink(item: fileURL) {
-                            Label("分享 Markdown 文件", systemImage: "square.and.arrow.up.fill")
+                            Label(
+                                ExportSessionActionAccessibilityMetadata.label(
+                                    for: .shareMarkdownFile
+                                ),
+                                systemImage: "square.and.arrow.up.fill"
+                            )
                                 .font(.system(size: 15, weight: .black))
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 14)
@@ -1841,9 +1913,40 @@ struct ExportSessionView: View {
                                 .foregroundStyle(theme.inverseText)
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel(
+                            ExportSessionActionAccessibilityMetadata.label(
+                                for: .shareMarkdownFile
+                            )
+                        )
+                        .accessibilityValue(
+                            ExportSessionActionAccessibilityMetadata.value(
+                                for: .shareMarkdownFile,
+                                messageCount: payload.messageCount
+                            )
+                        )
+                        .accessibilityHint(
+                            ExportSessionActionAccessibilityMetadata.hint(
+                                for: .shareMarkdownFile
+                            )
+                        )
+                        .accessibilityInputLabels(
+                            ExportSessionActionAccessibilityMetadata.inputLabels(
+                                for: .shareMarkdownFile
+                            )
+                        )
+                        .accessibilityIdentifier(
+                            ExportSessionActionAccessibilityMetadata.identifier(
+                                for: .shareMarkdownFile
+                            )
+                        )
                     } else {
                         ShareLink(item: payload.text) {
-                            Label("分享文本内容", systemImage: "text.quote")
+                            Label(
+                                ExportSessionActionAccessibilityMetadata.label(
+                                    for: .shareTextFallback
+                                ),
+                                systemImage: "text.quote"
+                            )
                                 .font(.system(size: 15, weight: .black))
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 14)
@@ -1851,6 +1954,32 @@ struct ExportSessionView: View {
                                 .foregroundStyle(theme.inverseText)
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel(
+                            ExportSessionActionAccessibilityMetadata.label(
+                                for: .shareTextFallback
+                            )
+                        )
+                        .accessibilityValue(
+                            ExportSessionActionAccessibilityMetadata.value(
+                                for: .shareTextFallback,
+                                messageCount: payload.messageCount
+                            )
+                        )
+                        .accessibilityHint(
+                            ExportSessionActionAccessibilityMetadata.hint(
+                                for: .shareTextFallback
+                            )
+                        )
+                        .accessibilityInputLabels(
+                            ExportSessionActionAccessibilityMetadata.inputLabels(
+                                for: .shareTextFallback
+                            )
+                        )
+                        .accessibilityIdentifier(
+                            ExportSessionActionAccessibilityMetadata.identifier(
+                                for: .shareTextFallback
+                            )
+                        )
                     }
 
                     Button {
@@ -1871,6 +2000,24 @@ struct ExportSessionView: View {
                             .foregroundStyle(theme.primaryText)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel(
+                        ExportSessionActionAccessibilityMetadata.label(for: .copyFullText)
+                    )
+                    .accessibilityValue(
+                        ExportSessionActionAccessibilityMetadata.value(
+                            for: .copyFullText,
+                            messageCount: payload.messageCount
+                        )
+                    )
+                    .accessibilityHint(
+                        ExportSessionActionAccessibilityMetadata.hint(for: .copyFullText)
+                    )
+                    .accessibilityInputLabels(
+                        ExportSessionActionAccessibilityMetadata.inputLabels(for: .copyFullText)
+                    )
+                    .accessibilityIdentifier(
+                        ExportSessionActionAccessibilityMetadata.identifier(for: .copyFullText)
+                    )
                 }
                 .padding(.horizontal, 18)
                 .padding(.vertical, 12)
@@ -1882,12 +2029,72 @@ struct ExportSessionView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     if let fileURL = payload.existingFileURL {
                         ShareLink(item: fileURL) {
-                            Image(systemName: "square.and.arrow.up.fill")
+                            Label(
+                                ExportSessionActionAccessibilityMetadata.label(
+                                    for: .shareMarkdownFile
+                                ),
+                                systemImage: "square.and.arrow.up.fill"
+                            )
+                            .labelStyle(.iconOnly)
                         }
+                        .accessibilityLabel(
+                            ExportSessionActionAccessibilityMetadata.label(
+                                for: .shareMarkdownFile
+                            )
+                        )
+                        .accessibilityValue(
+                            ExportSessionActionAccessibilityMetadata.value(
+                                for: .shareMarkdownFile,
+                                messageCount: payload.messageCount
+                            )
+                        )
+                        .accessibilityHint(
+                            ExportSessionActionAccessibilityMetadata.hint(
+                                for: .shareMarkdownFile
+                            )
+                        )
+                        .accessibilityInputLabels(
+                            ExportSessionActionAccessibilityMetadata.inputLabels(
+                                for: .shareMarkdownFile
+                            )
+                        )
+                        .accessibilityIdentifier(
+                            "\(ExportSessionActionAccessibilityMetadata.identifier(for: .shareMarkdownFile))-toolbar"
+                        )
                     } else {
                         ShareLink(item: payload.text) {
-                            Image(systemName: "text.quote")
+                            Label(
+                                ExportSessionActionAccessibilityMetadata.label(
+                                    for: .shareTextFallback
+                                ),
+                                systemImage: "text.quote"
+                            )
+                            .labelStyle(.iconOnly)
                         }
+                        .accessibilityLabel(
+                            ExportSessionActionAccessibilityMetadata.label(
+                                for: .shareTextFallback
+                            )
+                        )
+                        .accessibilityValue(
+                            ExportSessionActionAccessibilityMetadata.value(
+                                for: .shareTextFallback,
+                                messageCount: payload.messageCount
+                            )
+                        )
+                        .accessibilityHint(
+                            ExportSessionActionAccessibilityMetadata.hint(
+                                for: .shareTextFallback
+                            )
+                        )
+                        .accessibilityInputLabels(
+                            ExportSessionActionAccessibilityMetadata.inputLabels(
+                                for: .shareTextFallback
+                            )
+                        )
+                        .accessibilityIdentifier(
+                            "\(ExportSessionActionAccessibilityMetadata.identifier(for: .shareTextFallback))-toolbar"
+                        )
                     }
                 }
             }

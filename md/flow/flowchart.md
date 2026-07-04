@@ -63,7 +63,7 @@ flowchart TD
 
 ## 4. UI 布局与工作区流
 
-读图说明：这张图展示 ContentView 如何根据容器尺寸选择单栏、compact 双栏或 regular 大屏双栏布局，然后进入具体工作区。iPhone 横屏、iPad 竖屏大画布、Mac Catalyst 和桌面窗口都走同一套尺寸断点；regular 大屏侧栏显示工作区用途说明，compact 侧栏保持紧凑；Mac Catalyst 和 iPad 外接键盘可通过 `Command+1...4` 或系统 `工作区` 命令菜单切换工作区，也可通过系统 `会话` 命令菜单或会话栏可见按钮新建/导出当前会话；会话栏操作、模型选择器、部署控件和提示词分类筛选 chip 会向辅助技术暴露当前操作语义。
+读图说明：这张图展示 ContentView 如何根据容器尺寸选择单栏、compact 双栏或 regular 大屏双栏布局，然后进入具体工作区。iPhone 横屏、iPad 竖屏大画布、Mac Catalyst 和桌面窗口都走同一套尺寸断点；regular 大屏侧栏显示工作区用途说明，compact 侧栏保持紧凑；Mac Catalyst 和 iPad 外接键盘可通过 `Command+1...4` 或系统 `工作区` 命令菜单切换工作区，也可通过系统 `会话` 命令菜单或会话栏可见按钮新建/导出当前会话；会话栏操作、导出弹层分享/复制、模型选择器、部署控件和提示词分类筛选 chip 会向辅助技术暴露当前操作语义。
 
 ```mermaid
 flowchart TD
@@ -80,7 +80,7 @@ flowchart TD
     K[键盘导航<br/>Command+1/2/3/4 切换工作区] --> F
     M[系统菜单<br/>工作区 CommandMenu + 会话 CommandMenu<br/>复用 focused 映射] --> F
     L[会话/输入焦点<br/>Command+N 新建<br/>Command+Shift+E 导出<br/>Command+Return 发送或停止<br/>切回推理/会话/模板后聚焦输入] --> G
-    F -- 推理 --> G[ChatWorkspace<br/>会话 + 消息 + 输入<br/>SessionSidebarLayoutPolicy<br/>会话栏操作辅助语义]
+    F -- 推理 --> G[ChatWorkspace<br/>会话 + 消息 + 输入<br/>SessionSidebarLayoutPolicy<br/>会话栏操作辅助语义<br/>导出弹层分享/复制辅助语义]
     F -- 模型 --> H[ModelLibraryView<br/>ModelLibraryLayoutMode<br/>窄屏单栏 / 宽屏内部双栏<br/>选择器/部署控件辅助语义]
     F -- 提示词 --> I[PromptTemplatesWorkspace<br/>模板筛选/填入/发送<br/>分类筛选辅助语义]
     F -- 设置 --> J[SettingsWorkspace<br/>主题/壁纸/芯片策略]
@@ -107,7 +107,7 @@ flowchart TD
 
 ## 6. 会话导出与分享流
 
-读图说明：这张图展示导出时为什么有文件分享和文本分享两条路径。目标是避免分享一个不存在的临时文件。
+读图说明：这张图展示导出时为什么有文件分享和文本分享两条路径。目标是避免分享一个不存在的临时文件，同时让分享与复制动作向辅助技术说明本地 Markdown、文本兜底、剪贴板和不发送云端的边界。
 
 ```mermaid
 flowchart TD
@@ -115,11 +115,11 @@ flowchart TD
     B --> C[尝试写入临时 .md 文件]
     C --> D[创建 ExportPayload]
     D --> E{existingFileURL 是否存在}
-    E -- 是 --> F[ShareLink 分享 Markdown 文件]
-    E -- 否 --> G[ShareLink 分享文本内容]
+    E -- 是 --> F[ShareLink 分享 Markdown 文件<br/>分享动作辅助语义]
+    E -- 否 --> G[ShareLink 分享文本内容<br/>文本兜底辅助语义]
     F --> H[系统分享面板]
     G --> H
-    D --> I[复制全文按钮]
+    D --> I[复制全文按钮<br/>剪贴板动作辅助语义]
     I --> J[写入 UIPasteboard]
 ```
 

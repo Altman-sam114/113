@@ -4,7 +4,7 @@
 
 ## 1. 项目一句话总览
 
-`Local Gemma iOS Prototype` 是一个 SwiftUI iOS 原型 App，用本地模拟 runtime 验证 iPhone、iPad 与 Mac Catalyst build/run 基线下端侧部署 Gemma 1.5B 的产品交互、模型文件管理、artifact 校验、会话导出、大屏双栏布局、Mac/iPad 工作区与会话命令菜单、会话栏操作辅助语义、会话侧栏宽度策略、模型选择器与部署控件辅助语义、提示词筛选辅助语义、相册壁纸和 Apple Silicon 运行计划；当前不下载模型权重，不执行真实模型推理，也没有原生 macOS target。
+`Local Gemma iOS Prototype` 是一个 SwiftUI iOS 原型 App，用本地模拟 runtime 验证 iPhone、iPad 与 Mac Catalyst build/run 基线下端侧部署 Gemma 1.5B 的产品交互、模型文件管理、artifact 校验、会话导出、导出弹层分享/复制辅助语义、大屏双栏布局、Mac/iPad 工作区与会话命令菜单、会话栏操作辅助语义、会话侧栏宽度策略、模型选择器与部署控件辅助语义、提示词筛选辅助语义、相册壁纸和 Apple Silicon 运行计划；当前不下载模型权重，不执行真实模型推理，也没有原生 macOS target。
 
 ## 2. 必读文件顺序
 
@@ -59,9 +59,10 @@ git remote -v
 - `ModelDeploymentControlAccessibilityMetadata` 控制模型选择器、部署电源和 artifact 操作按钮的辅助语义；模型切换不下载权重、不启动真实 runtime、模拟暂存、不联网下载、verified 门禁和 Mac/iPad VoiceOver/Voice Control 入口要有测试锁住。
 - `SessionSidebarLayoutPolicy` 控制推理页大屏会话列表宽度；Mac/iPad 会话栏最小/最大宽度和窄屏回退要有测试锁住。
 - `SessionBarActionAccessibilityMetadata` 控制推理页会话栏新建/导出可见按钮的辅助语义；它必须与系统 `会话` command menu 标题、快捷键和 focused route 保持对齐，并明确导出不发送到云端服务。
-- `WorkspaceTab.shortcutKey`、工作区 command menu、会话 command menu、会话栏操作辅助语义、regular 侧栏说明、选择语义、composer 输入焦点/辅助语义、模型选择器与部署控件辅助语义和提示词分类筛选辅助语义锁住 Mac/iPad 工作区导航；改动快捷键、菜单、会话栏操作、侧栏文案、输入焦点、模型选择器、模型部署控件、提示词筛选或可访问性映射时必须同步测试。
+- `ExportSessionActionAccessibilityMetadata` 控制导出弹层分享 Markdown、文本兜底和复制全文动作的辅助语义；它必须明确本地 Markdown / 文本分享兜底 / 剪贴板边界，并说明不会发送到云端服务。
+- `WorkspaceTab.shortcutKey`、工作区 command menu、会话 command menu、会话栏操作辅助语义、导出弹层分享/复制辅助语义、regular 侧栏说明、选择语义、composer 输入焦点/辅助语义、模型选择器与部署控件辅助语义和提示词分类筛选辅助语义锁住 Mac/iPad 工作区导航；改动快捷键、菜单、会话栏操作、导出弹层分享/复制、侧栏文案、输入焦点、模型选择器、模型部署控件、提示词筛选或可访问性映射时必须同步测试。
 - `WallpaperImageProcessor` 控制相册壁纸压缩和尺寸，避免大图直接进入 `AppStorage`。
-- `ExportPayload` 和导出视图必须处理 Markdown 文件不存在时的文本分享兜底。
+- `ExportPayload` 和导出视图必须处理 Markdown 文件不存在时的文本分享兜底，导出弹层的分享/复制动作不得暗示云端上传。
 - `script/build_and_run.sh` 是 Mac Catalyst 本地 build/run/debug/logs 入口，不下载模型权重，不接外部推理服务，不等于原生 macOS target。
 
 ## 5. 角色召唤和身份标识

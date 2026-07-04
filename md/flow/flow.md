@@ -1,6 +1,6 @@
 # 项目核心流程文档
 
-一句话总览：本项目是一个 SwiftUI iOS 原型，通过本地模拟 runtime 和严格 artifact 校验流程，验证 iPhone、iPad 与 Mac Catalyst build/run 基线下端侧部署 Gemma 1.5B 的 UI、状态管理、文件导入、会话导出、大屏布局和 Apple Silicon 运行计划；协作流程默认采用 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载结果包验收。
+一句话总览：本项目是一个 SwiftUI iOS 原型，通过本地模拟 runtime 和严格 artifact 校验流程，验证 iPhone、iPad 与 Mac Catalyst build/run 基线下端侧部署 Gemma 1.5B 的 UI、状态管理、文件导入、会话导出、导出弹层分享/复制辅助语义、大屏布局和 Apple Silicon 运行计划；协作流程默认采用 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载结果包验收。
 
 本文只写当前真实链路，不写历史流水账。
 
@@ -21,7 +21,7 @@
 9. `SimulatedGemmaRuntime.generate` 根据 prompt 和模型生成模拟回答。
 10. `InferenceEngine` 分 chunk 流式写回 messages，并同步 active session。
 11. 用户可导出当前会话，生成 Markdown 文本和临时 `.md` 文件。
-12. 分享视图优先分享真实存在的 Markdown 文件；文件不存在时分享文本。
+12. 分享视图优先分享真实存在的 Markdown 文件；文件不存在时分享文本，导出弹层分享/复制动作向辅助技术说明本地文件、文本兜底和剪贴板边界。
 
 ## 当前核心执行流
 
@@ -65,6 +65,7 @@
 - `LocalGemmaApp` 的 `工作区` command menu 复用同一组 `WorkspaceTab` 映射；`ContentView` 只通过 focused scene binding 暴露 `selectedTab`，菜单命令不触碰模型、artifact、runtime 或会话状态；进入推理页时只请求 UI 层 composer focus。
 - `LocalGemmaApp` 的 `会话` command menu 复用 `SessionCommandAction` 映射；`ChatWorkspace` 通过 `SessionCommandActions` focused value 暴露新建会话和导出当前会话动作，菜单不直接持有 `InferenceEngine` 或导出 sheet 状态。
 - `SessionBarActionAccessibilityMetadata` 复用 `SessionCommandAction` 为会话栏可见的新建/导出按钮生成 label/value/hint/input labels/identifier；文案说明新建会话只请求 composer focus，导出使用本地 Markdown / 文本分享兜底且不发送到云端服务。
+- `ExportSessionActionAccessibilityMetadata` 为导出弹层的分享 Markdown 文件、文本分享兜底和复制全文动作生成 label/value/hint/input labels/identifier；文案说明本地 Markdown、文本兜底、系统剪贴板和不发送到云端服务边界。
 - `SelectionAccessibilityMetadata` 为 workspace 和会话选择生成 label/value，当前选中项通过 `.isSelected` trait 暴露给辅助技术，不改变业务状态。
 - `PromptCategoryAccessibilityMetadata` 为提示词分类筛选 chip 生成 label/value/hint/input labels/identifier，当前筛选项通过 `.isSelected` trait 暴露给辅助技术，不改变模板筛选业务结果。
 - `ComposerFocusRequest`、`ComposerFocusPolicy` 和 `ComposerInputMetadata` 只管理 view 层输入焦点与辅助输入文案；切回推理页、新建/切换会话、提示词模板填入或发送后会请求 composer 聚焦，不写入 `InferenceEngine` 业务状态。
@@ -93,6 +94,7 @@
 - `ExportPayload.existingFileURL` 检查文件是否真实存在。
 - `ExportSessionView` 优先 `ShareLink(item: fileURL)`；否则 `ShareLink(item: payload.text)`。
 - 复制全文使用系统剪贴板。
+- `ExportSessionActionAccessibilityMetadata` 让底部分享、toolbar 分享和复制全文按钮暴露稳定辅助语义，不改变分享内容或剪贴板写入。
 
 ## 云端协作流
 
@@ -181,6 +183,7 @@ Agent X 不能跳过 Agent C artifact 验收；失败时不能继续下一轮并
 - `SessionSidebarLayoutPolicy`：推理页大屏会话列表宽度策略，覆盖 Mac/iPad 会话栏最小/最大宽度和窄屏回退。
 - `SessionCommandAction` / `SessionCommandActions`：Mac/iPad 会话命令菜单元数据和 focused action bridge。
 - `SessionBarActionAccessibilityMetadata`：推理页会话栏新建/导出可见按钮的辅助技术文案、Voice Control 输入标签和稳定 identifier。
+- `ExportSessionActionAccessibilityMetadata`：导出弹层分享 Markdown、文本兜底和复制全文动作的辅助技术文案、Voice Control 输入标签和稳定 identifier。
 - `PromptCategoryAccessibilityMetadata`：提示词分类筛选的辅助技术文案、Voice Control 输入标签和稳定 identifier。
 - `WallpaperImageProcessor`：壁纸数据压缩和尺寸控制。
 - `script/build_and_run.sh`：项目内 Mac Catalyst 本地 build/run 入口。
@@ -202,7 +205,7 @@ Agent X 不能跳过 Agent C artifact 验收；失败时不能继续下一轮并
 
 ## 用户入口
 
-- 推理页：会话列表、消息流、输入框、发送/停止、导出；Mac/iPad 可通过 `会话` command menu 或会话栏可见按钮新建或导出当前会话，会话栏操作向辅助技术暴露与菜单对齐的稳定语义。
+- 推理页：会话列表、消息流、输入框、发送/停止、导出；Mac/iPad 可通过 `会话` command menu 或会话栏可见按钮新建或导出当前会话，会话栏操作和导出弹层分享/复制动作向辅助技术暴露稳定语义。
 - 模型页：选择模型、启动/关闭部署、模拟下载、导入文件、扫描本地、卸载；足够宽时内部双栏展示部署控制和模型详情；模型选择器、部署电源和模型文件操作向辅助技术暴露稳定语义，并保留切换不下载权重、模拟下载和 verified 门禁边界。
 - 提示词页：按分类筛选模板、填入输入框、直接发送；分类筛选 chip 暴露稳定辅助语义和 Voice Control 输入标签。
 - 设置页：主题切换、相册壁纸、恢复背景、Apple Silicon 优化开关。
@@ -230,7 +233,7 @@ Agent X 不能跳过 Agent C artifact 验收；失败时不能继续下一轮并
 - 大图壁纸必须压缩和限制尺寸。
 - iPhone 横屏、iPad 大屏与 Mac Catalyst 桌面窗口布局断点必须有测试覆盖。
 - 模型页内部宽屏双栏和窄屏单栏回退必须有测试覆盖。
-- 工作区快捷键、工作区/会话 command menu、会话栏操作辅助语义、会话侧栏宽度、regular 侧栏说明、选择语义、composer 输入焦点/辅助语义、模型选择器与部署控件辅助语义和提示词分类筛选辅助语义必须有测试覆盖，避免 Mac/iPad 导航退化。
+- 工作区快捷键、工作区/会话 command menu、会话栏操作辅助语义、导出弹层分享/复制辅助语义、会话侧栏宽度、regular 侧栏说明、选择语义、composer 输入焦点/辅助语义、模型选择器与部署控件辅助语义和提示词分类筛选辅助语义必须有测试覆盖，避免 Mac/iPad 导航退化。
 - 默认协作验证以 `main` push 后的 GitHub Actions 结果包为准。
 - Agent X 循环每轮仍以 Agent B 本地轻量检查、GitHub Actions artifact 和 Agent C 下载复判为准。
 

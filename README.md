@@ -7,8 +7,8 @@
 - `LocalGemma.xcodeproj`：可用 Xcode 打开的 iOS 工程，当前 app/test target 支持 iPhone、iPad，并已启用 Mac Catalyst build-for-testing 基线和项目内本地 build/run 入口；本轮没有创建原生 macOS target。
 - `LocalGemma/AppState.swift`：模型清单、`LocalInferenceRuntime` 协议、模拟/真实占位 runtime、会话管理、导出文本生成、设备优化状态、本地模型 artifact manifest、`ModelArtifactStore`、`ModelArtifactHasher`、`LocalArtifactValidator`、手动导入错误处理和 Apple Silicon 运行计划。
 - `LocalGemma/LocalGemmaApp.swift`：SwiftUI app 入口，创建共享状态对象，并在 scene 层注册 `工作区` 和 `会话` command menu，让 Mac Catalyst 和 iPad 外接键盘用户可从系统菜单发现 workspace 切换、新建会话和导出当前会话。
-- `LocalGemma/ContentView.swift`：支持暗色/亮色切换的 SwiftUI 界面，包含推理、模型、提示词、设置四个工作区；推理页改成极简会话界面，顶部 Gemma 模型胶囊集中展示运行状态、速度、内存、后端和权重状态；提示词模板独立成页；设置页整合外观、相册壁纸和芯片部署优化；iPhone 横屏、iPad 竖屏大画布和大屏窗口达到断点后会切换为左侧导航/模型状态栏、右侧工作区；regular 大屏侧栏显示工作区用途说明，compact 侧栏保持紧凑；推理页内部会话侧栏在大屏按 `SessionSidebarLayoutPolicy` 限制宽度；模型页足够宽时内部并列展示选择/部署/文件操作与模型详情，窄屏保持单栏；Mac Catalyst 和 iPad 外接键盘可用 `Command+1...4` 或系统 `工作区` 菜单切换工作区，可用系统 `会话` 菜单及 `Command+N` / `Command+Shift+E` 新建或导出当前会话，也可点击会话栏可见按钮，`Command+Return` 发送或停止；工作区、会话选择、会话栏操作、模型选择器、模型部署控件和提示词分类筛选会向辅助技术暴露稳定语义，切回推理页、新建/切换会话、提示词模板填入或发送后会请求聚焦输入框。
-- `LocalGemmaTests/LocalGemmaTests.swift`：覆盖默认 Gemma 模拟状态、artifact missing/staged/verified 校验、手动导入文件复制、`.mlmodelc` 目录导入、启动自动扫描、本地模型管理状态流转、模拟输出、运行计划、优化开关、预设提示词模板、提示词分类筛选辅助语义、会话管理、Markdown 会话导出、iPhone/iPad/Mac Catalyst 桌面窗口布局断点、模型页内部宽屏布局策略、模型选择器辅助语义、模型部署控件辅助语义、会话栏操作辅助语义、会话侧栏宽度策略、工作区快捷键映射、工作区 command menu 映射、会话 command menu focused route、regular 侧栏说明、选择语义、composer 输入焦点与辅助语义和空输入保护。
+- `LocalGemma/ContentView.swift`：支持暗色/亮色切换的 SwiftUI 界面，包含推理、模型、提示词、设置四个工作区；推理页改成极简会话界面，顶部 Gemma 模型胶囊集中展示运行状态、速度、内存、后端和权重状态；提示词模板独立成页；设置页整合外观、相册壁纸和芯片部署优化；iPhone 横屏、iPad 竖屏大画布和大屏窗口达到断点后会切换为左侧导航/模型状态栏、右侧工作区；regular 大屏侧栏显示工作区用途说明，compact 侧栏保持紧凑；推理页内部会话侧栏在大屏按 `SessionSidebarLayoutPolicy` 限制宽度；模型页足够宽时内部并列展示选择/部署/文件操作与模型详情，窄屏保持单栏；Mac Catalyst 和 iPad 外接键盘可用 `Command+1...4` 或系统 `工作区` 菜单切换工作区，可用系统 `会话` 菜单及 `Command+N` / `Command+Shift+E` 新建或导出当前会话，也可点击会话栏可见按钮，`Command+Return` 发送或停止；工作区、会话选择、会话栏操作、导出弹层分享/复制、模型选择器、模型部署控件和提示词分类筛选会向辅助技术暴露稳定语义，切回推理页、新建/切换会话、提示词模板填入或发送后会请求聚焦输入框。
+- `LocalGemmaTests/LocalGemmaTests.swift`：覆盖默认 Gemma 模拟状态、artifact missing/staged/verified 校验、手动导入文件复制、`.mlmodelc` 目录导入、启动自动扫描、本地模型管理状态流转、模拟输出、运行计划、优化开关、预设提示词模板、提示词分类筛选辅助语义、会话管理、Markdown 会话导出、导出弹层分享/复制辅助语义、iPhone/iPad/Mac Catalyst 桌面窗口布局断点、模型页内部宽屏布局策略、模型选择器辅助语义、模型部署控件辅助语义、会话栏操作辅助语义、会话侧栏宽度策略、工作区快捷键映射、工作区 command menu 映射、会话 command menu focused route、regular 侧栏说明、选择语义、composer 输入焦点与辅助语义和空输入保护。
 - `Tools/LogicSmoke.swift`：不依赖 iOS runtime 的本地逻辑烟测，用来验证模拟模型、artifact 校验、手动导入文件复制、`.mlmodelc` 目录导入、启动自动扫描、模型管理状态流转、运行计划、提示词模板、会话管理、Markdown 导出与优化状态。
 - `AGENTS.md`：项目入口记忆、基本规则、“人工目标 -> Agent A -> Agent B -> Agent C -> 人工复核”的单轮流程，以及未来 `agentx:` 主控 A/B/C 多轮循环的准备规则。
 - `update_log.md`：版本更新记录、历史决策、完成事项和遗留问题。
@@ -124,7 +124,7 @@ App 启动时会自动扫描 `Application Support/LocalModels`，如果用户之
 
 - 顶部只保留一个 Gemma 模型胶囊，速度、内存、后端和权重状态都收进这里，避免重复显示模型名。
 - 会话栏参考 ChatGPT 网页端的历史列表结构，支持新建会话、切换会话、删除会话；系统 `会话` 菜单和会话栏可见按钮通过同一组 action 语义覆盖新建和导出当前会话动作；会话栏按钮会向辅助技术说明快捷键、本地会话焦点流和本地 Markdown / 文本分享兜底，不会把会话发送到云端服务；会话会根据首条用户输入自动生成名字。
-- 导出按钮会生成当前会话的 `.md` 文件，导出弹层显示会话摘要、正文预览和底部分享按钮，并通过系统分享面板分享 Markdown 文件。
+- 导出按钮会生成当前会话的 `.md` 文件，导出弹层显示会话摘要、正文预览、底部分享/复制按钮和 toolbar 分享入口；分享 Markdown、文本兜底和复制全文动作会向辅助技术说明本地文件、文本兜底、剪贴板和不发送云端服务边界。
 - 输入区以 `问本地模型任何问题` 为主入口，只保留发送/停止一个核心动作按钮；输入框和发送/停止按钮有稳定的辅助技术 label/value/hint，并在切回推理、新建/切换会话或使用模板后请求聚焦。
 
 提示词页提供 `部署方案`、`隐私评审`、`芯片优化`、`技术总结`、`产品文案`、`排障清单` 六个模板，并支持按部署、隐私、性能、写作、产品、排障筛选。筛选 chip 会向 VoiceOver 和 Voice Control 暴露当前筛选、动作提示、输入标签和稳定 identifier。模板可先填入输入框再编辑，也可以通过卡片内发送按钮直接作为当前模型输入发送。
@@ -172,7 +172,7 @@ Gemma 1.5B 已预留真实模型接入清单：
 
 ## 已完成验证
 
-v2.1 本轮增强会话栏操作辅助语义：`SessionBarActionAccessibilityMetadata` 为推理页会话栏的新建和导出按钮补充稳定 label/value/hint、Voice Control 输入标签和 identifier，并与系统 `会话` command menu 的标题、快捷键和 focused route 对齐；`LocalGemmaTests.swift` 当前测试函数数为 46。
+v2.2 本轮增强导出分享复制辅助语义：`ExportSessionActionAccessibilityMetadata` 为导出弹层的分享 Markdown、文本兜底和复制全文动作补充稳定 label/value/hint、Voice Control 输入标签和 identifier；`LocalGemmaTests.swift` 当前测试函数数为 47。
 
 ```sh
 git diff --check
@@ -186,7 +186,7 @@ grep -n "func test" LocalGemmaTests/LocalGemmaTests.swift
 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -typecheck ... LocalGemmaTests/LocalGemmaTests.swift
 ```
 
-结果：`git diff --check` 无输出；脚本可执行且语法、pbxproj、workflow YAML 均通过；测试函数数为 46；`Logic smoke passed`；SwiftUI 源码 typecheck、测试模块生成和测试源码 typecheck 均通过。完整 iOS XCTest 与 Mac Catalyst 云端重验证以本轮 push 后的 GitHub Actions run 和 Agent C 下载结果包验收为准。
+结果：`git diff --check` 无输出；脚本可执行且语法、pbxproj、workflow YAML 均通过；测试函数数为 47；`Logic smoke passed`；SwiftUI 源码 typecheck、测试模块生成和测试源码 typecheck 均通过。完整 iOS XCTest 与 Mac Catalyst 云端重验证以本轮 push 后的 GitHub Actions run 和 Agent C 下载结果包验收为准。
 
 v1.0 本轮已完成本地轻量检查和 Mac Catalyst run 入口验证：
 
@@ -231,7 +231,7 @@ grep -n "func test" LocalGemmaTests/LocalGemmaTests.swift
 
 结果：通过。
 
-同时已生成可测试导入的 `LocalGemma.swiftmodule`，并用 iPhone Simulator 的 XCTest framework 对测试源码做 API 层 typecheck。当前测试源码包含 46 个 `XCTestCase` 测试函数，覆盖提示词模板库、提示词分类筛选辅助语义、模板填入输入框、模板直接发送、会话创建/切换/删除、会话 command menu focused route、会话栏操作辅助语义、Markdown 会话导出、iPhone/iPad/Mac Catalyst 桌面窗口布局断点、模型页内部宽屏布局策略、模型选择器辅助语义、模型部署控件辅助语义、会话侧栏宽度策略、工作区快捷键映射、工作区 command menu 映射、regular 侧栏说明、选择语义、composer 输入焦点与辅助语义、壁纸处理和分享兜底：
+同时已生成可测试导入的 `LocalGemma.swiftmodule`，并用 iPhone Simulator 的 XCTest framework 对测试源码做 API 层 typecheck。当前测试源码包含 47 个 `XCTestCase` 测试函数，覆盖提示词模板库、提示词分类筛选辅助语义、模板填入输入框、模板直接发送、会话创建/切换/删除、会话 command menu focused route、会话栏操作辅助语义、Markdown 会话导出、导出弹层分享/复制辅助语义、iPhone/iPad/Mac Catalyst 桌面窗口布局断点、模型页内部宽屏布局策略、模型选择器辅助语义、模型部署控件辅助语义、会话侧栏宽度策略、工作区快捷键映射、工作区 command menu 映射、regular 侧栏说明、选择语义、composer 输入焦点与辅助语义、壁纸处理和分享兜底：
 
 ```sh
 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc \
@@ -285,7 +285,7 @@ grep -n "func test" LocalGemmaTests/LocalGemmaTests.swift
   CODE_SIGNING_ALLOWED=NO
 ```
 
-说明：当前 Codex 沙箱内的 CoreSimulator 访问受限；v2.1 本轮未默认重跑本机完整模拟器 XCTest。已在工作区内完成 `git diff --check`、`plutil -lint`、workflow YAML 解析、46 个测试函数统计、逻辑烟测和 Swift typecheck；完整 iOS XCTest 与云端 Mac Catalyst 重验证以本轮 push 后的 GitHub Actions run 和 Agent C 下载结果包验收为准。
+说明：当前 Codex 沙箱内的 CoreSimulator 访问受限；v2.2 本轮未默认重跑本机完整模拟器 XCTest。已在工作区内完成 `git diff --check`、`plutil -lint`、workflow YAML 解析、47 个测试函数统计、逻辑烟测和 Swift typecheck；完整 iOS XCTest 与云端 Mac Catalyst 重验证以本轮 push 后的 GitHub Actions run 和 Agent C 下载结果包验收为准。
 
 ## 项目管理文档体系
 
@@ -356,3 +356,5 @@ v1.9 增强模型部署控件辅助语义：`ModelDeploymentControlAccessibility
 v2.0 增强模型选择器辅助语义：模型页 Picker 补充稳定 label/value/hint、Voice Control 输入标签和 identifier，辅助 value 合并当前模型、参数量、量化、候选数量、artifact 状态和部署状态，新增模型选择器辅助语义测试，`LocalGemmaTests.swift` 增加到 45 个测试函数。本轮仍没有原生 macOS target，不接真实模型，不下载权重。
 
 v2.1 增强会话栏操作辅助语义：推理页会话栏新建/导出按钮补充稳定 label/value/hint、Voice Control 输入标签和 identifier，并与系统 `会话` command menu 标题、快捷键和 focused route 对齐，新增会话栏操作辅助语义测试，`LocalGemmaTests.swift` 增加到 46 个测试函数。本轮仍没有原生 macOS target，不接真实模型，不下载权重。
+
+v2.2 增强导出分享复制辅助语义：导出弹层分享 Markdown、文本兜底和复制全文动作补充稳定 label/value/hint、Voice Control 输入标签和 identifier，新增导出弹层动作辅助语义测试，`LocalGemmaTests.swift` 增加到 47 个测试函数。本轮仍没有原生 macOS target，不接真实模型，不下载权重。
