@@ -63,7 +63,7 @@ flowchart TD
 
 ## 4. UI 布局与工作区流
 
-读图说明：这张图展示 ContentView 如何根据容器尺寸选择单栏、compact 双栏或 regular 大屏双栏布局，然后进入具体工作区。iPhone 横屏、iPad 竖屏大画布、Mac Catalyst 和桌面窗口都走同一套尺寸断点；regular 大屏侧栏显示工作区用途说明，compact 侧栏保持紧凑；Mac Catalyst 和 iPad 外接键盘可通过 `Command+1...4` 或系统 `工作区` 命令菜单切换工作区，也可通过系统 `会话` 命令菜单新建或导出当前会话；提示词分类筛选 chip 会向辅助技术暴露当前筛选语义。
+读图说明：这张图展示 ContentView 如何根据容器尺寸选择单栏、compact 双栏或 regular 大屏双栏布局，然后进入具体工作区。iPhone 横屏、iPad 竖屏大画布、Mac Catalyst 和桌面窗口都走同一套尺寸断点；regular 大屏侧栏显示工作区用途说明，compact 侧栏保持紧凑；Mac Catalyst 和 iPad 外接键盘可通过 `Command+1...4` 或系统 `工作区` 命令菜单切换工作区，也可通过系统 `会话` 命令菜单新建或导出当前会话；模型部署控件和提示词分类筛选 chip 会向辅助技术暴露当前操作语义。
 
 ```mermaid
 flowchart TD
@@ -81,7 +81,7 @@ flowchart TD
     M[系统菜单<br/>工作区 CommandMenu + 会话 CommandMenu<br/>复用 focused 映射] --> F
     L[会话/输入焦点<br/>Command+N 新建<br/>Command+Shift+E 导出<br/>Command+Return 发送或停止<br/>切回推理/会话/模板后聚焦输入] --> G
     F -- 推理 --> G[ChatWorkspace<br/>会话 + 消息 + 输入<br/>SessionSidebarLayoutPolicy]
-    F -- 模型 --> H[ModelLibraryView<br/>ModelLibraryLayoutMode<br/>窄屏单栏 / 宽屏内部双栏]
+    F -- 模型 --> H[ModelLibraryView<br/>ModelLibraryLayoutMode<br/>窄屏单栏 / 宽屏内部双栏<br/>部署控件辅助语义]
     F -- 提示词 --> I[PromptTemplatesWorkspace<br/>模板筛选/填入/发送<br/>分类筛选辅助语义]
     F -- 设置 --> J[SettingsWorkspace<br/>主题/壁纸/芯片策略]
 ```

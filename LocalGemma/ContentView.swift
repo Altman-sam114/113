@@ -810,6 +810,133 @@ enum PromptCategoryAccessibilityMetadata {
     }
 }
 
+enum ModelDeploymentControlAccessibilityMetadata {
+    enum ArtifactAction: String, CaseIterable, Identifiable {
+        case download
+        case uninstall
+        case scan
+        case importFiles = "import"
+
+        var id: String { rawValue }
+    }
+
+    static func powerLabel(model: LocalModel, deploymentState: ModelDeploymentState) -> String {
+        "\(deploymentState == .running ? "关闭" : "启动")模型部署 \(model.name)"
+    }
+
+    static func powerValue(
+        model: LocalModel,
+        validation: ArtifactValidationResult,
+        deploymentState: ModelDeploymentState
+    ) -> String {
+        let runtimeSummary = validation.availability == .verified
+            ? "artifact 已校验，真实 runtime 计划可用"
+            : "artifact 未 verified，当前保持本地模拟部署"
+
+        return "\(model.name)，\(deploymentState.localizedTitle)，\(availabilityDescription(for: validation.availability))，\(runtimeSummary)。"
+    }
+
+    static func powerHint(
+        validation: ArtifactValidationResult,
+        deploymentState: ModelDeploymentState
+    ) -> String {
+        if deploymentState == .running {
+            return validation.availability == .verified
+                ? "关闭当前部署。真实 runtime 计划只在 verified artifact 门禁后可用。"
+                : "关闭当前模拟部署。artifact 未 verified，不会运行真实权重。"
+        }
+
+        return validation.availability == .verified
+            ? "启动当前部署。只有已 verified 的本地 artifact 才会进入真实 runtime 计划。"
+            : "启动本地模拟部署。artifact 未 verified，不会运行真实权重。"
+    }
+
+    static func powerInputLabels(model: LocalModel, deploymentState: ModelDeploymentState) -> [String] {
+        if deploymentState == .running {
+            return ["关闭模型部署", "停止模型部署", "停止\(model.name)"]
+        }
+
+        return ["启动模型部署", "运行模型部署", "启动\(model.name)"]
+    }
+
+    static func artifactActionLabel(_ action: ArtifactAction) -> String {
+        switch action {
+        case .download:
+            return "模拟暂存模型文件"
+        case .uninstall:
+            return "卸载本地模型文件"
+        case .scan:
+            return "扫描本地模型文件"
+        case .importFiles:
+            return "导入本地模型文件"
+        }
+    }
+
+    static func artifactActionHint(
+        _ action: ArtifactAction,
+        availability: ArtifactAvailability
+    ) -> String {
+        switch action {
+        case .download:
+            return availability == .missing
+                ? "模拟把模型文件标记为暂存；不会联网下载真实权重。"
+                : "重新执行模拟暂存；不会联网下载真实权重。"
+        case .uninstall:
+            return "移除 App 托管目录中的模型文件，并停止当前模型部署。"
+        case .scan:
+            return "扫描 App 本地模型目录，并按 manifest 和 SHA-256 更新 missing、staged 或 verified 状态。"
+        case .importFiles:
+            return "从 Files 选择 manifest 要求的本地模型文件和 tokenizer；不会从网络下载模型。"
+        }
+    }
+
+    static func artifactActionValue(
+        _ action: ArtifactAction,
+        availability: ArtifactAvailability
+    ) -> String {
+        let availabilitySummary = availabilityDescription(for: availability)
+
+        switch action {
+        case .download:
+            return "\(availabilitySummary)，模拟暂存，不联网下载。"
+        case .uninstall:
+            return "\(availabilitySummary)，执行后会移除本地托管文件并停止部署。"
+        case .scan:
+            return "\(availabilitySummary)，执行后重新扫描本地 manifest 必需文件。"
+        case .importFiles:
+            return "\(availabilitySummary)，从 Files 手动选择本地文件。"
+        }
+    }
+
+    static func artifactActionInputLabels(_ action: ArtifactAction) -> [String] {
+        switch action {
+        case .download:
+            return ["模拟暂存模型", "下载模型", "暂存模型文件"]
+        case .uninstall:
+            return ["卸载模型", "移除模型文件", "删除本地模型"]
+        case .scan:
+            return ["扫描本地", "扫描模型文件", "刷新模型状态"]
+        case .importFiles:
+            return ["导入文件", "导入模型文件", "选择本地模型"]
+        }
+    }
+
+    static func artifactActionIdentifier(_ action: ArtifactAction) -> String {
+        "model-artifact-action-\(action.rawValue)"
+    }
+
+    private static func availabilityDescription(for availability: ArtifactAvailability) -> String {
+        switch availability {
+        case .missing:
+            return "缺少本地 artifact"
+        case .staged:
+            return "artifact 已暂存但未校验"
+        case .verified:
+            return "artifact 已 verified"
+        }
+    }
+}
+
 enum ComposerFocusReason: String, CaseIterable {
     case openChatWorkspace
     case createSession
@@ -2379,6 +2506,31 @@ struct DeploymentPowerButton: View {
             }
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(
+            ModelDeploymentControlAccessibilityMetadata.powerLabel(
+                model: model,
+                deploymentState: deploymentState
+            )
+        )
+        .accessibilityValue(
+            ModelDeploymentControlAccessibilityMetadata.powerValue(
+                model: model,
+                validation: validation,
+                deploymentState: deploymentState
+            )
+        )
+        .accessibilityHint(
+            ModelDeploymentControlAccessibilityMetadata.powerHint(
+                validation: validation,
+                deploymentState: deploymentState
+            )
+        )
+        .accessibilityInputLabels(
+            ModelDeploymentControlAccessibilityMetadata.powerInputLabels(
+                model: model,
+                deploymentState: deploymentState
+            )
+        )
         .accessibilityIdentifier("model-deployment-power")
     }
 
@@ -2423,6 +2575,8 @@ struct ArtifactActionPanel: View {
 
             HStack(spacing: 10) {
                 ArtifactActionButton(
+                    metadataAction: .download,
+                    availability: validation.availability,
                     title: "下载模型",
                     subtitle: validation.availability == .missing ? "模拟暂存" : "重新暂存",
                     icon: "arrow.down.circle.fill",
@@ -2431,6 +2585,8 @@ struct ArtifactActionPanel: View {
                 )
 
                 ArtifactActionButton(
+                    metadataAction: .uninstall,
+                    availability: validation.availability,
                     title: "卸载模型",
                     subtitle: "移除本地文件",
                     icon: "trash.circle.fill",
@@ -2445,12 +2601,54 @@ struct ArtifactActionPanel: View {
                         .frame(maxWidth: .infinity)
                 }
                 .compactUtilityStyle()
+                .accessibilityLabel(
+                    ModelDeploymentControlAccessibilityMetadata.artifactActionLabel(.scan)
+                )
+                .accessibilityValue(
+                    ModelDeploymentControlAccessibilityMetadata.artifactActionValue(
+                        .scan,
+                        availability: validation.availability
+                    )
+                )
+                .accessibilityHint(
+                    ModelDeploymentControlAccessibilityMetadata.artifactActionHint(
+                        .scan,
+                        availability: validation.availability
+                    )
+                )
+                .accessibilityInputLabels(
+                    ModelDeploymentControlAccessibilityMetadata.artifactActionInputLabels(.scan)
+                )
+                .accessibilityIdentifier(
+                    ModelDeploymentControlAccessibilityMetadata.artifactActionIdentifier(.scan)
+                )
 
                 Button(action: importFiles) {
                     Label("导入文件", systemImage: "square.and.arrow.down.fill")
                         .frame(maxWidth: .infinity)
                 }
                 .compactUtilityStyle()
+                .accessibilityLabel(
+                    ModelDeploymentControlAccessibilityMetadata.artifactActionLabel(.importFiles)
+                )
+                .accessibilityValue(
+                    ModelDeploymentControlAccessibilityMetadata.artifactActionValue(
+                        .importFiles,
+                        availability: validation.availability
+                    )
+                )
+                .accessibilityHint(
+                    ModelDeploymentControlAccessibilityMetadata.artifactActionHint(
+                        .importFiles,
+                        availability: validation.availability
+                    )
+                )
+                .accessibilityInputLabels(
+                    ModelDeploymentControlAccessibilityMetadata.artifactActionInputLabels(.importFiles)
+                )
+                .accessibilityIdentifier(
+                    ModelDeploymentControlAccessibilityMetadata.artifactActionIdentifier(.importFiles)
+                )
             }
         }
         .panelStyle()
@@ -2458,6 +2656,8 @@ struct ArtifactActionPanel: View {
 }
 
 struct ArtifactActionButton: View {
+    let metadataAction: ModelDeploymentControlAccessibilityMetadata.ArtifactAction
+    let availability: ArtifactAvailability
     let title: String
     let subtitle: String
     let icon: String
@@ -2495,6 +2695,27 @@ struct ArtifactActionButton: View {
             )
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(
+            ModelDeploymentControlAccessibilityMetadata.artifactActionLabel(metadataAction)
+        )
+        .accessibilityValue(
+            ModelDeploymentControlAccessibilityMetadata.artifactActionValue(
+                metadataAction,
+                availability: availability
+            )
+        )
+        .accessibilityHint(
+            ModelDeploymentControlAccessibilityMetadata.artifactActionHint(
+                metadataAction,
+                availability: availability
+            )
+        )
+        .accessibilityInputLabels(
+            ModelDeploymentControlAccessibilityMetadata.artifactActionInputLabels(metadataAction)
+        )
+        .accessibilityIdentifier(
+            ModelDeploymentControlAccessibilityMetadata.artifactActionIdentifier(metadataAction)
+        )
     }
 }
 

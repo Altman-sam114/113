@@ -956,6 +956,176 @@ final class LocalGemmaTests: XCTestCase {
         )
     }
 
+    func testModelDeploymentControlsExposeAccessibilityMetadata() {
+        let model = ModelCatalog.defaultModels[0]
+        let missingValidation = LocalArtifactValidator.validate(
+            manifest: model.artifactManifest,
+            presentFiles: []
+        )
+        let verifiedManifest = ModelArtifactManifest(
+            modelFileName: "verified-gemma.mlmodelc",
+            tokenizerFileName: "verified-tokenizer.model",
+            fileFormat: "Core ML compiled package",
+            storageDirectory: "Application Support/LocalModels",
+            expectedSHA256: String(repeating: "a", count: 64),
+            allowsNetworkDownload: false,
+            importInstruction: "手动导入测试模型。"
+        )
+        let verifiedValidation = LocalArtifactValidator.validate(
+            manifest: verifiedManifest,
+            presentFiles: Set(verifiedManifest.requiredFiles),
+            observedSHA256: verifiedManifest.expectedSHA256
+        )
+
+        XCTAssertEqual(
+            ModelDeploymentControlAccessibilityMetadata.powerLabel(
+                model: model,
+                deploymentState: .stopped
+            ),
+            "启动模型部署 Gemma 1.5B Local"
+        )
+        XCTAssertEqual(
+            ModelDeploymentControlAccessibilityMetadata.powerLabel(
+                model: model,
+                deploymentState: .running
+            ),
+            "关闭模型部署 Gemma 1.5B Local"
+        )
+
+        let missingValue = ModelDeploymentControlAccessibilityMetadata.powerValue(
+            model: model,
+            validation: missingValidation,
+            deploymentState: .stopped
+        )
+        XCTAssertTrue(missingValue.contains("未启动"))
+        XCTAssertTrue(missingValue.contains("缺少本地 artifact"))
+        XCTAssertTrue(missingValue.contains("本地模拟部署"))
+        XCTAssertFalse(missingValue.contains("真实 runtime 计划可用"))
+
+        let missingHint = ModelDeploymentControlAccessibilityMetadata.powerHint(
+            validation: missingValidation,
+            deploymentState: .stopped
+        )
+        XCTAssertTrue(missingHint.contains("本地模拟部署"))
+        XCTAssertTrue(missingHint.contains("不会运行真实权重"))
+
+        let verifiedValue = ModelDeploymentControlAccessibilityMetadata.powerValue(
+            model: model,
+            validation: verifiedValidation,
+            deploymentState: .running
+        )
+        XCTAssertTrue(verifiedValue.contains("运行中"))
+        XCTAssertTrue(verifiedValue.contains("artifact 已 verified"))
+        XCTAssertTrue(verifiedValue.contains("真实 runtime 计划可用"))
+        XCTAssertFalse(verifiedValue.contains("联网下载"))
+
+        let verifiedHint = ModelDeploymentControlAccessibilityMetadata.powerHint(
+            validation: verifiedValidation,
+            deploymentState: .running
+        )
+        XCTAssertTrue(verifiedHint.contains("verified artifact 门禁"))
+
+        XCTAssertEqual(
+            ModelDeploymentControlAccessibilityMetadata.powerInputLabels(
+                model: model,
+                deploymentState: .stopped
+            ),
+            ["启动模型部署", "运行模型部署", "启动Gemma 1.5B Local"]
+        )
+        XCTAssertEqual(
+            ModelDeploymentControlAccessibilityMetadata.ArtifactAction.allCases,
+            [.download, .uninstall, .scan, .importFiles]
+        )
+
+        XCTAssertEqual(
+            ModelDeploymentControlAccessibilityMetadata.artifactActionLabel(.download),
+            "模拟暂存模型文件"
+        )
+        XCTAssertEqual(
+            ModelDeploymentControlAccessibilityMetadata.artifactActionIdentifier(.download),
+            "model-artifact-action-download"
+        )
+        XCTAssertTrue(
+            ModelDeploymentControlAccessibilityMetadata.artifactActionValue(
+                .download,
+                availability: .missing
+            ).contains("不联网下载")
+        )
+        XCTAssertTrue(
+            ModelDeploymentControlAccessibilityMetadata.artifactActionHint(
+                .download,
+                availability: .missing
+            ).contains("不会联网下载真实权重")
+        )
+        XCTAssertTrue(
+            ModelDeploymentControlAccessibilityMetadata.artifactActionInputLabels(.download)
+                .contains("模拟暂存模型")
+        )
+        XCTAssertEqual(
+            ModelDeploymentControlAccessibilityMetadata.artifactActionIdentifier(.uninstall),
+            "model-artifact-action-uninstall"
+        )
+        XCTAssertTrue(
+            ModelDeploymentControlAccessibilityMetadata.artifactActionValue(
+                .uninstall,
+                availability: .verified
+            ).contains("artifact 已 verified")
+        )
+        XCTAssertTrue(
+            ModelDeploymentControlAccessibilityMetadata.artifactActionHint(
+                .uninstall,
+                availability: .verified
+            ).contains("停止当前模型部署")
+        )
+        XCTAssertEqual(
+            ModelDeploymentControlAccessibilityMetadata.artifactActionIdentifier(.scan),
+            "model-artifact-action-scan"
+        )
+        XCTAssertTrue(
+            ModelDeploymentControlAccessibilityMetadata.artifactActionValue(
+                .scan,
+                availability: .staged
+            ).contains("artifact 已暂存但未校验")
+        )
+        XCTAssertTrue(
+            ModelDeploymentControlAccessibilityMetadata.artifactActionHint(
+                .scan,
+                availability: .staged
+            ).contains("SHA-256")
+        )
+        XCTAssertEqual(
+            ModelDeploymentControlAccessibilityMetadata.artifactActionIdentifier(.importFiles),
+            "model-artifact-action-import"
+        )
+        XCTAssertTrue(
+            ModelDeploymentControlAccessibilityMetadata.artifactActionValue(
+                .importFiles,
+                availability: .missing
+            ).contains("手动选择本地文件")
+        )
+        XCTAssertTrue(
+            ModelDeploymentControlAccessibilityMetadata.artifactActionHint(
+                .importFiles,
+                availability: .missing
+            ).contains("不会从网络下载模型")
+        )
+        XCTAssertTrue(
+            ModelDeploymentControlAccessibilityMetadata.ArtifactAction.allCases.allSatisfy {
+                !ModelDeploymentControlAccessibilityMetadata.artifactActionLabel($0).isEmpty
+                    && !ModelDeploymentControlAccessibilityMetadata.artifactActionValue(
+                        $0,
+                        availability: .missing
+                    ).isEmpty
+                    && !ModelDeploymentControlAccessibilityMetadata.artifactActionHint(
+                        $0,
+                        availability: .missing
+                    ).isEmpty
+                    && !ModelDeploymentControlAccessibilityMetadata.artifactActionInputLabels($0).isEmpty
+                    && !ModelDeploymentControlAccessibilityMetadata.artifactActionIdentifier($0).isEmpty
+            }
+        )
+    }
+
     func testWorkspaceLayoutModeConstrainsSidebarWidth() {
         let compactWidth = WorkspaceLayoutMode.landscapeCompact.sidebarWidth(
             for: CGSize(width: 844, height: 390)

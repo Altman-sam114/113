@@ -59,6 +59,7 @@
 - `WorkspaceLayoutMode` 负责按容器尺寸判断 portrait、landscapeCompact、landscapeRegular；case 名称保留历史兼容，但 v0.8 起含义是单栏、compact 双栏和 regular 大屏双栏。
 - `WorkspaceLayoutMode.usesDetailedSidebar` 只在 regular 大屏双栏启用，用于让 Mac/iPad 大画布侧栏显示一行 workspace 用途说明；compact 双栏保持紧凑按钮。
 - `ModelLibraryLayoutMode` 只控制模型页内部部署控制台的单栏/双栏；足够宽的 iPad/Mac 模型页显示“选择/部署/文件操作”和“模型详情”并列，窄屏继续单栏。
+- `ModelDeploymentControlAccessibilityMetadata` 为模型页部署电源按钮和 artifact 操作按钮生成 label/value/hint/input labels/identifier；文案明确模拟暂存不联网下载、未 verified 不运行真实权重，不改变 `ModelCatalog` 状态流。
 - `SessionSidebarLayoutPolicy` 只控制推理页内部大屏会话列表宽度；竖向会话栏按容器宽度 28% 计算，并限制在 240 到 310 之间，窄屏单栏返回 0。
 - `WorkspaceTab.shortcutKey` 定义工作区键盘导航：`Command+1` 推理、`Command+2` 模型、`Command+3` 提示词、`Command+4` 设置。
 - `LocalGemmaApp` 的 `工作区` command menu 复用同一组 `WorkspaceTab` 映射；`ContentView` 只通过 focused scene binding 暴露 `selectedTab`，菜单命令不触碰模型、artifact、runtime 或会话状态；进入推理页时只请求 UI 层 composer focus。
@@ -175,6 +176,7 @@ Agent X 不能跳过 Agent C artifact 验收；失败时不能继续下一轮并
 - `PromptTemplateLibrary`：内置提示词模板。
 - `WorkspaceLayoutMode`：主界面容器尺寸断点，覆盖 iPhone 横屏、iPad 竖屏大画布、Mac Catalyst 和桌面大屏窗口。
 - `ModelLibraryLayoutMode`：模型页内部单栏/双栏断点，覆盖窄屏回退和 Mac/iPad 宽屏部署工作流。
+- `ModelDeploymentControlAccessibilityMetadata`：模型部署电源和 artifact 操作按钮的辅助技术文案、Voice Control 输入标签和稳定 identifier。
 - `SessionSidebarLayoutPolicy`：推理页大屏会话列表宽度策略，覆盖 Mac/iPad 会话栏最小/最大宽度和窄屏回退。
 - `SessionCommandAction` / `SessionCommandActions`：Mac/iPad 会话命令菜单元数据和 focused action bridge。
 - `PromptCategoryAccessibilityMetadata`：提示词分类筛选的辅助技术文案、Voice Control 输入标签和稳定 identifier。
@@ -199,7 +201,7 @@ Agent X 不能跳过 Agent C artifact 验收；失败时不能继续下一轮并
 ## 用户入口
 
 - 推理页：会话列表、消息流、输入框、发送/停止、导出；Mac/iPad 可通过 `会话` command menu 新建或导出当前会话。
-- 模型页：选择模型、启动/关闭部署、模拟下载、导入文件、扫描本地、卸载；足够宽时内部双栏展示部署控制和模型详情。
+- 模型页：选择模型、启动/关闭部署、模拟下载、导入文件、扫描本地、卸载；足够宽时内部双栏展示部署控制和模型详情；部署电源和模型文件操作向辅助技术暴露稳定语义，并保留模拟下载和 verified 门禁边界。
 - 提示词页：按分类筛选模板、填入输入框、直接发送；分类筛选 chip 暴露稳定辅助语义和 Voice Control 输入标签。
 - 设置页：主题切换、相册壁纸、恢复背景、Apple Silicon 优化开关。
 
@@ -226,7 +228,7 @@ Agent X 不能跳过 Agent C artifact 验收；失败时不能继续下一轮并
 - 大图壁纸必须压缩和限制尺寸。
 - iPhone 横屏、iPad 大屏与 Mac Catalyst 桌面窗口布局断点必须有测试覆盖。
 - 模型页内部宽屏双栏和窄屏单栏回退必须有测试覆盖。
-- 工作区快捷键、工作区/会话 command menu、会话侧栏宽度、regular 侧栏说明、选择语义、composer 输入焦点/辅助语义和提示词分类筛选辅助语义必须有测试覆盖，避免 Mac/iPad 导航退化。
+- 工作区快捷键、工作区/会话 command menu、会话侧栏宽度、regular 侧栏说明、选择语义、composer 输入焦点/辅助语义、模型部署控件辅助语义和提示词分类筛选辅助语义必须有测试覆盖，避免 Mac/iPad 导航退化。
 - 默认协作验证以 `main` push 后的 GitHub Actions 结果包为准。
 - Agent X 循环每轮仍以 Agent B 本地轻量检查、GitHub Actions artifact 和 Agent C 下载复判为准。
 
