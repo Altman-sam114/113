@@ -102,6 +102,10 @@ enum WorkspaceLayoutMode: Equatable {
         self != .portrait
     }
 
+    var usesDetailedSidebar: Bool {
+        self == .landscapeRegular
+    }
+
     func sidebarWidth(for size: CGSize) -> CGFloat {
         switch self {
         case .portrait:
@@ -325,7 +329,7 @@ struct ContentView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     headerView(themeMode: themeMode, selectedValidation: selectedValidation)
-                    sidebarTabPicker
+                    sidebarTabPicker(isDetailed: layoutMode.usesDetailedSidebar)
                 }
                 .padding(.horizontal, 18)
                 .padding(.vertical, 14)
@@ -438,12 +442,15 @@ struct ContentView: View {
                 }
                 .buttonStyle(.plain)
                 .keyboardShortcut(KeyEquivalent(tab.shortcutKey), modifiers: [.command])
+                .accessibilityLabel(SelectionAccessibilityMetadata.workspaceLabel(for: tab))
+                .accessibilityValue(SelectionAccessibilityMetadata.selectionValue(isSelected: selectedTab == tab))
+                .accessibilityAddTraits(selectedTab == tab ? .isSelected : [])
                 .accessibilityIdentifier("workspace-tab-\(tab.rawValue)")
             }
         }
     }
 
-    private var sidebarTabPicker: some View {
+    private func sidebarTabPicker(isDetailed: Bool) -> some View {
         let theme = currentTheme
 
         return VStack(spacing: 8) {
@@ -457,8 +464,19 @@ struct ContentView: View {
                         Image(systemName: tab.icon)
                             .font(.system(size: 15, weight: .bold))
                             .frame(width: 24)
-                        Text(tab.title)
-                            .font(.system(size: 14, weight: .black))
+
+                        VStack(alignment: .leading, spacing: isDetailed ? 2 : 0) {
+                            Text(tab.title)
+                                .font(.system(size: 14, weight: .black))
+                            if isDetailed {
+                                Text(tab.sidebarSubtitle)
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundStyle(selectedTab == tab ? theme.inverseText.opacity(0.78) : theme.secondaryText)
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.78)
+                            }
+                        }
+
                         Spacer()
                         if selectedTab == tab {
                             Image(systemName: "chevron.right")
@@ -476,6 +494,9 @@ struct ContentView: View {
                 }
                 .buttonStyle(.plain)
                 .keyboardShortcut(KeyEquivalent(tab.shortcutKey), modifiers: [.command])
+                .accessibilityLabel(SelectionAccessibilityMetadata.workspaceLabel(for: tab))
+                .accessibilityValue(SelectionAccessibilityMetadata.selectionValue(isSelected: selectedTab == tab))
+                .accessibilityAddTraits(selectedTab == tab ? .isSelected : [])
                 .accessibilityIdentifier("workspace-sidebar-tab-\(tab.rawValue)")
             }
         }
@@ -518,6 +539,19 @@ enum WorkspaceTab: String, CaseIterable, Identifiable {
         }
     }
 
+    var sidebarSubtitle: String {
+        switch self {
+        case .chat:
+            return "本地对话与导出"
+        case .models:
+            return "模型与部署状态"
+        case .prompts:
+            return "提示词模板"
+        case .settings:
+            return "外观与芯片策略"
+        }
+    }
+
     var commandTitle: String {
         title
     }
@@ -552,6 +586,28 @@ struct WorkspaceCommandItem: Identifiable, Equatable {
     let shortcutKey: Character
 
     var id: WorkspaceTab { tab }
+}
+
+enum SelectionAccessibilityMetadata {
+    static func workspaceLabel(for tab: WorkspaceTab) -> String {
+        "\(tab.title)工作区"
+    }
+
+    static func selectionValue(isSelected: Bool) -> String {
+        isSelected ? "已选中" : "未选中"
+    }
+
+    static func sessionSelectLabel(title: String) -> String {
+        "选择会话 \(title)"
+    }
+
+    static func sessionDeleteLabel(title: String) -> String {
+        "删除会话 \(title)"
+    }
+
+    static func sessionValue(isActive: Bool) -> String {
+        isActive ? "当前会话" : "未选中"
+    }
 }
 
 struct AppBackground: View {
@@ -1158,6 +1214,9 @@ struct SessionChip: View {
                 .foregroundStyle(isActive ? theme.inverseText : theme.primaryText)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(SelectionAccessibilityMetadata.sessionSelectLabel(title: session.title))
+            .accessibilityValue(SelectionAccessibilityMetadata.sessionValue(isActive: isActive))
+            .accessibilityAddTraits(isActive ? .isSelected : [])
 
             Button(action: delete) {
                 Image(systemName: "trash.fill")
@@ -1167,6 +1226,7 @@ struct SessionChip: View {
             .buttonStyle(.plain)
             .disabled(isActive && session.messages.count <= 2 && session.title == "新对话")
             .opacity(isActive && session.messages.count <= 2 && session.title == "新对话" ? 0.32 : 1)
+            .accessibilityLabel(SelectionAccessibilityMetadata.sessionDeleteLabel(title: session.title))
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 8)

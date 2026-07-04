@@ -627,6 +627,28 @@ final class LocalGemmaTests: XCTestCase {
         XCTAssertEqual(commandItems.map { String($0.shortcutKey) }, ["1", "2", "3", "4"])
     }
 
+    func testSelectionAccessibilityMetadataDescribesWorkspaceAndSessions() {
+        XCTAssertFalse(WorkspaceLayoutMode.portrait.usesDetailedSidebar)
+        XCTAssertFalse(WorkspaceLayoutMode.landscapeCompact.usesDetailedSidebar)
+        XCTAssertTrue(WorkspaceLayoutMode.landscapeRegular.usesDetailedSidebar)
+
+        XCTAssertEqual(
+            WorkspaceTab.allCases.map(\.sidebarSubtitle),
+            ["本地对话与导出", "模型与部署状态", "提示词模板", "外观与芯片策略"]
+        )
+        XCTAssertTrue(WorkspaceTab.allCases.map(\.sidebarSubtitle).allSatisfy { !$0.isEmpty })
+        XCTAssertEqual(
+            WorkspaceTab.allCases.map { SelectionAccessibilityMetadata.workspaceLabel(for: $0) },
+            ["推理工作区", "模型工作区", "提示词工作区", "设置工作区"]
+        )
+        XCTAssertEqual(SelectionAccessibilityMetadata.selectionValue(isSelected: true), "已选中")
+        XCTAssertEqual(SelectionAccessibilityMetadata.selectionValue(isSelected: false), "未选中")
+        XCTAssertEqual(SelectionAccessibilityMetadata.sessionSelectLabel(title: "部署方案"), "选择会话 部署方案")
+        XCTAssertEqual(SelectionAccessibilityMetadata.sessionDeleteLabel(title: "部署方案"), "删除会话 部署方案")
+        XCTAssertEqual(SelectionAccessibilityMetadata.sessionValue(isActive: true), "当前会话")
+        XCTAssertEqual(SelectionAccessibilityMetadata.sessionValue(isActive: false), "未选中")
+    }
+
     func testWorkspaceLayoutModeResolvesLandscapeVariants() {
         XCTAssertEqual(
             WorkspaceLayoutMode.resolve(for: CGSize(width: 390, height: 844)),
