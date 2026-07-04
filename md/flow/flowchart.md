@@ -63,12 +63,12 @@ flowchart TD
 
 ## 4. UI 布局与工作区流
 
-读图说明：这张图展示 ContentView 如何根据容器尺寸选择单栏、compact 双栏或 regular 大屏双栏布局，然后进入具体工作区。iPhone 横屏、iPad 竖屏大画布和大屏窗口都走同一套尺寸断点。
+读图说明：这张图展示 ContentView 如何根据容器尺寸选择单栏、compact 双栏或 regular 大屏双栏布局，然后进入具体工作区。iPhone 横屏、iPad 竖屏大画布、Mac Catalyst 和桌面窗口都走同一套尺寸断点。
 
 ```mermaid
 flowchart TD
     A[ContentView 获取 GeometryReader 尺寸] --> B[WorkspaceLayoutMode.resolve]
-    B --> C{是否达到双栏或大屏断点}
+    B --> C{是否达到双栏、大屏或桌面窗口断点}
     C -- 否 --> D[单栏布局<br/>Header + TabPicker + Page TabView]
     C -- 是 --> E[双栏布局<br/>左侧状态/导航栏 + 右侧工作区]
     D --> F{当前 selectedTab}
@@ -143,7 +143,7 @@ flowchart TD
     O --> P[生成未加密 CI 结果包<br/>artifact name + manifest + failure summary + JUnit + logs + xcresult]
     P --> E
     E --> Q[gh auth login 如需权限<br/>gh run download 到 /private/tmp/localgemma-c-review-run_id]
-    Q --> R{manifest 是否匹配 artifact-name.txt<br/>origin/main 最新 commit / run URL / run / attempt}
+    Q --> R{manifest 是否匹配 artifact-name.txt<br/>origin/main 最新 commit / run URL / run / attempt / Mac baseline}
     R -- 否 --> S[验收不通过<br/>退回 Agent B]
     R -- 是 --> T{outcome / 日志 / JUnit / xcresult 是否通过}
     T -- 否 --> S
@@ -166,7 +166,7 @@ flowchart TD
     E --> F[Agent B commit 并 push origin main]
     F --> G[GitHub Actions 运行 ci-results workflow]
     G --> H[生成小体积未加密 artifact<br/>manifest + artifact-name + JUnit + 关键日志 + 必要 xcresult]
-    H --> I[Agent C 下载最新 run artifact<br/>核对 manifest / JUnit / 日志 / xcresult]
+    H --> I[Agent C 下载最新 run artifact<br/>核对 manifest / JUnit / 日志 / xcresult / Mac baseline]
     I --> J{Agent C 验收是否通过}
     J -- 不通过 --> K[Agent X 退回 Agent B 修复<br/>同一目标追加修复 commit]
     K --> E

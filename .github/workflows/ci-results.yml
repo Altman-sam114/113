@@ -142,6 +142,43 @@ jobs:
           cat "$log"
           exit 0
 
+      - name: Mac Catalyst build for testing
+        run: |
+          set -u
+          log="$CI_RESULTS_DIR/mac-catalyst-build.log"
+          notes="$CI_RESULTS_DIR/mac-baseline-notes.md"
+          destination='generic/platform=macOS,variant=Mac Catalyst'
+          echo "$destination" > "$CI_RESULTS_DIR/mac-catalyst-destination.txt"
+          echo "" > "$CI_RESULTS_DIR/mac-catalyst-skipped-reason.txt"
+          status=0
+          {
+            echo "# Mac Baseline Notes"
+            echo
+            echo "- Baseline kind: Mac Catalyst"
+            echo "- Destination: $destination"
+            echo "- This is a Mac Catalyst build-for-testing baseline for the existing LocalGemma iOS app target."
+            echo "- This is not a native macOS target and does not change the simulated runtime boundary."
+            echo "- The workflow does not download model weights or call external inference services."
+          } > "$notes"
+          xcodebuild \
+            -project "$XCODE_PROJECT" \
+            -scheme "$SCHEME" \
+            -configuration Debug \
+            -sdk macosx \
+            -destination "$destination" \
+            -derivedDataPath "$DERIVED_DATA_PATH-maccatalyst" \
+            -resultBundlePath "$CI_RESULTS_DIR/LocalGemma-maccatalyst-build.xcresult" \
+            CODE_SIGNING_ALLOWED=NO \
+            build-for-testing >"$log" 2>&1 || status=$?
+          if [ "$status" -eq 0 ]; then
+            echo success > "$CI_RESULTS_DIR/outcomes/mac-catalyst"
+          else
+            echo failure > "$CI_RESULTS_DIR/outcomes/mac-catalyst"
+          fi
+          echo skipped > "$CI_RESULTS_DIR/outcomes/mac-designed"
+          cat "$log"
+          exit 0
+
       - name: XCTest on available iPhone simulator
         run: |
           set -u
@@ -214,8 +251,18 @@ jobs:
               "logic": read_text(outcomes_dir / "logic", "skipped"),
               "build": read_text(outcomes_dir / "build", "skipped"),
               "test": read_text(outcomes_dir / "test", "skipped"),
+              "macCatalyst": read_text(outcomes_dir / "mac-catalyst", "skipped"),
+              "macDesigned": read_text(outcomes_dir / "mac-designed", "skipped"),
           }
           test_destination = read_text(results_dir / "test-destination.txt", "not-recorded")
+          mac_catalyst_destination = read_text(
+              results_dir / "mac-catalyst-destination.txt",
+              "generic/platform=macOS,variant=Mac Catalyst",
+          )
+          mac_catalyst_skipped_reason = read_text(
+              results_dir / "mac-catalyst-skipped-reason.txt",
+              "",
+          )
           artifact_name = read_text(results_dir / "artifact-name.txt", "not-recorded")
           short_sha = os.environ["GITHUB_SHA"][:7]
           repository = os.environ["GITHUB_REPOSITORY"]
@@ -228,9 +275,15 @@ jobs:
               "testsuite",
               {
                   "name": "LocalGemmaCI",
-                  "tests": "4",
+                  "tests": "5",
                   "failures": str(sum(1 for value in outcomes.values() if value == "failure")),
-                  "skipped": str(sum(1 for value in outcomes.values() if value == "skipped")),
+                  "skipped": str(
+                      sum(
+                          1
+                          for key, value in outcomes.items()
+                          if value == "skipped" and key != "macDesigned"
+                      )
+                  ),
               },
           )
           cases = [
@@ -238,6 +291,11 @@ jobs:
               ("logicSmoke", outcomes["logic"], "Tools/LogicSmoke.swift"),
               ("xcodeBuildForTesting", outcomes["build"], "xcodebuild build-for-testing"),
               ("xctestWithoutBuilding", outcomes["test"], test_destination),
+              (
+                  "macCatalystBuildForTesting",
+                  outcomes["macCatalyst"],
+                  mac_catalyst_destination,
+              ),
           ]
           for name, outcome, detail in cases:
               case = ET.SubElement(
@@ -272,10 +330,17 @@ jobs:
               f"- Build: {outcomes['build']}",
               f"- XCTest: {outcomes['test']}",
               f"- XCTest destination: {test_destination}",
+              f"- Mac baseline kind: mac-catalyst",
+              f"- Mac Catalyst build: {outcomes['macCatalyst']}",
+              f"- Mac Catalyst destination: {mac_catalyst_destination}",
               "",
           ]
           failing = [name for name, value in outcomes.items() if value == "failure"]
-          skipped = [name for name, value in outcomes.items() if value == "skipped"]
+          skipped = [
+              name
+              for name, value in outcomes.items()
+              if value == "skipped" and name != "macDesigned"
+          ]
           if failing or skipped:
               failure_lines.append("## Attention required")
               failure_lines.append("")
@@ -315,10 +380,20 @@ jobs:
               "logicSmokeOutcome": outcomes["logic"],
               "buildOutcome": outcomes["build"],
               "testOutcome": outcomes["test"],
+              "macBaselineKind": "mac-catalyst",
+              "macCatalystBuildOutcome": outcomes["macCatalyst"],
+              "macCatalystDestination": mac_catalyst_destination,
+              "macCatalystBuildLogPath": "ci-results/mac-catalyst-build.log",
+              "macCatalystResultBundlePath": "ci-results/LocalGemma-maccatalyst-build.xcresult",
+              "macCatalystSkippedReason": mac_catalyst_skipped_reason,
+              "macDesignedForIPadOutcome": outcomes["macDesigned"],
+              "macBaselineNotesPath": "ci-results/mac-baseline-notes.md",
               "projectSpecificReports": [
                   "ci-results/logic-smoke.log",
                   "ci-results/static-checks.log",
                   "ci-results/environment.log",
+                  "ci-results/mac-catalyst-build.log",
+                  "ci-results/mac-baseline-notes.md",
               ],
           }
           (results_dir / "ci-artifact-manifest.json").write_text(
@@ -334,11 +409,13 @@ jobs:
           logic_outcome="$(cat "$CI_RESULTS_DIR/outcomes/logic")"
           build_outcome="$(cat "$CI_RESULTS_DIR/outcomes/build")"
           test_outcome="$(cat "$CI_RESULTS_DIR/outcomes/test")"
+          mac_catalyst_outcome="$(cat "$CI_RESULTS_DIR/outcomes/mac-catalyst")"
           cat "$CI_RESULTS_DIR/ci-failure-summary.md"
           if [ "$static_outcome" != "success" ] ||
              [ "$logic_outcome" != "success" ] ||
              [ "$build_outcome" != "success" ] ||
-             [ "$test_outcome" != "success" ]; then
+             [ "$test_outcome" != "success" ] ||
+             [ "$mac_catalyst_outcome" != "success" ]; then
             exit 1
           fi
 

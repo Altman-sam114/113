@@ -58,8 +58,8 @@ xcrun simctl list devices available
 
 当前测试基线：
 
-- `LocalGemmaTests.swift` 当前包含 33 个 `test...` 方法。
-- 业务核心覆盖 artifact、模型状态、runtime plan、模拟/真实占位 runtime、提示词、会话、导出、iPhone/iPad 布局断点、壁纸处理和分享兜底。
+- `LocalGemmaTests.swift` 当前包含 34 个 `test...` 方法。
+- 业务核心覆盖 artifact、模型状态、runtime plan、模拟/真实占位 runtime、提示词、会话、导出、iPhone/iPad/Mac Catalyst 桌面窗口布局断点、壁纸处理和分享兜底。
 
 统计测试数量：
 
@@ -76,7 +76,7 @@ grep -n "func test" LocalGemmaTests/LocalGemmaTests.swift
 - 文档-only 修改。
 - GitHub Actions workflow 修改。
 - Xcode 工程文件未改业务逻辑但需要语法确认。
-- iPhone/iPad target family 或布局文档同步。
+- iPhone/iPad target family、Mac Catalyst build setting 或布局文档同步。
 
 命令：
 
@@ -156,12 +156,13 @@ on:
 - Ruby YAML 解析 workflow
 - Probe / Fast 逻辑烟测
 - `xcodebuild build-for-testing`
+- Mac Catalyst `xcodebuild build-for-testing`
 - 自动选择可用 iPhone Simulator 后执行 `xcodebuild test-without-building`
 - 生成 `ci-artifact-manifest.json`
 - 生成 `artifact-name.txt`
 - 生成 `ci-failure-summary.md`
 - 生成 `junit.xml`
-- 上传 `.xcresult`、`xcodebuild.log`、`test.log`、`logic-smoke.log`、`static-checks.log`、`environment.log` 和 manifest
+- 上传 `.xcresult`、`xcodebuild.log`、`test.log`、`mac-catalyst-build.log`、`mac-baseline-notes.md`、`logic-smoke.log`、`static-checks.log`、`environment.log` 和 manifest
 
 云端 DerivedData 使用 `.derivedData-ci`，不同于本地推荐的 `.build/DerivedDataCodex`。这是 CI 内部缓存路径差异，不改变工程行为。
 
@@ -186,6 +187,9 @@ localgemma-ci-<commit_version>-main-<short_sha>-run<run_id>-attempt<run_attempt>
 - `static-checks.log`
 - `LocalGemma-build.xcresult`
 - `LocalGemma-tests.xcresult`，如果模拟器 XCTest 实际运行
+- `mac-catalyst-build.log`
+- `mac-baseline-notes.md`
+- `LocalGemma-maccatalyst-build.xcresult`
 
 `ci-artifact-manifest.json` 至少包含：
 
@@ -216,6 +220,14 @@ localgemma-ci-<commit_version>-main-<short_sha>-run<run_id>-attempt<run_attempt>
   "logicSmokeOutcome": "success/failure",
   "buildOutcome": "success/failure",
   "testOutcome": "success/failure/skipped",
+  "macBaselineKind": "mac-catalyst",
+  "macCatalystBuildOutcome": "success/failure/skipped",
+  "macCatalystDestination": "generic/platform=macOS,variant=Mac Catalyst",
+  "macCatalystBuildLogPath": "ci-results/mac-catalyst-build.log",
+  "macCatalystResultBundlePath": "ci-results/LocalGemma-maccatalyst-build.xcresult",
+  "macCatalystSkippedReason": "",
+  "macDesignedForIPadOutcome": "skipped",
+  "macBaselineNotesPath": "ci-results/mac-baseline-notes.md",
   "projectSpecificReports": []
 }
 ```
@@ -284,9 +296,11 @@ Agent C 必须核对：
 - `artifactName` 等于 `artifact-name.txt` 的内容，也等于本次下载的 artifact 名称。
 - `repository`、`commitSubject`、`runUrl` 能定位到本次 `origin/main` 提交和 GitHub Actions run。
 - `runId` 和 `runAttempt` 等于本次下载的 GitHub Actions run。
-- `staticChecksOutcome`、`logicSmokeOutcome`、`buildOutcome`、`testOutcome` 与 GitHub Actions UI 和日志一致。
+- `staticChecksOutcome`、`logicSmokeOutcome`、`buildOutcome`、`testOutcome`、`macCatalystBuildOutcome` 与 GitHub Actions UI 和日志一致。
+- `macBaselineKind` 是 `mac-catalyst`，`macCatalystDestination` 指向 Mac Catalyst，`mac-catalyst-build.log` 和 `LocalGemma-maccatalyst-build.xcresult` 存在。
+- `mac-baseline-notes.md` 明确这是 Mac Catalyst build-for-testing 基线，不是原生 macOS target，不改变模拟 runtime 边界。
 - `junit.xml` 的失败数与 `ci-failure-summary.md` 一致。
-- `xcodebuild.log`、`test.log`、`.xcresult` 或等价结果存在且可打开。
+- `xcodebuild.log`、`test.log`、Mac Catalyst log、`.xcresult` 或等价结果存在且可打开。
 - 如果 test 被 `skipped`，必须有明确原因，例如 runner 没有可用 iPhone Simulator。
 
 Agent C 不自动删除 `/private/tmp/localgemma-c-review-<run_id>/`，除非人工明确同意。
@@ -332,7 +346,7 @@ xcodebuild -project LocalGemma.xcodeproj \
 - 修改 artifact 文件管理、SHA-256、模型部署状态。
 - 修改 `InferenceEngine` 会话、流式生成、导出。
 - 修改提示词模板行为。
-- 修改 iPhone 横屏 / iPad 大屏布局、壁纸、分享兜底。
+- 修改 iPhone 横屏 / iPad 大屏 / Mac Catalyst 桌面窗口布局、壁纸、分享兜底。
 
 命令：
 
@@ -353,7 +367,7 @@ xcodebuild -project LocalGemma.xcodeproj \
 当前基线：
 
 - 期望结果：`TEST EXECUTE SUCCEEDED`。
-- 当前测试函数数：33。
+- 当前测试函数数：34。
 
 ### Full
 

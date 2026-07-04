@@ -643,6 +643,35 @@ final class LocalGemmaTests: XCTestCase {
         XCTAssertTrue(mediumPortrait.usesSidebar)
     }
 
+    func testWorkspaceLayoutModeSupportsDesktopWindowSizes() {
+        let desktopWide = WorkspaceLayoutMode.resolve(
+            for: CGSize(width: 1280, height: 800)
+        )
+        let desktopStandard = WorkspaceLayoutMode.resolve(
+            for: CGSize(width: 1024, height: 768)
+        )
+        let narrowDesktop = WorkspaceLayoutMode.resolve(
+            for: CGSize(width: 760, height: 720)
+        )
+        let splitWindow = WorkspaceLayoutMode.resolve(
+            for: CGSize(width: 680, height: 900)
+        )
+        let desktopSidebarWidth = desktopWide.sidebarWidth(
+            for: CGSize(width: 1280, height: 800)
+        )
+
+        XCTAssertEqual(desktopWide, .landscapeRegular)
+        XCTAssertTrue(desktopWide.usesSidebar)
+        XCTAssertEqual(desktopStandard, .landscapeRegular)
+        XCTAssertTrue(desktopStandard.usesSidebar)
+        XCTAssertEqual(narrowDesktop, .landscapeCompact)
+        XCTAssertTrue(narrowDesktop.usesSidebar)
+        XCTAssertEqual(splitWindow, .portrait)
+        XCTAssertFalse(splitWindow.usesSidebar)
+        XCTAssertGreaterThanOrEqual(desktopSidebarWidth, 320)
+        XCTAssertLessThanOrEqual(desktopSidebarWidth, 390)
+    }
+
     func testWorkspaceLayoutModeConstrainsSidebarWidth() {
         let compactWidth = WorkspaceLayoutMode.landscapeCompact.sidebarWidth(
             for: CGSize(width: 844, height: 390)

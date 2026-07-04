@@ -1,6 +1,6 @@
 # 项目核心流程文档
 
-一句话总览：本项目是一个 SwiftUI iOS 原型，通过本地模拟 runtime 和严格 artifact 校验流程，验证 iPhone 与 iPad 端侧部署 Gemma 1.5B 的 UI、状态管理、文件导入、会话导出、大屏布局和 Apple Silicon 运行计划；协作流程默认采用 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载结果包验收。
+一句话总览：本项目是一个 SwiftUI iOS 原型，通过本地模拟 runtime 和严格 artifact 校验流程，验证 iPhone、iPad 与 Mac Catalyst build-for-testing 基线下端侧部署 Gemma 1.5B 的 UI、状态管理、文件导入、会话导出、大屏布局和 Apple Silicon 运行计划；协作流程默认采用 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载结果包验收。
 
 本文只写当前真实链路，不写历史流水账。
 
@@ -54,7 +54,7 @@
 
 - `ContentView` 包含四个工作区：推理、模型、提示词、设置。
 - 小屏容器使用顶部 header、tab picker 和分页工作区。
-- iPhone 横屏、iPad 大画布或大屏窗口达到断点后使用左侧状态/导航栏和右侧工作区。
+- iPhone 横屏、iPad 大画布、Mac Catalyst 或其他大屏窗口达到断点后使用左侧状态/导航栏和右侧工作区。
 - `WorkspaceLayoutMode` 负责按容器尺寸判断 portrait、landscapeCompact、landscapeRegular；case 名称保留历史兼容，但 v0.8 起含义是单栏、compact 双栏和 regular 大屏双栏。
 
 ### 壁纸
@@ -116,7 +116,7 @@ Agent X 不能跳过 Agent C artifact 验收；失败时不能继续下一轮并
 ### GitHub Actions
 
 - `.github/workflows/ci-results.yml` 在 `main` push 和 `workflow_dispatch` 触发。
-- CI 运行静态检查、逻辑烟测、Xcode build-for-testing 和可用模拟器 XCTest。
+- CI 运行静态检查、逻辑烟测、iOS Simulator build-for-testing、Mac Catalyst build-for-testing 和可用模拟器 XCTest。
 - CI 上传未加密结果包，不复用任何带密码或私密发布包。
 - 结果包至少包含：
   - `ci-artifact-manifest.json`
@@ -128,15 +128,17 @@ Agent X 不能跳过 Agent C artifact 验收；失败时不能继续下一轮并
   - `logic-smoke.log`
   - `xcodebuild.log`
   - `test.log`
+  - `mac-catalyst-build.log`
+  - `mac-baseline-notes.md`
   - `.xcresult` 或等价 Xcode 结果包
-- manifest 必须自描述 `artifactName`、`repository`、`commitSubject`、`runUrl`、`runId`、`runAttempt`、各阶段 outcome 和自动选择的 `destination`。
+- manifest 必须自描述 `artifactName`、`repository`、`commitSubject`、`runUrl`、`runId`、`runAttempt`、各阶段 outcome、自动选择的 `destination`、`macBaselineKind`、`macCatalystBuildOutcome` 和 Mac baseline 日志路径。
 
 ### Agent C
 
 - 只验收 `origin/main` 最新 commit 对应的 run 和 artifact。
 - 如需权限，先 `gh auth login`。
 - 用 `gh run download` 把结果包下载到 `/private/tmp/localgemma-c-review-<run_id>/`。
-- 核对 manifest 中的 `artifactName`、`branch`、`commitSha`、`commitSubject`、`repository`、`runUrl`、`runId`、`runAttempt` 与 `artifact-name.txt`、本次下载 run 和 `origin/main` 最新状态一致。
+- 核对 manifest 中的 `artifactName`、`branch`、`commitSha`、`commitSubject`、`repository`、`runUrl`、`runId`、`runAttempt`、`macBaselineKind`、`macCatalystBuildOutcome` 与 `artifact-name.txt`、本次下载 run 和 `origin/main` 最新状态一致。
 - 打开 `ci-failure-summary.md`、`junit.xml`、主日志和 `.xcresult` 或等价结果。
 - 有问题时退回 Agent B 在 `main` 上追加修复 commit；无问题时确认最新 run 通过。
 - 如果 Agent C 自己补文档或修复小问题，也必须追加 commit、push、等待新 run，并重新下载最新结果包。
@@ -150,7 +152,7 @@ Agent X 不能跳过 Agent C artifact 验收；失败时不能继续下一轮并
 - `InferenceEngine`：会话、输入、输出、导出、生成状态。
 - `DeviceOptimizer`：Apple Silicon 优化指标和开关。
 - `PromptTemplateLibrary`：内置提示词模板。
-- `WorkspaceLayoutMode`：主界面容器尺寸断点，覆盖 iPhone 横屏、iPad 竖屏大画布和大屏窗口。
+- `WorkspaceLayoutMode`：主界面容器尺寸断点，覆盖 iPhone 横屏、iPad 竖屏大画布、Mac Catalyst 和桌面大屏窗口。
 - `WallpaperImageProcessor`：壁纸数据压缩和尺寸控制。
 - `.github/workflows/ci-results.yml`：云端重验证和 Agent C 结果包生成入口。
 - `Agent X`：未来多轮总目标调度层，按 Agent A -> Agent B -> Agent C 闭环推进。
@@ -163,7 +165,7 @@ Agent X 不能跳过 Agent C artifact 验收；失败时不能继续下一轮并
 - `LocalArtifactValidator` 不根据 UI 状态判断，只根据 manifest 和文件/哈希判断。
 - `RealGemmaRuntimePlaceholder` 不执行真实推理。
 - README 和 UI 文案必须明确当前是模拟输出。
-- GitHub Actions 只做构建、测试和结果包，不下载模型权重，不执行云端推理。
+- GitHub Actions 只做 iOS/Catalyst 构建、测试和结果包，不下载模型权重，不执行云端推理。
 - Agent C 不能只看 Agent B 文字汇报，必须核对结果包。
 - Agent X 不能跳过 Agent C 的最新 artifact 验收，不能把旧 run、旧 artifact 或本地输出冒充云端结果。
 - CI artifact 和 Agent C 下载内容必须保持小数据量，只保留 manifest、JUnit 或摘要、关键日志、失败摘要和必要结果包。
@@ -195,7 +197,7 @@ Agent X 不能跳过 Agent C artifact 验收；失败时不能继续下一轮并
 - 空 prompt 不创建新消息，不触发生成。
 - 分享导出不能依赖不存在的文件。
 - 大图壁纸必须压缩和限制尺寸。
-- iPhone 横屏与 iPad 大屏布局断点必须有测试覆盖。
+- iPhone 横屏、iPad 大屏与 Mac Catalyst 桌面窗口布局断点必须有测试覆盖。
 - 默认协作验证以 `main` push 后的 GitHub Actions 结果包为准。
 - Agent X 循环每轮仍以 Agent B 本地轻量检查、GitHub Actions artifact 和 Agent C 下载复判为准。
 

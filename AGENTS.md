@@ -4,7 +4,7 @@
 
 ## 1. 项目一句话总览
 
-`Local Gemma iOS Prototype` 是一个 SwiftUI iOS 原型 App，用本地模拟 runtime 验证 iPhone 与 iPad 端侧部署 Gemma 1.5B 的产品交互、模型文件管理、artifact 校验、会话导出、大屏双栏布局、相册壁纸和 Apple Silicon 运行计划；当前不下载模型权重，不执行真实模型推理。
+`Local Gemma iOS Prototype` 是一个 SwiftUI iOS 原型 App，用本地模拟 runtime 验证 iPhone、iPad 与 Mac Catalyst build-for-testing 基线下端侧部署 Gemma 1.5B 的产品交互、模型文件管理、artifact 校验、会话导出、大屏双栏布局、相册壁纸和 Apple Silicon 运行计划；当前不下载模型权重，不执行真实模型推理，也没有原生 macOS target。
 
 ## 2. 必读文件顺序
 
@@ -54,7 +54,7 @@ git remote -v
 - `SimulatedGemmaRuntime` 是默认推理实现。
 - `RealGemmaRuntimePlaceholder` 是真实 runtime 占位，不等于真实模型推理。
 - `ContentView` 和各 workspace 负责 UI，不应绕过状态层直接改核心状态。
-- `WorkspaceLayoutMode` 按容器尺寸控制单栏、compact 双栏和 regular 大屏双栏；iPhone 横屏与 iPad 大屏断点要有测试锁住。
+- `WorkspaceLayoutMode` 按容器尺寸控制单栏、compact 双栏和 regular 大屏双栏；iPhone 横屏、iPad 大屏与 Mac/Catalyst 桌面窗口断点要有测试锁住。
 - `WallpaperImageProcessor` 控制相册壁纸压缩和尺寸，避免大图直接进入 `AppStorage`。
 - `ExportPayload` 和导出视图必须处理 Markdown 文件不存在时的文本分享兜底。
 

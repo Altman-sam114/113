@@ -13,10 +13,10 @@
 ## 当前状态
 
 - 项目：`Local Gemma iOS Prototype`
-- 平台：SwiftUI iOS App，Swift 6.0，iOS deployment target 17.0，当前 app/test target 支持 iPhone 与 iPad；尚未启用 Mac 独立 target 或 Mac Catalyst target。
+- 平台：SwiftUI iOS App，Swift 6.0，iOS deployment target 17.0，当前 app/test target 支持 iPhone、iPad 和 Mac Catalyst build-for-testing；尚未创建原生 macOS target。
 - 当前默认模型：`Gemma 1.5B Local`
 - 当前推理：本地模拟 runtime，不下载模型权重，不执行真实模型推理。
-- 当前核心测试：`LocalGemmaTests.swift` 中 33 个 XCTest 方法。
+- 当前核心测试：`LocalGemmaTests.swift` 中 34 个 XCTest 方法。
 - 当前核心文档入口：`AGENTS.md`、`md/flow/flow.md`、`md/flow/flowchart.md`、`md/test/test.md`、`md/prompt/README.md`、`README.md`。
 - 当前协作验证：默认 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载未加密 CI 结果包验收；本地仓库当前已配置 `origin` remote，最终验收仍以最新 `origin/main` 对应的 GitHub Actions run 和结果包为准；文档已预留未来 `agentx:` 主控 Agent A -> Agent B -> Agent C 多轮循环的规则。
 
@@ -292,3 +292,49 @@
 
 - v0.8 push 后需等待最新 `ci-results.yml` run 完成，由 Agent C 下载对应未加密结果包，核对 manifest、`artifact-name.txt`、JUnit、日志和 `.xcresult`。
 - Mac 方向仍是后续目标；启用 Mac Catalyst 或独立 macOS target 前，需要单独审计 `UIKit`、`PhotosPicker`、分享、剪贴板和文件导入路径。
+
+### v0.9 / Mac Catalyst基线验证
+
+日期：2026-07-04
+
+核心变更：
+
+- 选择 Agent A 提示词中的路径 A：Mac Catalyst。原因是启用 `SUPPORTS_MACCATALYST` 后，`LocalGemma` scheme 已出现 Mac Catalyst destination，本机 Mac Catalyst `build-for-testing` 成功。
+- `LocalGemma` app target 和 `LocalGemmaTests` test target 的 Debug / Release 配置启用 `SUPPORTS_MACCATALYST = YES`，并为 iPad Info.plist 支持四方向，修复 Mac 上 Designed for iPad/iPhone 兼容性警告。
+- 新增桌面窗口尺寸布局测试，锁住 `1280x800`、`1024x768` 进入 regular 大屏双栏，`760x720` 进入 compact 双栏，`680x900` 回退单栏；测试函数数从 33 个增加到 34 个。
+- `.github/workflows/ci-results.yml` 增加 Mac Catalyst `build-for-testing` 步骤，结果包新增 `mac-catalyst-build.log`、`mac-baseline-notes.md`、`LocalGemma-maccatalyst-build.xcresult` 以及 manifest 的 `macBaselineKind`、`macCatalystBuildOutcome`、`macCatalystDestination`、`macCatalystBuildLogPath`、`macCatalystResultBundlePath`、`macCatalystSkippedReason`、`macDesignedForIPadOutcome` 和 `macBaselineNotesPath`。
+- 同步 README、测试规范、核心流程文档、Mermaid 流程图和入口规则中的 Mac Catalyst 构建基线边界。
+- 本轮没有创建原生 macOS target，没有下载模型权重，没有接入真实模型推理。
+
+关键文件：
+
+- `AGENTS.md`
+- `LocalGemma.xcodeproj/project.pbxproj`
+- `LocalGemmaTests/LocalGemmaTests.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/v0（适配体验）/v0.9（Mac Catalyst基线验证）.md`
+- `update_log.md`
+
+验证结果：
+
+- `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild -project LocalGemma.xcodeproj -scheme LocalGemma -showdestinations`：输出包含 `variant:Mac Catalyst` 和 `variant:Designed for [iPad,iPhone]`。
+- `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild -project LocalGemma.xcodeproj -scheme LocalGemma -configuration Debug -sdk macosx -destination 'generic/platform=macOS,variant=Mac Catalyst' -derivedDataPath .build/DerivedDataCodex-Catalyst -resultBundlePath .build/LocalGemma-maccatalyst-build.xcresult CODE_SIGNING_ALLOWED=NO build-for-testing`：输出 `** TEST BUILD SUCCEEDED **`。
+- `git diff --check`：无输出，退出码 0。
+- `plutil -lint LocalGemma.xcodeproj/project.pbxproj`：输出 `LocalGemma.xcodeproj/project.pbxproj: OK`。
+- `ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'`：输出 `yaml ok`。
+- `grep -n "func test" LocalGemmaTests/LocalGemmaTests.swift`：确认当前 34 个 `test...` 方法。
+- `/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -sdk /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk -module-cache-path .build/SwiftSmokeModuleCache LocalGemma/AppState.swift Tools/LogicSmoke.swift -o .build/logic-smoke`：退出码 0。
+- `.build/logic-smoke`：输出 `Logic smoke passed`。
+- `/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -typecheck ... LocalGemma/AppState.swift LocalGemma/ContentView.swift LocalGemma/LocalGemmaApp.swift`：退出码 0。
+- `/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -emit-module ... LocalGemma/AppState.swift LocalGemma/ContentView.swift LocalGemma/LocalGemmaApp.swift`：退出码 0。
+- `/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -typecheck ... LocalGemmaTests/LocalGemmaTests.swift`：退出码 0。
+- `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild -quiet -project LocalGemma.xcodeproj -scheme LocalGemma -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath .build/DerivedDataCodex-iOS-v09c -resultBundlePath .build/LocalGemma-ios-build-v09c.xcresult CODE_SIGNING_ALLOWED=NO build-for-testing`：沙箱内受 CoreSimulator/Xcode 服务权限影响返回 133；按审批在沙箱外重跑同一命令后退出码 0。
+
+遗留事项：
+
+- v0.9 push 后需等待最新 `ci-results.yml` run 完成，由 Agent C 下载对应未加密结果包，核对 manifest、`artifact-name.txt`、JUnit、iOS 日志、Mac Catalyst 日志、baseline notes 和 `.xcresult`。
+- 当前仅建立 Mac Catalyst build-for-testing 基线，不代表原生 macOS target 或真实模型 runtime 已完成。
