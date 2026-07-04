@@ -692,6 +692,49 @@ final class LocalGemmaTests: XCTestCase {
         XCTAssertEqual(commandItems.map { String($0.shortcutKey) }, ["1", "2", "3", "4"])
     }
 
+    func testSessionCommandMenuCoversFocusedSessionActions() {
+        let commandItems = SessionCommandAction.commandItems
+
+        XCTAssertEqual(SessionCommandAction.commandMenuTitle, "会话")
+        XCTAssertEqual(commandItems.map(\.action), SessionCommandAction.allCases)
+        XCTAssertEqual(commandItems.map(\.title), ["新建会话", "导出当前会话"])
+        XCTAssertEqual(commandItems.map { String($0.shortcutKey) }, ["n", "e"])
+        XCTAssertEqual(commandItems.map(\.requiresShift), [false, true])
+        XCTAssertEqual(SessionCommandAction.createSession.focusReason, .createSession)
+        XCTAssertNil(SessionCommandAction.exportSession.focusReason)
+        XCTAssertTrue(
+            Set(SessionCommandAction.commandItems.map(\.shortcutKey)).isDisjoint(
+                with: Set(WorkspaceTab.commandItems.map(\.shortcutKey))
+            )
+        )
+    }
+
+    func testSessionCommandFocusedRouteDescribesAvailabilityAndFocusPolicy() {
+        var performedActions: [SessionCommandAction] = []
+        let actions = SessionCommandActions(
+            createSession: {
+                performedActions.append(.createSession)
+            },
+            exportSession: {
+                performedActions.append(.exportSession)
+            }
+        )
+
+        XCTAssertFalse(SessionCommandRoutingPolicy.isEnabled(hasFocusedActions: false))
+        XCTAssertTrue(SessionCommandRoutingPolicy.isEnabled(hasFocusedActions: true))
+        XCTAssertTrue(
+            SessionCommandRoutingPolicy.requestsComposerFocus(after: .createSession)
+        )
+        XCTAssertFalse(
+            SessionCommandRoutingPolicy.requestsComposerFocus(after: .exportSession)
+        )
+
+        actions.perform(.createSession)
+        actions.perform(.exportSession)
+
+        XCTAssertEqual(performedActions, [.createSession, .exportSession])
+    }
+
     func testSelectionAccessibilityMetadataDescribesWorkspaceAndSessions() {
         XCTAssertFalse(WorkspaceLayoutMode.portrait.usesDetailedSidebar)
         XCTAssertFalse(WorkspaceLayoutMode.landscapeCompact.usesDetailedSidebar)

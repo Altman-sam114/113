@@ -15,6 +15,7 @@ struct LocalGemmaApp: App {
         }
         .commands {
             WorkspaceCommands()
+            SessionCommands()
         }
     }
 }
@@ -30,6 +31,29 @@ struct WorkspaceCommands: Commands {
                 }
                 .keyboardShortcut(KeyEquivalent(item.shortcutKey), modifiers: [.command])
                 .disabled(workspaceTabSelection == nil)
+            }
+        }
+    }
+}
+
+struct SessionCommands: Commands {
+    @FocusedValue(\.sessionCommandActions) private var sessionCommandActions
+
+    var body: some Commands {
+        CommandMenu(SessionCommandAction.commandMenuTitle) {
+            ForEach(SessionCommandAction.commandItems) { item in
+                Button(item.title) {
+                    sessionCommandActions?.perform(item.action)
+                }
+                .keyboardShortcut(
+                    KeyEquivalent(item.shortcutKey),
+                    modifiers: item.requiresShift ? [.command, .shift] : [.command]
+                )
+                .disabled(
+                    !SessionCommandRoutingPolicy.isEnabled(
+                        hasFocusedActions: sessionCommandActions != nil
+                    )
+                )
             }
         }
     }

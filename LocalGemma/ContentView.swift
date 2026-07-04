@@ -246,10 +246,19 @@ private struct WorkspaceTabSelectionFocusedKey: FocusedValueKey {
     typealias Value = Binding<WorkspaceTab>
 }
 
+private struct SessionCommandActionsFocusedKey: FocusedValueKey {
+    typealias Value = SessionCommandActions
+}
+
 extension FocusedValues {
     var workspaceTabSelection: Binding<WorkspaceTab>? {
         get { self[WorkspaceTabSelectionFocusedKey.self] }
         set { self[WorkspaceTabSelectionFocusedKey.self] = newValue }
+    }
+
+    var sessionCommandActions: SessionCommandActions? {
+        get { self[SessionCommandActionsFocusedKey.self] }
+        set { self[SessionCommandActionsFocusedKey.self] = newValue }
     }
 }
 
@@ -644,6 +653,90 @@ struct WorkspaceCommandItem: Identifiable, Equatable {
     let shortcutKey: Character
 
     var id: WorkspaceTab { tab }
+}
+
+enum SessionCommandAction: String, CaseIterable, Identifiable {
+    case createSession
+    case exportSession
+
+    var id: String { rawValue }
+
+    static let commandMenuTitle = "会话"
+
+    var title: String {
+        switch self {
+        case .createSession:
+            return "新建会话"
+        case .exportSession:
+            return "导出当前会话"
+        }
+    }
+
+    var shortcutKey: Character {
+        switch self {
+        case .createSession:
+            return "n"
+        case .exportSession:
+            return "e"
+        }
+    }
+
+    var requiresShift: Bool {
+        self == .exportSession
+    }
+
+    var focusReason: ComposerFocusReason? {
+        switch self {
+        case .createSession:
+            return .createSession
+        case .exportSession:
+            return nil
+        }
+    }
+
+    static var commandItems: [SessionCommandItem] {
+        allCases.map {
+            SessionCommandItem(
+                action: $0,
+                title: $0.title,
+                shortcutKey: $0.shortcutKey,
+                requiresShift: $0.requiresShift
+            )
+        }
+    }
+}
+
+struct SessionCommandItem: Identifiable, Equatable {
+    let action: SessionCommandAction
+    let title: String
+    let shortcutKey: Character
+    let requiresShift: Bool
+
+    var id: SessionCommandAction { action }
+}
+
+struct SessionCommandRoutingPolicy {
+    static func isEnabled(hasFocusedActions: Bool) -> Bool {
+        hasFocusedActions
+    }
+
+    static func requestsComposerFocus(after action: SessionCommandAction) -> Bool {
+        action.focusReason.map(ComposerFocusPolicy.requestsComposerFocus(after:)) ?? false
+    }
+}
+
+struct SessionCommandActions {
+    let createSession: () -> Void
+    let exportSession: () -> Void
+
+    func perform(_ action: SessionCommandAction) {
+        switch action {
+        case .createSession:
+            createSession()
+        case .exportSession:
+            exportSession()
+        }
+    }
 }
 
 enum SelectionAccessibilityMetadata {
@@ -1223,6 +1316,17 @@ struct ChatWorkspace: View {
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
         }
+        .focusedSceneValue(\.sessionCommandActions, sessionCommandActions)
+    }
+
+    private var sessionCommandActions: SessionCommandActions {
+        SessionCommandActions(
+            createSession: {
+                inference.createSession()
+                requestComposerFocus(.createSession)
+            },
+            exportSession: prepareExport
+        )
     }
 
     private var chatSurface: some View {
@@ -1311,7 +1415,6 @@ struct SessionBar: View {
                         .overlay(Circle().stroke(theme.border, lineWidth: 1))
                 }
                 .buttonStyle(.plain)
-                .keyboardShortcut("e", modifiers: [.command, .shift])
                 .foregroundStyle(theme.primaryText)
                 .accessibilityLabel("Export conversation")
 
@@ -1323,7 +1426,6 @@ struct SessionBar: View {
                         .foregroundStyle(theme.inverseText)
                 }
                 .buttonStyle(.plain)
-                .keyboardShortcut("n", modifiers: [.command])
                 .accessibilityLabel("New conversation")
             }
 
