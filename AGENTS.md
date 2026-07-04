@@ -55,6 +55,7 @@ git remote -v
 - `RealGemmaRuntimePlaceholder` 是真实 runtime 占位，不等于真实模型推理。
 - `ContentView` 和各 workspace 负责 UI，不应绕过状态层直接改核心状态。
 - `WorkspaceLayoutMode` 按容器尺寸控制单栏、compact 双栏和 regular 大屏双栏；iPhone 横屏、iPad 大屏与 Mac/Catalyst 桌面窗口断点要有测试锁住。
+- `ModelLibraryLayoutMode` 控制模型页内部单栏/双栏；Mac/iPad 足够宽的模型部署工作流和窄屏回退要有测试锁住。
 - `WorkspaceTab.shortcutKey`、command menu 映射、regular 侧栏说明、选择语义和 composer 输入焦点/辅助语义锁住 Mac/iPad 工作区导航；改动快捷键、菜单、侧栏文案、输入焦点或可访问性映射时必须同步测试。
 - `WallpaperImageProcessor` 控制相册壁纸压缩和尺寸，避免大图直接进入 `AppStorage`。
 - `ExportPayload` 和导出视图必须处理 Markdown 文件不存在时的文本分享兜底。

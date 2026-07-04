@@ -118,6 +118,29 @@ enum WorkspaceLayoutMode: Equatable {
     }
 }
 
+enum ModelLibraryLayoutMode: Equatable {
+    case singleColumn
+    case twoColumn
+
+    private static let twoColumnMinimumWidth: CGFloat = 760
+    private static let minimumControlColumnWidth: CGFloat = 300
+    private static let maximumControlColumnWidth: CGFloat = 390
+
+    static func resolve(for size: CGSize) -> ModelLibraryLayoutMode {
+        size.width >= twoColumnMinimumWidth ? .twoColumn : .singleColumn
+    }
+
+    func controlColumnWidth(for size: CGSize) -> CGFloat {
+        guard self == .twoColumn else {
+            return 0
+        }
+        return min(
+            max(size.width * 0.36, Self.minimumControlColumnWidth),
+            Self.maximumControlColumnWidth
+        )
+    }
+}
+
 enum WallpaperImportError: LocalizedError, Equatable {
     case unreadableImage
     case encodingFailed
@@ -1922,7 +1945,7 @@ struct ModelLibraryView: View {
         let validation = catalog.validation(for: model)
         let report = LocalRuntimePlanner.preparationReport(for: model, validation: validation)
         let deploymentState = catalog.deploymentState(for: model)
-        let isLandscape = size.width > size.height && size.width > 620
+        let layoutMode = ModelLibraryLayoutMode.resolve(for: size)
 
         VStack(alignment: .leading, spacing: 16) {
             SectionHeader(
@@ -1931,7 +1954,7 @@ struct ModelLibraryView: View {
                 subtitle: "面向 iPhone 的端侧 runtime 控制台，集中管理权重、性能预算和启动状态。"
             )
 
-            if isLandscape {
+            if layoutMode == .twoColumn {
                 HStack(alignment: .top, spacing: 14) {
                     VStack(spacing: 14) {
                         ModelSelectorPanel(
@@ -1960,7 +1983,7 @@ struct ModelLibraryView: View {
                             }
                         )
                     }
-                    .frame(width: min(max(size.width * 0.36, 300), 390))
+                    .frame(width: layoutMode.controlColumnWidth(for: size))
 
                     VStack(spacing: 14) {
                         ModelSummaryPanel(model: model, validation: validation)

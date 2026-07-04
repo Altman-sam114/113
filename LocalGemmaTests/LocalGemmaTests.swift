@@ -759,6 +759,42 @@ final class LocalGemmaTests: XCTestCase {
         XCTAssertLessThanOrEqual(desktopSidebarWidth, 390)
     }
 
+    func testModelLibraryLayoutModeSupportsWideModelWorkflows() {
+        let phonePortrait = ModelLibraryLayoutMode.resolve(
+            for: CGSize(width: 390, height: 844)
+        )
+        let narrowSplit = ModelLibraryLayoutMode.resolve(
+            for: CGSize(width: 680, height: 900)
+        )
+        let widePortraitPane = ModelLibraryLayoutMode.resolve(
+            for: CGSize(width: 820, height: 1180)
+        )
+        let wideDesktopPane = ModelLibraryLayoutMode.resolve(
+            for: CGSize(width: 1000, height: 760)
+        )
+        let desktopWide = ModelLibraryLayoutMode.resolve(
+            for: CGSize(width: 1280, height: 800)
+        )
+
+        XCTAssertEqual(phonePortrait, .singleColumn)
+        XCTAssertEqual(narrowSplit, .singleColumn)
+        XCTAssertEqual(widePortraitPane, .twoColumn)
+        XCTAssertEqual(wideDesktopPane, .twoColumn)
+        XCTAssertEqual(desktopWide, .twoColumn)
+        XCTAssertEqual(
+            phonePortrait.controlColumnWidth(for: CGSize(width: 390, height: 844)),
+            0
+        )
+        XCTAssertGreaterThanOrEqual(
+            widePortraitPane.controlColumnWidth(for: CGSize(width: 820, height: 1180)),
+            300
+        )
+        XCTAssertLessThanOrEqual(
+            wideDesktopPane.controlColumnWidth(for: CGSize(width: 1280, height: 800)),
+            390
+        )
+    }
+
     func testWorkspaceLayoutModeConstrainsSidebarWidth() {
         let compactWidth = WorkspaceLayoutMode.landscapeCompact.sidebarWidth(
             for: CGSize(width: 844, height: 390)
