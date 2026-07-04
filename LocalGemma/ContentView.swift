@@ -118,6 +118,20 @@ enum WorkspaceLayoutMode: Equatable {
     }
 }
 
+enum SessionSidebarLayoutPolicy {
+    static let minimumWidth: CGFloat = 240
+    static let maximumWidth: CGFloat = 310
+    static let widthRatio: CGFloat = 0.28
+
+    static func width(for size: CGSize, layoutMode: WorkspaceLayoutMode) -> CGFloat {
+        guard layoutMode.usesSidebar else {
+            return 0
+        }
+
+        return min(max(size.width * widthRatio, minimumWidth), maximumWidth)
+    }
+}
+
 enum ModelLibraryLayoutMode: Equatable {
     case singleColumn
     case twoColumn
@@ -1274,7 +1288,12 @@ struct ChatWorkspace: View {
                         export: prepareExport
                     )
                     .padding(14)
-                    .frame(width: min(max(proxy.size.width * 0.28, 240), 310))
+                    .frame(
+                        width: SessionSidebarLayoutPolicy.width(
+                            for: proxy.size,
+                            layoutMode: layoutMode
+                        )
+                    )
                     .background(.ultraThinMaterial)
                     .overlay(alignment: .trailing) {
                         Rectangle()

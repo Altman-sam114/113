@@ -867,6 +867,59 @@ final class LocalGemmaTests: XCTestCase {
         XCTAssertLessThanOrEqual(desktopSidebarWidth, 390)
     }
 
+    func testSessionSidebarLayoutPolicyConstrainsWideChatHistory() {
+        let phonePortrait = CGSize(width: 390, height: 844)
+        let compactLandscape = CGSize(width: 700, height: 390)
+        let iPadRegular = CGSize(width: 1024, height: 768)
+        let desktopRegular = CGSize(width: 1366, height: 900)
+
+        XCTAssertEqual(
+            SessionSidebarLayoutPolicy.width(
+                for: phonePortrait,
+                layoutMode: WorkspaceLayoutMode.resolve(for: phonePortrait)
+            ),
+            0
+        )
+        XCTAssertEqual(
+            SessionSidebarLayoutPolicy.width(
+                for: compactLandscape,
+                layoutMode: WorkspaceLayoutMode.resolve(for: compactLandscape)
+            ),
+            SessionSidebarLayoutPolicy.minimumWidth
+        )
+        XCTAssertEqual(
+            SessionSidebarLayoutPolicy.width(
+                for: iPadRegular,
+                layoutMode: WorkspaceLayoutMode.resolve(for: iPadRegular)
+            ),
+            286.72,
+            accuracy: 0.01
+        )
+        XCTAssertEqual(
+            SessionSidebarLayoutPolicy.width(
+                for: desktopRegular,
+                layoutMode: WorkspaceLayoutMode.resolve(for: desktopRegular)
+            ),
+            SessionSidebarLayoutPolicy.maximumWidth
+        )
+
+        let sidebarSizes = [
+            CGSize(width: 700, height: 390),
+            CGSize(width: 980, height: 700),
+            CGSize(width: 1180, height: 820),
+            CGSize(width: 1440, height: 960)
+        ]
+
+        for size in sidebarSizes {
+            let width = SessionSidebarLayoutPolicy.width(
+                for: size,
+                layoutMode: WorkspaceLayoutMode.resolve(for: size)
+            )
+            XCTAssertGreaterThanOrEqual(width, SessionSidebarLayoutPolicy.minimumWidth)
+            XCTAssertLessThanOrEqual(width, SessionSidebarLayoutPolicy.maximumWidth)
+        }
+    }
+
     func testModelLibraryLayoutModeSupportsWideModelWorkflows() {
         let phonePortrait = ModelLibraryLayoutMode.resolve(
             for: CGSize(width: 390, height: 844)
