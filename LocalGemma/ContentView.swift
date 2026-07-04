@@ -820,6 +820,30 @@ enum ModelDeploymentControlAccessibilityMetadata {
         var id: String { rawValue }
     }
 
+    static let modelSelectorLabel = "选择当前模型"
+    static let modelSelectorIdentifier = "model-selector-picker"
+
+    static func modelSelectorValue(
+        selectedModel: LocalModel,
+        validation: ArtifactValidationResult,
+        deploymentState: ModelDeploymentState,
+        modelCount: Int
+    ) -> String {
+        "\(selectedModel.name)，\(selectedModel.parameterCount)，\(selectedModel.quantization)，状态 \(selectedModel.installState.title)，\(modelCount) 个候选，\(availabilityDescription(for: validation.availability))，\(deploymentState.localizedTitle)。"
+    }
+
+    static func modelSelectorHint(modelCount: Int) -> String {
+        if modelCount > 1 {
+            return "切换当前模型。只更新本地模型选择，不下载模型权重，不启动真实 runtime，也不会绕过 verified 门禁。"
+        }
+
+        return "查看当前模型选择。当前只有 1 个候选；不会下载模型权重，不启动真实 runtime，也不会绕过 verified 门禁。"
+    }
+
+    static func modelSelectorInputLabels(selectedModel: LocalModel) -> [String] {
+        ["选择模型", "切换模型", "选择\(selectedModel.name)"]
+    }
+
     static func powerLabel(model: LocalModel, deploymentState: ModelDeploymentState) -> String {
         "\(deploymentState == .running ? "关闭" : "启动")模型部署 \(model.name)"
     }
@@ -2406,6 +2430,22 @@ struct ModelSelectorPanel: View {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .stroke(theme.accent.opacity(0.24), lineWidth: 1)
             }
+            .accessibilityLabel(ModelDeploymentControlAccessibilityMetadata.modelSelectorLabel)
+            .accessibilityValue(
+                ModelDeploymentControlAccessibilityMetadata.modelSelectorValue(
+                    selectedModel: selectedModel,
+                    validation: validation,
+                    deploymentState: deploymentState,
+                    modelCount: models.count
+                )
+            )
+            .accessibilityHint(
+                ModelDeploymentControlAccessibilityMetadata.modelSelectorHint(modelCount: models.count)
+            )
+            .accessibilityInputLabels(
+                ModelDeploymentControlAccessibilityMetadata.modelSelectorInputLabels(selectedModel: selectedModel)
+            )
+            .accessibilityIdentifier(ModelDeploymentControlAccessibilityMetadata.modelSelectorIdentifier)
 
             HStack(spacing: 8) {
                 StatusBadge(state: selectedModel.installState)

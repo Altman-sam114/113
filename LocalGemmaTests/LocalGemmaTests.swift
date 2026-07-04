@@ -956,6 +956,76 @@ final class LocalGemmaTests: XCTestCase {
         )
     }
 
+    func testModelSelectorExposesAccessibilityMetadata() {
+        let model = ModelCatalog.defaultModels[0]
+        let modelCount = ModelCatalog.defaultModels.count
+        let missingValidation = LocalArtifactValidator.validate(
+            manifest: model.artifactManifest,
+            presentFiles: []
+        )
+        let verifiedManifest = ModelArtifactManifest(
+            modelFileName: "verified-gemma.mlmodelc",
+            tokenizerFileName: "verified-tokenizer.model",
+            fileFormat: "Core ML compiled package",
+            storageDirectory: "Application Support/LocalModels",
+            expectedSHA256: String(repeating: "b", count: 64),
+            allowsNetworkDownload: false,
+            importInstruction: "手动导入测试模型。"
+        )
+        let verifiedValidation = LocalArtifactValidator.validate(
+            manifest: verifiedManifest,
+            presentFiles: Set(verifiedManifest.requiredFiles),
+            observedSHA256: verifiedManifest.expectedSHA256
+        )
+
+        XCTAssertEqual(
+            ModelDeploymentControlAccessibilityMetadata.modelSelectorLabel,
+            "选择当前模型"
+        )
+        XCTAssertEqual(
+            ModelDeploymentControlAccessibilityMetadata.modelSelectorIdentifier,
+            "model-selector-picker"
+        )
+
+        let missingValue = ModelDeploymentControlAccessibilityMetadata.modelSelectorValue(
+            selectedModel: model,
+            validation: missingValidation,
+            deploymentState: .stopped,
+            modelCount: modelCount
+        )
+        XCTAssertTrue(missingValue.contains("Gemma 1.5B Local"))
+        XCTAssertTrue(missingValue.contains("1.5B"))
+        XCTAssertTrue(missingValue.contains("4-bit"))
+        XCTAssertTrue(missingValue.contains("Simulation"))
+        XCTAssertTrue(missingValue.contains("\(modelCount) 个候选"))
+        XCTAssertTrue(missingValue.contains("缺少本地 artifact"))
+        XCTAssertTrue(missingValue.contains("未启动"))
+
+        let verifiedValue = ModelDeploymentControlAccessibilityMetadata.modelSelectorValue(
+            selectedModel: model,
+            validation: verifiedValidation,
+            deploymentState: .running,
+            modelCount: modelCount
+        )
+        XCTAssertTrue(verifiedValue.contains("artifact 已 verified"))
+        XCTAssertTrue(verifiedValue.contains("运行中"))
+
+        let hint = ModelDeploymentControlAccessibilityMetadata.modelSelectorHint(modelCount: modelCount)
+        XCTAssertTrue(hint.contains("切换当前模型"))
+        XCTAssertTrue(hint.contains("不下载模型权重"))
+        XCTAssertTrue(hint.contains("不启动真实 runtime"))
+        XCTAssertTrue(hint.contains("verified 门禁"))
+
+        let singleCandidateHint = ModelDeploymentControlAccessibilityMetadata.modelSelectorHint(modelCount: 1)
+        XCTAssertTrue(singleCandidateHint.contains("当前只有 1 个候选"))
+        XCTAssertTrue(singleCandidateHint.contains("不会下载模型权重"))
+
+        XCTAssertEqual(
+            ModelDeploymentControlAccessibilityMetadata.modelSelectorInputLabels(selectedModel: model),
+            ["选择模型", "切换模型", "选择Gemma 1.5B Local"]
+        )
+    }
+
     func testModelDeploymentControlsExposeAccessibilityMetadata() {
         let model = ModelCatalog.defaultModels[0]
         let missingValidation = LocalArtifactValidator.validate(
