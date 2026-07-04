@@ -58,8 +58,8 @@ xcrun simctl list devices available
 
 当前测试基线：
 
-- `LocalGemmaTests.swift` 当前包含 35 个 `test...` 方法。
-- 业务核心覆盖 artifact、模型状态、runtime plan、模拟/真实占位 runtime、提示词、会话、导出、iPhone/iPad/Mac Catalyst 桌面窗口布局断点、工作区快捷键映射、壁纸处理和分享兜底。
+- `LocalGemmaTests.swift` 当前包含 36 个 `test...` 方法。
+- 业务核心覆盖 artifact、模型状态、runtime plan、模拟/真实占位 runtime、提示词、会话、导出、iPhone/iPad/Mac Catalyst 桌面窗口布局断点、工作区快捷键映射、工作区 command menu 映射、壁纸处理和分享兜底。
 
 统计测试数量：
 
@@ -371,7 +371,7 @@ xcodebuild -project LocalGemma.xcodeproj \
 - 修改 artifact 文件管理、SHA-256、模型部署状态。
 - 修改 `InferenceEngine` 会话、流式生成、导出。
 - 修改提示词模板行为。
-- 修改 iPhone 横屏 / iPad 大屏 / Mac Catalyst 桌面窗口布局、键盘快捷键、壁纸、分享兜底。
+- 修改 iPhone 横屏 / iPad 大屏 / Mac Catalyst 桌面窗口布局、键盘快捷键、工作区 command menu、壁纸、分享兜底。
 
 命令：
 
@@ -392,7 +392,7 @@ xcodebuild -project LocalGemma.xcodeproj \
 当前基线：
 
 - 期望结果：`TEST EXECUTE SUCCEEDED`。
-- 当前测试函数数：35。
+- 当前测试函数数：36。
 
 ### Full
 

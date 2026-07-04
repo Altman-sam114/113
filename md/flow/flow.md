@@ -11,6 +11,7 @@
    - `ModelCatalog(autoScanLocalArtifacts: true)`
    - `InferenceEngine()`
    - `DeviceOptimizer()`
+   - 并在 scene 层注册 `工作区` command menu。
 3. `ContentView` 通过 `EnvironmentObject` 读取共享状态。
 4. `ModelCatalog` 初始化默认模型列表，并扫描 `Application Support/LocalModels`。
 5. `LocalArtifactValidator` 根据 manifest、必需文件和 SHA-256 产出 artifact 状态。
@@ -57,6 +58,7 @@
 - iPhone 横屏、iPad 大画布、Mac Catalyst 或其他大屏窗口达到断点后使用左侧状态/导航栏和右侧工作区。
 - `WorkspaceLayoutMode` 负责按容器尺寸判断 portrait、landscapeCompact、landscapeRegular；case 名称保留历史兼容，但 v0.8 起含义是单栏、compact 双栏和 regular 大屏双栏。
 - `WorkspaceTab.shortcutKey` 定义工作区键盘导航：`Command+1` 推理、`Command+2` 模型、`Command+3` 提示词、`Command+4` 设置。
+- `LocalGemmaApp` 的 `工作区` command menu 复用同一组 `WorkspaceTab` 映射；`ContentView` 只通过 focused scene binding 暴露 `selectedTab`，菜单命令只切换 workspace，不触碰模型、artifact、runtime 或会话状态。
 - 会话栏支持 `Command+N` 新建会话、`Command+Shift+E` 导出当前会话；composer 支持 `Command+Return` 发送 prompt 或停止生成。
 
 ### Mac Catalyst 本地运行入口
@@ -212,7 +214,7 @@ Agent X 不能跳过 Agent C artifact 验收；失败时不能继续下一轮并
 - 分享导出不能依赖不存在的文件。
 - 大图壁纸必须压缩和限制尺寸。
 - iPhone 横屏、iPad 大屏与 Mac Catalyst 桌面窗口布局断点必须有测试覆盖。
-- 工作区快捷键映射必须有测试覆盖，避免 Mac/iPad 键盘导航退化。
+- 工作区快捷键和 command menu 映射必须有测试覆盖，避免 Mac/iPad 键盘导航退化。
 - 默认协作验证以 `main` push 后的 GitHub Actions 结果包为准。
 - Agent X 循环每轮仍以 Agent B 本地轻量检查、GitHub Actions artifact 和 Agent C 下载复判为准。
 

@@ -215,6 +215,17 @@ extension EnvironmentValues {
     }
 }
 
+private struct WorkspaceTabSelectionFocusedKey: FocusedValueKey {
+    typealias Value = Binding<WorkspaceTab>
+}
+
+extension FocusedValues {
+    var workspaceTabSelection: Binding<WorkspaceTab>? {
+        get { self[WorkspaceTabSelectionFocusedKey.self] }
+        set { self[WorkspaceTabSelectionFocusedKey.self] = newValue }
+    }
+}
+
 struct ContentView: View {
     @EnvironmentObject private var catalog: ModelCatalog
     @EnvironmentObject private var inference: InferenceEngine
@@ -252,6 +263,7 @@ struct ContentView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar(.hidden, for: .navigationBar)
         }
+        .focusedSceneValue(\.workspaceTabSelection, $selectedTab)
     }
 
     private static var initialTab: WorkspaceTab {
@@ -478,6 +490,8 @@ enum WorkspaceTab: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
+    static let commandMenuTitle = "工作区"
+
     var shortcutKey: Character {
         switch self {
         case .chat:
@@ -504,6 +518,20 @@ enum WorkspaceTab: String, CaseIterable, Identifiable {
         }
     }
 
+    var commandTitle: String {
+        title
+    }
+
+    static var commandItems: [WorkspaceCommandItem] {
+        allCases.map {
+            WorkspaceCommandItem(
+                tab: $0,
+                title: $0.commandTitle,
+                shortcutKey: $0.shortcutKey
+            )
+        }
+    }
+
     var icon: String {
         switch self {
         case .chat:
@@ -516,6 +544,14 @@ enum WorkspaceTab: String, CaseIterable, Identifiable {
             return "gearshape.fill"
         }
     }
+}
+
+struct WorkspaceCommandItem: Identifiable, Equatable {
+    let tab: WorkspaceTab
+    let title: String
+    let shortcutKey: Character
+
+    var id: WorkspaceTab { tab }
 }
 
 struct AppBackground: View {

@@ -16,7 +16,7 @@
 - 平台：SwiftUI iOS App，Swift 6.0，iOS deployment target 17.0，当前 app/test target 支持 iPhone、iPad 和 Mac Catalyst build-for-testing，并提供项目内 Mac Catalyst 本地 build/run 脚本入口；尚未创建原生 macOS target。
 - 当前默认模型：`Gemma 1.5B Local`
 - 当前推理：本地模拟 runtime，不下载模型权重，不执行真实模型推理。
-- 当前核心测试：`LocalGemmaTests.swift` 中 35 个 XCTest 方法。
+- 当前核心测试：`LocalGemmaTests.swift` 中 36 个 XCTest 方法。
 - 当前核心文档入口：`AGENTS.md`、`md/flow/flow.md`、`md/flow/flowchart.md`、`md/test/test.md`、`md/prompt/README.md`、`README.md`。
 - 当前协作验证：默认 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载未加密 CI 结果包验收；本地仓库当前已配置 `origin` remote，最终验收仍以最新 `origin/main` 对应的 GitHub Actions run 和结果包为准；文档已预留未来 `agentx:` 主控 Agent A -> Agent B -> Agent C 多轮循环的规则。
 
@@ -432,3 +432,47 @@
 
 - v1.1 push 后需等待最新 `ci-results.yml` run 完成，由 Agent C 下载对应未加密结果包，核对 manifest、`artifact-name.txt`、JUnit、iOS 日志、Mac Catalyst 日志、run script 日志、baseline notes 和 `.xcresult`。
 - 本轮只建立快捷键基线，没有新增 CommandMenu 或 responder-chain 层；后续如需要更完整 Mac 菜单，可另起小目标。
+
+### v1.2 / Mac iPad命令菜单发现层
+
+日期：2026-07-04
+
+核心变更：
+
+- `LocalGemmaApp` 在 `WindowGroup` scene 层新增 `工作区` command menu，提供推理、模型、提示词、设置四个工作区命令。
+- `ContentView` 通过 focused scene binding 暴露 `selectedTab`，command menu 只切换 workspace，不触碰模型、artifact、runtime 或会话状态。
+- `WorkspaceTab` 增加 `commandMenuTitle`、`commandTitle` 和 `commandItems` 元数据，command menu 与 v1.1 `Command+1...4` 快捷键复用同一 source of truth。
+- 新增 `testWorkspaceCommandMenuCoversWorkspaceTabs`，测试函数数从 35 个增加到 36 个。
+- 同步 README、测试规范、核心流程文档、Mermaid 流程图和入口规则中的 Mac/iPad command menu 发现层。
+- 本轮没有创建原生 macOS target，没有下载模型权重，没有接入真实模型推理。
+
+关键文件：
+
+- `LocalGemma/LocalGemmaApp.swift`
+- `LocalGemma/ContentView.swift`
+- `LocalGemmaTests/LocalGemmaTests.swift`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `AGENTS.md`
+- `md/prompt/v1（Mac体验审计）/v1.2（Mac iPad命令菜单发现层）.md`
+- `update_log.md`
+
+验证结果：
+
+- `git diff --check`：无输出，退出码 0。
+- `bash -n script/build_and_run.sh`：退出码 0。
+- `plutil -lint LocalGemma.xcodeproj/project.pbxproj`：输出 `LocalGemma.xcodeproj/project.pbxproj: OK`。
+- `ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'`：输出 `yaml ok`。
+- `grep -n "func test" LocalGemmaTests/LocalGemmaTests.swift`：确认当前 36 个 `test...` 方法。
+- `/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -sdk /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk -module-cache-path .build/SwiftSmokeModuleCache LocalGemma/AppState.swift Tools/LogicSmoke.swift -o .build/logic-smoke`：退出码 0。
+- `.build/logic-smoke`：输出 `Logic smoke passed`。
+- `/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -typecheck -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk -target arm64-apple-ios17.0-simulator -module-cache-path .build/ModuleCache LocalGemma/AppState.swift LocalGemma/ContentView.swift LocalGemma/LocalGemmaApp.swift`：退出码 0。
+- `/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -emit-module -emit-module-path .build/Typecheck/LocalGemma.swiftmodule -module-name LocalGemma -enable-testing -parse-as-library -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk -target arm64-apple-ios17.0-simulator -module-cache-path .build/ModuleCache LocalGemma/AppState.swift LocalGemma/ContentView.swift LocalGemma/LocalGemmaApp.swift`：退出码 0。
+- `/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -typecheck -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk -target arm64-apple-ios17.0-simulator -module-cache-path .build/ModuleCache -I .build/Typecheck -I /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/lib -F /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/Library/Frameworks LocalGemmaTests/LocalGemmaTests.swift`：退出码 0。
+
+遗留事项：
+
+- v1.2 push 后需等待最新 `ci-results.yml` run 完成，由 Agent C 下载对应未加密结果包，核对 manifest、`artifact-name.txt`、JUnit、iOS 日志、Mac Catalyst 日志、run script 日志、baseline notes 和 `.xcresult`。
+- 本轮只建立 workspace command menu 发现层，没有把会话导出、新建会话或 composer 操作提升到 scene command。
