@@ -739,6 +739,43 @@ struct SessionCommandRoutingPolicy {
     }
 }
 
+enum SessionBarActionAccessibilityMetadata {
+    static func label(for action: SessionCommandAction) -> String {
+        action.title
+    }
+
+    static func value(for action: SessionCommandAction) -> String {
+        switch action {
+        case .createSession:
+            return "可创建新的本地会话。快捷键 Command N。"
+        case .exportSession:
+            return "可导出当前本地会话。快捷键 Command Shift E。"
+        }
+    }
+
+    static func hint(for action: SessionCommandAction) -> String {
+        switch action {
+        case .createSession:
+            return "新建本地会话并将输入焦点移到 composer；不会发送 prompt。"
+        case .exportSession:
+            return "打开本地 Markdown 导出和文本分享兜底；不会把会话发送到云端服务。"
+        }
+    }
+
+    static func inputLabels(for action: SessionCommandAction) -> [String] {
+        switch action {
+        case .createSession:
+            return ["新建会话", "创建会话", "开始新会话"]
+        case .exportSession:
+            return ["导出当前会话", "导出会话", "分享会话"]
+        }
+    }
+
+    static func identifier(for action: SessionCommandAction) -> String {
+        "session-bar-action-\(action.rawValue)"
+    }
+}
+
 struct SessionCommandActions {
     let createSession: () -> Void
     let exportSession: () -> Void
@@ -1578,7 +1615,11 @@ struct SessionBar: View {
                 Spacer(minLength: 0)
 
                 Button(action: export) {
-                    Image(systemName: "square.and.arrow.up.fill")
+                    Label(
+                        SessionBarActionAccessibilityMetadata.label(for: .exportSession),
+                        systemImage: "square.and.arrow.up.fill"
+                    )
+                        .labelStyle(.iconOnly)
                         .font(.system(size: 13, weight: .black))
                         .frame(width: 34, height: 34)
                         .background(theme.chipSurface, in: Circle())
@@ -1586,17 +1627,49 @@ struct SessionBar: View {
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(theme.primaryText)
-                .accessibilityLabel("Export conversation")
+                .accessibilityLabel(
+                    SessionBarActionAccessibilityMetadata.label(for: .exportSession)
+                )
+                .accessibilityValue(
+                    SessionBarActionAccessibilityMetadata.value(for: .exportSession)
+                )
+                .accessibilityHint(
+                    SessionBarActionAccessibilityMetadata.hint(for: .exportSession)
+                )
+                .accessibilityInputLabels(
+                    SessionBarActionAccessibilityMetadata.inputLabels(for: .exportSession)
+                )
+                .accessibilityIdentifier(
+                    SessionBarActionAccessibilityMetadata.identifier(for: .exportSession)
+                )
 
                 Button(action: create) {
-                    Image(systemName: "plus.message.fill")
+                    Label(
+                        SessionBarActionAccessibilityMetadata.label(for: .createSession),
+                        systemImage: "plus.message.fill"
+                    )
+                        .labelStyle(.iconOnly)
                         .font(.system(size: 13, weight: .black))
                         .frame(width: 34, height: 34)
                         .background(theme.accent, in: Circle())
                         .foregroundStyle(theme.inverseText)
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("New conversation")
+                .accessibilityLabel(
+                    SessionBarActionAccessibilityMetadata.label(for: .createSession)
+                )
+                .accessibilityValue(
+                    SessionBarActionAccessibilityMetadata.value(for: .createSession)
+                )
+                .accessibilityHint(
+                    SessionBarActionAccessibilityMetadata.hint(for: .createSession)
+                )
+                .accessibilityInputLabels(
+                    SessionBarActionAccessibilityMetadata.inputLabels(for: .createSession)
+                )
+                .accessibilityIdentifier(
+                    SessionBarActionAccessibilityMetadata.identifier(for: .createSession)
+                )
             }
 
             sessionList

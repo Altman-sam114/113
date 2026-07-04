@@ -735,6 +735,62 @@ final class LocalGemmaTests: XCTestCase {
         XCTAssertEqual(performedActions, [.createSession, .exportSession])
     }
 
+    func testSessionBarActionsExposeAccessibilityMetadata() {
+        let createLabel = SessionBarActionAccessibilityMetadata.label(for: .createSession)
+        let exportLabel = SessionBarActionAccessibilityMetadata.label(for: .exportSession)
+
+        XCTAssertEqual(createLabel, SessionCommandAction.createSession.title)
+        XCTAssertEqual(exportLabel, SessionCommandAction.exportSession.title)
+        XCTAssertEqual(
+            SessionBarActionAccessibilityMetadata.identifier(for: .createSession),
+            "session-bar-action-createSession"
+        )
+        XCTAssertEqual(
+            SessionBarActionAccessibilityMetadata.identifier(for: .exportSession),
+            "session-bar-action-exportSession"
+        )
+
+        let createValue = SessionBarActionAccessibilityMetadata.value(for: .createSession)
+        let createHint = SessionBarActionAccessibilityMetadata.hint(for: .createSession)
+        XCTAssertTrue(createValue.contains("Command N"))
+        XCTAssertTrue(createValue.contains("本地会话"))
+        XCTAssertTrue(createHint.contains("输入焦点"))
+        XCTAssertTrue(createHint.contains("composer"))
+        XCTAssertTrue(createHint.contains("不会发送 prompt"))
+        XCTAssertTrue(
+            SessionCommandRoutingPolicy.requestsComposerFocus(after: .createSession)
+        )
+        XCTAssertTrue(
+            SessionBarActionAccessibilityMetadata.inputLabels(for: .createSession)
+                .contains("新建会话")
+        )
+
+        let exportValue = SessionBarActionAccessibilityMetadata.value(for: .exportSession)
+        let exportHint = SessionBarActionAccessibilityMetadata.hint(for: .exportSession)
+        XCTAssertTrue(exportValue.contains("Command Shift E"))
+        XCTAssertTrue(exportValue.contains("当前本地会话"))
+        XCTAssertTrue(exportHint.contains("本地 Markdown"))
+        XCTAssertTrue(exportHint.contains("文本分享兜底"))
+        XCTAssertTrue(exportHint.contains("不会把会话发送到云端服务"))
+        XCTAssertFalse(
+            SessionCommandRoutingPolicy.requestsComposerFocus(after: .exportSession)
+        )
+        XCTAssertTrue(
+            SessionBarActionAccessibilityMetadata.inputLabels(for: .exportSession)
+                .contains("导出当前会话")
+        )
+
+        XCTAssertTrue(
+            SessionCommandAction.allCases.allSatisfy {
+                !SessionBarActionAccessibilityMetadata.label(for: $0).isEmpty
+                    && !SessionBarActionAccessibilityMetadata.value(for: $0).isEmpty
+                    && !SessionBarActionAccessibilityMetadata.hint(for: $0).isEmpty
+                    && !SessionBarActionAccessibilityMetadata.inputLabels(for: $0).isEmpty
+                    && !SessionBarActionAccessibilityMetadata.identifier(for: $0).isEmpty
+            }
+        )
+    }
+
     func testSelectionAccessibilityMetadataDescribesWorkspaceAndSessions() {
         XCTAssertFalse(WorkspaceLayoutMode.portrait.usesDetailedSidebar)
         XCTAssertFalse(WorkspaceLayoutMode.landscapeCompact.usesDetailedSidebar)
