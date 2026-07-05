@@ -1110,6 +1110,153 @@ final class LocalGemmaTests: XCTestCase {
         )
     }
 
+    func testSessionChipActionsExposeAccessibilityMetadata() {
+        let defaultSession = ChatSession(
+            id: UUID(uuidString: "11111111-2222-3333-4444-555555555555")!,
+            title: "新对话",
+            messages: [
+                ChatMessage(role: .system, text: "模拟运行", tokens: 2),
+                ChatMessage(role: .assistant, text: "准备就绪", tokens: 4)
+            ]
+        )
+        let namedSession = ChatSession(
+            id: UUID(uuidString: "ABCDEF12-2222-3333-4444-555555555555")!,
+            title: "部署方案",
+            messages: defaultSession.messages + [
+                ChatMessage(role: .user, text: "解释部署", tokens: 6)
+            ]
+        )
+
+        XCTAssertEqual(SessionChipActionAccessibilityMetadata.Action.allCases, [.select, .delete])
+        XCTAssertFalse(
+            SessionChipActionAccessibilityMetadata.canDelete(
+                session: defaultSession,
+                isActive: true
+            )
+        )
+        XCTAssertTrue(
+            SessionChipActionAccessibilityMetadata.canDelete(
+                session: defaultSession,
+                isActive: false
+            )
+        )
+        XCTAssertTrue(
+            SessionChipActionAccessibilityMetadata.canDelete(
+                session: namedSession,
+                isActive: true
+            )
+        )
+
+        XCTAssertEqual(
+            SessionChipActionAccessibilityMetadata.label(for: .select, session: namedSession),
+            "选择会话 部署方案"
+        )
+        XCTAssertEqual(
+            SessionChipActionAccessibilityMetadata.label(for: .delete, session: namedSession),
+            "删除会话 部署方案"
+        )
+
+        let selectValue = SessionChipActionAccessibilityMetadata.value(
+            for: .select,
+            session: namedSession,
+            isActive: true,
+            canDelete: true
+        )
+        XCTAssertTrue(selectValue.contains("当前本地会话"))
+        XCTAssertTrue(selectValue.contains("3 条消息"))
+        XCTAssertTrue(
+            SessionChipActionAccessibilityMetadata.value(
+                for: .select,
+                session: namedSession,
+                isActive: false,
+                canDelete: true
+            ).contains("未选中本地会话")
+        )
+
+        let selectHint = SessionChipActionAccessibilityMetadata.hint(
+            for: .select,
+            session: namedSession,
+            isActive: false,
+            canDelete: true
+        )
+        XCTAssertTrue(selectHint.contains("切换到这个本地会话"))
+        XCTAssertTrue(selectHint.contains("composer"))
+        XCTAssertTrue(selectHint.contains("不会发送 prompt"))
+        XCTAssertTrue(selectHint.contains("不会下载模型权重"))
+        XCTAssertTrue(selectHint.contains("不会启动真实 runtime"))
+        XCTAssertTrue(selectHint.contains("不会发送到云端服务"))
+        XCTAssertTrue(selectHint.contains("verified 门禁"))
+
+        let disabledDeleteValue = SessionChipActionAccessibilityMetadata.value(
+            for: .delete,
+            session: defaultSession,
+            isActive: true,
+            canDelete: false
+        )
+        XCTAssertTrue(disabledDeleteValue.contains("不可删除"))
+        XCTAssertTrue(disabledDeleteValue.contains("默认空白当前会话"))
+
+        let disabledDeleteHint = SessionChipActionAccessibilityMetadata.hint(
+            for: .delete,
+            session: defaultSession,
+            isActive: true,
+            canDelete: false
+        )
+        XCTAssertTrue(disabledDeleteHint.contains("默认空白当前会话不可删除"))
+        XCTAssertTrue(disabledDeleteHint.contains("不删除模型 artifact 或权重"))
+        XCTAssertTrue(disabledDeleteHint.contains("不发送到云端服务"))
+        XCTAssertTrue(disabledDeleteHint.contains("verified 门禁"))
+
+        let enabledDeleteValue = SessionChipActionAccessibilityMetadata.value(
+            for: .delete,
+            session: namedSession,
+            isActive: true,
+            canDelete: true
+        )
+        XCTAssertTrue(enabledDeleteValue.contains("可删除当前本地会话"))
+        XCTAssertTrue(enabledDeleteValue.contains("3 条消息"))
+        XCTAssertTrue(
+            SessionChipActionAccessibilityMetadata.value(
+                for: .delete,
+                session: namedSession,
+                isActive: false,
+                canDelete: true
+            ).contains("可删除未选中本地会话")
+        )
+
+        let enabledDeleteHint = SessionChipActionAccessibilityMetadata.hint(
+            for: .delete,
+            session: namedSession,
+            isActive: true,
+            canDelete: true
+        )
+        XCTAssertTrue(enabledDeleteHint.contains("只删除会话记录"))
+        XCTAssertTrue(enabledDeleteHint.contains("不删除模型 artifact 或权重"))
+        XCTAssertTrue(enabledDeleteHint.contains("不改变 artifact verified 门禁"))
+
+        XCTAssertEqual(
+            SessionChipActionAccessibilityMetadata.inputLabels(for: .select, session: namedSession),
+            ["选择部署方案", "部署方案会话", "切换会话 abcdef12"]
+        )
+        XCTAssertEqual(
+            SessionChipActionAccessibilityMetadata.inputLabels(for: .delete, session: namedSession),
+            ["删除部署方案", "移除部署方案会话", "删除会话 abcdef12"]
+        )
+
+        let selectIdentifier = SessionChipActionAccessibilityMetadata.identifier(
+            for: .select,
+            session: namedSession
+        )
+        let deleteIdentifier = SessionChipActionAccessibilityMetadata.identifier(
+            for: .delete,
+            session: namedSession
+        )
+        XCTAssertEqual(selectIdentifier, "session-chip-select-abcdef12")
+        XCTAssertEqual(deleteIdentifier, "session-chip-delete-abcdef12")
+        XCTAssertFalse(selectIdentifier.contains(namedSession.title))
+        XCTAssertFalse(deleteIdentifier.contains(namedSession.title))
+    }
+
     func testSelectionAccessibilityMetadataDescribesWorkspaceAndSessions() {
         XCTAssertFalse(WorkspaceLayoutMode.portrait.usesDetailedSidebar)
         XCTAssertFalse(WorkspaceLayoutMode.landscapeCompact.usesDetailedSidebar)

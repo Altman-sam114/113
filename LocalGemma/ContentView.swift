@@ -1091,6 +1091,87 @@ enum SelectionAccessibilityMetadata {
     }
 }
 
+enum SessionChipActionAccessibilityMetadata {
+    enum Action: String, CaseIterable {
+        case select
+        case delete
+    }
+
+    static func canDelete(session: ChatSession, isActive: Bool) -> Bool {
+        isDefaultEmptyActiveSession(session: session, isActive: isActive) == false
+    }
+
+    static func label(for action: Action, session: ChatSession) -> String {
+        switch action {
+        case .select:
+            return "选择会话 \(session.title)"
+        case .delete:
+            return "删除会话 \(session.title)"
+        }
+    }
+
+    static func value(
+        for action: Action,
+        session: ChatSession,
+        isActive: Bool,
+        canDelete: Bool
+    ) -> String {
+        switch action {
+        case .select:
+            let state = isActive ? "当前本地会话" : "未选中本地会话"
+            return "\(state)，包含 \(session.messages.count) 条消息。"
+        case .delete:
+            if canDelete {
+                let state = isActive ? "可删除当前本地会话" : "可删除未选中本地会话"
+                return "\(state)，包含 \(session.messages.count) 条消息。"
+            }
+            return "不可删除，默认空白当前会话需保留。"
+        }
+    }
+
+    static func hint(
+        for action: Action,
+        session: ChatSession,
+        isActive: Bool,
+        canDelete: Bool
+    ) -> String {
+        switch action {
+        case .select:
+            let actionSummary = isActive
+                ? "保持当前本地会话并请求 composer 输入焦点"
+                : "切换到这个本地会话并请求 composer 输入焦点"
+            return "\(actionSummary)；不会发送 prompt，不会下载模型权重，不会启动真实 runtime，不会发送到云端服务，也不会绕过 artifact verified 门禁。"
+        case .delete:
+            if canDelete {
+                return "执行现有本地会话删除流程；只删除会话记录，不删除模型 artifact 或权重，不发送到云端服务，也不改变 artifact verified 门禁。"
+            }
+            return "默认空白当前会话不可删除；不会删除模型 artifact 或权重，不发送到云端服务，也不改变 artifact verified 门禁。"
+        }
+    }
+
+    static func inputLabels(for action: Action, session: ChatSession) -> [String] {
+        let prefix = identifierPrefix(for: session)
+        switch action {
+        case .select:
+            return ["选择\(session.title)", "\(session.title)会话", "切换会话 \(prefix)"]
+        case .delete:
+            return ["删除\(session.title)", "移除\(session.title)会话", "删除会话 \(prefix)"]
+        }
+    }
+
+    static func identifier(for action: Action, session: ChatSession) -> String {
+        "session-chip-\(action.rawValue)-\(identifierPrefix(for: session))"
+    }
+
+    private static func isDefaultEmptyActiveSession(session: ChatSession, isActive: Bool) -> Bool {
+        isActive && session.messages.count <= 2 && session.title == "新对话"
+    }
+
+    private static func identifierPrefix(for session: ChatSession) -> String {
+        String(session.id.uuidString.prefix(8)).lowercased()
+    }
+}
+
 enum ChatMessageAccessibilityMetadata {
     static let hint = "只展示本地会话内容；不会下载模型权重，不会启动真实 runtime，不会发送到云端服务，也不会绕过 artifact verified 门禁。"
 
@@ -2295,25 +2376,80 @@ struct SessionChip: View {
                 .foregroundStyle(isActive ? theme.inverseText : theme.primaryText)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(SelectionAccessibilityMetadata.sessionSelectLabel(title: session.title))
-            .accessibilityValue(SelectionAccessibilityMetadata.sessionValue(isActive: isActive))
+            .accessibilityLabel(
+                SessionChipActionAccessibilityMetadata.label(for: .select, session: session)
+            )
+            .accessibilityValue(
+                SessionChipActionAccessibilityMetadata.value(
+                    for: .select,
+                    session: session,
+                    isActive: isActive,
+                    canDelete: canDelete
+                )
+            )
+            .accessibilityHint(
+                SessionChipActionAccessibilityMetadata.hint(
+                    for: .select,
+                    session: session,
+                    isActive: isActive,
+                    canDelete: canDelete
+                )
+            )
+            .accessibilityInputLabels(
+                SessionChipActionAccessibilityMetadata.inputLabels(for: .select, session: session)
+            )
+            .accessibilityIdentifier(
+                SessionChipActionAccessibilityMetadata.identifier(for: .select, session: session)
+            )
             .accessibilityAddTraits(isActive ? .isSelected : [])
 
             Button(action: delete) {
-                Image(systemName: "trash.fill")
+                Label(
+                    SessionChipActionAccessibilityMetadata.label(for: .delete, session: session),
+                    systemImage: "trash.fill"
+                )
+                    .labelStyle(.iconOnly)
                     .font(.system(size: 10, weight: .bold))
                     .foregroundStyle(isActive ? theme.inverseText.opacity(0.82) : theme.warning)
             }
             .buttonStyle(.plain)
-            .disabled(isActive && session.messages.count <= 2 && session.title == "新对话")
-            .opacity(isActive && session.messages.count <= 2 && session.title == "新对话" ? 0.32 : 1)
-            .accessibilityLabel(SelectionAccessibilityMetadata.sessionDeleteLabel(title: session.title))
+            .disabled(canDelete == false)
+            .opacity(canDelete ? 1 : 0.32)
+            .accessibilityLabel(
+                SessionChipActionAccessibilityMetadata.label(for: .delete, session: session)
+            )
+            .accessibilityValue(
+                SessionChipActionAccessibilityMetadata.value(
+                    for: .delete,
+                    session: session,
+                    isActive: isActive,
+                    canDelete: canDelete
+                )
+            )
+            .accessibilityHint(
+                SessionChipActionAccessibilityMetadata.hint(
+                    for: .delete,
+                    session: session,
+                    isActive: isActive,
+                    canDelete: canDelete
+                )
+            )
+            .accessibilityInputLabels(
+                SessionChipActionAccessibilityMetadata.inputLabels(for: .delete, session: session)
+            )
+            .accessibilityIdentifier(
+                SessionChipActionAccessibilityMetadata.identifier(for: .delete, session: session)
+            )
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
         .frame(maxWidth: layout == .vertical ? .infinity : nil, alignment: .leading)
         .background(isActive ? theme.accent : theme.chipSurface, in: Capsule())
         .overlay(Capsule().stroke(isActive ? theme.accent.opacity(0.7) : theme.border, lineWidth: 1))
+    }
+
+    private var canDelete: Bool {
+        SessionChipActionAccessibilityMetadata.canDelete(session: session, isActive: isActive)
     }
 }
 
