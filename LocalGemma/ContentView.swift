@@ -840,17 +840,17 @@ enum WallpaperPreferenceAccessibilityMetadata {
         switch action {
         case .choosePhoto:
             if isImporting {
-                return "等待本地压缩完成后可再次选择；不会下载模型权重、触发真实 runtime 或发送到云端服务。"
+                return "等待本地压缩完成后可再次选择；不会下载模型权重，不会触发真实 runtime，也不会发送到云端服务。"
             }
-            return "打开系统相册选择图片，图片会在本地压缩后写入 App 背景数据；不会下载模型权重、触发真实 runtime 或发送到云端服务。"
+            return "打开系统相册选择图片，图片会在本地压缩后写入 App 背景数据；不会下载模型权重，不会触发真实 runtime，也不会发送到云端服务。"
         case .clearCustomWallpaper:
             if isImporting {
-                return "等待本地压缩完成后才能恢复系统背景；不会下载模型权重、触发真实 runtime 或发送到云端服务。"
+                return "等待本地压缩完成后才能恢复系统背景；不会下载模型权重，不会触发真实 runtime，也不会发送到云端服务。"
             }
             if hasCustomWallpaper {
-                return "移除自定义壁纸并恢复系统背景；不会删除相册原图，不会下载模型权重、触发真实 runtime 或发送到云端服务。"
+                return "移除自定义壁纸并恢复系统背景；不会删除相册原图，不会下载模型权重，不会触发真实 runtime，也不会发送到云端服务。"
             }
-            return "当前没有自定义壁纸，系统背景已经启用；不会下载模型权重、触发真实 runtime 或发送到云端服务。"
+            return "当前没有自定义壁纸，系统背景已经启用；不会下载模型权重，不会触发真实 runtime，也不会发送到云端服务。"
         }
     }
 
