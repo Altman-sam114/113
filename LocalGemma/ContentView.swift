@@ -1156,6 +1156,59 @@ enum PromptCategoryAccessibilityMetadata {
     }
 }
 
+enum PromptTemplateActionAccessibilityMetadata {
+    enum Action: String, CaseIterable, Identifiable {
+        case apply
+        case send
+
+        var id: String { rawValue }
+    }
+
+    static func label(for action: Action, template: PresetPromptTemplate) -> String {
+        switch action {
+        case .apply:
+            return "填入提示词模板 \(template.title)"
+        case .send:
+            return "发送提示词模板 \(template.title)"
+        }
+    }
+
+    static func value(for action: Action, isGenerating: Bool) -> String {
+        if isGenerating {
+            return "生成中，暂不可用"
+        }
+
+        switch action {
+        case .apply:
+            return "可填入输入框"
+        case .send:
+            return "可直接发送"
+        }
+    }
+
+    static func hint(for action: Action, template: PresetPromptTemplate) -> String {
+        switch action {
+        case .apply:
+            return "将\(template.title)模板写入 composer，切回推理页并聚焦输入框；不会发送 prompt，不会下载模型权重，不会启动真实 runtime，也不会发送到云端服务。"
+        case .send:
+            return "将\(template.title)模板作为当前输入发送到本地模拟 runtime，切回推理页并聚焦输入框；不会下载模型权重，不会启动真实 runtime，不会发送到云端服务，也不会绕过 verified 门禁。"
+        }
+    }
+
+    static func inputLabels(for action: Action, template: PresetPromptTemplate) -> [String] {
+        switch action {
+        case .apply:
+            return ["填入\(template.title)", "\(template.title)填入", "使用\(template.title)模板"]
+        case .send:
+            return ["发送\(template.title)", "\(template.title)发送", "直接发送\(template.title)模板"]
+        }
+    }
+
+    static func identifier(for action: Action, template: PresetPromptTemplate) -> String {
+        "prompt-template-\(template.id)-\(action.rawValue)"
+    }
+}
+
 enum ModelDeploymentControlAccessibilityMetadata {
     enum ArtifactAction: String, CaseIterable, Identifiable {
         case download
@@ -2703,17 +2756,46 @@ struct PromptTemplateCard: View {
                         }
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Apply \(template.title) template")
+                .accessibilityLabel(
+                    PromptTemplateActionAccessibilityMetadata.label(for: .apply, template: template)
+                )
+                .accessibilityValue(
+                    PromptTemplateActionAccessibilityMetadata.value(for: .apply, isGenerating: isGenerating)
+                )
+                .accessibilityHint(
+                    PromptTemplateActionAccessibilityMetadata.hint(for: .apply, template: template)
+                )
+                .accessibilityInputLabels(
+                    PromptTemplateActionAccessibilityMetadata.inputLabels(for: .apply, template: template)
+                )
+                .accessibilityIdentifier(
+                    PromptTemplateActionAccessibilityMetadata.identifier(for: .apply, template: template)
+                )
 
                 Button(action: send) {
-                    Image(systemName: "paperplane.fill")
+                    Label("发送", systemImage: "paperplane.fill")
+                        .labelStyle(.iconOnly)
                         .font(.system(size: 12, weight: .black))
                         .frame(width: 36, height: 34)
                         .background(template.category.accentColor, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                         .foregroundStyle(theme.inverseText)
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Send \(template.title) template")
+                .accessibilityLabel(
+                    PromptTemplateActionAccessibilityMetadata.label(for: .send, template: template)
+                )
+                .accessibilityValue(
+                    PromptTemplateActionAccessibilityMetadata.value(for: .send, isGenerating: isGenerating)
+                )
+                .accessibilityHint(
+                    PromptTemplateActionAccessibilityMetadata.hint(for: .send, template: template)
+                )
+                .accessibilityInputLabels(
+                    PromptTemplateActionAccessibilityMetadata.inputLabels(for: .send, template: template)
+                )
+                .accessibilityIdentifier(
+                    PromptTemplateActionAccessibilityMetadata.identifier(for: .send, template: template)
+                )
             }
         }
         .foregroundStyle(theme.primaryText)

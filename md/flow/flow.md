@@ -1,6 +1,6 @@
 # 项目核心流程文档
 
-一句话总览：本项目是一个 SwiftUI iOS 原型，通过本地模拟 runtime 和严格 artifact 校验流程，验证 iPhone、iPad 与 Mac Catalyst build/run 基线下端侧部署 Gemma 1.5B 的 UI、状态管理、文件导入、会话导出、导出弹层分享/复制辅助语义、顶部模型胶囊整体辅助语义、模型详情右栏辅助语义、工作区导航辅助语义、头部主题与模型库入口辅助语义、运行策略开关辅助语义、芯片准备度辅助语义、壁纸控件辅助语义、大屏布局和 Apple Silicon 运行计划；协作流程默认采用 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载结果包验收。
+一句话总览：本项目是一个 SwiftUI iOS 原型，通过本地模拟 runtime 和严格 artifact 校验流程，验证 iPhone、iPad 与 Mac Catalyst build/run 基线下端侧部署 Gemma 1.5B 的 UI、状态管理、文件导入、会话导出、导出弹层分享/复制辅助语义、顶部模型胶囊整体辅助语义、模型详情右栏辅助语义、工作区导航辅助语义、头部主题与模型库入口辅助语义、运行策略开关辅助语义、芯片准备度辅助语义、提示词模板动作辅助语义、壁纸控件辅助语义、大屏布局和 Apple Silicon 运行计划；协作流程默认采用 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载结果包验收。
 
 本文只写当前真实链路，不写历史流水账。
 
@@ -75,6 +75,7 @@
 - `ChipReadinessAccessibilityMetadata` 为设置页和优化 dashboard 的芯片准备度卡片与圆环生成 label/value/hint/input labels/identifier；卡片摘要复用 `DeviceOptimizer.isOfflinePrivacyGuardEnabled`，随 `Offline privacy guard` 开关显示离线隐私保护开启或关闭，并说明本地芯片准备度、不下载模型权重、不启动真实 runtime 和不发送到云端服务边界。
 - `SelectionAccessibilityMetadata` 为 workspace 和会话选择生成 label/value，当前选中项通过 `.isSelected` trait 暴露给辅助技术，不改变业务状态。
 - `PromptCategoryAccessibilityMetadata` 为提示词分类筛选 chip 生成 label/value/hint/input labels/identifier，当前筛选项通过 `.isSelected` trait 暴露给辅助技术，不改变模板筛选业务结果。
+- `PromptTemplateActionAccessibilityMetadata` 为提示词模板卡片的“填入”和“发送”动作生成 label/value/hint/input labels/identifier；填入动作只写入 composer、切回推理页并聚焦输入框，不发送 prompt；发送动作走本地模拟 runtime，不下载模型权重、不启动真实 runtime、不发送到云端服务，也不绕过 verified 门禁。
 - `ComposerFocusRequest`、`ComposerFocusPolicy` 和 `ComposerInputMetadata` 只管理 view 层输入焦点与辅助输入文案；切回推理页、新建/切换会话、提示词模板填入或发送后会请求 composer 聚焦，不写入 `InferenceEngine` 业务状态。
 - `会话` command menu 支持 `Command+N` 新建会话、`Command+Shift+E` 导出当前会话；会话栏保留可见按钮入口；composer 支持 `Command+Return` 发送 prompt 或停止生成，普通 Return 继续保留给 vertical input。
 
@@ -200,6 +201,7 @@ Agent X 不能跳过 Agent C artifact 验收；失败时不能继续下一轮并
 - `ExportSessionActionAccessibilityMetadata`：导出弹层分享 Markdown、文本兜底和复制全文动作的辅助技术文案、Voice Control 输入标签和稳定 identifier。
 - `WallpaperPreferenceAccessibilityMetadata`：设置页选择相册壁纸和恢复系统背景控件的辅助技术文案、Voice Control 输入标签和稳定 identifier。
 - `PromptCategoryAccessibilityMetadata`：提示词分类筛选的辅助技术文案、Voice Control 输入标签和稳定 identifier。
+- `PromptTemplateActionAccessibilityMetadata`：提示词模板填入和发送动作的辅助技术文案、Voice Control 输入标签和稳定 identifier。
 - `WallpaperImageProcessor`：壁纸数据压缩和尺寸控制。
 - `script/build_and_run.sh`：项目内 Mac Catalyst 本地 build/run 入口。
 - `.github/workflows/ci-results.yml`：云端重验证和 Agent C 结果包生成入口。
@@ -222,7 +224,7 @@ Agent X 不能跳过 Agent C artifact 验收；失败时不能继续下一轮并
 
 - 推理页：顶部模型胶囊汇总当前模型、artifact、SIM/REAL、后端、速度、内存和准备度并暴露整体辅助语义；会话列表、消息流、输入框、发送/停止、导出；Mac/iPad 可通过 `会话` command menu 或会话栏可见按钮新建或导出当前会话，会话栏操作和导出弹层分享/复制动作向辅助技术暴露稳定语义。
 - 模型页：选择模型、启动/关闭部署、模拟下载、导入文件、扫描本地、卸载；足够宽时内部双栏展示部署控制和模型详情，窄屏按顺序展示同一详情段；模型选择器、部署电源、模型文件操作和模型详情摘要向辅助技术暴露稳定语义，并保留切换不下载权重、模拟下载、本地详情摘要和 verified 门禁边界。
-- 提示词页：按分类筛选模板、填入输入框、直接发送；分类筛选 chip 暴露稳定辅助语义和 Voice Control 输入标签。
+- 提示词页：按分类筛选模板、填入输入框、直接发送；分类筛选 chip 和模板填入/发送动作暴露稳定辅助语义和 Voice Control 输入标签，填入不发送 prompt，发送走本地模拟 runtime 且不发送到云端服务。
 - 设置页：主题切换、相册壁纸选择/恢复控件、Apple Silicon 优化开关；芯片准备度卡片随离线隐私保护开关动态显示开启/关闭并暴露中文辅助语义，运行策略开关向辅助技术暴露开启/关闭状态、本地策略边界和 Voice Control 输入标签。
 
 ## 层关系
@@ -248,7 +250,7 @@ Agent X 不能跳过 Agent C artifact 验收；失败时不能继续下一轮并
 - 大图壁纸必须压缩和限制尺寸。
 - iPhone 横屏、iPad 大屏与 Mac Catalyst 桌面窗口布局断点必须有测试覆盖。
 - 模型页内部宽屏双栏和窄屏单栏回退必须有测试覆盖。
-- 工作区快捷键、工作区/会话 command menu、工作区导航辅助语义、顶部模型胶囊整体辅助语义、模型详情右栏辅助语义、头部主题与模型库入口辅助语义、会话栏操作辅助语义、导出弹层分享/复制辅助语义、壁纸控件辅助语义、会话侧栏宽度、regular 侧栏说明、选择语义、composer 输入焦点/辅助语义、模型选择器与部署控件辅助语义、运行策略开关辅助语义、芯片准备度辅助语义和提示词分类筛选辅助语义必须有测试覆盖，避免 Mac/iPad 导航退化。
+- 工作区快捷键、工作区/会话 command menu、工作区导航辅助语义、顶部模型胶囊整体辅助语义、模型详情右栏辅助语义、头部主题与模型库入口辅助语义、会话栏操作辅助语义、导出弹层分享/复制辅助语义、壁纸控件辅助语义、会话侧栏宽度、regular 侧栏说明、选择语义、composer 输入焦点/辅助语义、模型选择器与部署控件辅助语义、运行策略开关辅助语义、芯片准备度辅助语义、提示词分类筛选辅助语义和提示词模板动作辅助语义必须有测试覆盖，避免 Mac/iPad 导航退化。
 - 默认协作验证以 `main` push 后的 GitHub Actions 结果包为准。
 - Agent X 循环每轮仍以 Agent B 本地轻量检查、GitHub Actions artifact 和 Agent C 下载复判为准。
 

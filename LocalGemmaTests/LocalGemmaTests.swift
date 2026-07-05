@@ -665,6 +665,72 @@ final class LocalGemmaTests: XCTestCase {
         )
     }
 
+    func testPromptTemplateActionsExposeAccessibilityMetadata() {
+        let templates = PromptTemplateLibrary.defaultTemplates
+
+        XCTAssertEqual(PromptTemplateActionAccessibilityMetadata.Action.allCases, [.apply, .send])
+
+        var identifiers = Set<String>()
+        for template in templates {
+            let applyLabel = PromptTemplateActionAccessibilityMetadata.label(for: .apply, template: template)
+            let sendLabel = PromptTemplateActionAccessibilityMetadata.label(for: .send, template: template)
+            XCTAssertEqual(applyLabel, "填入提示词模板 \(template.title)")
+            XCTAssertEqual(sendLabel, "发送提示词模板 \(template.title)")
+
+            XCTAssertEqual(
+                PromptTemplateActionAccessibilityMetadata.value(for: .apply, isGenerating: false),
+                "可填入输入框"
+            )
+            XCTAssertEqual(
+                PromptTemplateActionAccessibilityMetadata.value(for: .send, isGenerating: false),
+                "可直接发送"
+            )
+            for action in PromptTemplateActionAccessibilityMetadata.Action.allCases {
+                XCTAssertEqual(
+                    PromptTemplateActionAccessibilityMetadata.value(for: action, isGenerating: true),
+                    "生成中，暂不可用"
+                )
+            }
+
+            let applyHint = PromptTemplateActionAccessibilityMetadata.hint(for: .apply, template: template)
+            XCTAssertTrue(applyHint.contains("composer"))
+            XCTAssertTrue(applyHint.contains("聚焦输入框"))
+            XCTAssertTrue(applyHint.contains("不会发送 prompt"))
+            XCTAssertTrue(applyHint.contains("不会下载模型权重"))
+            XCTAssertTrue(applyHint.contains("不会启动真实 runtime"))
+            XCTAssertTrue(applyHint.contains("不会发送到云端服务"))
+
+            let sendHint = PromptTemplateActionAccessibilityMetadata.hint(for: .send, template: template)
+            XCTAssertTrue(sendHint.contains("本地模拟 runtime"))
+            XCTAssertTrue(sendHint.contains("聚焦输入框"))
+            XCTAssertTrue(sendHint.contains("不会下载模型权重"))
+            XCTAssertTrue(sendHint.contains("不会启动真实 runtime"))
+            XCTAssertTrue(sendHint.contains("不会发送到云端服务"))
+            XCTAssertTrue(sendHint.contains("verified 门禁"))
+
+            XCTAssertEqual(
+                PromptTemplateActionAccessibilityMetadata.inputLabels(for: .apply, template: template),
+                ["填入\(template.title)", "\(template.title)填入", "使用\(template.title)模板"]
+            )
+            XCTAssertEqual(
+                PromptTemplateActionAccessibilityMetadata.inputLabels(for: .send, template: template),
+                ["发送\(template.title)", "\(template.title)发送", "直接发送\(template.title)模板"]
+            )
+
+            for action in PromptTemplateActionAccessibilityMetadata.Action.allCases {
+                let identifier = PromptTemplateActionAccessibilityMetadata.identifier(
+                    for: action,
+                    template: template
+                )
+                XCTAssertTrue(identifier.contains(template.id))
+                XCTAssertTrue(identifier.hasSuffix(action.rawValue))
+                XCTAssertTrue(identifiers.insert(identifier).inserted)
+            }
+        }
+
+        XCTAssertEqual(identifiers.count, templates.count * 2)
+    }
+
     func testInferenceIgnoresEmptyPrompt() {
         let engine = InferenceEngine()
         let initialCount = engine.messages.count
