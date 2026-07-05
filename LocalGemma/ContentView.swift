@@ -943,7 +943,7 @@ enum WorkspaceNavigationAccessibilityMetadata {
     }
 
     static func hint(for tab: WorkspaceTab) -> String {
-        "切换到\(tab.title)工作区：\(tab.sidebarSubtitle)。快捷键 Command \(tab.shortcutKey)。只切换本地工作区，不下载模型权重，不启动真实 runtime。"
+        "切换到\(tab.title)工作区：\(tab.sidebarSubtitle)。快捷键 Command \(tab.shortcutKey)。只切换本地工作区，不会下载模型权重，不启动真实 runtime。"
     }
 
     static func inputLabels(for tab: WorkspaceTab) -> [String] {
