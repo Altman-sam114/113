@@ -1320,6 +1320,110 @@ final class LocalGemmaTests: XCTestCase {
         XCTAssertTrue(verifiedRealValue.contains("需 artifact verified 后才可进入真实运行计划"))
     }
 
+    func testModelDetailColumnExposesAccessibilityMetadata() {
+        let model = ModelCatalog.defaultModels[0]
+        let missingValidation = LocalArtifactValidator.validate(
+            manifest: model.artifactManifest,
+            presentFiles: []
+        )
+        let missingReport = LocalRuntimePlanner.preparationReport(
+            for: model,
+            validation: missingValidation
+        )
+
+        XCTAssertEqual(
+            ModelDetailAccessibilityMetadata.label(model: model),
+            "模型详情 Gemma 1.5B Local"
+        )
+        XCTAssertEqual(ModelDetailAccessibilityMetadata.identifier, "model-detail-summary")
+        XCTAssertEqual(
+            ModelDetailAccessibilityMetadata.inputLabels(model: model),
+            ["模型详情", "查看模型详情", "Gemma 1.5B Local 详情"]
+        )
+
+        let hint = ModelDetailAccessibilityMetadata.hint
+        XCTAssertTrue(hint.contains("本地模型详情"))
+        XCTAssertTrue(hint.contains("不会下载模型权重"))
+        XCTAssertTrue(hint.contains("不会启动真实 runtime"))
+        XCTAssertTrue(hint.contains("不会发送到云端服务"))
+        XCTAssertTrue(hint.contains("verified 门禁"))
+
+        let missingValue = ModelDetailAccessibilityMetadata.value(
+            model: model,
+            validation: missingValidation,
+            report: missingReport
+        )
+        XCTAssertTrue(missingValue.contains("Gemma 1.5B Local"))
+        XCTAssertTrue(missingValue.contains(model.family))
+        XCTAssertTrue(missingValue.contains(model.parameterCount))
+        XCTAssertTrue(missingValue.contains(model.quantization))
+        XCTAssertTrue(missingValue.contains("\(model.contextLength) tokens"))
+        XCTAssertTrue(missingValue.contains(model.artifactManifest.fileFormat))
+        XCTAssertTrue(missingValue.contains(model.sizeOnDisk))
+        XCTAssertTrue(missingValue.contains("artifact missing"))
+        XCTAssertTrue(missingValue.contains("缺少"))
+        XCTAssertTrue(missingValue.contains("预计速度 36.0 tok/s"))
+        XCTAssertTrue(missingValue.contains(model.memoryFootprint))
+        XCTAssertTrue(missingValue.contains("主后端 Core ML + ANE"))
+        XCTAssertTrue(missingValue.contains("回退后端 Metal fallback"))
+        XCTAssertTrue(missingValue.contains("KV cache \(model.deploymentProfile.kvCachePolicy)"))
+        XCTAssertTrue(missingValue.contains("真实 runtime 计划不可用"))
+        XCTAssertTrue(missingValue.contains("verified 门禁"))
+        XCTAssertTrue(missingValue.contains("阻塞项 缺少本地 artifact"))
+        XCTAssertTrue(missingValue.contains("下一步"))
+        XCTAssertTrue(missingValue.contains(model.artifactManifest.storageDirectory))
+
+        let stagedValidation = LocalArtifactValidator.validate(
+            manifest: model.artifactManifest,
+            presentFiles: Set(model.artifactManifest.requiredFiles)
+        )
+        let stagedReport = LocalRuntimePlanner.preparationReport(
+            for: model,
+            validation: stagedValidation
+        )
+        let stagedValue = ModelDetailAccessibilityMetadata.value(
+            model: model,
+            validation: stagedValidation,
+            report: stagedReport
+        )
+        XCTAssertTrue(stagedValue.contains("artifact staged"))
+        XCTAssertTrue(stagedValue.contains("等待登记官方 SHA-256"))
+        XCTAssertTrue(stagedValue.contains("manifest 还没有登记"))
+        XCTAssertTrue(stagedValue.contains("真实 runtime 计划不可用"))
+
+        let verifiedManifest = ModelArtifactManifest(
+            modelFileName: "verified-gemma.mlmodelc",
+            tokenizerFileName: "verified-tokenizer.model",
+            fileFormat: "Core ML compiled package",
+            storageDirectory: "Application Support/LocalModels",
+            expectedSHA256: String(repeating: "c", count: 64),
+            allowsNetworkDownload: false,
+            importInstruction: "手动导入测试模型。"
+        )
+        var verifiedModel = model
+        verifiedModel.artifactManifest = verifiedManifest
+        let verifiedValidation = LocalArtifactValidator.validate(
+            manifest: verifiedManifest,
+            presentFiles: Set(verifiedManifest.requiredFiles),
+            observedSHA256: verifiedManifest.expectedSHA256
+        )
+        let verifiedReport = LocalRuntimePlanner.preparationReport(
+            for: verifiedModel,
+            validation: verifiedValidation
+        )
+        let verifiedValue = ModelDetailAccessibilityMetadata.value(
+            model: verifiedModel,
+            validation: verifiedValidation,
+            report: verifiedReport
+        )
+        XCTAssertTrue(verifiedValue.contains("artifact verified"))
+        XCTAssertTrue(verifiedValue.contains("本地 artifact 已通过校验"))
+        XCTAssertTrue(verifiedValue.contains("真实 runtime 计划可用"))
+        XCTAssertTrue(verifiedValue.contains("阻塞项 无"))
+        XCTAssertTrue(verifiedValue.contains("预热 Core ML + ANE"))
+        XCTAssertTrue(verifiedValue.contains("启用 \(verifiedModel.deploymentProfile.kvCachePolicy)"))
+    }
+
     func testModelSelectorExposesAccessibilityMetadata() {
         let model = ModelCatalog.defaultModels[0]
         let modelCount = ModelCatalog.defaultModels.count

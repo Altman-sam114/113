@@ -1003,6 +1003,72 @@ enum ModelCapsuleAccessibilityMetadata {
     }
 }
 
+enum ModelDetailAccessibilityMetadata {
+    static let identifier = "model-detail-summary"
+    static let hint = "汇总当前本地模型详情、artifact 状态和运行计划摘要；不会下载模型权重，不会启动真实 runtime，不会发送到云端服务，也不会绕过 verified 门禁。"
+
+    static func label(model: LocalModel) -> String {
+        "模型详情 \(model.name)"
+    }
+
+    static func value(
+        model: LocalModel,
+        validation: ArtifactValidationResult,
+        report: RuntimePreparationReport
+    ) -> String {
+        [
+            "\(model.name)，\(model.family)，\(model.parameterCount)，\(model.quantization)",
+            "上下文长度 \(model.contextLength) tokens",
+            "文件格式 \(model.artifactManifest.fileFormat)",
+            "包体大小 \(model.sizeOnDisk)",
+            artifactDescription(validation),
+            "预计速度 \(ModelCapsuleAccessibilityMetadata.speedValue(model.tokensPerSecond))",
+            "内存预算 \(model.memoryFootprint)",
+            "主后端 \(report.activeBackend.title)",
+            "回退后端 \(report.fallbackBackend.title)",
+            "KV cache \(model.deploymentProfile.kvCachePolicy)",
+            runtimeReadinessDescription(report),
+            blockerSummary(report),
+            nextStepSummary(report)
+        ].joined(separator: "。")
+    }
+
+    static func inputLabels(model: LocalModel) -> [String] {
+        ["模型详情", "查看模型详情", "\(model.name) 详情"]
+    }
+
+    static func artifactDescription(_ validation: ArtifactValidationResult) -> String {
+        switch validation.availability {
+        case .missing:
+            return "artifact missing，\(validation.summary)"
+        case .staged:
+            return "artifact staged，\(validation.summary)"
+        case .verified:
+            return "artifact verified，\(validation.summary)"
+        }
+    }
+
+    static func runtimeReadinessDescription(_ report: RuntimePreparationReport) -> String {
+        report.canRunRealWeights
+            ? "真实 runtime 计划可用，artifact verified"
+            : "真实 runtime 计划不可用，等待 artifact verified 门禁"
+    }
+
+    static func blockerSummary(_ report: RuntimePreparationReport) -> String {
+        guard report.blockers.isEmpty == false else {
+            return "阻塞项 无"
+        }
+        return "阻塞项 \(report.blockers.joined(separator: "；"))"
+    }
+
+    static func nextStepSummary(_ report: RuntimePreparationReport) -> String {
+        guard report.nextSteps.isEmpty == false else {
+            return "下一步 无"
+        }
+        return "下一步 \(report.nextSteps.joined(separator: "；"))"
+    }
+}
+
 enum SelectionAccessibilityMetadata {
     static func workspaceLabel(for tab: WorkspaceTab) -> String {
         "\(tab.title)工作区"
@@ -2871,13 +2937,8 @@ struct ModelLibraryView: View {
                     }
                     .frame(width: layoutMode.controlColumnWidth(for: size))
 
-                    VStack(spacing: 14) {
-                        ModelSummaryPanel(model: model, validation: validation)
-                        ModelParametersPanel(model: model)
-                        ModelPerformancePanel(model: model, validation: validation, report: report)
-                        ModelAdvicePanel(model: model, report: report)
-                    }
-                    .frame(maxWidth: .infinity)
+                    ModelDetailColumn(model: model, validation: validation, report: report)
+                        .frame(maxWidth: .infinity)
                 }
             } else {
                 ModelSelectorPanel(
@@ -2906,10 +2967,7 @@ struct ModelLibraryView: View {
                     }
                 )
 
-                ModelSummaryPanel(model: model, validation: validation)
-                ModelParametersPanel(model: model)
-                ModelPerformancePanel(model: model, validation: validation, report: report)
-                ModelAdvicePanel(model: model, report: report)
+                ModelDetailColumn(model: model, validation: validation, report: report)
             }
         }
     }
@@ -3327,6 +3385,33 @@ struct ArtifactActionButton: View {
         .accessibilityIdentifier(
             ModelDeploymentControlAccessibilityMetadata.artifactActionIdentifier(metadataAction)
         )
+    }
+}
+
+struct ModelDetailColumn: View {
+    let model: LocalModel
+    let validation: ArtifactValidationResult
+    let report: RuntimePreparationReport
+
+    var body: some View {
+        VStack(spacing: 14) {
+            ModelSummaryPanel(model: model, validation: validation)
+            ModelParametersPanel(model: model)
+            ModelPerformancePanel(model: model, validation: validation, report: report)
+            ModelAdvicePanel(model: model, report: report)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(ModelDetailAccessibilityMetadata.label(model: model))
+        .accessibilityValue(
+            ModelDetailAccessibilityMetadata.value(
+                model: model,
+                validation: validation,
+                report: report
+            )
+        )
+        .accessibilityHint(ModelDetailAccessibilityMetadata.hint)
+        .accessibilityInputLabels(ModelDetailAccessibilityMetadata.inputLabels(model: model))
+        .accessibilityIdentifier(ModelDetailAccessibilityMetadata.identifier)
     }
 }
 
