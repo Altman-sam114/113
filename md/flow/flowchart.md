@@ -63,7 +63,7 @@ flowchart TD
 
 ## 4. UI 布局与工作区流
 
-读图说明：这张图展示 ContentView 如何根据容器尺寸选择单栏、compact 双栏或 regular 大屏双栏布局，然后进入具体工作区。iPhone 横屏、iPad 竖屏大画布、Mac Catalyst 和桌面窗口都走同一套尺寸断点；regular 大屏侧栏显示工作区用途说明，compact 侧栏保持紧凑；Mac Catalyst 和 iPad 外接键盘可通过 `Command+1...4` 或系统 `工作区` 命令菜单切换工作区，也可通过系统 `会话` 命令菜单或会话栏可见按钮新建/导出当前会话；头部主题与模型库入口、会话栏操作、导出弹层分享/复制、壁纸控件、模型选择器、部署控件和提示词分类筛选 chip 会向辅助技术暴露当前操作语义。
+读图说明：这张图展示 ContentView 如何根据容器尺寸选择单栏、compact 双栏或 regular 大屏双栏布局，然后进入具体工作区。iPhone 横屏、iPad 竖屏大画布、Mac Catalyst 和桌面窗口都走同一套尺寸断点；regular 大屏侧栏显示工作区用途说明，compact 侧栏保持紧凑；Mac Catalyst 和 iPad 外接键盘可通过 `Command+1...4` 或系统 `工作区` 命令菜单切换工作区，也可通过系统 `会话` 命令菜单或会话栏可见按钮新建/导出当前会话；工作区导航、头部主题与模型库入口、会话栏操作、导出弹层分享/复制、壁纸控件、模型选择器、部署控件和提示词分类筛选 chip 会向辅助技术暴露当前操作语义。
 
 ```mermaid
 flowchart TD
@@ -75,8 +75,9 @@ flowchart TD
     N -- 是 --> O[详细侧栏<br/>标题 + 用途说明 + 选中语义]
     N -- 否 --> P[紧凑侧栏<br/>标题 + 选中语义]
     D --> F{当前 selectedTab}
-    O --> F
-    P --> F
+    O --> X[工作区导航辅助语义<br/>hint + Voice Control 输入标签<br/>用途说明 + Command 快捷键]
+    P --> X
+    X --> F
     K[键盘导航<br/>Command+1/2/3/4 切换工作区] --> F
     M[系统菜单<br/>工作区 CommandMenu + 会话 CommandMenu<br/>复用 focused 映射] --> F
     L[会话/输入焦点<br/>Command+N 新建<br/>Command+Shift+E 导出<br/>Command+Return 发送或停止<br/>切回推理/会话/模板后聚焦输入] --> G

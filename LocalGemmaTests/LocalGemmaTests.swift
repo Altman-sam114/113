@@ -813,6 +813,51 @@ final class LocalGemmaTests: XCTestCase {
         XCTAssertEqual(SelectionAccessibilityMetadata.sessionValue(isActive: false), "未选中")
     }
 
+    func testWorkspaceNavigationAccessibilityMetadataDescribesShortcutsAndVoiceControl() {
+        XCTAssertEqual(
+            WorkspaceTab.allCases.map { WorkspaceNavigationAccessibilityMetadata.label(for: $0) },
+            ["推理工作区", "模型工作区", "提示词工作区", "设置工作区"]
+        )
+        XCTAssertEqual(WorkspaceNavigationAccessibilityMetadata.value(isSelected: true), "已选中")
+        XCTAssertEqual(WorkspaceNavigationAccessibilityMetadata.value(isSelected: false), "未选中")
+        XCTAssertEqual(
+            WorkspaceTab.allCases.map { WorkspaceNavigationAccessibilityMetadata.compactIdentifier(for: $0) },
+            ["workspace-tab-chat", "workspace-tab-models", "workspace-tab-prompts", "workspace-tab-settings"]
+        )
+        XCTAssertEqual(
+            WorkspaceTab.allCases.map { WorkspaceNavigationAccessibilityMetadata.sidebarIdentifier(for: $0) },
+            [
+                "workspace-sidebar-tab-chat",
+                "workspace-sidebar-tab-models",
+                "workspace-sidebar-tab-prompts",
+                "workspace-sidebar-tab-settings"
+            ]
+        )
+
+        for tab in WorkspaceTab.allCases {
+            let hint = WorkspaceNavigationAccessibilityMetadata.hint(for: tab)
+            XCTAssertTrue(hint.contains("Command \(tab.shortcutKey)"))
+            XCTAssertTrue(hint.contains(tab.sidebarSubtitle))
+            XCTAssertTrue(hint.contains("只切换本地工作区"))
+            XCTAssertTrue(hint.contains("不会下载模型权重"))
+            XCTAssertTrue(hint.contains("真实 runtime"))
+            XCTAssertTrue(
+                WorkspaceNavigationAccessibilityMetadata.inputLabels(for: tab)
+                    .contains("\(tab.title)工作区")
+            )
+        }
+
+        XCTAssertTrue(
+            WorkspaceTab.allCases.allSatisfy {
+                !WorkspaceNavigationAccessibilityMetadata.label(for: $0).isEmpty
+                    && !WorkspaceNavigationAccessibilityMetadata.hint(for: $0).isEmpty
+                    && !WorkspaceNavigationAccessibilityMetadata.inputLabels(for: $0).isEmpty
+                    && !WorkspaceNavigationAccessibilityMetadata.compactIdentifier(for: $0).isEmpty
+                    && !WorkspaceNavigationAccessibilityMetadata.sidebarIdentifier(for: $0).isEmpty
+            }
+        )
+    }
+
     func testComposerInputMetadataAndFocusPolicyDescribeEntryPoints() {
         XCTAssertEqual(ComposerInputMetadata.textFieldLabel, "本地模型输入")
         XCTAssertTrue(ComposerInputMetadata.textFieldHint.contains("Command Return"))

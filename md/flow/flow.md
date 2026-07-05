@@ -1,6 +1,6 @@
 # 项目核心流程文档
 
-一句话总览：本项目是一个 SwiftUI iOS 原型，通过本地模拟 runtime 和严格 artifact 校验流程，验证 iPhone、iPad 与 Mac Catalyst build/run 基线下端侧部署 Gemma 1.5B 的 UI、状态管理、文件导入、会话导出、导出弹层分享/复制辅助语义、头部主题与模型库入口辅助语义、壁纸控件辅助语义、大屏布局和 Apple Silicon 运行计划；协作流程默认采用 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载结果包验收。
+一句话总览：本项目是一个 SwiftUI iOS 原型，通过本地模拟 runtime 和严格 artifact 校验流程，验证 iPhone、iPad 与 Mac Catalyst build/run 基线下端侧部署 Gemma 1.5B 的 UI、状态管理、文件导入、会话导出、导出弹层分享/复制辅助语义、工作区导航辅助语义、头部主题与模型库入口辅助语义、壁纸控件辅助语义、大屏布局和 Apple Silicon 运行计划；协作流程默认采用 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载结果包验收。
 
 本文只写当前真实链路，不写历史流水账。
 
@@ -63,6 +63,7 @@
 - `ModelDeploymentControlAccessibilityMetadata` 为模型页选择器、部署电源按钮和 artifact 操作按钮生成 label/value/hint/input labels/identifier；文案明确切换模型不下载权重、不启动真实 runtime、模拟暂存不联网下载、未 verified 不运行真实权重，不改变 `ModelCatalog` 状态流。
 - `SessionSidebarLayoutPolicy` 只控制推理页内部大屏会话列表宽度；竖向会话栏按容器宽度 28% 计算，并限制在 240 到 310 之间，窄屏单栏返回 0。
 - `WorkspaceTab.shortcutKey` 定义工作区键盘导航：`Command+1` 推理、`Command+2` 模型、`Command+3` 提示词、`Command+4` 设置。
+- `WorkspaceNavigationAccessibilityMetadata` 为顶部工作区 tab 和大屏 sidebar 工作区按钮生成 label/value/hint/input labels/identifier；hint 复用 `WorkspaceTab.sidebarSubtitle`，说明 `Command 1...4` 快捷键和只切换本地工作区边界，不改变 `selectedTab` 状态流或 command menu 映射。
 - `LocalGemmaApp` 的 `工作区` command menu 复用同一组 `WorkspaceTab` 映射；`ContentView` 只通过 focused scene binding 暴露 `selectedTab`，菜单命令不触碰模型、artifact、runtime 或会话状态；进入推理页时只请求 UI 层 composer focus。
 - `LocalGemmaApp` 的 `会话` command menu 复用 `SessionCommandAction` 映射；`ChatWorkspace` 通过 `SessionCommandActions` focused value 暴露新建会话和导出当前会话动作，菜单不直接持有 `InferenceEngine` 或导出 sheet 状态。
 - `SessionBarActionAccessibilityMetadata` 复用 `SessionCommandAction` 为会话栏可见的新建/导出按钮生成 label/value/hint/input labels/identifier；文案说明新建会话只请求 composer focus，导出使用本地 Markdown / 文本分享兜底且不发送到云端服务。
@@ -182,6 +183,7 @@ Agent X 不能跳过 Agent C artifact 验收；失败时不能继续下一轮并
 - `PromptTemplateLibrary`：内置提示词模板。
 - `WorkspaceLayoutMode`：主界面容器尺寸断点，覆盖 iPhone 横屏、iPad 竖屏大画布、Mac Catalyst 和桌面大屏窗口。
 - `ModelLibraryLayoutMode`：模型页内部单栏/双栏断点，覆盖窄屏回退和 Mac/iPad 宽屏部署工作流。
+- `WorkspaceNavigationAccessibilityMetadata`：顶部工作区 tab 和大屏 sidebar 工作区按钮的辅助技术文案、Voice Control 输入标签、快捷键说明和稳定 identifier。
 - `HeaderActionAccessibilityMetadata`：全局头部主题切换、设置页外观主题按钮和打开模型工作区按钮的辅助技术文案、Voice Control 输入标签和稳定 identifier。
 - `ModelDeploymentControlAccessibilityMetadata`：模型选择器、部署电源和 artifact 操作按钮的辅助技术文案、Voice Control 输入标签和稳定 identifier。
 - `SessionSidebarLayoutPolicy`：推理页大屏会话列表宽度策略，覆盖 Mac/iPad 会话栏最小/最大宽度和窄屏回退。
@@ -238,7 +240,7 @@ Agent X 不能跳过 Agent C artifact 验收；失败时不能继续下一轮并
 - 大图壁纸必须压缩和限制尺寸。
 - iPhone 横屏、iPad 大屏与 Mac Catalyst 桌面窗口布局断点必须有测试覆盖。
 - 模型页内部宽屏双栏和窄屏单栏回退必须有测试覆盖。
-- 工作区快捷键、工作区/会话 command menu、头部主题与模型库入口辅助语义、会话栏操作辅助语义、导出弹层分享/复制辅助语义、壁纸控件辅助语义、会话侧栏宽度、regular 侧栏说明、选择语义、composer 输入焦点/辅助语义、模型选择器与部署控件辅助语义和提示词分类筛选辅助语义必须有测试覆盖，避免 Mac/iPad 导航退化。
+- 工作区快捷键、工作区/会话 command menu、工作区导航辅助语义、头部主题与模型库入口辅助语义、会话栏操作辅助语义、导出弹层分享/复制辅助语义、壁纸控件辅助语义、会话侧栏宽度、regular 侧栏说明、选择语义、composer 输入焦点/辅助语义、模型选择器与部署控件辅助语义和提示词分类筛选辅助语义必须有测试覆盖，避免 Mac/iPad 导航退化。
 - 默认协作验证以 `main` push 后的 GitHub Actions 结果包为准。
 - Agent X 循环每轮仍以 Agent B 本地轻量检查、GitHub Actions artifact 和 Agent C 下载复判为准。
 

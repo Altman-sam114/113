@@ -523,10 +523,14 @@ struct ContentView: View {
                 }
                 .buttonStyle(.plain)
                 .keyboardShortcut(KeyEquivalent(tab.shortcutKey), modifiers: [.command])
-                .accessibilityLabel(SelectionAccessibilityMetadata.workspaceLabel(for: tab))
-                .accessibilityValue(SelectionAccessibilityMetadata.selectionValue(isSelected: selectedTab == tab))
+                .accessibilityLabel(WorkspaceNavigationAccessibilityMetadata.label(for: tab))
+                .accessibilityValue(
+                    WorkspaceNavigationAccessibilityMetadata.value(isSelected: selectedTab == tab)
+                )
+                .accessibilityHint(WorkspaceNavigationAccessibilityMetadata.hint(for: tab))
+                .accessibilityInputLabels(WorkspaceNavigationAccessibilityMetadata.inputLabels(for: tab))
                 .accessibilityAddTraits(selectedTab == tab ? .isSelected : [])
-                .accessibilityIdentifier("workspace-tab-\(tab.rawValue)")
+                .accessibilityIdentifier(WorkspaceNavigationAccessibilityMetadata.compactIdentifier(for: tab))
             }
         }
     }
@@ -575,10 +579,14 @@ struct ContentView: View {
                 }
                 .buttonStyle(.plain)
                 .keyboardShortcut(KeyEquivalent(tab.shortcutKey), modifiers: [.command])
-                .accessibilityLabel(SelectionAccessibilityMetadata.workspaceLabel(for: tab))
-                .accessibilityValue(SelectionAccessibilityMetadata.selectionValue(isSelected: selectedTab == tab))
+                .accessibilityLabel(WorkspaceNavigationAccessibilityMetadata.label(for: tab))
+                .accessibilityValue(
+                    WorkspaceNavigationAccessibilityMetadata.value(isSelected: selectedTab == tab)
+                )
+                .accessibilityHint(WorkspaceNavigationAccessibilityMetadata.hint(for: tab))
+                .accessibilityInputLabels(WorkspaceNavigationAccessibilityMetadata.inputLabels(for: tab))
                 .accessibilityAddTraits(selectedTab == tab ? .isSelected : [])
-                .accessibilityIdentifier("workspace-sidebar-tab-\(tab.rawValue)")
+                .accessibilityIdentifier(WorkspaceNavigationAccessibilityMetadata.sidebarIdentifier(for: tab))
             }
         }
     }
@@ -922,6 +930,36 @@ enum SelectionAccessibilityMetadata {
 
     static func sessionValue(isActive: Bool) -> String {
         isActive ? "当前会话" : "未选中"
+    }
+}
+
+enum WorkspaceNavigationAccessibilityMetadata {
+    static func label(for tab: WorkspaceTab) -> String {
+        SelectionAccessibilityMetadata.workspaceLabel(for: tab)
+    }
+
+    static func value(isSelected: Bool) -> String {
+        SelectionAccessibilityMetadata.selectionValue(isSelected: isSelected)
+    }
+
+    static func hint(for tab: WorkspaceTab) -> String {
+        "切换到\(tab.title)工作区：\(tab.sidebarSubtitle)。快捷键 Command \(tab.shortcutKey)。只切换本地工作区，不下载模型权重，不启动真实 runtime。"
+    }
+
+    static func inputLabels(for tab: WorkspaceTab) -> [String] {
+        [
+            "\(tab.title)工作区",
+            "打开\(tab.title)",
+            "切换到\(tab.title)工作区"
+        ]
+    }
+
+    static func compactIdentifier(for tab: WorkspaceTab) -> String {
+        "workspace-tab-\(tab.rawValue)"
+    }
+
+    static func sidebarIdentifier(for tab: WorkspaceTab) -> String {
+        "workspace-sidebar-tab-\(tab.rawValue)"
     }
 }
 
