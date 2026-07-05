@@ -1427,6 +1427,7 @@
 - 会话 chip 删除按钮从纯 `Image` 调整为 `Label(..., systemImage: "trash.fill").labelStyle(.iconOnly)`，视觉保持图标按钮，辅助技术保留文本标签。
 - 新增 `testSessionChipActionsExposeAccessibilityMetadata`，覆盖选择/删除 label、value、hint、input labels、identifier、删除禁用原因和 UUID 前缀稳定标识；测试函数数从 57 个增加到 58 个。
 - 首个云端 run `28739054467` 的 build、Mac Catalyst 和 run script 通过，但 XCTest 在 `testSessionChipActionsExposeAccessibilityMetadata` 的整句 disabled hint 断言处失败；本轮追加修复将 disabled hint 文案拆成更清晰的“默认空白当前会话”和“不可删除”语义，并把测试改为锁住核心 token，避免脆弱整句匹配。
+- 第二个云端 run `28740705988` 仍失败后，本地静态复核发现 disabled delete hint 使用“不会删除模型 artifact 或权重”，与测试和文档锁住的“不删除模型 artifact 或权重”连续 token 不一致；本轮追加把实现文案对齐到测试用词。
 - 同步 README、测试规范、核心流程文档、Mermaid 流程图、入口规则和 Agent A 提示词归档中的会话 chip 动作语义基线。
 - 本轮没有创建原生 macOS target，没有下载模型权重，没有接入真实模型推理，没有修改 `InferenceEngine` 会话创建/选择/删除行为、command menu、runtime plan 或 artifact verified 门禁。
 
