@@ -1398,6 +1398,63 @@ final class LocalGemmaTests: XCTestCase {
         )
     }
 
+    func testHeaderAndThemePreferenceActionsExposeAccessibilityMetadata() {
+        XCTAssertEqual(
+            HeaderActionAccessibilityMetadata.headerThemeToggleIdentifier,
+            "header-action-toggle-theme"
+        )
+        XCTAssertEqual(
+            HeaderActionAccessibilityMetadata.settingsThemeToggleIdentifier,
+            "settings-action-toggle-theme"
+        )
+        XCTAssertEqual(
+            HeaderActionAccessibilityMetadata.modelLibraryIdentifier,
+            "header-action-open-model-library"
+        )
+
+        let darkThemeValue = HeaderActionAccessibilityMetadata.themeToggleValue(themeMode: .dark)
+        let darkThemeHint = HeaderActionAccessibilityMetadata.themeToggleHint(themeMode: .dark)
+        XCTAssertEqual(
+            HeaderActionAccessibilityMetadata.themeToggleLabel(themeMode: .dark),
+            "切换外观主题"
+        )
+        XCTAssertTrue(darkThemeValue.contains("当前暗色主题"))
+        XCTAssertTrue(darkThemeValue.contains("切换到亮色主题"))
+        XCTAssertTrue(darkThemeHint.contains("本地 UI 外观"))
+        XCTAssertTrue(darkThemeHint.contains("亮色主题"))
+        XCTAssertTrue(darkThemeHint.contains("不会下载模型权重"))
+        XCTAssertTrue(darkThemeHint.contains("真实 runtime"))
+        XCTAssertTrue(darkThemeHint.contains("不会发送到云端服务"))
+        XCTAssertTrue(
+            HeaderActionAccessibilityMetadata.themeToggleInputLabels(themeMode: .dark)
+                .contains("切换主题")
+        )
+
+        let lightThemeValue = HeaderActionAccessibilityMetadata.themeToggleValue(themeMode: .light)
+        let lightThemeHint = HeaderActionAccessibilityMetadata.themeToggleHint(themeMode: .light)
+        XCTAssertTrue(lightThemeValue.contains("当前亮色主题"))
+        XCTAssertTrue(lightThemeValue.contains("切换到暗色主题"))
+        XCTAssertTrue(lightThemeHint.contains("暗色主题"))
+        XCTAssertTrue(
+            HeaderActionAccessibilityMetadata.themeToggleInputLabels(themeMode: .light)
+                .contains("切换到暗色主题")
+        )
+
+        XCTAssertEqual(
+            HeaderActionAccessibilityMetadata.modelLibraryLabel,
+            "打开模型工作区"
+        )
+        XCTAssertTrue(HeaderActionAccessibilityMetadata.modelLibraryValue.contains("模型工作区"))
+        XCTAssertTrue(HeaderActionAccessibilityMetadata.modelLibraryValue.contains("artifact"))
+        XCTAssertTrue(HeaderActionAccessibilityMetadata.modelLibraryHint.contains("本地工作区"))
+        XCTAssertTrue(HeaderActionAccessibilityMetadata.modelLibraryHint.contains("不会下载模型权重"))
+        XCTAssertTrue(HeaderActionAccessibilityMetadata.modelLibraryHint.contains("真实 runtime"))
+        XCTAssertTrue(HeaderActionAccessibilityMetadata.modelLibraryHint.contains("verified 门禁"))
+        XCTAssertTrue(
+            HeaderActionAccessibilityMetadata.modelLibraryInputLabels.contains("打开模型库")
+        )
+    }
+
     func testExportPayloadOnlySharesExistingFileURL() throws {
         let directoryURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("LocalGemmaPayload-\(UUID().uuidString)", isDirectory: true)

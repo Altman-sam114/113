@@ -873,6 +873,36 @@ enum WallpaperPreferenceAccessibilityMetadata {
     }
 }
 
+enum HeaderActionAccessibilityMetadata {
+    static let headerThemeToggleIdentifier = "header-action-toggle-theme"
+    static let settingsThemeToggleIdentifier = "settings-action-toggle-theme"
+    static let modelLibraryIdentifier = "header-action-open-model-library"
+
+    static func themeToggleLabel(themeMode: AppThemeMode) -> String {
+        "切换外观主题"
+    }
+
+    static func themeToggleValue(themeMode: AppThemeMode) -> String {
+        "当前\(themeMode.title)主题，激活后切换到\(themeMode.toggled.title)主题。"
+    }
+
+    static func themeToggleHint(themeMode: AppThemeMode) -> String {
+        "只切换本地 UI 外观到\(themeMode.toggled.title)主题；不会下载模型权重，不会启动真实 runtime，也不会发送到云端服务。"
+    }
+
+    static func themeToggleInputLabels(themeMode: AppThemeMode) -> [String] {
+        ["切换主题", "切换外观", "切换到\(themeMode.toggled.title)主题"]
+    }
+
+    static let modelLibraryLabel = "打开模型工作区"
+
+    static let modelLibraryValue = "切换到模型工作区，可管理本地模型、artifact 和部署状态。"
+
+    static let modelLibraryHint = "只切换本地工作区；不会下载模型权重，不会启动真实 runtime，也不会绕过 verified 门禁。"
+
+    static let modelLibraryInputLabels = ["打开模型工作区", "打开模型库", "管理本地模型"]
+}
+
 enum SelectionAccessibilityMetadata {
     static func workspaceLabel(for tab: WorkspaceTab) -> String {
         "\(tab.title)工作区"
@@ -1273,7 +1303,19 @@ struct HeaderView: View {
                         .overlay(Circle().stroke(theme.border, lineWidth: 1))
                         .foregroundStyle(theme.primaryText)
                 }
-                .accessibilityLabel("Toggle theme")
+                .accessibilityLabel(
+                    HeaderActionAccessibilityMetadata.themeToggleLabel(themeMode: themeMode)
+                )
+                .accessibilityValue(
+                    HeaderActionAccessibilityMetadata.themeToggleValue(themeMode: themeMode)
+                )
+                .accessibilityHint(
+                    HeaderActionAccessibilityMetadata.themeToggleHint(themeMode: themeMode)
+                )
+                .accessibilityInputLabels(
+                    HeaderActionAccessibilityMetadata.themeToggleInputLabels(themeMode: themeMode)
+                )
+                .accessibilityIdentifier(HeaderActionAccessibilityMetadata.headerThemeToggleIdentifier)
 
                 Button(action: showModels) {
                     Image(systemName: "square.stack.3d.up.fill")
@@ -1283,7 +1325,11 @@ struct HeaderView: View {
                         .overlay(Circle().stroke(theme.accent.opacity(0.45), lineWidth: 1))
                         .foregroundStyle(theme.primaryText)
                 }
-                .accessibilityLabel("Open model library")
+                .accessibilityLabel(HeaderActionAccessibilityMetadata.modelLibraryLabel)
+                .accessibilityValue(HeaderActionAccessibilityMetadata.modelLibraryValue)
+                .accessibilityHint(HeaderActionAccessibilityMetadata.modelLibraryHint)
+                .accessibilityInputLabels(HeaderActionAccessibilityMetadata.modelLibraryInputLabels)
+                .accessibilityIdentifier(HeaderActionAccessibilityMetadata.modelLibraryIdentifier)
             }
 
             ModelCapsule(
@@ -3464,6 +3510,19 @@ struct ThemePreferencePanel: View {
                     .foregroundStyle(theme.inverseText)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(
+                HeaderActionAccessibilityMetadata.themeToggleLabel(themeMode: themeMode)
+            )
+            .accessibilityValue(
+                HeaderActionAccessibilityMetadata.themeToggleValue(themeMode: themeMode)
+            )
+            .accessibilityHint(
+                HeaderActionAccessibilityMetadata.themeToggleHint(themeMode: themeMode)
+            )
+            .accessibilityInputLabels(
+                HeaderActionAccessibilityMetadata.themeToggleInputLabels(themeMode: themeMode)
+            )
+            .accessibilityIdentifier(HeaderActionAccessibilityMetadata.settingsThemeToggleIdentifier)
         }
         .panelStyle(border: theme.accent.opacity(0.26))
     }
