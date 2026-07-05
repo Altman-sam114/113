@@ -902,6 +902,64 @@ final class LocalGemmaTests: XCTestCase {
         )
     }
 
+    func testChatTranscriptExposesAccessibilityMetadata() {
+        let userMessage = ChatMessage(
+            id: UUID(uuidString: "12345678-1234-5678-9ABC-123456789ABC")!,
+            role: .user,
+            text: "说明端侧部署",
+            tokens: 8
+        )
+        let assistantMessage = ChatMessage(
+            id: UUID(uuidString: "ABCDEF12-1234-5678-9ABC-123456789ABC")!,
+            role: .assistant,
+            text: "本地模拟输出",
+            tokens: 16
+        )
+        let generatingMessage = ChatMessage(
+            id: UUID(uuidString: "87654321-1234-5678-9ABC-123456789ABC")!,
+            role: .assistant,
+            text: "  \n",
+            tokens: 0
+        )
+
+        XCTAssertEqual(ChatTranscriptAccessibilityMetadata.label, "聊天记录")
+        XCTAssertEqual(ChatTranscriptAccessibilityMetadata.identifier, "chat-transcript")
+        XCTAssertEqual(
+            ChatTranscriptAccessibilityMetadata.inputLabels,
+            ["聊天记录", "本地会话记录", "查看聊天记录"]
+        )
+
+        let emptyValue = ChatTranscriptAccessibilityMetadata.value(for: [])
+        XCTAssertTrue(emptyValue.contains("空聊天记录"))
+        XCTAssertTrue(emptyValue.contains("当前没有本地会话消息"))
+
+        let transcriptValue = ChatTranscriptAccessibilityMetadata.value(
+            for: [userMessage, assistantMessage]
+        )
+        XCTAssertTrue(transcriptValue.contains("2 条本地会话消息"))
+        XCTAssertTrue(transcriptValue.contains("最新本地模型消息"))
+        XCTAssertTrue(transcriptValue.contains("本地模拟输出"))
+
+        let generatingValue = ChatTranscriptAccessibilityMetadata.value(
+            for: [userMessage, generatingMessage]
+        )
+        XCTAssertTrue(generatingValue.contains("2 条本地会话消息"))
+        XCTAssertTrue(generatingValue.contains("最新本地模型消息"))
+        XCTAssertTrue(generatingValue.contains("正在生成"))
+        XCTAssertTrue(generatingValue.contains("本地模型正在写入模拟输出"))
+
+        let hint = ChatTranscriptAccessibilityMetadata.hint
+        XCTAssertTrue(hint.contains("本地会话"))
+        XCTAssertTrue(hint.contains("不会发送 prompt"))
+        XCTAssertTrue(hint.contains("不会下载模型权重"))
+        XCTAssertTrue(hint.contains("不会启动真实 runtime"))
+        XCTAssertTrue(hint.contains("不会发送到云端服务"))
+        XCTAssertTrue(hint.contains("verified 门禁"))
+
+        XCTAssertFalse(ChatTranscriptAccessibilityMetadata.identifier.contains(userMessage.text))
+        XCTAssertFalse(ChatTranscriptAccessibilityMetadata.identifier.contains(assistantMessage.text))
+    }
+
     func testInferenceCreatesSelectsAndDeletesNamedSessions() {
         let engine = InferenceEngine()
         let firstSession = engine.sessions[0]

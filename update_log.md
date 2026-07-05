@@ -16,7 +16,7 @@
 - 平台：SwiftUI iOS App，Swift 6.0，iOS deployment target 17.0，当前 app/test target 支持 iPhone、iPad 和 Mac Catalyst build-for-testing，并提供项目内 Mac Catalyst 本地 build/run 脚本入口；尚未创建原生 macOS target。
 - 当前默认模型：`Gemma 1.5B Local`
 - 当前推理：本地模拟 runtime，不下载模型权重，不执行真实模型推理。
-- 当前核心测试：`LocalGemmaTests.swift` 中 58 个 XCTest 方法。
+- 当前核心测试：`LocalGemmaTests.swift` 中 59 个 XCTest 方法。
 - 当前核心文档入口：`AGENTS.md`、`md/flow/flow.md`、`md/flow/flowchart.md`、`md/test/test.md`、`md/prompt/README.md`、`README.md`。
 - 当前协作验证：默认 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载未加密 CI 结果包验收；本地仓库当前已配置 `origin` remote，最终验收仍以最新 `origin/main` 对应的 GitHub Actions run 和结果包为准；文档已预留未来 `agentx:` 主控 Agent A -> Agent B -> Agent C 多轮循环的规则。
 
@@ -1428,6 +1428,7 @@
 - 新增 `testSessionChipActionsExposeAccessibilityMetadata`，覆盖选择/删除 label、value、hint、input labels、identifier、删除禁用原因和 UUID 前缀稳定标识；测试函数数从 57 个增加到 58 个。
 - 首个云端 run `28739054467` 的 build、Mac Catalyst 和 run script 通过，但 XCTest 在 `testSessionChipActionsExposeAccessibilityMetadata` 的整句 disabled hint 断言处失败；本轮追加修复将 disabled hint 文案拆成更清晰的“默认空白当前会话”和“不可删除”语义，并把测试改为锁住核心 token，避免脆弱整句匹配。
 - 第二个云端 run `28740705988` 仍失败后，本地静态复核发现 disabled delete hint 使用“不会删除模型 artifact 或权重”，与测试和文档锁住的“不删除模型 artifact 或权重”连续 token 不一致；本轮追加把实现文案对齐到测试用词。
+- 第三个云端 run `28743360555` 对最新 `origin/main` commit `a3af2ed1775b3098bb66b89de0626189198fa5b0` 验收通过；artifact `localgemma-ci-v2.14-main-a3af2ed-run28743360555-attempt1` 的 manifest、`artifact-name.txt`、JUnit、iOS 日志、Mac Catalyst 日志、run script 日志和三个 `.xcresult/Info.plist` 已核对。
 - 同步 README、测试规范、核心流程文档、Mermaid 流程图、入口规则和 Agent A 提示词归档中的会话 chip 动作语义基线。
 - 本轮没有创建原生 macOS target，没有下载模型权重，没有接入真实模型推理，没有修改 `InferenceEngine` 会话创建/选择/删除行为、command menu、runtime plan 或 artifact verified 门禁。
 
@@ -1459,5 +1460,49 @@
 
 遗留事项：
 
-- v2.14 push 后需等待最新 `ci-results.yml` run 完成，由 Agent C 下载对应未加密结果包，核对 manifest、`artifact-name.txt`、JUnit、iOS 日志、Mac Catalyst 日志、run script 日志、baseline notes 和 `.xcresult`。
 - 本轮只建立会话 chip 动作语义，没有做完整 UI Test target、真实 runtime 接入、模型 artifact 下载或原生 macOS target。
+
+### v2.15 / 聊天记录容器辅助语义
+
+日期：2026-07-05
+
+核心变更：
+
+- Agent X 在 v2.14 最新云端 artifact 验收通过后继续优化推理页 Mac/iPad 阅读体验；只读审计指出 `ChatBubble` 单条消息已有语义，但 `ChatTranscript` 消息列表容器缺少列表级摘要，本轮据此归档 Agent A 提示词 `md/prompt/v2（Mac体验审计）/v2.15（聊天记录容器辅助语义）.md`。
+- 新增 `ChatTranscriptAccessibilityMetadata`，为推理页聊天记录容器生成 label、value、hint、Voice Control 输入标签和稳定 identifier。
+- 容器 value 合并空记录、消息总数、最新消息角色和 assistant 空文本生成中摘要；hint 明确只浏览当前本地会话消息列表，不发送 prompt、不下载模型权重、不启动真实 runtime、不发送云端服务，也不绕过 artifact verified 门禁。
+- `ChatTranscript` 的 `ScrollView` 接入容器辅助语义，同时保留单条 `ChatBubble` 的消息级辅助语义。
+- 新增 `testChatTranscriptExposesAccessibilityMetadata`，覆盖空列表、普通消息列表、生成中最新消息、hint 边界、Voice Control input labels、identifier 不泄露消息正文；测试函数数从 58 个增加到 59 个。
+- 同步 README、测试规范、核心流程文档、Mermaid 流程图、入口规则和 Agent A 提示词归档中的聊天记录容器辅助语义基线。
+- 本轮没有创建原生 macOS target，没有下载模型权重，没有接入真实模型推理，没有修改 `InferenceEngine` 会话/生成/导出状态流、消息数据结构、runtime plan 或 artifact verified 门禁。
+
+关键文件：
+
+- `LocalGemma/ContentView.swift`
+- `LocalGemmaTests/LocalGemmaTests.swift`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `AGENTS.md`
+- `md/prompt/v2（Mac体验审计）/v2.15（聊天记录容器辅助语义）.md`
+- `update_log.md`
+
+验证结果：
+
+- `git diff --check`：无输出，退出码 0。
+- `test -x script/build_and_run.sh`：退出码 0。
+- `bash -n script/build_and_run.sh`：退出码 0。
+- `plutil -lint LocalGemma.xcodeproj/project.pbxproj`：输出 `LocalGemma.xcodeproj/project.pbxproj: OK`。
+- `ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'`：输出 `yaml ok`。
+- `grep -n "func test" LocalGemmaTests/LocalGemmaTests.swift`：确认当前 59 个 `test...` 方法。
+- `/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -sdk /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk -module-cache-path .build/SwiftSmokeModuleCache LocalGemma/AppState.swift Tools/LogicSmoke.swift -o .build/logic-smoke`：退出码 0。
+- `.build/logic-smoke`：输出 `Logic smoke passed`。
+- `/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -typecheck -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk -target arm64-apple-ios17.0-simulator -module-cache-path .build/ModuleCache LocalGemma/AppState.swift LocalGemma/ContentView.swift LocalGemma/LocalGemmaApp.swift`：退出码 0。
+- `/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -emit-module -emit-module-path .build/Typecheck/LocalGemma.swiftmodule -module-name LocalGemma -enable-testing -parse-as-library -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk -target arm64-apple-ios17.0-simulator -module-cache-path .build/ModuleCache LocalGemma/AppState.swift LocalGemma/ContentView.swift LocalGemma/LocalGemmaApp.swift`：退出码 0。
+- `/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -typecheck -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk -target arm64-apple-ios17.0-simulator -module-cache-path .build/ModuleCache -I .build/Typecheck -I /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/lib -F /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/Library/Frameworks LocalGemmaTests/LocalGemmaTests.swift`：退出码 0。
+
+遗留事项：
+
+- v2.15 push 后需等待最新 `ci-results.yml` run 完成，由 Agent C 下载对应未加密结果包，核对 manifest、`artifact-name.txt`、JUnit、iOS 日志、Mac Catalyst 日志、run script 日志、baseline notes 和 `.xcresult`。
+- 本轮只建立聊天记录容器辅助语义，没有做完整 UI Test target、真实 runtime 接入、模型 artifact 下载或原生 macOS target。

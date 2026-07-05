@@ -1237,6 +1237,23 @@ enum ChatMessageAccessibilityMetadata {
     }
 }
 
+enum ChatTranscriptAccessibilityMetadata {
+    static let label = "聊天记录"
+    static let hint = "浏览当前本地会话的消息列表；只展示本地消息，不会发送 prompt，不会下载模型权重，不会启动真实 runtime，不会发送到云端服务，也不会绕过 artifact verified 门禁。"
+    static let inputLabels = ["聊天记录", "本地会话记录", "查看聊天记录"]
+    static let identifier = "chat-transcript"
+
+    static func value(for messages: [ChatMessage]) -> String {
+        guard let latestMessage = messages.last else {
+            return "空聊天记录，当前没有本地会话消息。"
+        }
+
+        let roleTitle = ChatMessageAccessibilityMetadata.roleTitle(for: latestMessage.role)
+        let spokenText = ChatMessageAccessibilityMetadata.spokenText(for: latestMessage)
+        return "聊天记录包含 \(messages.count) 条本地会话消息。最新\(roleTitle)：\(spokenText)。"
+    }
+}
+
 enum WorkspaceNavigationAccessibilityMetadata {
     static func label(for tab: WorkspaceTab) -> String {
         SelectionAccessibilityMetadata.workspaceLabel(for: tab)
@@ -2469,6 +2486,12 @@ struct ChatTranscript: View {
                 .padding(.vertical, 10)
             }
             .scrollIndicators(.hidden)
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel(ChatTranscriptAccessibilityMetadata.label)
+            .accessibilityValue(ChatTranscriptAccessibilityMetadata.value(for: messages))
+            .accessibilityHint(ChatTranscriptAccessibilityMetadata.hint)
+            .accessibilityInputLabels(ChatTranscriptAccessibilityMetadata.inputLabels)
+            .accessibilityIdentifier(ChatTranscriptAccessibilityMetadata.identifier)
             .onChange(of: messages) { _, messages in
                 guard let last = messages.last else { return }
                 withAnimation(.easeOut(duration: 0.22)) {
