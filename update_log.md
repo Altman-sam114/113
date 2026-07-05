@@ -16,7 +16,7 @@
 - 平台：SwiftUI iOS App，Swift 6.0，iOS deployment target 17.0，当前 app/test target 支持 iPhone、iPad 和 Mac Catalyst build-for-testing，并提供项目内 Mac Catalyst 本地 build/run 脚本入口；尚未创建原生 macOS target。
 - 当前默认模型：`Gemma 1.5B Local`
 - 当前推理：本地模拟 runtime，不下载模型权重，不执行真实模型推理。
-- 当前核心测试：`LocalGemmaTests.swift` 中 51 个 XCTest 方法。
+- 当前核心测试：`LocalGemmaTests.swift` 中 52 个 XCTest 方法。
 - 当前核心文档入口：`AGENTS.md`、`md/flow/flow.md`、`md/flow/flowchart.md`、`md/test/test.md`、`md/prompt/README.md`、`README.md`。
 - 当前协作验证：默认 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载未加密 CI 结果包验收；本地仓库当前已配置 `origin` remote，最终验收仍以最新 `origin/main` 对应的 GitHub Actions run 和结果包为准；文档已预留未来 `agentx:` 主控 Agent A -> Agent B -> Agent C 多轮循环的规则。
 
@@ -1098,3 +1098,49 @@
 
 - v2.6 push 后需等待最新 `ci-results.yml` run 完成，由 Agent C 下载对应未加密结果包，核对 manifest、`artifact-name.txt`、JUnit、iOS 日志、Mac Catalyst 日志、run script 日志、baseline notes 和 `.xcresult`。
 - 本轮只建立运行策略开关辅助语义，没有做芯片准备度动态摘要、模型胶囊辅助语义、模型详情右栏辅助语义、完整 UI Test target、真实 runtime 接入或模型 artifact 下载。
+
+### v2.7 / 芯片准备度辅助语义与隐私状态
+
+日期：2026-07-05
+
+核心变更：
+
+- Agent X 在 v2.6 验收通过后继续选择 v2.6 遗留的“芯片准备度动态摘要”作为下一轮小目标，并归档 Agent A 提示词 `md/prompt/v2（Mac体验审计）/v2.7（芯片准备度辅助语义与隐私状态）.md`。
+- `DeviceOptimizer` 新增 `offlinePrivacyGuardTitle` 和 `isOfflinePrivacyGuardEnabled`，只读派生 `Offline privacy guard` 当前状态，不改变开关顺序、默认值或 readiness 公式。
+- `ChipReadinessCard` 新增隐私保护状态输入，设置页和优化 dashboard 均传入 `optimizer.isOfflinePrivacyGuardEnabled`；可见摘要从硬编码“离线隐私保护开启”改为随开关显示“开启/关闭”。
+- 新增 `ChipReadinessAccessibilityMetadata`，为芯片准备度卡片和 `ReadinessRing` 生成中文 label/value/hint、Voice Control 输入标签和稳定 identifier；文案明确本地芯片准备度、不会下载模型权重、不会启动真实 runtime、不会发送到云端服务。
+- `ReadinessRing` 复用 metadata 计算并 clamp 百分比，替换原英文 VoiceOver label，不改变可见圆环结构。
+- 新增 `testChipReadinessCardDescribesPrivacyGuardAndAccessibilityMetadata`，测试函数数从 51 个增加到 52 个，覆盖默认隐私保护开启、toggle 后关闭、百分比 clamp、热状态、模拟 Metal 预热、卡片/圆环辅助语义和本地/云端边界。
+- 同步 README、测试规范、核心流程文档、Mermaid 流程图、入口规则和 Agent A 提示词归档中的芯片准备度辅助语义基线。
+- 本轮没有创建原生 macOS target，没有下载模型权重，没有接入真实模型推理，没有修改 readiness 公式、模型胶囊、模型详情右栏或 UI Test target。
+
+关键文件：
+
+- `LocalGemma/AppState.swift`
+- `LocalGemma/ContentView.swift`
+- `LocalGemmaTests/LocalGemmaTests.swift`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `AGENTS.md`
+- `md/prompt/v2（Mac体验审计）/v2.7（芯片准备度辅助语义与隐私状态）.md`
+- `update_log.md`
+
+验证结果：
+
+- `git diff --check`：无输出，退出码 0。
+- `test -x script/build_and_run.sh`：退出码 0。
+- `bash -n script/build_and_run.sh`：退出码 0。
+- `plutil -lint LocalGemma.xcodeproj/project.pbxproj`：输出 `LocalGemma.xcodeproj/project.pbxproj: OK`。
+- `ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'`：输出 `yaml ok`。
+- `grep -n "func test" LocalGemmaTests/LocalGemmaTests.swift`：确认当前 52 个 `test...` 方法。
+- `/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -sdk /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk -module-cache-path .build/SwiftSmokeModuleCache LocalGemma/AppState.swift Tools/LogicSmoke.swift -o .build/logic-smoke`：退出码 0。
+- `.build/logic-smoke`：输出 `Logic smoke passed`。
+- `/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -emit-module -emit-module-path .build/Typecheck/LocalGemma.swiftmodule -module-name LocalGemma -enable-testing -parse-as-library -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk -target arm64-apple-ios17.0-simulator -module-cache-path .build/ModuleCache LocalGemma/AppState.swift LocalGemma/ContentView.swift LocalGemma/LocalGemmaApp.swift`：退出码 0。
+- `/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -typecheck -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk -target arm64-apple-ios17.0-simulator -module-cache-path .build/ModuleCache -I .build/Typecheck -I /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/lib -F /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/Library/Frameworks LocalGemmaTests/LocalGemmaTests.swift`：退出码 0。
+
+遗留事项：
+
+- v2.7 push 后需等待最新 `ci-results.yml` run 完成，由 Agent C 下载对应未加密结果包，核对 manifest、`artifact-name.txt`、JUnit、iOS 日志、Mac Catalyst 日志、run script 日志、baseline notes 和 `.xcresult`。
+- 本轮只建立芯片准备度辅助语义与隐私状态动态摘要，没有做模型胶囊辅助语义、模型详情右栏辅助语义、完整 UI Test target、真实 runtime 接入或模型 artifact 下载。

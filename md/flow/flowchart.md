@@ -11,7 +11,7 @@ flowchart TD
     A[用户启动 App] --> B[LocalGemmaApp 创建 WindowGroup<br/>注册工作区/会话 CommandMenu]
     B --> C[创建 ModelCatalog<br/>模型列表 + artifact 状态]
     B --> D[创建 InferenceEngine<br/>会话 + 输入输出状态]
-    B --> E[创建 DeviceOptimizer<br/>芯片指标 + 优化开关]
+    B --> E[创建 DeviceOptimizer<br/>芯片指标 + 优化开关<br/>准备度 + 隐私保护状态]
     C --> F[启动自动扫描本地 LocalModels 目录]
     F --> G[ModelArtifactStore 读取 manifest 必需文件]
     G --> H[LocalArtifactValidator 判断 missing/staged/verified]
@@ -63,7 +63,7 @@ flowchart TD
 
 ## 4. UI 布局与工作区流
 
-读图说明：这张图展示 ContentView 如何根据容器尺寸选择单栏、compact 双栏或 regular 大屏双栏布局，然后进入具体工作区。iPhone 横屏、iPad 竖屏大画布、Mac Catalyst 和桌面窗口都走同一套尺寸断点；regular 大屏侧栏显示工作区用途说明，compact 侧栏保持紧凑；Mac Catalyst 和 iPad 外接键盘可通过 `Command+1...4` 或系统 `工作区` 命令菜单切换工作区，也可通过系统 `会话` 命令菜单或会话栏可见按钮新建/导出当前会话；工作区导航、头部主题与模型库入口、会话栏操作、导出弹层分享/复制、壁纸控件、模型选择器、部署控件、运行策略开关和提示词分类筛选 chip 会向辅助技术暴露当前操作语义。
+读图说明：这张图展示 ContentView 如何根据容器尺寸选择单栏、compact 双栏或 regular 大屏双栏布局，然后进入具体工作区。iPhone 横屏、iPad 竖屏大画布、Mac Catalyst 和桌面窗口都走同一套尺寸断点；regular 大屏侧栏显示工作区用途说明，compact 侧栏保持紧凑；Mac Catalyst 和 iPad 外接键盘可通过 `Command+1...4` 或系统 `工作区` 命令菜单切换工作区，也可通过系统 `会话` 命令菜单或会话栏可见按钮新建/导出当前会话；工作区导航、头部主题与模型库入口、会话栏操作、导出弹层分享/复制、壁纸控件、模型选择器、部署控件、运行策略开关、芯片准备度和提示词分类筛选 chip 会向辅助技术暴露当前操作语义。
 
 ```mermaid
 flowchart TD
@@ -84,7 +84,7 @@ flowchart TD
     F -- 推理 --> G[ChatWorkspace<br/>会话 + 消息 + 输入<br/>SessionSidebarLayoutPolicy<br/>会话栏操作辅助语义<br/>导出弹层分享/复制辅助语义]
     F -- 模型 --> H[ModelLibraryView<br/>ModelLibraryLayoutMode<br/>窄屏单栏 / 宽屏内部双栏<br/>选择器/部署控件辅助语义]
     F -- 提示词 --> I[PromptTemplatesWorkspace<br/>模板筛选/填入/发送<br/>分类筛选辅助语义]
-    F -- 设置 --> J[SettingsWorkspace<br/>主题按钮辅助语义<br/>壁纸控件/芯片策略<br/>运行策略开关辅助语义]
+    F -- 设置 --> J[SettingsWorkspace<br/>主题按钮辅助语义<br/>壁纸控件/芯片策略<br/>运行策略开关辅助语义<br/>芯片准备度辅助语义 + 隐私状态]
 ```
 
 ## 5. 相册壁纸流

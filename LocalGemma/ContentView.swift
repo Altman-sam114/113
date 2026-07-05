@@ -1570,14 +1570,27 @@ struct StatusBadge: View {
 
 struct ReadinessRing: View {
     @Environment(\.appTheme) private var theme
+
     let progress: Double
+    let accessibilityIdentifier: String
+
+    init(
+        progress: Double,
+        accessibilityIdentifier: String = ChipReadinessAccessibilityMetadata.headerRingIdentifier
+    ) {
+        self.progress = progress
+        self.accessibilityIdentifier = accessibilityIdentifier
+    }
 
     var body: some View {
+        let clampedProgress = ChipReadinessAccessibilityMetadata.clampedProgress(progress)
+        let readinessPercent = ChipReadinessAccessibilityMetadata.percent(for: progress)
+
         ZStack {
             Circle()
                 .stroke(theme.border.opacity(0.7), lineWidth: 7)
             Circle()
-                .trim(from: 0, to: min(max(progress, 0), 1))
+                .trim(from: 0, to: clampedProgress)
                 .stroke(
                     AngularGradient(colors: [.cyan, .green, .blue, .cyan], center: .center),
                     style: StrokeStyle(lineWidth: 7, lineCap: .round)
@@ -1585,7 +1598,7 @@ struct ReadinessRing: View {
                 .rotationEffect(.degrees(-90))
 
             VStack(spacing: 1) {
-                Text("\(Int(progress * 100))")
+                Text("\(readinessPercent)")
                     .font(.system(size: 15, weight: .black, design: .rounded))
                     .foregroundStyle(theme.primaryText)
                 Text("READY")
@@ -1594,7 +1607,11 @@ struct ReadinessRing: View {
             }
         }
         .frame(width: 66, height: 66)
-        .accessibilityLabel("Deployment readiness \(Int(progress * 100)) percent")
+        .accessibilityLabel(ChipReadinessAccessibilityMetadata.ringLabel)
+        .accessibilityValue(ChipReadinessAccessibilityMetadata.ringValue(progress: progress))
+        .accessibilityHint(ChipReadinessAccessibilityMetadata.ringHint)
+        .accessibilityInputLabels(ChipReadinessAccessibilityMetadata.ringInputLabels)
+        .accessibilityIdentifier(accessibilityIdentifier)
     }
 }
 
@@ -3440,7 +3457,11 @@ struct SettingsWorkspace: View {
                     subtitle: "面向 iPhone 统一内存、Metal 预热、热状态和离线推理路径。"
                 )
 
-                ChipReadinessCard(progress: optimizer.deploymentReadiness, thermalState: optimizer.thermalState)
+                ChipReadinessCard(
+                    progress: optimizer.deploymentReadiness,
+                    thermalState: optimizer.thermalState,
+                    privacyGuardEnabled: optimizer.isOfflinePrivacyGuardEnabled
+                )
 
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
                     ForEach(optimizer.metrics) { metric in
@@ -3736,7 +3757,11 @@ struct OptimizerDashboard: View {
                         subtitle: "面向 iPhone 统一内存、Metal 预热、热状态和离线推理路径。"
                     )
 
-                    ChipReadinessCard(progress: optimizer.deploymentReadiness, thermalState: optimizer.thermalState)
+                    ChipReadinessCard(
+                        progress: optimizer.deploymentReadiness,
+                        thermalState: optimizer.thermalState,
+                        privacyGuardEnabled: optimizer.isOfflinePrivacyGuardEnabled
+                    )
 
                     LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
                         ForEach(optimizer.metrics) { metric in
@@ -3771,10 +3796,14 @@ struct ChipReadinessCard: View {
 
     let progress: Double
     let thermalState: String
+    let privacyGuardEnabled: Bool
 
     var body: some View {
         HStack(spacing: 16) {
-            ReadinessRing(progress: progress)
+            ReadinessRing(
+                progress: progress,
+                accessibilityIdentifier: ChipReadinessAccessibilityMetadata.chipRingIdentifier
+            )
                 .frame(width: 86, height: 86)
 
             VStack(alignment: .leading, spacing: 8) {
@@ -3782,7 +3811,12 @@ struct ChipReadinessCard: View {
                     .font(.system(size: 16, weight: .black, design: .rounded))
                     .foregroundStyle(theme.primaryText)
 
-                Text("热状态 \(thermalState) · 模拟 Metal 预热 · 离线隐私保护开启")
+                Text(
+                    ChipReadinessAccessibilityMetadata.summary(
+                        thermalState: thermalState,
+                        privacyGuardEnabled: privacyGuardEnabled
+                    )
+                )
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(theme.secondaryText)
                     .lineSpacing(2)
@@ -3792,6 +3826,58 @@ struct ChipReadinessCard: View {
             }
         }
         .panelStyle(border: theme.accent.opacity(0.3))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(ChipReadinessAccessibilityMetadata.cardLabel)
+        .accessibilityValue(
+            ChipReadinessAccessibilityMetadata.cardValue(
+                progress: progress,
+                thermalState: thermalState,
+                privacyGuardEnabled: privacyGuardEnabled
+            )
+        )
+        .accessibilityHint(ChipReadinessAccessibilityMetadata.cardHint)
+        .accessibilityInputLabels(ChipReadinessAccessibilityMetadata.cardInputLabels)
+        .accessibilityIdentifier(ChipReadinessAccessibilityMetadata.cardIdentifier)
+    }
+}
+
+enum ChipReadinessAccessibilityMetadata {
+    static let cardLabel = "芯片部署准备度"
+    static let cardHint = "显示本地芯片准备度和运行策略摘要；不会下载模型权重，不会启动真实 runtime，也不会发送到云端服务。"
+    static let cardInputLabels = ["芯片准备度", "部署准备度", "Apple Silicon 准备度"]
+    static let cardIdentifier = "chip-readiness-card"
+    static let ringLabel = "部署准备度圆环"
+    static let ringHint = "表示本地模拟部署准备度；不会下载模型权重，不会启动真实 runtime，也不会发送到云端服务。"
+    static let ringInputLabels = ["准备度圆环", "部署准备度", "芯片准备度圆环"]
+    static let headerRingIdentifier = "header-readiness-ring"
+    static let chipRingIdentifier = "chip-readiness-ring"
+
+    static func clampedProgress(_ progress: Double) -> Double {
+        min(max(progress, 0), 1)
+    }
+
+    static func percent(for progress: Double) -> Int {
+        Int((clampedProgress(progress) * 100).rounded())
+    }
+
+    static func summary(thermalState: String, privacyGuardEnabled: Bool) -> String {
+        "热状态 \(thermalState) · 模拟 Metal 预热 · \(privacyGuardStatus(isEnabled: privacyGuardEnabled))"
+    }
+
+    static func cardValue(
+        progress: Double,
+        thermalState: String,
+        privacyGuardEnabled: Bool
+    ) -> String {
+        "准备度 \(percent(for: progress))%。\(summary(thermalState: thermalState, privacyGuardEnabled: privacyGuardEnabled))。"
+    }
+
+    static func ringValue(progress: Double) -> String {
+        "准备度 \(percent(for: progress))%"
+    }
+
+    static func privacyGuardStatus(isEnabled: Bool) -> String {
+        isEnabled ? "离线隐私保护开启" : "离线隐私保护关闭"
     }
 }
 

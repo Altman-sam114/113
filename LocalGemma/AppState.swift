@@ -1152,10 +1152,16 @@ final class ModelCatalog: ObservableObject {
 
 @MainActor
 final class DeviceOptimizer: ObservableObject {
+    static let offlinePrivacyGuardTitle = "Offline privacy guard"
+
     @Published var metrics: [OptimizerMetric]
     @Published var switches: [OptimizationSwitch]
     @Published var thermalState: String
     @Published var deploymentReadiness: Double
+
+    var isOfflinePrivacyGuardEnabled: Bool {
+        switches.first { $0.title == Self.offlinePrivacyGuardTitle }?.isEnabled ?? false
+    }
 
     init() {
         self.metrics = [
@@ -1192,7 +1198,7 @@ final class DeviceOptimizer: ObservableObject {
             OptimizationSwitch(title: "Metal graph prewarm", subtitle: "首次生成前预热图执行路径", isEnabled: true),
             OptimizationSwitch(title: "Paged KV cache", subtitle: "长上下文时降低内存峰值", isEnabled: true),
             OptimizationSwitch(title: "Adaptive token budget", subtitle: "根据热状态调整生成长度", isEnabled: true),
-            OptimizationSwitch(title: "Offline privacy guard", subtitle: "默认禁用网络模型请求", isEnabled: true)
+            OptimizationSwitch(title: Self.offlinePrivacyGuardTitle, subtitle: "默认禁用网络模型请求", isEnabled: true)
         ]
         self.thermalState = "Nominal"
         self.deploymentReadiness = 0.76

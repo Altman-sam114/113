@@ -468,6 +468,67 @@ final class LocalGemmaTests: XCTestCase {
         XCTAssertFalse(optimizer.switches[0].isEnabled)
     }
 
+    func testChipReadinessCardDescribesPrivacyGuardAndAccessibilityMetadata() {
+        let optimizer = DeviceOptimizer()
+
+        XCTAssertTrue(optimizer.isOfflinePrivacyGuardEnabled)
+        XCTAssertEqual(
+            ChipReadinessAccessibilityMetadata.summary(
+                thermalState: optimizer.thermalState,
+                privacyGuardEnabled: optimizer.isOfflinePrivacyGuardEnabled
+            ),
+            "热状态 Nominal · 模拟 Metal 预热 · 离线隐私保护开启"
+        )
+        XCTAssertEqual(ChipReadinessAccessibilityMetadata.percent(for: optimizer.deploymentReadiness), 76)
+        XCTAssertEqual(ChipReadinessAccessibilityMetadata.percent(for: -0.3), 0)
+        XCTAssertEqual(ChipReadinessAccessibilityMetadata.percent(for: 1.3), 100)
+
+        let value = ChipReadinessAccessibilityMetadata.cardValue(
+            progress: optimizer.deploymentReadiness,
+            thermalState: optimizer.thermalState,
+            privacyGuardEnabled: optimizer.isOfflinePrivacyGuardEnabled
+        )
+        XCTAssertTrue(value.contains("准备度 76%"))
+        XCTAssertTrue(value.contains("热状态 Nominal"))
+        XCTAssertTrue(value.contains("模拟 Metal 预热"))
+        XCTAssertTrue(value.contains("离线隐私保护开启"))
+
+        XCTAssertEqual(ChipReadinessAccessibilityMetadata.cardLabel, "芯片部署准备度")
+        XCTAssertEqual(ChipReadinessAccessibilityMetadata.cardIdentifier, "chip-readiness-card")
+        XCTAssertTrue(ChipReadinessAccessibilityMetadata.cardInputLabels.contains("芯片准备度"))
+        XCTAssertTrue(ChipReadinessAccessibilityMetadata.cardInputLabels.contains("Apple Silicon 准备度"))
+
+        let cardHint = ChipReadinessAccessibilityMetadata.cardHint
+        XCTAssertTrue(cardHint.contains("本地芯片准备度"))
+        XCTAssertTrue(cardHint.contains("不会下载模型权重"))
+        XCTAssertTrue(cardHint.contains("不会启动真实 runtime"))
+        XCTAssertTrue(cardHint.contains("不会发送到云端服务"))
+
+        XCTAssertEqual(ChipReadinessAccessibilityMetadata.ringLabel, "部署准备度圆环")
+        XCTAssertEqual(ChipReadinessAccessibilityMetadata.ringValue(progress: optimizer.deploymentReadiness), "准备度 76%")
+        XCTAssertTrue(ChipReadinessAccessibilityMetadata.ringInputLabels.contains("准备度圆环"))
+        XCTAssertTrue(ChipReadinessAccessibilityMetadata.ringInputLabels.contains("芯片准备度圆环"))
+        XCTAssertEqual(ChipReadinessAccessibilityMetadata.headerRingIdentifier, "header-readiness-ring")
+        XCTAssertEqual(ChipReadinessAccessibilityMetadata.chipRingIdentifier, "chip-readiness-ring")
+        XCTAssertTrue(ChipReadinessAccessibilityMetadata.ringHint.contains("本地模拟部署准备度"))
+        XCTAssertTrue(ChipReadinessAccessibilityMetadata.ringHint.contains("不会下载模型权重"))
+
+        guard let privacyGuard = optimizer.switches.first(where: { $0.title == DeviceOptimizer.offlinePrivacyGuardTitle }) else {
+            XCTFail("Default optimizer switches should include Offline privacy guard.")
+            return
+        }
+
+        optimizer.toggle(privacyGuard)
+
+        XCTAssertFalse(optimizer.isOfflinePrivacyGuardEnabled)
+        let disabledSummary = ChipReadinessAccessibilityMetadata.summary(
+            thermalState: optimizer.thermalState,
+            privacyGuardEnabled: optimizer.isOfflinePrivacyGuardEnabled
+        )
+        XCTAssertTrue(disabledSummary.contains("离线隐私保护关闭"))
+        XCTAssertFalse(disabledSummary.contains("离线隐私保护开启"))
+    }
+
     func testOptimizationToggleRowsExposeAccessibilityMetadata() {
         let optimizer = DeviceOptimizer()
         let switches = optimizer.switches
