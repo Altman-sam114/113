@@ -1091,6 +1091,71 @@ enum SelectionAccessibilityMetadata {
     }
 }
 
+enum ChatMessageAccessibilityMetadata {
+    static let hint = "只展示本地会话内容；不会下载模型权重，不会启动真实 runtime，不会发送到云端服务，也不会绕过 artifact verified 门禁。"
+
+    static func label(for message: ChatMessage) -> String {
+        roleTitle(for: message.role)
+    }
+
+    static func value(for message: ChatMessage) -> String {
+        "\(spokenText(for: message))。\(message.tokens) tokens。本地会话消息。"
+    }
+
+    static func inputLabels(for message: ChatMessage) -> [String] {
+        [
+            roleTitle(for: message.role),
+            "查看\(roleTitle(for: message.role))",
+            "消息 \(identifierPrefix(for: message))"
+        ]
+    }
+
+    static func identifier(for message: ChatMessage) -> String {
+        "chat-message-\(roleSlug(for: message.role))-\(identifierPrefix(for: message))"
+    }
+
+    static func roleTitle(for role: ChatMessage.Role) -> String {
+        switch role {
+        case .user:
+            return "用户消息"
+        case .assistant:
+            return "本地模型消息"
+        case .system:
+            return "系统状态消息"
+        }
+    }
+
+    static func spokenText(for message: ChatMessage) -> String {
+        let trimmedText = message.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmedText.isEmpty {
+            switch message.role {
+            case .assistant:
+                return "正在生成，本地模型正在写入模拟输出"
+            case .user:
+                return "空白用户消息"
+            case .system:
+                return "空白系统状态"
+            }
+        }
+        return message.text.replacingOccurrences(of: "\n", with: " ")
+    }
+
+    private static func roleSlug(for role: ChatMessage.Role) -> String {
+        switch role {
+        case .user:
+            return "user"
+        case .assistant:
+            return "assistant"
+        case .system:
+            return "system"
+        }
+    }
+
+    private static func identifierPrefix(for message: ChatMessage) -> String {
+        String(message.id.uuidString.prefix(8)).lowercased()
+    }
+}
+
 enum WorkspaceNavigationAccessibilityMetadata {
     static func label(for tab: WorkspaceTab) -> String {
         SelectionAccessibilityMetadata.workspaceLabel(for: tab)
@@ -2568,6 +2633,12 @@ struct ChatBubble: View {
                 Spacer(minLength: 24)
             }
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(ChatMessageAccessibilityMetadata.label(for: message))
+        .accessibilityValue(ChatMessageAccessibilityMetadata.value(for: message))
+        .accessibilityHint(ChatMessageAccessibilityMetadata.hint)
+        .accessibilityInputLabels(ChatMessageAccessibilityMetadata.inputLabels(for: message))
+        .accessibilityIdentifier(ChatMessageAccessibilityMetadata.identifier(for: message))
     }
 
     private var roleTitle: String {

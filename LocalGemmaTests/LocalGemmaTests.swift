@@ -816,6 +816,92 @@ final class LocalGemmaTests: XCTestCase {
         XCTAssertEqual(engine.lastPreparationReport?.canRunRealWeights, false)
     }
 
+    func testChatMessagesExposeAccessibilityMetadata() {
+        let userMessage = ChatMessage(
+            id: UUID(uuidString: "12345678-1234-5678-9ABC-123456789ABC")!,
+            role: .user,
+            text: "说明端侧部署",
+            tokens: 8
+        )
+        let assistantMessage = ChatMessage(
+            id: UUID(uuidString: "ABCDEF12-1234-5678-9ABC-123456789ABC")!,
+            role: .assistant,
+            text: "本地模拟输出",
+            tokens: 16
+        )
+        let generatingMessage = ChatMessage(
+            id: UUID(uuidString: "87654321-1234-5678-9ABC-123456789ABC")!,
+            role: .assistant,
+            text: "  \n",
+            tokens: 0
+        )
+        let systemMessage = ChatMessage(
+            id: UUID(uuidString: "FACEB00C-1234-5678-9ABC-123456789ABC")!,
+            role: .system,
+            text: "当前为模拟运行",
+            tokens: 0
+        )
+
+        XCTAssertEqual(ChatMessageAccessibilityMetadata.label(for: userMessage), "用户消息")
+        XCTAssertEqual(ChatMessageAccessibilityMetadata.label(for: assistantMessage), "本地模型消息")
+        XCTAssertEqual(ChatMessageAccessibilityMetadata.label(for: systemMessage), "系统状态消息")
+
+        let userValue = ChatMessageAccessibilityMetadata.value(for: userMessage)
+        XCTAssertTrue(userValue.contains("说明端侧部署"))
+        XCTAssertTrue(userValue.contains("8 tokens"))
+        XCTAssertTrue(userValue.contains("本地会话消息"))
+
+        let assistantValue = ChatMessageAccessibilityMetadata.value(for: assistantMessage)
+        XCTAssertTrue(assistantValue.contains("本地模拟输出"))
+        XCTAssertTrue(assistantValue.contains("16 tokens"))
+
+        let generatingValue = ChatMessageAccessibilityMetadata.value(for: generatingMessage)
+        XCTAssertTrue(generatingValue.contains("正在生成"))
+        XCTAssertTrue(generatingValue.contains("本地模型正在写入模拟输出"))
+        XCTAssertTrue(generatingValue.contains("0 tokens"))
+
+        let hint = ChatMessageAccessibilityMetadata.hint
+        XCTAssertTrue(hint.contains("只展示本地会话内容"))
+        XCTAssertTrue(hint.contains("不会下载模型权重"))
+        XCTAssertTrue(hint.contains("不会启动真实 runtime"))
+        XCTAssertTrue(hint.contains("不会发送到云端服务"))
+        XCTAssertTrue(hint.contains("verified 门禁"))
+
+        XCTAssertEqual(
+            ChatMessageAccessibilityMetadata.inputLabels(for: userMessage),
+            ["用户消息", "查看用户消息", "消息 12345678"]
+        )
+        XCTAssertEqual(
+            ChatMessageAccessibilityMetadata.inputLabels(for: assistantMessage),
+            ["本地模型消息", "查看本地模型消息", "消息 abcdef12"]
+        )
+
+        XCTAssertEqual(
+            ChatMessageAccessibilityMetadata.identifier(for: userMessage),
+            "chat-message-user-12345678"
+        )
+        XCTAssertEqual(
+            ChatMessageAccessibilityMetadata.identifier(for: assistantMessage),
+            "chat-message-assistant-abcdef12"
+        )
+        XCTAssertEqual(
+            ChatMessageAccessibilityMetadata.identifier(for: systemMessage),
+            "chat-message-system-faceb00c"
+        )
+        XCTAssertFalse(
+            ChatMessageAccessibilityMetadata.identifier(for: userMessage)
+                .contains(userMessage.text)
+        )
+        XCTAssertEqual(
+            Set(
+                [userMessage, assistantMessage, generatingMessage, systemMessage].map {
+                    ChatMessageAccessibilityMetadata.identifier(for: $0)
+                }
+            ).count,
+            4
+        )
+    }
+
     func testInferenceCreatesSelectsAndDeletesNamedSessions() {
         let engine = InferenceEngine()
         let firstSession = engine.sessions[0]
