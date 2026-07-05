@@ -1227,6 +1227,99 @@ final class LocalGemmaTests: XCTestCase {
         )
     }
 
+    func testModelCapsuleExposesOverallAccessibilityMetadata() {
+        let model = ModelCatalog.defaultModels[0]
+
+        XCTAssertEqual(
+            ModelCapsuleAccessibilityMetadata.label(model: model),
+            "当前模型 Gemma 1.5B Local"
+        )
+        XCTAssertEqual(ModelCapsuleAccessibilityMetadata.identifier, "header-model-capsule")
+        XCTAssertEqual(
+            ModelCapsuleAccessibilityMetadata.inputLabels(model: model),
+            ["模型状态", "当前模型", "Gemma 1.5B Local 状态"]
+        )
+
+        let hint = ModelCapsuleAccessibilityMetadata.hint
+        XCTAssertTrue(hint.contains("本地模型状态摘要"))
+        XCTAssertTrue(hint.contains("不会下载模型权重"))
+        XCTAssertTrue(hint.contains("不会启动真实 runtime"))
+        XCTAssertTrue(hint.contains("不会发送到云端服务"))
+        XCTAssertTrue(hint.contains("不会绕过 verified 门禁"))
+
+        XCTAssertEqual(ModelCapsuleAccessibilityMetadata.speedValue(36), "36.0 tok/s")
+        XCTAssertEqual(ModelCapsuleAccessibilityMetadata.memoryValue(768), "768M")
+        XCTAssertEqual(ModelCapsuleAccessibilityMetadata.memoryValue(1536), "1.5G")
+        XCTAssertEqual(
+            ModelCapsuleAccessibilityMetadata.artifactDescription(.missing),
+            "artifact missing，缺少本地模型文件"
+        )
+        XCTAssertEqual(
+            ModelCapsuleAccessibilityMetadata.artifactDescription(.staged),
+            "artifact staged，文件已暂存但等待 SHA-256 校验"
+        )
+        XCTAssertEqual(
+            ModelCapsuleAccessibilityMetadata.artifactDescription(.verified),
+            "artifact verified，已通过本地校验"
+        )
+
+        let missingValue = ModelCapsuleAccessibilityMetadata.value(
+            model: model,
+            readiness: 0.76,
+            tokensPerSecond: 36,
+            memoryUsageMB: 512,
+            backend: .coreMLANE,
+            availability: .missing,
+            isGenerating: false,
+            isSimulated: true
+        )
+        XCTAssertTrue(missingValue.contains("Gemma 1.5B Local"))
+        XCTAssertTrue(missingValue.contains("1.5B"))
+        XCTAssertTrue(missingValue.contains("4-bit"))
+        XCTAssertTrue(missingValue.contains("安装状态 Simulation"))
+        XCTAssertTrue(missingValue.contains("运行标记 SIM"))
+        XCTAssertTrue(missingValue.contains("本地模拟输出"))
+        XCTAssertTrue(missingValue.contains("artifact missing"))
+        XCTAssertTrue(missingValue.contains("生成状态 待导入"))
+        XCTAssertTrue(missingValue.contains("后端 Core ML + ANE"))
+        XCTAssertTrue(missingValue.contains("速度 36.0 tok/s"))
+        XCTAssertTrue(missingValue.contains("内存 512M"))
+        XCTAssertTrue(missingValue.contains("准备度 76%"))
+
+        let stagedGeneratingValue = ModelCapsuleAccessibilityMetadata.value(
+            model: model,
+            readiness: 0.87,
+            tokensPerSecond: 42.4,
+            memoryUsageMB: 1800,
+            backend: .metalPerformanceShaders,
+            availability: .staged,
+            isGenerating: true,
+            isSimulated: true
+        )
+        XCTAssertTrue(stagedGeneratingValue.contains("artifact staged"))
+        XCTAssertTrue(stagedGeneratingValue.contains("生成状态 生成中"))
+        XCTAssertTrue(stagedGeneratingValue.contains("后端 Metal fallback"))
+        XCTAssertTrue(stagedGeneratingValue.contains("速度 42.4 tok/s"))
+        XCTAssertTrue(stagedGeneratingValue.contains("内存 1.8G"))
+        XCTAssertTrue(stagedGeneratingValue.contains("准备度 87%"))
+
+        let verifiedRealValue = ModelCapsuleAccessibilityMetadata.value(
+            model: model,
+            readiness: 1,
+            tokensPerSecond: 53.2,
+            memoryUsageMB: 2048,
+            backend: .coreMLANE,
+            availability: .verified,
+            isGenerating: false,
+            isSimulated: false
+        )
+        XCTAssertTrue(verifiedRealValue.contains("运行标记 REAL"))
+        XCTAssertTrue(verifiedRealValue.contains("artifact verified"))
+        XCTAssertTrue(verifiedRealValue.contains("生成状态 已就绪"))
+        XCTAssertTrue(verifiedRealValue.contains("准备度 100%"))
+        XCTAssertTrue(verifiedRealValue.contains("需 artifact verified 后才可进入真实运行计划"))
+    }
+
     func testModelSelectorExposesAccessibilityMetadata() {
         let model = ModelCatalog.defaultModels[0]
         let modelCount = ModelCatalog.defaultModels.count

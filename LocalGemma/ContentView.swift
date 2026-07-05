@@ -911,6 +911,98 @@ enum HeaderActionAccessibilityMetadata {
     static let modelLibraryInputLabels = ["打开模型工作区", "打开模型库", "管理本地模型"]
 }
 
+enum ModelCapsuleAccessibilityMetadata {
+    static let identifier = "header-model-capsule"
+    static let hint = "展示当前本地模型状态摘要；不会下载模型权重，不会启动真实 runtime，不会发送到云端服务，也不会绕过 verified 门禁。"
+
+    static func label(model: LocalModel) -> String {
+        "当前模型 \(model.name)"
+    }
+
+    static func value(
+        model: LocalModel,
+        readiness: Double,
+        tokensPerSecond: Double,
+        memoryUsageMB: Int,
+        backend: ComputeBackend,
+        availability: ArtifactAvailability,
+        isGenerating: Bool,
+        isSimulated: Bool
+    ) -> String {
+        [
+            "\(model.name)，\(model.parameterCount)，\(model.quantization)",
+            "安装状态 \(installStateDescription(model.installState))",
+            runtimeModeDescription(isSimulated: isSimulated),
+            artifactDescription(availability),
+            generationDescription(isGenerating: isGenerating, availability: availability),
+            "后端 \(backend.title)",
+            "速度 \(speedValue(tokensPerSecond))",
+            "内存 \(memoryValue(memoryUsageMB))",
+            "准备度 \(ChipReadinessAccessibilityMetadata.percent(for: readiness))%"
+        ].joined(separator: "。")
+    }
+
+    static func inputLabels(model: LocalModel) -> [String] {
+        ["模型状态", "当前模型", "\(model.name) 状态"]
+    }
+
+    static func speedValue(_ tokensPerSecond: Double) -> String {
+        String(format: "%.1f tok/s", tokensPerSecond)
+    }
+
+    static func memoryValue(_ memoryUsageMB: Int) -> String {
+        memoryUsageMB >= 1000
+            ? String(format: "%.1fG", Double(memoryUsageMB) / 1000)
+            : "\(memoryUsageMB)M"
+    }
+
+    static func installStateDescription(_ state: ModelInstallState) -> String {
+        switch state {
+        case .ready:
+            return "Ready"
+        case .simulated:
+            return "Simulation"
+        case .notDownloaded:
+            return "Not downloaded"
+        }
+    }
+
+    static func runtimeModeDescription(isSimulated: Bool) -> String {
+        isSimulated
+            ? "运行标记 SIM，本地模拟输出"
+            : "运行标记 REAL，需 artifact verified 后才可进入真实运行计划"
+    }
+
+    static func artifactDescription(_ availability: ArtifactAvailability) -> String {
+        switch availability {
+        case .missing:
+            return "artifact missing，缺少本地模型文件"
+        case .staged:
+            return "artifact staged，文件已暂存但等待 SHA-256 校验"
+        case .verified:
+            return "artifact verified，已通过本地校验"
+        }
+    }
+
+    static func generationDescription(
+        isGenerating: Bool,
+        availability: ArtifactAvailability
+    ) -> String {
+        if isGenerating {
+            return "生成状态 生成中"
+        }
+
+        switch availability {
+        case .missing:
+            return "生成状态 待导入"
+        case .staged:
+            return "生成状态 待校验"
+        case .verified:
+            return "生成状态 已就绪"
+        }
+    }
+}
+
 enum SelectionAccessibilityMetadata {
     static func workspaceLabel(for tab: WorkspaceTab) -> String {
         "\(tab.title)工作区"
@@ -1452,12 +1544,27 @@ struct ModelCapsule: View {
             RoundedRectangle(cornerRadius: 20, style: .continuous)
                 .stroke(theme.border, lineWidth: 1)
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(ModelCapsuleAccessibilityMetadata.label(model: model))
+        .accessibilityValue(
+            ModelCapsuleAccessibilityMetadata.value(
+                model: model,
+                readiness: readiness,
+                tokensPerSecond: tokensPerSecond,
+                memoryUsageMB: memoryUsageMB,
+                backend: backend,
+                availability: availability,
+                isGenerating: isGenerating,
+                isSimulated: isSimulated
+            )
+        )
+        .accessibilityHint(ModelCapsuleAccessibilityMetadata.hint)
+        .accessibilityInputLabels(ModelCapsuleAccessibilityMetadata.inputLabels(model: model))
+        .accessibilityIdentifier(ModelCapsuleAccessibilityMetadata.identifier)
     }
 
     private var compactMemoryValue: String {
-        memoryUsageMB >= 1000
-            ? String(format: "%.1fG", Double(memoryUsageMB) / 1000)
-            : "\(memoryUsageMB)M"
+        ModelCapsuleAccessibilityMetadata.memoryValue(memoryUsageMB)
     }
 
     private var availabilityMetricValue: String {
