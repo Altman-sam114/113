@@ -1325,3 +1325,47 @@
 
 - v2.11 push 后需等待最新 `ci-results.yml` run 完成，由 Agent C 下载对应未加密结果包，核对 manifest、`artifact-name.txt`、JUnit、iOS 日志、Mac Catalyst 日志、run script 日志、baseline notes 和 `.xcresult`。
 - 本轮只建立 composer 控件标识与语音控制语义，没有做会话 chip 动作细化、聊天消息气泡整体辅助语义、优化指标卡辅助语义、完整 UI Test target、真实 runtime 接入、模型 artifact 下载或原生 macOS target。
+
+### v2.12 / 优化指标卡辅助语义
+
+日期：2026-07-05
+
+核心变更：
+
+- Agent X 在 v2.11 验收通过后继续优化 Mac/iPad 设置页和优化 dashboard；并发只读子 agent 指出 `OptimizerMetricCard` 仍缺整体辅助语义，本轮据此归档 Agent A 提示词 `md/prompt/v2（Mac体验审计）/v2.12（优化指标卡辅助语义）.md`。
+- 新增 `OptimizerMetricAccessibilityMetadata`，为 Apple Silicon 优化指标卡生成 label、value、hint、Voice Control 输入标签和稳定 identifier。
+- `OptimizerMetricCard` 接入整体只读辅助语义，value 合并指标当前状态、progress 百分比和 detail；hint 明确指标卡只展示本地 Apple Silicon 优化摘要，不会下载模型权重、不会启动真实 runtime、不会发送云端服务，也不会绕过 artifact verified 门禁。
+- 新增 `testOptimizerMetricCardsExposeAccessibilityMetadata`，覆盖默认 4 个指标、identifier、百分比 clamp、label/value/input labels 和本地/云端/verified 边界；测试函数数从 55 个增加到 56 个。
+- 同步 README、测试规范、核心流程文档、Mermaid 流程图、入口规则和 Agent A 提示词归档中的优化指标卡辅助语义基线。
+- 本轮没有创建原生 macOS target，没有下载模型权重，没有接入真实模型推理，没有修改 `DeviceOptimizer.metrics` 默认数据、运行策略开关、准备度公式、runtime plan 或 artifact verified 门禁。
+
+关键文件：
+
+- `LocalGemma/ContentView.swift`
+- `LocalGemmaTests/LocalGemmaTests.swift`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `AGENTS.md`
+- `md/prompt/v2（Mac体验审计）/v2.12（优化指标卡辅助语义）.md`
+- `update_log.md`
+
+验证结果：
+
+- `git diff --check`：无输出，退出码 0。
+- `test -x script/build_and_run.sh`：退出码 0。
+- `bash -n script/build_and_run.sh`：退出码 0。
+- `plutil -lint LocalGemma.xcodeproj/project.pbxproj`：输出 `LocalGemma.xcodeproj/project.pbxproj: OK`。
+- `ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'`：输出 `yaml ok`。
+- `grep -n "func test" LocalGemmaTests/LocalGemmaTests.swift`：确认当前 56 个 `test...` 方法。
+- `/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -sdk /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk -module-cache-path .build/SwiftSmokeModuleCache LocalGemma/AppState.swift Tools/LogicSmoke.swift -o .build/logic-smoke`：退出码 0。
+- `.build/logic-smoke`：输出 `Logic smoke passed`。
+- `/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -typecheck -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk -target arm64-apple-ios17.0-simulator -module-cache-path .build/ModuleCache LocalGemma/AppState.swift LocalGemma/ContentView.swift LocalGemma/LocalGemmaApp.swift`：退出码 0。
+- `/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -emit-module -emit-module-path .build/Typecheck/LocalGemma.swiftmodule -module-name LocalGemma -enable-testing -parse-as-library -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk -target arm64-apple-ios17.0-simulator -module-cache-path .build/ModuleCache LocalGemma/AppState.swift LocalGemma/ContentView.swift LocalGemma/LocalGemmaApp.swift`：退出码 0。
+- `/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -typecheck -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk -target arm64-apple-ios17.0-simulator -module-cache-path .build/ModuleCache -I .build/Typecheck -I /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/lib -F /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/Library/Frameworks LocalGemmaTests/LocalGemmaTests.swift`：退出码 0。
+
+遗留事项：
+
+- v2.12 push 后需等待最新 `ci-results.yml` run 完成，由 Agent C 下载对应未加密结果包，核对 manifest、`artifact-name.txt`、JUnit、iOS 日志、Mac Catalyst 日志、run script 日志、baseline notes 和 `.xcresult`。
+- 本轮只建立优化指标卡辅助语义，没有做会话 chip 动作细化、聊天消息气泡整体辅助语义、完整 UI Test target、真实 runtime 接入、模型 artifact 下载或原生 macOS target。

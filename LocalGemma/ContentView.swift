@@ -4212,6 +4212,53 @@ struct OptimizerMetricCard: View {
         }
         .frame(maxWidth: .infinity, minHeight: 142, alignment: .topLeading)
         .panelStyle()
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(OptimizerMetricAccessibilityMetadata.label(for: metric))
+        .accessibilityValue(OptimizerMetricAccessibilityMetadata.value(for: metric))
+        .accessibilityHint(OptimizerMetricAccessibilityMetadata.hint)
+        .accessibilityInputLabels(OptimizerMetricAccessibilityMetadata.inputLabels(for: metric))
+        .accessibilityIdentifier(OptimizerMetricAccessibilityMetadata.identifier(for: metric))
+    }
+}
+
+enum OptimizerMetricAccessibilityMetadata {
+    static let hint = "显示本地 Apple Silicon 优化指标摘要；不会下载模型权重，不会启动真实 runtime，不会发送到云端服务，也不会绕过 artifact verified 门禁。"
+
+    static func label(for metric: OptimizerMetric) -> String {
+        "优化指标 \(metric.label)"
+    }
+
+    static func value(for metric: OptimizerMetric) -> String {
+        "\(metric.value)。进度 \(percent(for: metric.progress))%。\(metric.detail)。"
+    }
+
+    static func inputLabels(for metric: OptimizerMetric) -> [String] {
+        [metric.label, "\(metric.label) 指标", "查看 \(metric.label)"]
+    }
+
+    static func identifier(for metric: OptimizerMetric) -> String {
+        "optimizer-metric-\(slug(for: metric.label))"
+    }
+
+    static func percent(for progress: Double) -> Int {
+        Int((min(max(progress, 0), 1) * 100).rounded())
+    }
+
+    private static func slug(for label: String) -> String {
+        var result = ""
+        var previousWasSeparator = false
+
+        for scalar in label.lowercased().unicodeScalars {
+            if CharacterSet.alphanumerics.contains(scalar) {
+                result.unicodeScalars.append(scalar)
+                previousWasSeparator = false
+            } else if previousWasSeparator == false {
+                result.append("-")
+                previousWasSeparator = true
+            }
+        }
+
+        return result.trimmingCharacters(in: CharacterSet(charactersIn: "-"))
     }
 }
 

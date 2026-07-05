@@ -588,6 +588,53 @@ final class LocalGemmaTests: XCTestCase {
         )
     }
 
+    func testOptimizerMetricCardsExposeAccessibilityMetadata() {
+        let optimizer = DeviceOptimizer()
+        let metrics = optimizer.metrics
+
+        XCTAssertEqual(metrics.count, 4)
+        XCTAssertEqual(
+            metrics.map { OptimizerMetricAccessibilityMetadata.identifier(for: $0) },
+            [
+                "optimizer-metric-neural-engine",
+                "optimizer-metric-metal-kernels",
+                "optimizer-metric-memory-budget",
+                "optimizer-metric-battery-profile"
+            ]
+        )
+        XCTAssertEqual(OptimizerMetricAccessibilityMetadata.percent(for: metrics[0].progress), 62)
+        XCTAssertEqual(OptimizerMetricAccessibilityMetadata.percent(for: -0.2), 0)
+        XCTAssertEqual(OptimizerMetricAccessibilityMetadata.percent(for: 1.2), 100)
+
+        for metric in metrics {
+            XCTAssertEqual(
+                OptimizerMetricAccessibilityMetadata.label(for: metric),
+                "优化指标 \(metric.label)"
+            )
+
+            let value = OptimizerMetricAccessibilityMetadata.value(for: metric)
+            XCTAssertTrue(value.contains(metric.value))
+            XCTAssertTrue(value.contains(metric.detail))
+            XCTAssertTrue(value.contains("进度 \(OptimizerMetricAccessibilityMetadata.percent(for: metric.progress))%"))
+
+            let inputLabels = OptimizerMetricAccessibilityMetadata.inputLabels(for: metric)
+            XCTAssertTrue(inputLabels.contains(metric.label))
+            XCTAssertTrue(inputLabels.contains("\(metric.label) 指标"))
+            XCTAssertTrue(inputLabels.contains("查看 \(metric.label)"))
+        }
+
+        XCTAssertTrue(
+            OptimizerMetricAccessibilityMetadata.value(for: metrics[0]).contains("Core ML 编译后启用 ANE")
+        )
+
+        let hint = OptimizerMetricAccessibilityMetadata.hint
+        XCTAssertTrue(hint.contains("本地 Apple Silicon 优化指标摘要"))
+        XCTAssertTrue(hint.contains("不会下载模型权重"))
+        XCTAssertTrue(hint.contains("不会启动真实 runtime"))
+        XCTAssertTrue(hint.contains("不会发送到云端服务"))
+        XCTAssertTrue(hint.contains("verified 门禁"))
+    }
+
     func testPromptTemplateLibraryProvidesMultipleCategories() {
         let templates = PromptTemplateLibrary.defaultTemplates
         let categories = Set(templates.map(\.category))
