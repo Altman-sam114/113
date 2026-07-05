@@ -1202,7 +1202,8 @@ final class LocalGemmaTests: XCTestCase {
             isActive: true,
             canDelete: false
         )
-        XCTAssertTrue(disabledDeleteHint.contains("默认空白当前会话不可删除"))
+        XCTAssertTrue(disabledDeleteHint.contains("默认空白当前会话"))
+        XCTAssertTrue(disabledDeleteHint.contains("不可删除"))
         XCTAssertTrue(disabledDeleteHint.contains("不删除模型 artifact 或权重"))
         XCTAssertTrue(disabledDeleteHint.contains("不发送到云端服务"))
         XCTAssertTrue(disabledDeleteHint.contains("verified 门禁"))

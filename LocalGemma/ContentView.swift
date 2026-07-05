@@ -1145,7 +1145,7 @@ enum SessionChipActionAccessibilityMetadata {
             if canDelete {
                 return "执行现有本地会话删除流程；只删除会话记录，不删除模型 artifact 或权重，不发送到云端服务，也不改变 artifact verified 门禁。"
             }
-            return "默认空白当前会话不可删除；不会删除模型 artifact 或权重，不发送到云端服务，也不改变 artifact verified 门禁。"
+            return "默认空白当前会话需要保留，当前不可删除；不会删除模型 artifact 或权重，不发送到云端服务，也不改变 artifact verified 门禁。"
         }
     }
 
