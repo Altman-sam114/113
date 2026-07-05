@@ -814,48 +814,78 @@ final class LocalGemmaTests: XCTestCase {
     }
 
     func testWorkspaceNavigationAccessibilityMetadataDescribesShortcutsAndVoiceControl() {
-        XCTAssertEqual(
-            WorkspaceTab.allCases.map { WorkspaceNavigationAccessibilityMetadata.label(for: $0) },
-            ["推理工作区", "模型工作区", "提示词工作区", "设置工作区"]
-        )
+        let expectedLabels: [WorkspaceTab: String] = [
+            .chat: "推理工作区",
+            .models: "模型工作区",
+            .prompts: "提示词工作区",
+            .settings: "设置工作区"
+        ]
+        let expectedCompactIdentifiers: [WorkspaceTab: String] = [
+            .chat: "workspace-tab-chat",
+            .models: "workspace-tab-models",
+            .prompts: "workspace-tab-prompts",
+            .settings: "workspace-tab-settings"
+        ]
+        let expectedSidebarIdentifiers: [WorkspaceTab: String] = [
+            .chat: "workspace-sidebar-tab-chat",
+            .models: "workspace-sidebar-tab-models",
+            .prompts: "workspace-sidebar-tab-prompts",
+            .settings: "workspace-sidebar-tab-settings"
+        ]
+
         XCTAssertEqual(WorkspaceNavigationAccessibilityMetadata.value(isSelected: true), "已选中")
         XCTAssertEqual(WorkspaceNavigationAccessibilityMetadata.value(isSelected: false), "未选中")
-        XCTAssertEqual(
-            WorkspaceTab.allCases.map { WorkspaceNavigationAccessibilityMetadata.compactIdentifier(for: $0) },
-            ["workspace-tab-chat", "workspace-tab-models", "workspace-tab-prompts", "workspace-tab-settings"]
-        )
-        XCTAssertEqual(
-            WorkspaceTab.allCases.map { WorkspaceNavigationAccessibilityMetadata.sidebarIdentifier(for: $0) },
-            [
-                "workspace-sidebar-tab-chat",
-                "workspace-sidebar-tab-models",
-                "workspace-sidebar-tab-prompts",
-                "workspace-sidebar-tab-settings"
-            ]
-        )
 
         for tab in WorkspaceTab.allCases {
+            XCTAssertEqual(
+                WorkspaceNavigationAccessibilityMetadata.label(for: tab),
+                expectedLabels[tab],
+                "Unexpected workspace navigation label for \(tab.rawValue)."
+            )
+            XCTAssertEqual(
+                WorkspaceNavigationAccessibilityMetadata.compactIdentifier(for: tab),
+                expectedCompactIdentifiers[tab],
+                "Unexpected compact workspace identifier for \(tab.rawValue)."
+            )
+            XCTAssertEqual(
+                WorkspaceNavigationAccessibilityMetadata.sidebarIdentifier(for: tab),
+                expectedSidebarIdentifiers[tab],
+                "Unexpected sidebar workspace identifier for \(tab.rawValue)."
+            )
+
             let hint = WorkspaceNavigationAccessibilityMetadata.hint(for: tab)
-            XCTAssertTrue(hint.contains("Command \(tab.shortcutKey)"))
-            XCTAssertTrue(hint.contains(tab.sidebarSubtitle))
-            XCTAssertTrue(hint.contains("只切换本地工作区"))
-            XCTAssertTrue(hint.contains("不会下载模型权重"))
-            XCTAssertTrue(hint.contains("真实 runtime"))
+            XCTAssertFalse(hint.isEmpty, "Hint should not be empty for \(tab.rawValue).")
             XCTAssertTrue(
-                WorkspaceNavigationAccessibilityMetadata.inputLabels(for: tab)
-                    .contains("\(tab.title)工作区")
+                hint.contains("Command \(tab.shortcutKey)"),
+                "Hint should include shortcut for \(tab.rawValue)."
+            )
+            XCTAssertTrue(
+                hint.contains(tab.sidebarSubtitle),
+                "Hint should include sidebar subtitle for \(tab.rawValue)."
+            )
+            XCTAssertTrue(
+                hint.contains("只切换本地工作区"),
+                "Hint should describe local workspace switching for \(tab.rawValue)."
+            )
+            XCTAssertTrue(
+                hint.contains("不会下载模型权重"),
+                "Hint should preserve no model download boundary for \(tab.rawValue)."
+            )
+            XCTAssertTrue(
+                hint.contains("真实 runtime"),
+                "Hint should preserve runtime boundary for \(tab.rawValue)."
+            )
+
+            let inputLabels = WorkspaceNavigationAccessibilityMetadata.inputLabels(for: tab)
+            XCTAssertFalse(
+                inputLabels.isEmpty,
+                "Input labels should not be empty for \(tab.rawValue)."
+            )
+            XCTAssertTrue(
+                inputLabels.contains("\(tab.title)工作区"),
+                "Input labels should include workspace title for \(tab.rawValue)."
             )
         }
-
-        XCTAssertTrue(
-            WorkspaceTab.allCases.allSatisfy {
-                !WorkspaceNavigationAccessibilityMetadata.label(for: $0).isEmpty
-                    && !WorkspaceNavigationAccessibilityMetadata.hint(for: $0).isEmpty
-                    && !WorkspaceNavigationAccessibilityMetadata.inputLabels(for: $0).isEmpty
-                    && !WorkspaceNavigationAccessibilityMetadata.compactIdentifier(for: $0).isEmpty
-                    && !WorkspaceNavigationAccessibilityMetadata.sidebarIdentifier(for: $0).isEmpty
-            }
-        )
     }
 
     func testComposerInputMetadataAndFocusPolicyDescribeEntryPoints() {
