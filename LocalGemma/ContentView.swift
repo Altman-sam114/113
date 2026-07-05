@@ -3834,6 +3834,36 @@ struct OptimizerMetricCard: View {
     }
 }
 
+enum OptimizationToggleAccessibilityMetadata {
+    static func label(for item: OptimizationSwitch) -> String {
+        "运行策略 \(item.title)"
+    }
+
+    static func value(for item: OptimizationSwitch) -> String {
+        "\(item.isEnabled ? "已开启" : "已关闭")。\(item.subtitle)"
+    }
+
+    static func hint(for item: OptimizationSwitch) -> String {
+        "只切换本地运行策略 \(item.title)；不会下载模型权重，不会启动真实 runtime，也不会发送到云端服务。"
+    }
+
+    static func inputLabels(for item: OptimizationSwitch) -> [String] {
+        [
+            item.title,
+            "\(item.isEnabled ? "关闭" : "开启") \(item.title)",
+            "切换 \(item.title)"
+        ]
+    }
+
+    static func identifier(for item: OptimizationSwitch) -> String {
+        let slug = item.title
+            .lowercased()
+            .split { !$0.isLetter && !$0.isNumber }
+            .joined(separator: "-")
+        return "optimizer-toggle-\(slug)"
+    }
+}
+
 struct OptimizationToggleRow: View {
     @Environment(\.appTheme) private var theme
 
@@ -3863,6 +3893,12 @@ struct OptimizationToggleRow: View {
             .background(theme.recessedSurface, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(OptimizationToggleAccessibilityMetadata.label(for: item))
+        .accessibilityValue(OptimizationToggleAccessibilityMetadata.value(for: item))
+        .accessibilityHint(OptimizationToggleAccessibilityMetadata.hint(for: item))
+        .accessibilityInputLabels(OptimizationToggleAccessibilityMetadata.inputLabels(for: item))
+        .accessibilityAddTraits(item.isEnabled ? .isSelected : [])
+        .accessibilityIdentifier(OptimizationToggleAccessibilityMetadata.identifier(for: item))
     }
 }
 

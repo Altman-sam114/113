@@ -468,6 +468,65 @@ final class LocalGemmaTests: XCTestCase {
         XCTAssertFalse(optimizer.switches[0].isEnabled)
     }
 
+    func testOptimizationToggleRowsExposeAccessibilityMetadata() {
+        let optimizer = DeviceOptimizer()
+        let switches = optimizer.switches
+
+        XCTAssertEqual(switches.count, 4)
+        XCTAssertEqual(
+            switches.map { OptimizationToggleAccessibilityMetadata.identifier(for: $0) },
+            [
+                "optimizer-toggle-metal-graph-prewarm",
+                "optimizer-toggle-paged-kv-cache",
+                "optimizer-toggle-adaptive-token-budget",
+                "optimizer-toggle-offline-privacy-guard"
+            ]
+        )
+
+        for item in switches {
+            XCTAssertEqual(
+                OptimizationToggleAccessibilityMetadata.label(for: item),
+                "运行策略 \(item.title)"
+            )
+            XCTAssertTrue(
+                OptimizationToggleAccessibilityMetadata.value(for: item).contains("已开启"),
+                "Enabled value should describe on state for \(item.title)."
+            )
+            XCTAssertTrue(
+                OptimizationToggleAccessibilityMetadata.value(for: item).contains(item.subtitle),
+                "Value should include subtitle for \(item.title)."
+            )
+
+            let hint = OptimizationToggleAccessibilityMetadata.hint(for: item)
+            XCTAssertTrue(hint.contains("只切换本地运行策略"))
+            XCTAssertTrue(hint.contains("不会下载模型权重"))
+            XCTAssertTrue(hint.contains("不会启动真实 runtime"))
+            XCTAssertTrue(hint.contains("不会发送到云端服务"))
+
+            let inputLabels = OptimizationToggleAccessibilityMetadata.inputLabels(for: item)
+            XCTAssertFalse(inputLabels.isEmpty)
+            XCTAssertTrue(inputLabels.contains(item.title))
+            XCTAssertTrue(inputLabels.contains("关闭 \(item.title)"))
+
+            var disabledItem = item
+            disabledItem.isEnabled = false
+            XCTAssertTrue(
+                OptimizationToggleAccessibilityMetadata.value(for: disabledItem).contains("已关闭"),
+                "Disabled value should describe off state for \(item.title)."
+            )
+            XCTAssertTrue(
+                OptimizationToggleAccessibilityMetadata.inputLabels(for: disabledItem)
+                    .contains("开启 \(item.title)")
+            )
+        }
+
+        let firstSwitch = switches[0]
+        optimizer.toggle(firstSwitch)
+        XCTAssertTrue(
+            OptimizationToggleAccessibilityMetadata.value(for: optimizer.switches[0]).contains("已关闭")
+        )
+    }
+
     func testPromptTemplateLibraryProvidesMultipleCategories() {
         let templates = PromptTemplateLibrary.defaultTemplates
         let categories = Set(templates.map(\.category))
