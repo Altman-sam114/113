@@ -814,42 +814,23 @@ final class LocalGemmaTests: XCTestCase {
     }
 
     func testWorkspaceNavigationAccessibilityMetadataDescribesShortcutsAndVoiceControl() {
-        let expectedLabels: [WorkspaceTab: String] = [
-            .chat: "推理工作区",
-            .models: "模型工作区",
-            .prompts: "提示词工作区",
-            .settings: "设置工作区"
-        ]
-        let expectedCompactIdentifiers: [WorkspaceTab: String] = [
-            .chat: "workspace-tab-chat",
-            .models: "workspace-tab-models",
-            .prompts: "workspace-tab-prompts",
-            .settings: "workspace-tab-settings"
-        ]
-        let expectedSidebarIdentifiers: [WorkspaceTab: String] = [
-            .chat: "workspace-sidebar-tab-chat",
-            .models: "workspace-sidebar-tab-models",
-            .prompts: "workspace-sidebar-tab-prompts",
-            .settings: "workspace-sidebar-tab-settings"
-        ]
-
         XCTAssertEqual(WorkspaceNavigationAccessibilityMetadata.value(isSelected: true), "已选中")
         XCTAssertEqual(WorkspaceNavigationAccessibilityMetadata.value(isSelected: false), "未选中")
 
         for tab in WorkspaceTab.allCases {
             XCTAssertEqual(
                 WorkspaceNavigationAccessibilityMetadata.label(for: tab),
-                expectedLabels[tab],
+                expectedWorkspaceNavigationLabel(for: tab),
                 "Unexpected workspace navigation label for \(tab.rawValue)."
             )
             XCTAssertEqual(
                 WorkspaceNavigationAccessibilityMetadata.compactIdentifier(for: tab),
-                expectedCompactIdentifiers[tab],
+                expectedCompactWorkspaceIdentifier(for: tab),
                 "Unexpected compact workspace identifier for \(tab.rawValue)."
             )
             XCTAssertEqual(
                 WorkspaceNavigationAccessibilityMetadata.sidebarIdentifier(for: tab),
-                expectedSidebarIdentifiers[tab],
+                expectedSidebarWorkspaceIdentifier(for: tab),
                 "Unexpected sidebar workspace identifier for \(tab.rawValue)."
             )
 
@@ -885,6 +866,45 @@ final class LocalGemmaTests: XCTestCase {
                 inputLabels.contains("\(tab.title)工作区"),
                 "Input labels should include workspace title for \(tab.rawValue)."
             )
+        }
+    }
+
+    private func expectedWorkspaceNavigationLabel(for tab: WorkspaceTab) -> String {
+        switch tab {
+        case .chat:
+            return "推理工作区"
+        case .models:
+            return "模型工作区"
+        case .prompts:
+            return "提示词工作区"
+        case .settings:
+            return "设置工作区"
+        }
+    }
+
+    private func expectedCompactWorkspaceIdentifier(for tab: WorkspaceTab) -> String {
+        switch tab {
+        case .chat:
+            return "workspace-tab-chat"
+        case .models:
+            return "workspace-tab-models"
+        case .prompts:
+            return "workspace-tab-prompts"
+        case .settings:
+            return "workspace-tab-settings"
+        }
+    }
+
+    private func expectedSidebarWorkspaceIdentifier(for tab: WorkspaceTab) -> String {
+        switch tab {
+        case .chat:
+            return "workspace-sidebar-tab-chat"
+        case .models:
+            return "workspace-sidebar-tab-models"
+        case .prompts:
+            return "workspace-sidebar-tab-prompts"
+        case .settings:
+            return "workspace-sidebar-tab-settings"
         }
     }
 

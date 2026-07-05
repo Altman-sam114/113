@@ -1016,7 +1016,7 @@
 - 新增 `WorkspaceNavigationAccessibilityMetadata`，为顶部工作区 tab 和大屏 sidebar 工作区按钮生成可测试的 label、value、hint、Voice Control 输入标签和稳定 identifier。
 - 顶部工作区 tab 与 sidebar 工作区按钮接入统一 metadata；hint 说明对应工作区用途、`Command 1...4` 快捷键、只切换本地工作区、不下载模型权重和不启动真实 runtime。
 - metadata 复用 `WorkspaceTab.sidebarSubtitle`，避免 regular 大屏侧栏视觉用途说明和辅助语义分叉。
-- 新增 `testWorkspaceNavigationAccessibilityMetadataDescribesShortcutsAndVoiceControl`，测试函数数从 49 个增加到 50 个；首次云端 run 暴露该测试的聚合断言失败摘要不够明确，随后拆成逐工作区断言并补充失败消息，便于后续 CI 定位具体 tab / 字段。
+- 新增 `testWorkspaceNavigationAccessibilityMetadataDescribesShortcutsAndVoiceControl`，测试函数数从 49 个增加到 50 个；首次云端 run 暴露该测试的聚合断言失败摘要不够明确，随后拆成逐工作区断言并补充失败消息；第二次云端 run 仍显示同一测试失败但日志未展开断言，本轮继续移除可选字典期望，改为 switch helper 产出非可选期望，便于后续 CI 定位具体 tab / 字段。
 - 同步 README、测试规范、核心流程文档、Mermaid 流程图、入口规则和 Agent A 提示词归档中的工作区导航辅助语义基线。
 - 本轮没有创建原生 macOS target，没有下载模型权重，没有接入真实模型推理，没有修改工作区顺序、快捷键、command menu、focused route、composer focus 或模型 runtime。
 
@@ -1046,6 +1046,8 @@
 - `/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -emit-module -emit-module-path .build/Typecheck/LocalGemma.swiftmodule -module-name LocalGemma -enable-testing -parse-as-library -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk -target arm64-apple-ios17.0-simulator -module-cache-path .build/ModuleCache LocalGemma/AppState.swift LocalGemma/ContentView.swift LocalGemma/LocalGemmaApp.swift`：退出码 0。
 - `/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -typecheck -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk -target arm64-apple-ios17.0-simulator -module-cache-path .build/ModuleCache -I .build/Typecheck -I /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/lib -F /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/Library/Frameworks LocalGemmaTests/LocalGemmaTests.swift`：退出码 0。
 - GitHub Actions run `28729856599`：`staticChecksOutcome=success`、`logicSmokeOutcome=success`、`buildOutcome=success`、`macCatalystBuildOutcome=success`、`macCatalystRunScriptCheckOutcome=success`，但 `testOutcome=failure`，失败测试为 `testWorkspaceNavigationAccessibilityMetadataDescribesShortcutsAndVoiceControl`；本轮通过追加修复 commit 继续在 `main` 上重跑云端验证。
+- GitHub Actions run `28730139142`：manifest `branch=main`、`version=v2.5`、`commitSha=9dd39b4c74023d5ab642f466c84e7a06634363d6`、`runId=28730139142`、`runAttempt=1` 与下载 artifact `localgemma-ci-v2.5-main-9dd39b4-run28730139142-attempt1` 对齐；`staticChecksOutcome=success`、`logicSmokeOutcome=success`、`buildOutcome=success`、`macCatalystBuildOutcome=success`、`macCatalystRunScriptCheckOutcome=success`，但 `testOutcome=failure`，失败仍是 `testWorkspaceNavigationAccessibilityMetadataDescribesShortcutsAndVoiceControl`；本轮继续追加修复 commit 后重跑云端验证。
+- 本次测试修复追加本地轻量检查：`git diff --check` 无输出；`grep -n "func test" LocalGemmaTests/LocalGemmaTests.swift` 确认 50 个测试方法；`test -x script/build_and_run.sh`、`bash -n script/build_and_run.sh`、`plutil -lint LocalGemma.xcodeproj/project.pbxproj`、`ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'` 均退出码 0；app module `swiftc -emit-module` 和测试源码 `swiftc -typecheck` 均退出码 0。本机尝试运行单个 iPhone Simulator XCTest 时 CoreSimulatorService 不可用，`xcodebuild` 报告找不到 `iPhone 17 Pro` destination，因此本轮完整 XCTest 仍交给 GitHub Actions 重验证。
 
 遗留事项：
 
