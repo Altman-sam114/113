@@ -790,6 +790,89 @@ struct SessionCommandActions {
     }
 }
 
+enum WallpaperPreferenceAccessibilityMetadata {
+    enum Action: CaseIterable, Identifiable {
+        case choosePhoto
+        case clearCustomWallpaper
+
+        var id: String {
+            WallpaperPreferenceAccessibilityMetadata.identifier(for: self)
+        }
+    }
+
+    static func label(for action: Action) -> String {
+        switch action {
+        case .choosePhoto:
+            return "选择相册壁纸"
+        case .clearCustomWallpaper:
+            return "恢复系统背景"
+        }
+    }
+
+    static func value(
+        for action: Action,
+        hasCustomWallpaper: Bool,
+        isImporting: Bool
+    ) -> String {
+        switch action {
+        case .choosePhoto:
+            if isImporting {
+                return "正在处理相册图片，选择暂不可用。"
+            }
+            return hasCustomWallpaper
+                ? "相册图片已启用，可重新选择系统相册图片。"
+                : "当前使用系统背景，可选择系统相册图片。"
+        case .clearCustomWallpaper:
+            if isImporting {
+                return "正在处理相册图片，恢复系统背景暂不可用。"
+            }
+            return hasCustomWallpaper
+                ? "相册图片已启用，可清空自定义壁纸并恢复系统背景。"
+                : "当前使用系统背景，没有自定义壁纸可清空。"
+        }
+    }
+
+    static func hint(
+        for action: Action,
+        hasCustomWallpaper: Bool,
+        isImporting: Bool
+    ) -> String {
+        switch action {
+        case .choosePhoto:
+            if isImporting {
+                return "等待本地压缩完成后可再次选择；不会下载模型权重、触发真实 runtime 或发送到云端服务。"
+            }
+            return "打开系统相册选择图片，图片会在本地压缩后写入 App 背景数据；不会下载模型权重、触发真实 runtime 或发送到云端服务。"
+        case .clearCustomWallpaper:
+            if isImporting {
+                return "等待本地压缩完成后才能恢复系统背景；不会下载模型权重、触发真实 runtime 或发送到云端服务。"
+            }
+            if hasCustomWallpaper {
+                return "移除自定义壁纸并恢复系统背景；不会删除相册原图，不会下载模型权重、触发真实 runtime 或发送到云端服务。"
+            }
+            return "当前没有自定义壁纸，系统背景已经启用；不会下载模型权重、触发真实 runtime 或发送到云端服务。"
+        }
+    }
+
+    static func inputLabels(for action: Action) -> [String] {
+        switch action {
+        case .choosePhoto:
+            return ["选择相册壁纸", "选择壁纸", "打开相册"]
+        case .clearCustomWallpaper:
+            return ["恢复系统背景", "清空壁纸", "移除自定义壁纸"]
+        }
+    }
+
+    static func identifier(for action: Action) -> String {
+        switch action {
+        case .choosePhoto:
+            return "wallpaper-action-choose-photo"
+        case .clearCustomWallpaper:
+            return "wallpaper-action-clear-custom"
+        }
+    }
+}
+
 enum SelectionAccessibilityMetadata {
     static func workspaceLabel(for tab: WorkspaceTab) -> String {
         "\(tab.title)工作区"
@@ -3395,6 +3478,7 @@ struct WallpaperPreferencePanel: View {
     let clearWallpaper: () -> Void
 
     var body: some View {
+        let hasCustomWallpaper = wallpaperData.isEmpty == false
         let pickerAccent = theme.accent
         let pickerForeground = theme.inverseText
 
@@ -3429,7 +3513,29 @@ struct WallpaperPreferencePanel: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(isImporting)
-                .accessibilityLabel("Choose wallpaper from photo library")
+                .accessibilityLabel(
+                    WallpaperPreferenceAccessibilityMetadata.label(for: .choosePhoto)
+                )
+                .accessibilityValue(
+                    WallpaperPreferenceAccessibilityMetadata.value(
+                        for: .choosePhoto,
+                        hasCustomWallpaper: hasCustomWallpaper,
+                        isImporting: isImporting
+                    )
+                )
+                .accessibilityHint(
+                    WallpaperPreferenceAccessibilityMetadata.hint(
+                        for: .choosePhoto,
+                        hasCustomWallpaper: hasCustomWallpaper,
+                        isImporting: isImporting
+                    )
+                )
+                .accessibilityInputLabels(
+                    WallpaperPreferenceAccessibilityMetadata.inputLabels(for: .choosePhoto)
+                )
+                .accessibilityIdentifier(
+                    WallpaperPreferenceAccessibilityMetadata.identifier(for: .choosePhoto)
+                )
 
                 Button(action: clearWallpaper) {
                     Image(systemName: "xmark")
@@ -3442,7 +3548,29 @@ struct WallpaperPreferencePanel: View {
                 .buttonStyle(.plain)
                 .disabled(wallpaperData.isEmpty || isImporting)
                 .opacity(wallpaperData.isEmpty || isImporting ? 0.42 : 1)
-                .accessibilityLabel("Clear custom wallpaper")
+                .accessibilityLabel(
+                    WallpaperPreferenceAccessibilityMetadata.label(for: .clearCustomWallpaper)
+                )
+                .accessibilityValue(
+                    WallpaperPreferenceAccessibilityMetadata.value(
+                        for: .clearCustomWallpaper,
+                        hasCustomWallpaper: hasCustomWallpaper,
+                        isImporting: isImporting
+                    )
+                )
+                .accessibilityHint(
+                    WallpaperPreferenceAccessibilityMetadata.hint(
+                        for: .clearCustomWallpaper,
+                        hasCustomWallpaper: hasCustomWallpaper,
+                        isImporting: isImporting
+                    )
+                )
+                .accessibilityInputLabels(
+                    WallpaperPreferenceAccessibilityMetadata.inputLabels(for: .clearCustomWallpaper)
+                )
+                .accessibilityIdentifier(
+                    WallpaperPreferenceAccessibilityMetadata.identifier(for: .clearCustomWallpaper)
+                )
             }
         }
         .panelStyle(border: theme.border)
@@ -3457,36 +3585,39 @@ struct WallpaperPreferencePanel: View {
 
     @ViewBuilder
     private var wallpaperPreview: some View {
-        if let image = UIImage(data: wallpaperData) {
-            Image(uiImage: image)
-                .resizable()
-                .scaledToFill()
+        Group {
+            if let image = UIImage(data: wallpaperData) {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 58, height: 58)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .stroke(theme.border, lineWidth: 1)
+                    }
+            } else {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: theme.backgroundColors,
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                    Image(systemName: "photo.fill")
+                        .font(.system(size: 20, weight: .black))
+                        .foregroundStyle(theme.accent)
+                }
                 .frame(width: 58, height: 58)
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 .overlay {
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
                         .stroke(theme.border, lineWidth: 1)
                 }
-        } else {
-            ZStack {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: theme.backgroundColors,
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                Image(systemName: "photo.fill")
-                    .font(.system(size: 20, weight: .black))
-                    .foregroundStyle(theme.accent)
-            }
-            .frame(width: 58, height: 58)
-            .overlay {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .stroke(theme.border, lineWidth: 1)
             }
         }
+        .accessibilityHidden(true)
     }
 }
 

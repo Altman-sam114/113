@@ -63,7 +63,7 @@ flowchart TD
 
 ## 4. UI 布局与工作区流
 
-读图说明：这张图展示 ContentView 如何根据容器尺寸选择单栏、compact 双栏或 regular 大屏双栏布局，然后进入具体工作区。iPhone 横屏、iPad 竖屏大画布、Mac Catalyst 和桌面窗口都走同一套尺寸断点；regular 大屏侧栏显示工作区用途说明，compact 侧栏保持紧凑；Mac Catalyst 和 iPad 外接键盘可通过 `Command+1...4` 或系统 `工作区` 命令菜单切换工作区，也可通过系统 `会话` 命令菜单或会话栏可见按钮新建/导出当前会话；会话栏操作、导出弹层分享/复制、模型选择器、部署控件和提示词分类筛选 chip 会向辅助技术暴露当前操作语义。
+读图说明：这张图展示 ContentView 如何根据容器尺寸选择单栏、compact 双栏或 regular 大屏双栏布局，然后进入具体工作区。iPhone 横屏、iPad 竖屏大画布、Mac Catalyst 和桌面窗口都走同一套尺寸断点；regular 大屏侧栏显示工作区用途说明，compact 侧栏保持紧凑；Mac Catalyst 和 iPad 外接键盘可通过 `Command+1...4` 或系统 `工作区` 命令菜单切换工作区，也可通过系统 `会话` 命令菜单或会话栏可见按钮新建/导出当前会话；会话栏操作、导出弹层分享/复制、壁纸控件、模型选择器、部署控件和提示词分类筛选 chip 会向辅助技术暴露当前操作语义。
 
 ```mermaid
 flowchart TD
@@ -83,16 +83,16 @@ flowchart TD
     F -- 推理 --> G[ChatWorkspace<br/>会话 + 消息 + 输入<br/>SessionSidebarLayoutPolicy<br/>会话栏操作辅助语义<br/>导出弹层分享/复制辅助语义]
     F -- 模型 --> H[ModelLibraryView<br/>ModelLibraryLayoutMode<br/>窄屏单栏 / 宽屏内部双栏<br/>选择器/部署控件辅助语义]
     F -- 提示词 --> I[PromptTemplatesWorkspace<br/>模板筛选/填入/发送<br/>分类筛选辅助语义]
-    F -- 设置 --> J[SettingsWorkspace<br/>主题/壁纸/芯片策略]
+    F -- 设置 --> J[SettingsWorkspace<br/>主题/壁纸控件/芯片策略]
 ```
 
 ## 5. 相册壁纸流
 
-读图说明：这张图展示从相册选择图片后，项目如何压缩图片再保存为 App 背景，避免大图直接写入 AppStorage。
+读图说明：这张图展示从相册选择图片后，项目如何压缩图片再保存为 App 背景，避免大图直接写入 AppStorage；设置页选择相册壁纸和恢复系统背景控件通过辅助语义说明系统背景、相册图片已启用、正在处理和不发送云端服务边界。
 
 ```mermaid
 flowchart TD
-    A[用户点击设置页壁纸按钮] --> B[PhotosPicker 打开系统相册]
+    A[用户点击设置页壁纸按钮<br/>选择动作辅助语义] --> B[PhotosPicker 打开系统相册]
     B --> C{是否选择图片}
     C -- 否 --> D[保持当前背景]
     C -- 是 --> E[读取 PhotosPickerItem Data]
@@ -102,7 +102,7 @@ flowchart TD
     H --> I[压缩为 JPEG]
     I --> J[写入 customWallpaperImageData]
     J --> K[AppBackground 展示壁纸并叠加主题遮罩]
-    K --> L[用户可一键清空恢复系统背景]
+    K --> L[用户可一键清空恢复系统背景<br/>恢复动作辅助语义]
 ```
 
 ## 6. 会话导出与分享流

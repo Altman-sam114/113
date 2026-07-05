@@ -1293,6 +1293,111 @@ final class LocalGemmaTests: XCTestCase {
         XCTAssertEqual(small.height, 600)
     }
 
+    func testWallpaperPreferenceControlsExposeAccessibilityMetadata() {
+        XCTAssertEqual(
+            WallpaperPreferenceAccessibilityMetadata.identifier(for: .choosePhoto),
+            "wallpaper-action-choose-photo"
+        )
+        XCTAssertEqual(
+            WallpaperPreferenceAccessibilityMetadata.identifier(for: .clearCustomWallpaper),
+            "wallpaper-action-clear-custom"
+        )
+        XCTAssertEqual(
+            WallpaperPreferenceAccessibilityMetadata.label(for: .choosePhoto),
+            "选择相册壁纸"
+        )
+        XCTAssertEqual(
+            WallpaperPreferenceAccessibilityMetadata.label(for: .clearCustomWallpaper),
+            "恢复系统背景"
+        )
+
+        let chooseSystemValue = WallpaperPreferenceAccessibilityMetadata.value(
+            for: .choosePhoto,
+            hasCustomWallpaper: false,
+            isImporting: false
+        )
+        let chooseCustomValue = WallpaperPreferenceAccessibilityMetadata.value(
+            for: .choosePhoto,
+            hasCustomWallpaper: true,
+            isImporting: false
+        )
+        let chooseImportingValue = WallpaperPreferenceAccessibilityMetadata.value(
+            for: .choosePhoto,
+            hasCustomWallpaper: true,
+            isImporting: true
+        )
+        let chooseHint = WallpaperPreferenceAccessibilityMetadata.hint(
+            for: .choosePhoto,
+            hasCustomWallpaper: false,
+            isImporting: false
+        )
+        XCTAssertTrue(chooseSystemValue.contains("系统背景"))
+        XCTAssertTrue(chooseSystemValue.contains("系统相册"))
+        XCTAssertTrue(chooseCustomValue.contains("相册图片已启用"))
+        XCTAssertTrue(chooseImportingValue.contains("正在处理相册图片"))
+        XCTAssertTrue(chooseHint.contains("系统相册"))
+        XCTAssertTrue(chooseHint.contains("本地压缩"))
+        XCTAssertTrue(chooseHint.contains("不会下载模型权重"))
+        XCTAssertTrue(chooseHint.contains("真实 runtime"))
+        XCTAssertTrue(chooseHint.contains("不会发送到云端服务"))
+        XCTAssertTrue(
+            WallpaperPreferenceAccessibilityMetadata.inputLabels(for: .choosePhoto)
+                .contains("打开相册")
+        )
+
+        let clearSystemValue = WallpaperPreferenceAccessibilityMetadata.value(
+            for: .clearCustomWallpaper,
+            hasCustomWallpaper: false,
+            isImporting: false
+        )
+        let clearCustomValue = WallpaperPreferenceAccessibilityMetadata.value(
+            for: .clearCustomWallpaper,
+            hasCustomWallpaper: true,
+            isImporting: false
+        )
+        let clearImportingHint = WallpaperPreferenceAccessibilityMetadata.hint(
+            for: .clearCustomWallpaper,
+            hasCustomWallpaper: true,
+            isImporting: true
+        )
+        let clearEnabledHint = WallpaperPreferenceAccessibilityMetadata.hint(
+            for: .clearCustomWallpaper,
+            hasCustomWallpaper: true,
+            isImporting: false
+        )
+        XCTAssertTrue(clearSystemValue.contains("系统背景"))
+        XCTAssertTrue(clearSystemValue.contains("没有自定义壁纸"))
+        XCTAssertTrue(clearCustomValue.contains("相册图片已启用"))
+        XCTAssertTrue(clearCustomValue.contains("恢复系统背景"))
+        XCTAssertTrue(clearEnabledHint.contains("不会删除相册原图"))
+        XCTAssertTrue(clearEnabledHint.contains("不会下载模型权重"))
+        XCTAssertTrue(clearEnabledHint.contains("真实 runtime"))
+        XCTAssertTrue(clearEnabledHint.contains("不会发送到云端服务"))
+        XCTAssertTrue(clearImportingHint.contains("等待本地压缩完成"))
+        XCTAssertTrue(
+            WallpaperPreferenceAccessibilityMetadata.inputLabels(for: .clearCustomWallpaper)
+                .contains("清空壁纸")
+        )
+
+        XCTAssertTrue(
+            WallpaperPreferenceAccessibilityMetadata.Action.allCases.allSatisfy {
+                !WallpaperPreferenceAccessibilityMetadata.label(for: $0).isEmpty
+                    && !WallpaperPreferenceAccessibilityMetadata.value(
+                        for: $0,
+                        hasCustomWallpaper: false,
+                        isImporting: false
+                    ).isEmpty
+                    && !WallpaperPreferenceAccessibilityMetadata.hint(
+                        for: $0,
+                        hasCustomWallpaper: true,
+                        isImporting: true
+                    ).isEmpty
+                    && !WallpaperPreferenceAccessibilityMetadata.inputLabels(for: $0).isEmpty
+                    && !WallpaperPreferenceAccessibilityMetadata.identifier(for: $0).isEmpty
+            }
+        )
+    }
+
     func testExportPayloadOnlySharesExistingFileURL() throws {
         let directoryURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("LocalGemmaPayload-\(UUID().uuidString)", isDirectory: true)
