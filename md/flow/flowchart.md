@@ -48,7 +48,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A[用户在 Composer 输入 prompt] --> B{输入是否为空}
+    A[用户在 Composer 输入 prompt<br/>输入框与发送/停止控件有辅助标识] --> B{输入是否为空}
     B -- 是 --> C[忽略，不创建消息]
     B -- 否 --> D[InferenceEngine 创建用户消息]
     D --> E[创建 assistant 占位消息]
@@ -63,7 +63,7 @@ flowchart TD
 
 ## 4. UI 布局与工作区流
 
-读图说明：这张图展示 ContentView 如何根据容器尺寸选择单栏、compact 双栏或 regular 大屏双栏布局，然后进入具体工作区。iPhone 横屏、iPad 竖屏大画布、Mac Catalyst 和桌面窗口都走同一套尺寸断点；regular 大屏侧栏显示工作区用途说明，compact 侧栏保持紧凑；Mac Catalyst 和 iPad 外接键盘可通过 `Command+1...4` 或系统 `工作区` 命令菜单切换工作区，也可通过系统 `会话` 命令菜单或会话栏可见按钮新建/导出当前会话；顶部模型胶囊、模型详情右栏、工作区导航、头部主题与模型库入口、会话栏操作、导出弹层分享/复制、壁纸控件、模型选择器、部署控件、运行策略开关、芯片准备度、提示词分类筛选 chip 和提示词模板动作会向辅助技术暴露当前操作语义。
+读图说明：这张图展示 ContentView 如何根据容器尺寸选择单栏、compact 双栏或 regular 大屏双栏布局，然后进入具体工作区。iPhone 横屏、iPad 竖屏大画布、Mac Catalyst 和桌面窗口都走同一套尺寸断点；regular 大屏侧栏显示工作区用途说明，compact 侧栏保持紧凑；Mac Catalyst 和 iPad 外接键盘可通过 `Command+1...4` 或系统 `工作区` 命令菜单切换工作区，也可通过系统 `会话` 命令菜单或会话栏可见按钮新建/导出当前会话；顶部模型胶囊、模型详情右栏、工作区导航、头部主题与模型库入口、会话栏操作、导出弹层分享/复制、壁纸控件、composer 输入框和发送/停止按钮、模型选择器、部署控件、运行策略开关、芯片准备度、提示词分类筛选 chip 和提示词模板动作会向辅助技术暴露当前操作语义。
 
 ```mermaid
 flowchart TD

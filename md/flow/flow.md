@@ -76,7 +76,7 @@
 - `SelectionAccessibilityMetadata` 为 workspace 和会话选择生成 label/value，当前选中项通过 `.isSelected` trait 暴露给辅助技术，不改变业务状态。
 - `PromptCategoryAccessibilityMetadata` 为提示词分类筛选 chip 生成 label/value/hint/input labels/identifier，当前筛选项通过 `.isSelected` trait 暴露给辅助技术，不改变模板筛选业务结果。
 - `PromptTemplateActionAccessibilityMetadata` 为提示词模板卡片的“填入”和“发送”动作生成 label/value/hint/input labels/identifier；填入动作只写入 composer、切回推理页并聚焦输入框，不发送 prompt；发送动作走本地模拟 runtime，不下载模型权重、不启动真实 runtime、不发送到云端服务，也不绕过 verified 门禁。
-- `ComposerFocusRequest`、`ComposerFocusPolicy` 和 `ComposerInputMetadata` 只管理 view 层输入焦点与辅助输入文案；切回推理页、新建/切换会话、提示词模板填入或发送后会请求 composer 聚焦，不写入 `InferenceEngine` 业务状态。
+- `ComposerFocusRequest`、`ComposerFocusPolicy` 和 `ComposerInputMetadata` 只管理 view 层输入焦点、输入框标识和发送/停止控件辅助语义；切回推理页、新建/切换会话、提示词模板填入或发送后会请求 composer 聚焦，不写入 `InferenceEngine` 业务状态；composer 输入框与发送/停止按钮暴露稳定 identifier、Voice Control input labels、`Command+Return` 语义、本地模拟 runtime 边界、不下载模型权重、不启动真实 runtime、不发送云端服务和不绕过 verified 门禁。
 - `会话` command menu 支持 `Command+N` 新建会话、`Command+Shift+E` 导出当前会话；会话栏保留可见按钮入口；composer 支持 `Command+Return` 发送 prompt 或停止生成，普通 Return 继续保留给 vertical input。
 
 ### Mac Catalyst 本地运行入口
@@ -250,7 +250,7 @@ Agent X 不能跳过 Agent C artifact 验收；失败时不能继续下一轮并
 - 大图壁纸必须压缩和限制尺寸。
 - iPhone 横屏、iPad 大屏与 Mac Catalyst 桌面窗口布局断点必须有测试覆盖。
 - 模型页内部宽屏双栏和窄屏单栏回退必须有测试覆盖。
-- 工作区快捷键、工作区/会话 command menu、工作区导航辅助语义、顶部模型胶囊整体辅助语义、模型详情右栏辅助语义、头部主题与模型库入口辅助语义、会话栏操作辅助语义、导出弹层分享/复制辅助语义、壁纸控件辅助语义、会话侧栏宽度、regular 侧栏说明、选择语义、composer 输入焦点/辅助语义、模型选择器与部署控件辅助语义、运行策略开关辅助语义、芯片准备度辅助语义、提示词分类筛选辅助语义和提示词模板动作辅助语义必须有测试覆盖，避免 Mac/iPad 导航退化。
+- 工作区快捷键、工作区/会话 command menu、工作区导航辅助语义、顶部模型胶囊整体辅助语义、模型详情右栏辅助语义、头部主题与模型库入口辅助语义、会话栏操作辅助语义、导出弹层分享/复制辅助语义、壁纸控件辅助语义、会话侧栏宽度、regular 侧栏说明、选择语义、composer 输入焦点/控件辅助语义、模型选择器与部署控件辅助语义、运行策略开关辅助语义、芯片准备度辅助语义、提示词分类筛选辅助语义和提示词模板动作辅助语义必须有测试覆盖，避免 Mac/iPad 导航退化。
 - 默认协作验证以 `main` push 后的 GitHub Actions 结果包为准。
 - Agent X 循环每轮仍以 Agent B 本地轻量检查、GitHub Actions artifact 和 Agent C 下载复判为准。
 

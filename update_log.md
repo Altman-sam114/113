@@ -1280,3 +1280,48 @@
 
 - v2.10 push 后需等待最新 `ci-results.yml` run 完成，由 Agent C 下载对应未加密结果包，核对 manifest、`artifact-name.txt`、JUnit、iOS 日志、Mac Catalyst 日志、run script 日志、baseline notes 和 `.xcresult`。
 - 本轮只建立提示词模板动作辅助语义，没有做 composer 按钮 identifier、会话 chip 动作细化、聊天消息气泡整体辅助语义、优化指标卡辅助语义、完整 UI Test target、真实 runtime 接入、模型 artifact 下载或原生 macOS target。
+
+### v2.11 / Composer控件标识与语音控制语义
+
+日期：2026-07-05
+
+核心变更：
+
+- Agent X 在 v2.10 验收通过后继续优化推理页主输入工作流；子 agent 前序审计指出 composer 发送/停止控件仍缺稳定 identifier 和 Voice Control 语义，本轮据此归档 Agent A 提示词 `md/prompt/v2（Mac体验审计）/v2.11（Composer控件标识与语音控制语义）.md`。
+- `ComposerInputMetadata` 新增 composer 输入框 identifier、发送/停止按钮 input labels 和按钮 identifier。
+- 发送/停止按钮从纯 `Image` 改为保留文本语义的 `Label(...).labelStyle(.iconOnly)`，视觉仍保持圆形图标按钮。
+- composer action hint 扩展为空输入、发送本地模拟 runtime、停止当前模拟生成三态，并统一说明不下载模型权重、不启动真实 runtime、不发送云端服务且不绕过 artifact verified 门禁。
+- 扩展 `testComposerInputMetadataAndFocusPolicyDescribeEntryPoints`，锁住输入框 identifier、发送/停止 input labels、按钮 identifier 和三态 hint 边界；测试函数数保持 55 个。
+- 同步 README、测试规范、核心流程文档、Mermaid 流程图、入口规则和 Agent A 提示词归档中的 composer 控件标识与语音控制语义基线。
+- 本轮没有创建原生 macOS target，没有下载模型权重，没有接入真实模型推理，没有修改 `InferenceEngine` 发送/停止行为、提示词模板逻辑、runtime plan 或 artifact verified 门禁。
+
+关键文件：
+
+- `LocalGemma/ContentView.swift`
+- `LocalGemmaTests/LocalGemmaTests.swift`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `AGENTS.md`
+- `md/prompt/v2（Mac体验审计）/v2.11（Composer控件标识与语音控制语义）.md`
+- `update_log.md`
+
+验证结果：
+
+- `git diff --check`：无输出，退出码 0。
+- `test -x script/build_and_run.sh`：退出码 0。
+- `bash -n script/build_and_run.sh`：退出码 0。
+- `plutil -lint LocalGemma.xcodeproj/project.pbxproj`：输出 `LocalGemma.xcodeproj/project.pbxproj: OK`。
+- `ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'`：输出 `yaml ok`。
+- `grep -n "func test" LocalGemmaTests/LocalGemmaTests.swift`：确认当前 55 个 `test...` 方法。
+- `/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -sdk /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk -module-cache-path .build/SwiftSmokeModuleCache LocalGemma/AppState.swift Tools/LogicSmoke.swift -o .build/logic-smoke`：退出码 0。
+- `.build/logic-smoke`：输出 `Logic smoke passed`。
+- `/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -typecheck -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk -target arm64-apple-ios17.0-simulator -module-cache-path .build/ModuleCache LocalGemma/AppState.swift LocalGemma/ContentView.swift LocalGemma/LocalGemmaApp.swift`：退出码 0。
+- `/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -emit-module -emit-module-path .build/Typecheck/LocalGemma.swiftmodule -module-name LocalGemma -enable-testing -parse-as-library -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk -target arm64-apple-ios17.0-simulator -module-cache-path .build/ModuleCache LocalGemma/AppState.swift LocalGemma/ContentView.swift LocalGemma/LocalGemmaApp.swift`：退出码 0。
+- `/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -typecheck -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk -target arm64-apple-ios17.0-simulator -module-cache-path .build/ModuleCache -I .build/Typecheck -I /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/lib -F /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/Library/Frameworks LocalGemmaTests/LocalGemmaTests.swift`：退出码 0。
+
+遗留事项：
+
+- v2.11 push 后需等待最新 `ci-results.yml` run 完成，由 Agent C 下载对应未加密结果包，核对 manifest、`artifact-name.txt`、JUnit、iOS 日志、Mac Catalyst 日志、run script 日志、baseline notes 和 `.xcresult`。
+- 本轮只建立 composer 控件标识与语音控制语义，没有做会话 chip 动作细化、聊天消息气泡整体辅助语义、优化指标卡辅助语义、完整 UI Test target、真实 runtime 接入、模型 artifact 下载或原生 macOS target。

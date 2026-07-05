@@ -1400,9 +1400,23 @@ enum ComposerInputMetadata {
     static let textFieldLabel = "本地模型输入"
     static let textFieldHint = "输入 prompt。按 Command Return 发送，普通 Return 可继续换行。"
     static let textFieldInputLabels = ["本地模型输入", "输入 prompt", "问本地模型"]
+    static let textFieldIdentifier = "composer-input-field"
+
+    private static let localBoundaryHint = "本地边界：不会下载模型权重，不会启动真实 runtime，不会发送到云端服务，也不会绕过 artifact verified 门禁。"
 
     static func actionLabel(isGenerating: Bool) -> String {
         isGenerating ? "停止生成" : "发送提示词"
+    }
+
+    static func actionInputLabels(isGenerating: Bool) -> [String] {
+        if isGenerating {
+            return ["停止生成", "停止本地生成", "停止模拟生成"]
+        }
+        return ["发送提示词", "发送 prompt", "问本地模型"]
+    }
+
+    static func actionIdentifier(isGenerating: Bool) -> String {
+        isGenerating ? "composer-stop-button" : "composer-send-button"
     }
 
     static func actionValue(text: String, isGenerating: Bool) -> String {
@@ -1414,12 +1428,12 @@ enum ComposerInputMetadata {
 
     static func actionHint(text: String, isGenerating: Bool) -> String {
         if isGenerating {
-            return "停止当前模拟生成。"
+            return "停止当前模拟生成。\(localBoundaryHint)"
         }
         if isActionDisabled(text: text, isGenerating: isGenerating) {
-            return "输入内容后可发送。"
+            return "输入内容后可发送。\(localBoundaryHint)"
         }
-        return "发送当前输入给本地模拟 runtime。"
+        return "发送当前输入给本地模拟 runtime。\(localBoundaryHint)"
     }
 
     static func isActionDisabled(text: String, isGenerating: Bool) -> Bool {
@@ -2855,6 +2869,7 @@ struct ComposerBar: View {
                     .accessibilityLabel(ComposerInputMetadata.textFieldLabel)
                     .accessibilityHint(ComposerInputMetadata.textFieldHint)
                     .accessibilityInputLabels(ComposerInputMetadata.textFieldInputLabels)
+                    .accessibilityIdentifier(ComposerInputMetadata.textFieldIdentifier)
             }
             .padding(.horizontal, 13)
             .background(theme.recessedSurface, in: RoundedRectangle(cornerRadius: 17, style: .continuous))
@@ -2866,7 +2881,11 @@ struct ComposerBar: View {
             Button {
                 isGenerating ? stop() : send()
             } label: {
-                Image(systemName: isGenerating ? "stop.fill" : "arrow.up")
+                Label(
+                    ComposerInputMetadata.actionLabel(isGenerating: isGenerating),
+                    systemImage: isGenerating ? "stop.fill" : "arrow.up"
+                )
+                    .labelStyle(.iconOnly)
                     .font(.system(size: 16, weight: .black))
                     .frame(width: 48, height: 48)
                     .background(isGenerating ? Color.red.opacity(0.9) : theme.accent, in: Circle())
@@ -2879,6 +2898,8 @@ struct ComposerBar: View {
             .accessibilityLabel(ComposerInputMetadata.actionLabel(isGenerating: isGenerating))
             .accessibilityValue(ComposerInputMetadata.actionValue(text: text, isGenerating: isGenerating))
             .accessibilityHint(ComposerInputMetadata.actionHint(text: text, isGenerating: isGenerating))
+            .accessibilityInputLabels(ComposerInputMetadata.actionInputLabels(isGenerating: isGenerating))
+            .accessibilityIdentifier(ComposerInputMetadata.actionIdentifier(isGenerating: isGenerating))
         }
         .padding(8)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))

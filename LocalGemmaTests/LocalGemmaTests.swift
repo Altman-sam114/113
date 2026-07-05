@@ -1098,9 +1098,14 @@ final class LocalGemmaTests: XCTestCase {
         XCTAssertEqual(ComposerInputMetadata.textFieldLabel, "本地模型输入")
         XCTAssertTrue(ComposerInputMetadata.textFieldHint.contains("Command Return"))
         XCTAssertTrue(ComposerInputMetadata.textFieldInputLabels.contains("输入 prompt"))
+        XCTAssertEqual(ComposerInputMetadata.textFieldIdentifier, "composer-input-field")
 
         XCTAssertEqual(ComposerInputMetadata.actionLabel(isGenerating: false), "发送提示词")
         XCTAssertEqual(ComposerInputMetadata.actionLabel(isGenerating: true), "停止生成")
+        XCTAssertTrue(ComposerInputMetadata.actionInputLabels(isGenerating: false).contains("发送提示词"))
+        XCTAssertTrue(ComposerInputMetadata.actionInputLabels(isGenerating: true).contains("停止生成"))
+        XCTAssertEqual(ComposerInputMetadata.actionIdentifier(isGenerating: false), "composer-send-button")
+        XCTAssertEqual(ComposerInputMetadata.actionIdentifier(isGenerating: true), "composer-stop-button")
         XCTAssertEqual(
             ComposerInputMetadata.actionValue(text: "   ", isGenerating: false),
             "输入为空"
@@ -1116,6 +1121,21 @@ final class LocalGemmaTests: XCTestCase {
         XCTAssertTrue(ComposerInputMetadata.isActionDisabled(text: "  \n", isGenerating: false))
         XCTAssertFalse(ComposerInputMetadata.isActionDisabled(text: "说明端侧部署", isGenerating: false))
         XCTAssertFalse(ComposerInputMetadata.isActionDisabled(text: "", isGenerating: true))
+
+        let composerActionHints = [
+            ComposerInputMetadata.actionHint(text: "   ", isGenerating: false),
+            ComposerInputMetadata.actionHint(text: "说明端侧部署", isGenerating: false),
+            ComposerInputMetadata.actionHint(text: "", isGenerating: true)
+        ]
+        XCTAssertTrue(composerActionHints[0].contains("输入内容后可发送"))
+        XCTAssertTrue(composerActionHints[1].contains("发送当前输入给本地模拟 runtime"))
+        XCTAssertTrue(composerActionHints[2].contains("停止当前模拟生成"))
+        for hint in composerActionHints {
+            XCTAssertTrue(hint.contains("不会下载模型权重"))
+            XCTAssertTrue(hint.contains("不会启动真实 runtime"))
+            XCTAssertTrue(hint.contains("不会发送到云端服务"))
+            XCTAssertTrue(hint.contains("verified 门禁"))
+        }
 
         XCTAssertEqual(
             ComposerFocusReason.allCases,

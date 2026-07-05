@@ -68,7 +68,8 @@ git remote -v
 - `ExportSessionActionAccessibilityMetadata` 控制导出弹层分享 Markdown、文本兜底和复制全文动作的辅助语义；它必须明确本地 Markdown / 文本分享兜底 / 剪贴板边界，并说明不会发送到云端服务。
 - `WallpaperPreferenceAccessibilityMetadata` 控制设置页壁纸选择和恢复系统背景控件的辅助语义；它必须明确系统相册、本地压缩、`AppStorage` 背景数据、系统背景恢复和不发送到云端服务边界。
 - `PromptTemplateActionAccessibilityMetadata` 控制提示词模板卡片“填入”和“发送”动作的辅助语义；它必须明确填入 composer、切回推理页聚焦输入、直接发送到本地模拟 runtime、不下载模型权重、不启动真实 runtime、不发送到云端服务和不绕过 verified 门禁。
-- `WorkspaceTab.shortcutKey`、工作区 command menu、工作区导航辅助语义、会话 command menu、顶部模型胶囊整体辅助语义、模型详情右栏辅助语义、头部主题与模型库入口辅助语义、会话栏操作辅助语义、导出弹层分享/复制辅助语义、壁纸控件辅助语义、regular 侧栏说明、选择语义、composer 输入焦点/辅助语义、模型选择器与部署控件辅助语义、运行策略开关辅助语义、芯片准备度辅助语义、提示词分类筛选辅助语义和提示词模板动作辅助语义锁住 Mac/iPad 工作区导航；改动快捷键、菜单、工作区导航、模型胶囊状态摘要、模型详情摘要、头部主题与模型库入口、会话栏操作、导出弹层分享/复制、壁纸控件、侧栏文案、输入焦点、模型选择器、模型部署控件、运行策略开关、芯片准备度摘要、提示词筛选、模板动作或可访问性映射时必须同步测试。
+- `ComposerInputMetadata` 控制推理页 composer 输入框和发送/停止按钮的辅助语义；它必须暴露输入框 label/hint/input labels/identifier、动作 label/value/hint/input labels/identifier，说明 `Command+Return`、空输入禁用、停止当前模拟生成、本地模拟 runtime、不下载模型权重、不启动真实 runtime、不发送云端服务和不绕过 verified 门禁。
+- `WorkspaceTab.shortcutKey`、工作区 command menu、工作区导航辅助语义、会话 command menu、顶部模型胶囊整体辅助语义、模型详情右栏辅助语义、头部主题与模型库入口辅助语义、会话栏操作辅助语义、导出弹层分享/复制辅助语义、壁纸控件辅助语义、regular 侧栏说明、选择语义、composer 输入焦点/控件辅助语义、模型选择器与部署控件辅助语义、运行策略开关辅助语义、芯片准备度辅助语义、提示词分类筛选辅助语义和提示词模板动作辅助语义锁住 Mac/iPad 工作区导航；改动快捷键、菜单、工作区导航、模型胶囊状态摘要、模型详情摘要、头部主题与模型库入口、会话栏操作、导出弹层分享/复制、壁纸控件、侧栏文案、composer 输入框/发送/停止控件、模型选择器、模型部署控件、运行策略开关、芯片准备度摘要、提示词筛选、模板动作或可访问性映射时必须同步测试。
 - `WallpaperImageProcessor` 控制相册壁纸压缩和尺寸，避免大图直接进入 `AppStorage`。
 - `ExportPayload` 和导出视图必须处理 Markdown 文件不存在时的文本分享兜底，导出弹层的分享/复制动作不得暗示云端上传。
 - `script/build_and_run.sh` 是 Mac Catalyst 本地 build/run/debug/logs 入口，不下载模型权重，不接外部推理服务，不等于原生 macOS target。
