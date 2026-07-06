@@ -3521,34 +3521,38 @@ struct PromptTemplateCard: View {
                 }
                 .frame(width: 38, height: 38)
 
-                VStack(alignment: .leading, spacing: 3) {
+                VStack(alignment: .leading, spacing: PromptTemplateTextLayoutPolicy.headerTextSpacing) {
                     Text(template.title)
-                        .font(.system(size: 15, weight: .black, design: .rounded))
+                        .font(.headline)
+                        .bold()
                         .foregroundStyle(theme.primaryText)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.78)
+                        .lineLimit(PromptTemplateTextLayoutPolicy.titleLineLimit)
+                        .fixedSize(horizontal: false, vertical: true)
                     Text(template.subtitle)
-                        .font(.system(size: 10, weight: .bold))
+                        .font(.subheadline)
+                        .bold()
                         .foregroundStyle(theme.tertiaryText)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.75)
+                        .lineLimit(PromptTemplateTextLayoutPolicy.subtitleLineLimit)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
 
                 Spacer(minLength: 0)
 
                 Text(template.category.title)
-                    .font(.system(size: 9, weight: .black))
+                    .font(.caption)
+                    .bold()
                     .foregroundStyle(template.category.accentColor)
+                    .lineLimit(PromptTemplateTextLayoutPolicy.categoryLineLimit)
                     .padding(.horizontal, 7)
                     .padding(.vertical, 4)
                     .background(template.category.accentColor.opacity(0.12), in: Capsule())
             }
 
             Text(template.prompt)
-                .font(.system(size: 11, weight: .semibold))
-                .lineSpacing(2)
+                .font(.callout)
+                .lineSpacing(PromptTemplateTextLayoutPolicy.bodyLineSpacing)
                 .foregroundStyle(theme.secondaryText)
-                .lineLimit(3)
+                .lineLimit(PromptTemplateTextLayoutPolicy.promptLineLimit)
                 .fixedSize(horizontal: false, vertical: true)
 
             Spacer(minLength: 0)
@@ -3556,7 +3560,8 @@ struct PromptTemplateCard: View {
             HStack(spacing: PromptTemplateActionLayoutPolicy.spacing) {
                 Button(action: apply) {
                     Label("填入", systemImage: "text.cursor")
-                        .font(.system(size: 11, weight: .black))
+                        .font(.subheadline)
+                        .bold()
                         .foregroundStyle(theme.primaryText)
                         .frame(maxWidth: .infinity)
                         .frame(minHeight: PromptTemplateActionLayoutPolicy.minimumTouchTarget)
@@ -3587,7 +3592,8 @@ struct PromptTemplateCard: View {
                 Button(action: send) {
                     Label("发送", systemImage: "paperplane.fill")
                         .labelStyle(.iconOnly)
-                        .font(.system(size: 12, weight: .black))
+                        .font(.body)
+                        .bold()
                         .frame(
                             width: PromptTemplateActionLayoutPolicy.sendButtonSize,
                             height: PromptTemplateActionLayoutPolicy.sendButtonSize
@@ -3616,7 +3622,7 @@ struct PromptTemplateCard: View {
         .foregroundStyle(theme.primaryText)
         .padding(PromptTemplateActionLayoutPolicy.cardPadding)
         .frame(maxWidth: .infinity, alignment: .topLeading)
-        .frame(minHeight: 168, alignment: .topLeading)
+        .frame(minHeight: PromptTemplateTextLayoutPolicy.minimumCardHeight, alignment: .topLeading)
         .background(templateBackground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
@@ -3637,6 +3643,16 @@ struct PromptTemplateCard: View {
             endPoint: .bottomTrailing
         )
     }
+}
+
+enum PromptTemplateTextLayoutPolicy {
+    static let titleLineLimit = 2
+    static let subtitleLineLimit = 2
+    static let promptLineLimit = 4
+    static let categoryLineLimit = 1
+    static let headerTextSpacing: CGFloat = 4
+    static let bodyLineSpacing: CGFloat = 3
+    static let minimumCardHeight: CGFloat = 204
 }
 
 enum PromptTemplateActionLayoutPolicy {

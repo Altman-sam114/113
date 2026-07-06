@@ -771,6 +771,28 @@ final class LocalGemmaTests: XCTestCase {
         )
     }
 
+    func testPromptTemplateTextLayoutPolicySupportsReadableDynamicTypeCards() {
+        XCTAssertEqual(PromptTemplateTextLayoutPolicy.titleLineLimit, 2)
+        XCTAssertEqual(PromptTemplateTextLayoutPolicy.subtitleLineLimit, 2)
+        XCTAssertEqual(PromptTemplateTextLayoutPolicy.promptLineLimit, 4)
+        XCTAssertEqual(PromptTemplateTextLayoutPolicy.categoryLineLimit, 1)
+        XCTAssertEqual(PromptTemplateTextLayoutPolicy.headerTextSpacing, 4)
+        XCTAssertEqual(PromptTemplateTextLayoutPolicy.bodyLineSpacing, 3)
+        XCTAssertEqual(PromptTemplateTextLayoutPolicy.minimumCardHeight, 204)
+        XCTAssertGreaterThan(PromptTemplateTextLayoutPolicy.minimumCardHeight, 168)
+        XCTAssertGreaterThanOrEqual(
+            PromptTemplateTextLayoutPolicy.minimumCardHeight,
+            PromptTemplateActionLayoutPolicy.minimumTouchTarget
+                + PromptTemplateActionLayoutPolicy.cardPadding * 2
+                + 120
+        )
+        XCTAssertTrue(
+            PromptTemplateActionLayoutPolicy.actionRowFits(
+                inCardWidth: PromptTemplateGridLayoutPolicy.minimumCardWidth
+            )
+        )
+    }
+
     func testPromptCategoryLayoutPolicyWrapsFilterChips() {
         let categoryCount = PromptTemplateCategory.allCases.count + 1
         let singleRowWidth = PromptCategoryLayoutPolicy.minimumSingleRowWidth(
