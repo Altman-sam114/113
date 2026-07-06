@@ -1069,6 +1069,95 @@ enum ModelDetailAccessibilityMetadata {
     }
 }
 
+enum ModelDetailRowAccessibilityMetadata {
+    enum AdviceKind: String, CaseIterable, Identifiable {
+        case blocker
+        case nextStep = "next-step"
+        case chipStrategy = "chip-strategy"
+
+        var id: String { rawValue }
+    }
+
+    static let hint = "只展示本地模型详情行；不会下载模型权重，不会启动真实 runtime，不会发送到云端服务，也不会绕过 artifact verified 门禁。"
+
+    static func label(title: String) -> String {
+        "模型详情行 \(title)"
+    }
+
+    static func value(title: String, value: String) -> String {
+        "\(title)：\(value)"
+    }
+
+    static func inputLabels(title: String) -> [String] {
+        ["查看\(title)", "\(title)详情", "模型\(title)"]
+    }
+
+    static func identifier(title: String) -> String {
+        "model-detail-row-\(rowSlug(for: title))"
+    }
+
+    static func adviceLabel(kind: AdviceKind) -> String {
+        switch kind {
+        case .blocker:
+            return "模型运行阻塞项"
+        case .nextStep:
+            return "模型下一步建议"
+        case .chipStrategy:
+            return "芯片策略建议"
+        }
+    }
+
+    static func adviceValue(text: String) -> String {
+        text.replacingOccurrences(of: "\n", with: " ")
+    }
+
+    static func adviceInputLabels(kind: AdviceKind) -> [String] {
+        switch kind {
+        case .blocker:
+            return ["运行阻塞项", "查看阻塞项", "模型阻塞项"]
+        case .nextStep:
+            return ["下一步建议", "查看模型建议", "模型下一步"]
+        case .chipStrategy:
+            return ["芯片策略", "查看芯片策略", "模型芯片建议"]
+        }
+    }
+
+    static func adviceIdentifier(kind: AdviceKind, sequence: Int = 1) -> String {
+        "model-detail-advice-\(kind.rawValue)-\(max(sequence, 1))"
+    }
+
+    private static func rowSlug(for title: String) -> String {
+        switch title {
+        case "模型家族":
+            return "family"
+        case "参数规模":
+            return "parameter-count"
+        case "量化格式":
+            return "quantization"
+        case "上下文长度":
+            return "context-length"
+        case "文件格式":
+            return "file-format"
+        case "包体大小":
+            return "size-on-disk"
+        case "预计速度":
+            return "estimated-speed"
+        case "内存预算":
+            return "memory-budget"
+        case "主后端":
+            return "primary-backend"
+        case "回退后端":
+            return "fallback-backend"
+        case "KV cache":
+            return "kv-cache"
+        case "权重状态":
+            return "artifact-availability"
+        default:
+            return "custom"
+        }
+    }
+}
+
 enum ModelStatusBadgeAccessibilityMetadata {
     static let hint = "只展示本地模型状态；不会下载模型权重，不会启动真实 runtime，不会发送到云端服务，也不会绕过 artifact verified 门禁。"
 
@@ -3848,7 +3937,7 @@ struct ModelDetailColumn: View {
             ModelPerformancePanel(model: model, validation: validation, report: report)
             ModelAdvicePanel(model: model, report: report)
         }
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .contain)
         .accessibilityLabel(ModelDetailAccessibilityMetadata.label(model: model))
         .accessibilityValue(
             ModelDetailAccessibilityMetadata.value(
@@ -3964,19 +4053,32 @@ struct ModelAdvicePanel: View {
     var body: some View {
         DetailPanel(title: "建议", icon: "lightbulb.fill") {
             if report.blockers.isEmpty == false {
-                ForEach(report.blockers, id: \.self) { blocker in
-                    AdviceRow(text: blocker, icon: "exclamationmark.triangle.fill", tint: .orange)
+                ForEach(report.blockers.indices, id: \.self) { index in
+                    AdviceRow(
+                        text: report.blockers[index],
+                        icon: "exclamationmark.triangle.fill",
+                        tint: .orange,
+                        kind: .blocker,
+                        sequence: index + 1
+                    )
                 }
             }
 
-            ForEach(report.nextSteps, id: \.self) { step in
-                AdviceRow(text: step, icon: "checkmark.seal.fill", tint: .green)
+            ForEach(report.nextSteps.indices, id: \.self) { index in
+                AdviceRow(
+                    text: report.nextSteps[index],
+                    icon: "checkmark.seal.fill",
+                    tint: .green,
+                    kind: .nextStep,
+                    sequence: index + 1
+                )
             }
 
             AdviceRow(
                 text: "建议在 \(model.deploymentProfile.preferredChipClass) 上使用 \(model.deploymentProfile.thermalStrategy)。",
                 icon: "cpu.fill",
-                tint: .cyan
+                tint: .cyan,
+                kind: .chipStrategy
             )
         }
     }
@@ -4033,6 +4135,12 @@ struct DetailRow: View {
                 .minimumScaleFactor(0.72)
         }
         .frame(maxWidth: .infinity, minHeight: 24)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(ModelDetailRowAccessibilityMetadata.label(title: title))
+        .accessibilityValue(ModelDetailRowAccessibilityMetadata.value(title: title, value: value))
+        .accessibilityHint(ModelDetailRowAccessibilityMetadata.hint)
+        .accessibilityInputLabels(ModelDetailRowAccessibilityMetadata.inputLabels(title: title))
+        .accessibilityIdentifier(ModelDetailRowAccessibilityMetadata.identifier(title: title))
     }
 }
 
@@ -4042,6 +4150,8 @@ struct AdviceRow: View {
     let text: String
     let icon: String
     let tint: Color
+    let kind: ModelDetailRowAccessibilityMetadata.AdviceKind
+    var sequence: Int = 1
 
     var body: some View {
         HStack(alignment: .top, spacing: 9) {
@@ -4058,6 +4168,14 @@ struct AdviceRow: View {
 
             Spacer(minLength: 0)
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(ModelDetailRowAccessibilityMetadata.adviceLabel(kind: kind))
+        .accessibilityValue(ModelDetailRowAccessibilityMetadata.adviceValue(text: text))
+        .accessibilityHint(ModelDetailRowAccessibilityMetadata.hint)
+        .accessibilityInputLabels(ModelDetailRowAccessibilityMetadata.adviceInputLabels(kind: kind))
+        .accessibilityIdentifier(
+            ModelDetailRowAccessibilityMetadata.adviceIdentifier(kind: kind, sequence: sequence)
+        )
     }
 }
 

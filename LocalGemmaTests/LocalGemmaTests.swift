@@ -1849,6 +1849,97 @@ final class LocalGemmaTests: XCTestCase {
         XCTAssertTrue(verifiedValue.contains("启用 \(verifiedModel.deploymentProfile.kvCachePolicy)"))
     }
 
+    func testModelDetailRowsExposeAccessibilityMetadata() {
+        let hint = ModelDetailRowAccessibilityMetadata.hint
+        XCTAssertTrue(hint.contains("本地模型详情行"))
+        XCTAssertTrue(hint.contains("不会下载模型权重"))
+        XCTAssertTrue(hint.contains("不会启动真实 runtime"))
+        XCTAssertTrue(hint.contains("不会发送到云端服务"))
+        XCTAssertTrue(hint.contains("不会绕过 artifact verified 门禁"))
+
+        XCTAssertEqual(
+            ModelDetailRowAccessibilityMetadata.label(title: "参数规模"),
+            "模型详情行 参数规模"
+        )
+        XCTAssertEqual(
+            ModelDetailRowAccessibilityMetadata.value(title: "参数规模", value: "1.5B"),
+            "参数规模：1.5B"
+        )
+        XCTAssertEqual(
+            ModelDetailRowAccessibilityMetadata.inputLabels(title: "主后端"),
+            ["查看主后端", "主后端详情", "模型主后端"]
+        )
+        XCTAssertEqual(
+            ModelDetailRowAccessibilityMetadata.identifier(title: "模型家族"),
+            "model-detail-row-family"
+        )
+        XCTAssertEqual(
+            ModelDetailRowAccessibilityMetadata.identifier(title: "上下文长度"),
+            "model-detail-row-context-length"
+        )
+        XCTAssertEqual(
+            ModelDetailRowAccessibilityMetadata.identifier(title: "预计速度"),
+            "model-detail-row-estimated-speed"
+        )
+        XCTAssertEqual(
+            ModelDetailRowAccessibilityMetadata.identifier(title: "权重状态"),
+            "model-detail-row-artifact-availability"
+        )
+        XCTAssertEqual(
+            ModelDetailRowAccessibilityMetadata.identifier(title: "自定义行"),
+            "model-detail-row-custom"
+        )
+
+        XCTAssertEqual(
+            ModelDetailRowAccessibilityMetadata.AdviceKind.allCases,
+            [.blocker, .nextStep, .chipStrategy]
+        )
+        XCTAssertEqual(
+            ModelDetailRowAccessibilityMetadata.adviceLabel(kind: .blocker),
+            "模型运行阻塞项"
+        )
+        XCTAssertEqual(
+            ModelDetailRowAccessibilityMetadata.adviceLabel(kind: .nextStep),
+            "模型下一步建议"
+        )
+        XCTAssertEqual(
+            ModelDetailRowAccessibilityMetadata.adviceLabel(kind: .chipStrategy),
+            "芯片策略建议"
+        )
+        XCTAssertEqual(
+            ModelDetailRowAccessibilityMetadata.adviceValue(text: "缺少 artifact\n请导入文件"),
+            "缺少 artifact 请导入文件"
+        )
+        XCTAssertEqual(
+            ModelDetailRowAccessibilityMetadata.adviceInputLabels(kind: .blocker),
+            ["运行阻塞项", "查看阻塞项", "模型阻塞项"]
+        )
+        XCTAssertEqual(
+            ModelDetailRowAccessibilityMetadata.adviceInputLabels(kind: .nextStep),
+            ["下一步建议", "查看模型建议", "模型下一步"]
+        )
+        XCTAssertEqual(
+            ModelDetailRowAccessibilityMetadata.adviceInputLabels(kind: .chipStrategy),
+            ["芯片策略", "查看芯片策略", "模型芯片建议"]
+        )
+        XCTAssertEqual(
+            ModelDetailRowAccessibilityMetadata.adviceIdentifier(kind: .blocker, sequence: 2),
+            "model-detail-advice-blocker-2"
+        )
+        XCTAssertEqual(
+            ModelDetailRowAccessibilityMetadata.adviceIdentifier(kind: .nextStep, sequence: 0),
+            "model-detail-advice-next-step-1"
+        )
+        XCTAssertEqual(
+            ModelDetailRowAccessibilityMetadata.adviceIdentifier(kind: .chipStrategy),
+            "model-detail-advice-chip-strategy-1"
+        )
+        XCTAssertFalse(
+            ModelDetailRowAccessibilityMetadata.adviceIdentifier(kind: .blocker, sequence: 1)
+                .contains("缺少 artifact")
+        )
+    }
+
     func testModelSelectorExposesAccessibilityMetadata() {
         let model = ModelCatalog.defaultModels[0]
         let modelCount = ModelCatalog.defaultModels.count
