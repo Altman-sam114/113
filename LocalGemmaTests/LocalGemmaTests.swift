@@ -2849,6 +2849,24 @@ final class LocalGemmaTests: XCTestCase {
         )
     }
 
+    func testModelArtifactActionLayoutPolicyMaintainsUtilityTouchTargets() {
+        XCTAssertEqual(ModelArtifactActionLayoutPolicy.minimumTouchTarget, 44)
+        XCTAssertGreaterThanOrEqual(
+            ModelArtifactActionLayoutPolicy.utilityButtonMinHeight,
+            ModelArtifactActionLayoutPolicy.minimumTouchTarget
+        )
+        XCTAssertEqual(ModelArtifactActionLayoutPolicy.UtilityAction.allCases.count, 2)
+        XCTAssertTrue(
+            ModelArtifactActionLayoutPolicy.UtilityAction.allCases.allSatisfy {
+                ModelArtifactActionLayoutPolicy.usesMinimumTouchTarget(for: $0)
+            }
+        )
+        XCTAssertEqual(
+            ModelArtifactActionLayoutPolicy.UtilityAction.allCases.map(\.metadataAction),
+            [.scan, .importFiles]
+        )
+    }
+
     func testModelUninstallConfirmationExposesAccessibilityMetadata() {
         let model = ModelCatalog.defaultModels[0]
 

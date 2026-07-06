@@ -1827,6 +1827,32 @@ enum ModelDeploymentControlAccessibilityMetadata {
     }
 }
 
+enum ModelArtifactActionLayoutPolicy {
+    enum UtilityAction: CaseIterable {
+        case scan
+        case importFiles
+
+        var metadataAction: ModelDeploymentControlAccessibilityMetadata.ArtifactAction {
+            switch self {
+            case .scan:
+                return .scan
+            case .importFiles:
+                return .importFiles
+            }
+        }
+    }
+
+    static let minimumTouchTarget: CGFloat = 44
+    static let utilityButtonMinHeight: CGFloat = minimumTouchTarget
+
+    static func usesMinimumTouchTarget(for action: UtilityAction) -> Bool {
+        switch action {
+        case .scan, .importFiles:
+            return utilityButtonMinHeight >= minimumTouchTarget
+        }
+    }
+}
+
 enum ModelArtifactPanelAccessibilityMetadata {
     static let label = "模型文件工作流"
     static let hint = "只管理本地模型文件工作流；不会联网下载模型权重，不会启动真实 runtime，不会发送到云端服务，也不会绕过 artifact verified 门禁。"
@@ -4389,6 +4415,8 @@ struct ArtifactActionPanel: View {
                         .frame(maxWidth: .infinity)
                 }
                 .compactUtilityStyle()
+                .frame(minHeight: ModelArtifactActionLayoutPolicy.utilityButtonMinHeight)
+                .contentShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
                 .accessibilityLabel(
                     ModelDeploymentControlAccessibilityMetadata.artifactActionLabel(.scan)
                 )
@@ -4416,6 +4444,8 @@ struct ArtifactActionPanel: View {
                         .frame(maxWidth: .infinity)
                 }
                 .compactUtilityStyle()
+                .frame(minHeight: ModelArtifactActionLayoutPolicy.utilityButtonMinHeight)
+                .contentShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
                 .accessibilityLabel(
                     ModelDeploymentControlAccessibilityMetadata.artifactActionLabel(.importFiles)
                 )

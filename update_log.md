@@ -16,7 +16,7 @@
 - 平台：SwiftUI iOS App，Swift 6.0，iOS deployment target 17.0，当前 app/test target 支持 iPhone、iPad 和 Mac Catalyst build-for-testing，并提供项目内 Mac Catalyst 本地 build/run 脚本入口；尚未创建原生 macOS target。
 - 当前默认模型：`Gemma 1.5B Local`
 - 当前推理：本地模拟 runtime，不下载模型权重，不执行真实模型推理。
-- 当前核心测试：`LocalGemmaTests.swift` 中 79 个 XCTest 方法。
+- 当前核心测试：`LocalGemmaTests.swift` 中 80 个 XCTest 方法。
 - 当前核心文档入口：`AGENTS.md`、`md/flow/flow.md`、`md/flow/flowchart.md`、`md/test/test.md`、`md/prompt/README.md`、`README.md`。
 - 当前协作验证：默认 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载未加密 CI 结果包验收；本地仓库当前已配置 `origin` remote，最终验收仍以最新 `origin/main` 对应的 GitHub Actions run 和结果包为准；文档已预留未来 `agentx:` 主控 Agent A -> Agent B -> Agent C 多轮循环的规则。
 
@@ -2383,5 +2383,47 @@
 
 遗留事项：
 
-- v2.35 push 后需等待最新 `ci-results.yml` run 完成，由 Agent C 下载对应未加密结果包，核对 manifest、`artifact-name.txt`、JUnit、iOS 日志、Mac Catalyst 日志、run script 日志、baseline notes 和 `.xcresult`。
+- v2.35 push 后 GitHub Actions run `28805129049` 对最新 `origin/main` commit `6ef51f11765ad1575a4862b187b88df2ad6b0e66` 验收通过；artifact `localgemma-ci-v2.35-main-6ef51f1-run28805129049-attempt1` 的 manifest、`artifact-name.txt`、JUnit、failure summary、LogicSmoke 日志和 Mac Catalyst run script 日志已核对，required checks 全部 success。
+
+遗留事项：
+
 - 本轮只建立全局 Header 图标动作 44pt 触控目标策略，没有做模型页扫描/导入按钮触控目标、完整 UI Test target、真实 runtime 接入、模型 artifact 下载或原生 macOS target。
+
+### v2.36 / 模型文件操作触控目标
+
+日期：2026-07-06
+
+核心变更：
+
+- Agent X 在 v2.35 云端 artifact 验收通过后继续优化 UI、Mac 和 iPad 体验；只读子 agent 和主线程检查均指出模型页文件工作流面板的“扫描本地 / 导入文件”按钮只依赖 `compactUtilityStyle()`，缺少 44pt 触控目标策略。
+- 新增 `ModelArtifactActionLayoutPolicy`，集中定义模型文件工作流面板扫描本地和导入文件两个 utility 动作的 44pt 最小触控目标。
+- `ArtifactActionPanel` 的扫描本地和导入文件按钮显式使用 `ModelArtifactActionLayoutPolicy.utilityButtonMinHeight`，并保留 `ModelDeploymentControlAccessibilityMetadata`、模型文件工作流辅助语义、扫描本地、Files 手动导入、模拟暂存、卸载确认、artifact 校验和 verified 门禁。
+- 新增 `testModelArtifactActionLayoutPolicyMaintainsUtilityTouchTargets`，锁住最小触控目标、utility 按钮高度、scan/import 覆盖关系和 accessibility metadata action 映射；测试函数数从 79 个增加到 80 个。
+- 同步 README、测试规范、核心流程文档、Mermaid 流程图、入口规则和 Agent A 提示词归档中的模型文件操作触控目标基线。
+
+关键文件：
+
+- `LocalGemma/ContentView.swift`
+- `LocalGemmaTests/LocalGemmaTests.swift`
+- `AGENTS.md`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v2（Mac体验审计）/v2.36（模型文件操作触控目标）.md`
+
+验证结果：
+
+- `git diff --check`：无输出，退出码 0。
+- `test -x script/build_and_run.sh && bash -n script/build_and_run.sh`：退出码 0。
+- `grep -c "func test" LocalGemmaTests/LocalGemmaTests.swift`：输出 `80`。
+- `find md -maxdepth 4 -type f | sort | tail -n 20`：确认 v2.36 Agent A 提示词仍在 `md/prompt/v2（Mac体验审计）/` 归档结构内。
+- `python3` workflow 关键标记检查：输出 `workflow markers ok`。
+- `python3` pbxproj 关键标记检查：输出 `pbxproj markers ok`。
+- `rg -n "v2\\.36|ModelArtifactActionLayoutPolicy|testModelArtifactActionLayoutPolicy|模型文件操作 44pt" ...`：确认源码、测试和文档均覆盖 v2.36、新策略、新测试和模型文件操作 44pt 触控目标说明。
+- 当前容器不是 macOS/Xcode 环境，`plutil`、`ruby`、`swiftc` 和 Xcode 不可用；本轮未在本机执行 `plutil -lint`、Ruby YAML 解析、LogicSmoke、Swift typecheck、完整 iOS XCTest 或 Mac Catalyst build。上述检查由 push 后 GitHub Actions macOS runner 和 Agent C 结果包验收覆盖。
+
+遗留事项：
+
+- v2.36 push 后需等待最新 `ci-results.yml` run 完成，由 Agent C 下载对应未加密结果包，核对 manifest、`artifact-name.txt`、JUnit、iOS 日志、Mac Catalyst 日志、run script 日志、baseline notes 和 `.xcresult`。
+- 本轮只建立模型文件扫描/导入 utility 按钮 44pt 触控目标策略，没有做会话 chip 删除按钮触控目标、导出弹层宽屏限制、完整 UI Test target、真实 runtime 接入、模型 artifact 下载或原生 macOS target。

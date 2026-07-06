@@ -68,6 +68,7 @@
 - `ModelDetailRowAccessibilityMetadata` 为模型详情参数行、性能行和建议行生成行级 label/value/hint/input labels/identifier；`ModelDetailColumn` 使用 `.contain` 保留整体详情摘要并让行级元素可达，hint 说明行级内容只展示本地模型详情，不下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁。
 - `ModelDeploymentControlAccessibilityMetadata` 为模型页选择器、部署电源按钮和 artifact 操作按钮生成 label/value/hint/input labels/identifier；文案明确切换模型不下载权重、不启动真实 runtime、模拟暂存不联网下载，卸载按钮只打开确认弹层，破坏性删除只发生在确认动作，未 verified 不运行真实权重，不改变 `ModelCatalog` 状态流。
 - `ModelArtifactPanelAccessibilityMetadata` 为模型页文件工作流面板生成整体 label/value/hint/input labels/identifier；value 合并 artifact availability、validation summary、模拟暂存、卸载需确认、扫描本地目录和 Files 手动导入入口，hint 说明它只管理本地模型文件工作流，不联网下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁；`ArtifactActionPanel` 使用 `.contain` 保留四个操作按钮的独立焦点。
+- `ModelArtifactActionLayoutPolicy` 为模型页文件工作流面板的扫描本地和导入文件 utility 按钮定义共享 44pt 最小触控目标；它只影响按钮命中高度，不改变模拟暂存、卸载确认、扫描本地、Files 手动导入、artifact 校验、辅助语义或 verified 门禁。
 - `ModelUninstallConfirmationAccessibilityMetadata` 为模型卸载确认弹层生成标题、消息、确认/取消按钮 hint、Voice Control 输入标签和稳定 identifier；确认动作只删除 App 托管 artifact/tokenizer 并停止部署，取消无副作用，不删除系统 Files 原始文件，不下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁。
 - `ModelStatusBadgeAccessibilityMetadata` 为模型页安装状态、artifact 状态和部署状态徽章生成 label/value/hint/input labels/identifier；文案明确徽章只展示本地模型状态，不下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁。
 - `SessionSidebarLayoutPolicy` 只控制推理页内部大屏会话列表宽度；竖向会话栏按容器宽度 28% 计算，并限制在 240 到 310 之间，窄屏单栏返回 0。
@@ -224,6 +225,7 @@ Agent X 不能跳过 Agent C artifact 验收；失败时不能继续下一轮并
 - `ModelDetailRowAccessibilityMetadata`：模型详情参数行、性能行和建议行的行级辅助技术文案、Voice Control 输入标签和稳定 identifier。
 - `ModelDeploymentControlAccessibilityMetadata`：模型选择器、部署电源和 artifact 操作按钮的辅助技术文案、卸载确认入口说明、Voice Control 输入标签和稳定 identifier。
 - `ModelArtifactPanelAccessibilityMetadata`：模型文件工作流面板的整体辅助技术文案、artifact availability、validation summary、本地文件动作摘要、卸载需确认说明、Voice Control 输入标签和稳定 identifier。
+- `ModelArtifactActionLayoutPolicy`：模型文件工作流面板扫描本地和导入文件 utility 按钮的 44pt 最小触控目标策略。
 - `ModelUninstallConfirmationAccessibilityMetadata`：模型卸载确认弹层的标题、消息、确认/取消动作辅助技术文案、Voice Control 输入标签和稳定 identifier。
 - `ModelStatusBadgeAccessibilityMetadata`：模型页安装状态、artifact 状态和部署状态徽章的辅助技术文案、Voice Control 输入标签和稳定 identifier。
 - `OptimizationToggleAccessibilityMetadata`：设置页和优化 dashboard 运行策略开关的辅助技术文案、Voice Control 输入标签和稳定 identifier。
@@ -298,7 +300,7 @@ Agent X 不能跳过 Agent C artifact 验收；失败时不能继续下一轮并
 - 大图壁纸必须压缩和限制尺寸。
 - iPhone 横屏、iPad 大屏与 Mac Catalyst 桌面窗口布局断点必须有测试覆盖。
 - 模型页内部宽屏双栏和窄屏单栏回退必须有测试覆盖。
-- 工作区快捷键、工作区/会话 command menu、工作区导航辅助语义、顶部模型胶囊整体辅助语义、模型概要面板与详情右栏/行级辅助语义、模型详情右栏最大阅读宽度策略、模型文件工作流面板与卸载确认弹层辅助语义、模型状态徽章辅助语义、头部主题与模型库入口辅助语义、全局 Header 图标动作 44pt 触控目标、设置页整体宽屏内容宽度策略、设置页图标动作 44pt 触控目标、会话栏操作辅助语义、会话栏操作 44pt 触控目标、会话 chip 动作语义、聊天消息气泡与聊天记录容器辅助语义、composer 宽屏输入宽度策略、导出弹层分享/复制辅助语义、壁纸控件辅助语义、会话侧栏宽度、regular 侧栏说明、选择语义、composer 输入焦点/控件辅助语义、模型选择器与部署控件辅助语义、运行策略开关辅助语义、运行策略开关宽屏网格、芯片准备度辅助语义、优化指标卡辅助语义、优化指标网格宽度策略、提示词页整体宽屏内容宽度策略、提示词模板宽屏布局策略、提示词模板文本动态排版策略、提示词分类筛选换行布局策略、提示词分类文本动态排版策略、提示词模板动作 44pt 触控目标、提示词分类筛选辅助语义和提示词模板动作辅助语义必须有测试覆盖，避免 Mac/iPad 导航退化。
+- 工作区快捷键、工作区/会话 command menu、工作区导航辅助语义、顶部模型胶囊整体辅助语义、模型概要面板与详情右栏/行级辅助语义、模型详情右栏最大阅读宽度策略、模型文件工作流面板与卸载确认弹层辅助语义、模型文件操作 44pt 触控目标、模型状态徽章辅助语义、头部主题与模型库入口辅助语义、全局 Header 图标动作 44pt 触控目标、设置页整体宽屏内容宽度策略、设置页图标动作 44pt 触控目标、会话栏操作辅助语义、会话栏操作 44pt 触控目标、会话 chip 动作语义、聊天消息气泡与聊天记录容器辅助语义、composer 宽屏输入宽度策略、导出弹层分享/复制辅助语义、壁纸控件辅助语义、会话侧栏宽度、regular 侧栏说明、选择语义、composer 输入焦点/控件辅助语义、模型选择器与部署控件辅助语义、运行策略开关辅助语义、运行策略开关宽屏网格、芯片准备度辅助语义、优化指标卡辅助语义、优化指标网格宽度策略、提示词页整体宽屏内容宽度策略、提示词模板宽屏布局策略、提示词模板文本动态排版策略、提示词分类筛选换行布局策略、提示词分类文本动态排版策略、提示词模板动作 44pt 触控目标、提示词分类筛选辅助语义和提示词模板动作辅助语义必须有测试覆盖，避免 Mac/iPad 导航退化。
 - 默认协作验证以 `main` push 后的 GitHub Actions 结果包为准。
 - Agent X 循环每轮仍以 Agent B 本地轻量检查、GitHub Actions artifact 和 Agent C 下载复判为准。
 
