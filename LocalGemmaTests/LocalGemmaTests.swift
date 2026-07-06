@@ -3149,6 +3149,20 @@ final class LocalGemmaTests: XCTestCase {
         XCTAssertEqual(SettingsWorkspaceLayoutPolicy.contentWidth(forContainerWidth: .nan), 320)
     }
 
+    func testHeaderActionLayoutPolicyMaintainsTouchTargets() {
+        XCTAssertEqual(HeaderActionLayoutPolicy.minimumTouchTarget, 44)
+        XCTAssertGreaterThanOrEqual(
+            HeaderActionLayoutPolicy.iconButtonSize,
+            HeaderActionLayoutPolicy.minimumTouchTarget
+        )
+        XCTAssertTrue(
+            HeaderActionLayoutPolicy.Action.allCases.allSatisfy {
+                HeaderActionLayoutPolicy.usesMinimumTouchTarget(for: $0)
+            }
+        )
+        XCTAssertEqual(HeaderActionLayoutPolicy.Action.allCases.count, 2)
+    }
+
     func testHeaderAndThemePreferenceActionsExposeAccessibilityMetadata() {
         XCTAssertEqual(
             HeaderActionAccessibilityMetadata.headerThemeToggleIdentifier,

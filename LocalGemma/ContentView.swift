@@ -938,6 +938,23 @@ enum HeaderActionAccessibilityMetadata {
     static let modelLibraryInputLabels = ["打开模型工作区", "打开模型库", "管理本地模型"]
 }
 
+enum HeaderActionLayoutPolicy {
+    enum Action: CaseIterable {
+        case toggleTheme
+        case openModelLibrary
+    }
+
+    static let minimumTouchTarget: CGFloat = 44
+    static let iconButtonSize: CGFloat = minimumTouchTarget
+
+    static func usesMinimumTouchTarget(for action: Action) -> Bool {
+        switch action {
+        case .toggleTheme, .openModelLibrary:
+            return iconButtonSize >= minimumTouchTarget
+        }
+    }
+}
+
 enum ModelCapsuleAccessibilityMetadata {
     static let identifier = "header-model-capsule"
     static let hint = "展示当前本地模型状态摘要；不会下载模型权重，不会启动真实 runtime，不会发送到云端服务，也不会绕过 verified 门禁。"
@@ -2060,7 +2077,10 @@ struct HeaderView: View {
                 Button(action: toggleTheme) {
                     Image(systemName: themeMode.icon)
                         .font(.system(size: 17, weight: .bold))
-                        .frame(width: 42, height: 42)
+                        .frame(
+                            width: HeaderActionLayoutPolicy.iconButtonSize,
+                            height: HeaderActionLayoutPolicy.iconButtonSize
+                        )
                         .background(theme.chipSurface, in: Circle())
                         .overlay(Circle().stroke(theme.border, lineWidth: 1))
                         .foregroundStyle(theme.primaryText)
@@ -2082,7 +2102,10 @@ struct HeaderView: View {
                 Button(action: showModels) {
                     Image(systemName: "square.stack.3d.up.fill")
                         .font(.system(size: 17, weight: .bold))
-                        .frame(width: 42, height: 42)
+                        .frame(
+                            width: HeaderActionLayoutPolicy.iconButtonSize,
+                            height: HeaderActionLayoutPolicy.iconButtonSize
+                        )
                         .background(theme.accent.opacity(0.2), in: Circle())
                         .overlay(Circle().stroke(theme.accent.opacity(0.45), lineWidth: 1))
                         .foregroundStyle(theme.primaryText)
