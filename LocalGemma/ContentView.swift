@@ -4768,47 +4768,56 @@ struct SettingsWorkspace: View {
     let clearWallpaper: () -> Void
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                SectionHeader(
-                    eyebrow: "SETTINGS",
-                    title: "设置",
-                    subtitle: "集中管理外观、端侧运行策略、内存预算和离线隐私保护。"
-                )
+        GeometryReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    SectionHeader(
+                        eyebrow: "SETTINGS",
+                        title: "设置",
+                        subtitle: "集中管理外观、端侧运行策略、内存预算和离线隐私保护。"
+                    )
 
-                ThemePreferencePanel(themeMode: themeMode, toggleTheme: toggleTheme)
-                WallpaperPreferencePanel(
-                    wallpaperData: wallpaperData,
-                    selectedItem: $selectedWallpaperItem,
-                    isImporting: isImportingWallpaper,
-                    clearWallpaper: clearWallpaper
-                )
+                    ThemePreferencePanel(themeMode: themeMode, toggleTheme: toggleTheme)
+                    WallpaperPreferencePanel(
+                        wallpaperData: wallpaperData,
+                        selectedItem: $selectedWallpaperItem,
+                        isImporting: isImportingWallpaper,
+                        clearWallpaper: clearWallpaper
+                    )
 
-                SectionHeader(
-                    eyebrow: "APPLE SILICON",
-                    title: "芯片部署优化",
-                    subtitle: "面向 iPhone 统一内存、Metal 预热、热状态和离线推理路径。"
-                )
+                    SectionHeader(
+                        eyebrow: "APPLE SILICON",
+                        title: "芯片部署优化",
+                        subtitle: "面向 iPhone 统一内存、Metal 预热、热状态和离线推理路径。"
+                    )
 
-                ChipReadinessCard(
-                    progress: optimizer.deploymentReadiness,
-                    thermalState: optimizer.thermalState,
-                    privacyGuardEnabled: optimizer.isOfflinePrivacyGuardEnabled
-                )
+                    ChipReadinessCard(
+                        progress: optimizer.deploymentReadiness,
+                        thermalState: optimizer.thermalState,
+                        privacyGuardEnabled: optimizer.isOfflinePrivacyGuardEnabled
+                    )
 
-                OptimizerMetricGrid(metrics: optimizer.metrics)
+                    OptimizerMetricGrid(metrics: optimizer.metrics)
 
-                OptimizationToggleGrid(
-                    items: optimizer.switches,
-                    border: theme.border,
-                    toggle: { optimizer.toggle($0) }
+                    OptimizationToggleGrid(
+                        items: optimizer.switches,
+                        border: theme.border,
+                        toggle: { optimizer.toggle($0) }
+                    )
+                }
+                .frame(
+                    width: SettingsWorkspaceLayoutPolicy.contentWidth(
+                        forContainerWidth: proxy.size.width
+                    ),
+                    alignment: .leading
                 )
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.horizontal, SettingsWorkspaceLayoutPolicy.horizontalPadding)
+                .padding(.top, 16)
+                .padding(.bottom, 28)
             }
-            .padding(.horizontal, 18)
-            .padding(.top, 16)
-            .padding(.bottom, 28)
+            .scrollIndicators(.hidden)
         }
-        .scrollIndicators(.hidden)
         .onChange(of: selectedWallpaperItem) { _, item in
             guard let item else { return }
             Task {
@@ -4851,6 +4860,25 @@ struct SettingsWorkspace: View {
         } message: {
             Text(wallpaperImportError ?? "")
         }
+    }
+}
+
+enum SettingsWorkspaceLayoutPolicy {
+    static let horizontalPadding: CGFloat = 18
+    static let minimumReadableWidth: CGFloat = 320
+    static let maximumContentWidth: CGFloat = 760
+
+    static func contentWidth(forContainerWidth containerWidth: CGFloat) -> CGFloat {
+        guard containerWidth.isFinite, containerWidth > 0 else {
+            return minimumReadableWidth
+        }
+
+        let paddedWidth = max(containerWidth - horizontalPadding * 2, 0)
+        guard paddedWidth >= minimumReadableWidth else {
+            return paddedWidth
+        }
+
+        return min(paddedWidth, maximumContentWidth)
     }
 }
 

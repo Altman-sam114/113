@@ -1,6 +1,6 @@
 # 项目核心流程文档
 
-一句话总览：本项目是一个 SwiftUI iOS 原型，通过本地模拟 runtime 和严格 artifact 校验流程，验证 iPhone、iPad 与 Mac Catalyst build/run 基线下端侧部署 Gemma 1.5B 的 UI、状态管理、文件导入、模型卸载确认弹层辅助语义、会话导出、导出弹层分享/复制辅助语义、顶部模型胶囊整体辅助语义、模型概要面板与详情右栏/行级辅助语义、模型详情右栏最大阅读宽度策略、模型文件工作流面板辅助语义、模型状态徽章辅助语义、设置页图标动作 44pt 触控目标、会话栏操作 44pt 触控目标、会话 chip 动作语义、聊天消息气泡与聊天记录容器辅助语义、聊天气泡与 composer 宽屏输入宽度策略、工作区导航辅助语义、头部主题与模型库入口辅助语义、运行策略开关辅助语义、运行策略开关宽屏网格、芯片准备度辅助语义、优化指标卡辅助语义、优化指标网格宽度策略、提示词页整体宽屏内容宽度策略、提示词模板宽屏布局策略、提示词模板文本动态排版策略、提示词分类筛选换行布局策略、提示词分类文本动态排版策略、提示词模板动作辅助语义与 44pt 触控目标、壁纸控件辅助语义、大屏布局和 Apple Silicon 运行计划；协作流程默认采用 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载结果包验收。
+一句话总览：本项目是一个 SwiftUI iOS 原型，通过本地模拟 runtime 和严格 artifact 校验流程，验证 iPhone、iPad 与 Mac Catalyst build/run 基线下端侧部署 Gemma 1.5B 的 UI、状态管理、文件导入、模型卸载确认弹层辅助语义、会话导出、导出弹层分享/复制辅助语义、顶部模型胶囊整体辅助语义、模型概要面板与详情右栏/行级辅助语义、模型详情右栏最大阅读宽度策略、模型文件工作流面板辅助语义、模型状态徽章辅助语义、设置页整体宽屏内容宽度策略、设置页图标动作 44pt 触控目标、会话栏操作 44pt 触控目标、会话 chip 动作语义、聊天消息气泡与聊天记录容器辅助语义、聊天气泡与 composer 宽屏输入宽度策略、工作区导航辅助语义、头部主题与模型库入口辅助语义、运行策略开关辅助语义、运行策略开关宽屏网格、芯片准备度辅助语义、优化指标卡辅助语义、优化指标网格宽度策略、提示词页整体宽屏内容宽度策略、提示词模板宽屏布局策略、提示词模板文本动态排版策略、提示词分类筛选换行布局策略、提示词分类文本动态排版策略、提示词模板动作辅助语义与 44pt 触控目标、壁纸控件辅助语义、大屏布局和 Apple Silicon 运行计划；协作流程默认采用 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载结果包验收。
 
 本文只写当前真实链路，不写历史流水账。
 
@@ -74,6 +74,7 @@
 - `WorkspaceNavigationAccessibilityMetadata` 为顶部工作区 tab 和大屏 sidebar 工作区按钮生成 label/value/hint/input labels/identifier；hint 复用 `WorkspaceTab.sidebarSubtitle`，说明 `Command 1...4` 快捷键和只切换本地工作区边界，不改变 `selectedTab` 状态流或 command menu 映射。
 - `LocalGemmaApp` 的 `工作区` command menu 复用同一组 `WorkspaceTab` 映射；`ContentView` 只通过 focused scene binding 暴露 `selectedTab`，菜单命令不触碰模型、artifact、runtime 或会话状态；进入推理页时只请求 UI 层 composer focus。
 - `LocalGemmaApp` 的 `会话` command menu 复用 `SessionCommandAction` 映射；`ChatWorkspace` 通过 `SessionCommandActions` focused value 暴露新建会话和导出当前会话动作，菜单不直接持有 `InferenceEngine` 或导出 sheet 状态。
+- `SettingsWorkspaceLayoutPolicy` 为设置页标题、外观、壁纸、芯片准备度、优化指标和运行策略开关定义整体宽屏内容宽度；`SettingsWorkspace` 在 iPad/Mac 超宽窗口中居中并限制最大内容宽度，不改变主题切换、相册读取、本地压缩、恢复系统背景、optimizer toggle、局部网格策略、图标触控目标或辅助语义。
 - `SettingsIconActionLayoutPolicy` 为设置页外观主题切换、相册壁纸选择和恢复系统背景图标动作定义共享 44pt 最小触控目标；`ThemePreferencePanel` 和 `WallpaperPreferencePanel` 只复用尺寸常量，不改变主题切换、相册读取、本地压缩、恢复系统背景、禁用状态或辅助语义。
 - `SessionBarActionAccessibilityMetadata` 复用 `SessionCommandAction` 为会话栏可见的新建/导出按钮生成 label/value/hint/input labels/identifier；文案说明新建会话只请求 composer focus，导出使用本地 Markdown / 文本分享兜底且不发送到云端服务。
 - `SessionBarActionLayoutPolicy` 为会话栏可见的新建/导出图标按钮定义共享 44pt 最小触控目标；横向会话栏和 iPad/Mac 大屏竖向会话栏复用同一尺寸策略，不改变会话 command menu、导出弹层、composer 聚焦或辅助语义。
@@ -213,6 +214,7 @@ Agent X 不能跳过 Agent C artifact 验收；失败时不能继续下一轮并
 - `ModelDetailColumnLayoutPolicy`：模型页双栏右侧详情列最小可读宽度、最大阅读宽度、列间距和无效宽度 clamp 策略。
 - `WorkspaceNavigationAccessibilityMetadata`：顶部工作区 tab 和大屏 sidebar 工作区按钮的辅助技术文案、Voice Control 输入标签、快捷键说明和稳定 identifier。
 - `HeaderActionAccessibilityMetadata`：全局头部主题切换、设置页外观主题按钮和打开模型工作区按钮的辅助技术文案、Voice Control 输入标签和稳定 identifier。
+- `SettingsWorkspaceLayoutPolicy`：设置页整体内容宽度、水平 padding、最小可读宽度、最大内容宽度和无效宽度 clamp 策略。
 - `SettingsIconActionLayoutPolicy`：设置页外观主题切换、相册壁纸选择和恢复系统背景图标动作的 44pt 最小触控目标策略。
 - `ModelCapsuleAccessibilityMetadata`：顶部模型胶囊整体状态摘要的辅助技术文案、Voice Control 输入标签和稳定 identifier。
 - `ModelDetailAccessibilityMetadata`：模型页详情右栏和窄屏详情段整体摘要的辅助技术文案、Voice Control 输入标签和稳定 identifier。
@@ -294,7 +296,7 @@ Agent X 不能跳过 Agent C artifact 验收；失败时不能继续下一轮并
 - 大图壁纸必须压缩和限制尺寸。
 - iPhone 横屏、iPad 大屏与 Mac Catalyst 桌面窗口布局断点必须有测试覆盖。
 - 模型页内部宽屏双栏和窄屏单栏回退必须有测试覆盖。
-- 工作区快捷键、工作区/会话 command menu、工作区导航辅助语义、顶部模型胶囊整体辅助语义、模型概要面板与详情右栏/行级辅助语义、模型详情右栏最大阅读宽度策略、模型文件工作流面板与卸载确认弹层辅助语义、模型状态徽章辅助语义、头部主题与模型库入口辅助语义、设置页图标动作 44pt 触控目标、会话栏操作辅助语义、会话栏操作 44pt 触控目标、会话 chip 动作语义、聊天消息气泡与聊天记录容器辅助语义、composer 宽屏输入宽度策略、导出弹层分享/复制辅助语义、壁纸控件辅助语义、会话侧栏宽度、regular 侧栏说明、选择语义、composer 输入焦点/控件辅助语义、模型选择器与部署控件辅助语义、运行策略开关辅助语义、运行策略开关宽屏网格、芯片准备度辅助语义、优化指标卡辅助语义、优化指标网格宽度策略、提示词页整体宽屏内容宽度策略、提示词模板宽屏布局策略、提示词模板文本动态排版策略、提示词分类筛选换行布局策略、提示词分类文本动态排版策略、提示词模板动作 44pt 触控目标、提示词分类筛选辅助语义和提示词模板动作辅助语义必须有测试覆盖，避免 Mac/iPad 导航退化。
+- 工作区快捷键、工作区/会话 command menu、工作区导航辅助语义、顶部模型胶囊整体辅助语义、模型概要面板与详情右栏/行级辅助语义、模型详情右栏最大阅读宽度策略、模型文件工作流面板与卸载确认弹层辅助语义、模型状态徽章辅助语义、头部主题与模型库入口辅助语义、设置页整体宽屏内容宽度策略、设置页图标动作 44pt 触控目标、会话栏操作辅助语义、会话栏操作 44pt 触控目标、会话 chip 动作语义、聊天消息气泡与聊天记录容器辅助语义、composer 宽屏输入宽度策略、导出弹层分享/复制辅助语义、壁纸控件辅助语义、会话侧栏宽度、regular 侧栏说明、选择语义、composer 输入焦点/控件辅助语义、模型选择器与部署控件辅助语义、运行策略开关辅助语义、运行策略开关宽屏网格、芯片准备度辅助语义、优化指标卡辅助语义、优化指标网格宽度策略、提示词页整体宽屏内容宽度策略、提示词模板宽屏布局策略、提示词模板文本动态排版策略、提示词分类筛选换行布局策略、提示词分类文本动态排版策略、提示词模板动作 44pt 触控目标、提示词分类筛选辅助语义和提示词模板动作辅助语义必须有测试覆盖，避免 Mac/iPad 导航退化。
 - 默认协作验证以 `main` push 后的 GitHub Actions 结果包为准。
 - Agent X 循环每轮仍以 Agent B 本地轻量检查、GitHub Actions artifact 和 Agent C 下载复判为准。
 

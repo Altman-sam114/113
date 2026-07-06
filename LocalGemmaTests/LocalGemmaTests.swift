@@ -3128,6 +3128,27 @@ final class LocalGemmaTests: XCTestCase {
         XCTAssertEqual(SettingsIconActionLayoutPolicy.Action.allCases.count, 3)
     }
 
+    func testSettingsWorkspaceLayoutPolicyConstrainsWideSettingsContent() {
+        XCTAssertEqual(SettingsWorkspaceLayoutPolicy.horizontalPadding, 18)
+        XCTAssertEqual(SettingsWorkspaceLayoutPolicy.minimumReadableWidth, 320)
+        XCTAssertEqual(SettingsWorkspaceLayoutPolicy.maximumContentWidth, 760)
+        XCTAssertGreaterThanOrEqual(
+            SettingsWorkspaceLayoutPolicy.maximumContentWidth,
+            OptimizationToggleGridLayoutPolicy.twoColumnThreshold
+        )
+        XCTAssertGreaterThanOrEqual(
+            SettingsWorkspaceLayoutPolicy.maximumContentWidth,
+            OptimizerMetricGridLayoutPolicy.twoColumnThreshold
+        )
+
+        XCTAssertEqual(SettingsWorkspaceLayoutPolicy.contentWidth(forContainerWidth: 320), 284)
+        XCTAssertEqual(SettingsWorkspaceLayoutPolicy.contentWidth(forContainerWidth: 390), 354)
+        XCTAssertEqual(SettingsWorkspaceLayoutPolicy.contentWidth(forContainerWidth: 834), 760)
+        XCTAssertEqual(SettingsWorkspaceLayoutPolicy.contentWidth(forContainerWidth: 1_200), 760)
+        XCTAssertEqual(SettingsWorkspaceLayoutPolicy.contentWidth(forContainerWidth: -1), 320)
+        XCTAssertEqual(SettingsWorkspaceLayoutPolicy.contentWidth(forContainerWidth: .nan), 320)
+    }
+
     func testHeaderAndThemePreferenceActionsExposeAccessibilityMetadata() {
         XCTAssertEqual(
             HeaderActionAccessibilityMetadata.headerThemeToggleIdentifier,
