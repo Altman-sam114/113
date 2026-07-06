@@ -1069,6 +1069,88 @@ enum ModelDetailAccessibilityMetadata {
     }
 }
 
+enum ModelStatusBadgeAccessibilityMetadata {
+    static let hint = "只展示本地模型状态；不会下载模型权重，不会启动真实 runtime，不会发送到云端服务，也不会绕过 artifact verified 门禁。"
+
+    static func label(for state: ModelInstallState) -> String {
+        "模型安装状态 \(state.title)"
+    }
+
+    static func value(for state: ModelInstallState) -> String {
+        switch state {
+        case .ready:
+            return "安装状态 Ready，模型已标记为可用。"
+        case .simulated:
+            return "安装状态 Simulation，当前使用本地模拟 runtime。"
+        case .notDownloaded:
+            return "安装状态 Not downloaded，模型文件尚未导入。"
+        }
+    }
+
+    static func inputLabels(for state: ModelInstallState) -> [String] {
+        ["安装状态", "模型安装状态", state.title]
+    }
+
+    static func identifier(for state: ModelInstallState) -> String {
+        "model-status-badge-install-\(installStateSlug(for: state))"
+    }
+
+    static func label(for availability: ArtifactAvailability) -> String {
+        "模型 artifact 状态 \(availability.title)"
+    }
+
+    static func value(for availability: ArtifactAvailability) -> String {
+        switch availability {
+        case .missing:
+            return "artifact missing，缺少本地模型文件，真实 runtime 不可用。"
+        case .staged:
+            return "artifact staged，文件已暂存但等待 SHA-256 校验，真实 runtime 不可用。"
+        case .verified:
+            return "artifact verified，本地校验通过，允许进入真实 runtime 计划。"
+        }
+    }
+
+    static func inputLabels(for availability: ArtifactAvailability) -> [String] {
+        ["artifact 状态", "模型文件状态", availability.title]
+    }
+
+    static func identifier(for availability: ArtifactAvailability) -> String {
+        "model-status-badge-artifact-\(availability.rawValue)"
+    }
+
+    static func label(for deploymentState: ModelDeploymentState) -> String {
+        "模型部署状态 \(deploymentState.title)"
+    }
+
+    static func value(for deploymentState: ModelDeploymentState) -> String {
+        switch deploymentState {
+        case .stopped:
+            return "部署状态 Stopped，当前未启动本地部署。"
+        case .running:
+            return "部署状态 Running，当前模型部署运行中。"
+        }
+    }
+
+    static func inputLabels(for deploymentState: ModelDeploymentState) -> [String] {
+        ["部署状态", "模型部署状态", deploymentState.localizedTitle]
+    }
+
+    static func identifier(for deploymentState: ModelDeploymentState) -> String {
+        "model-status-badge-deployment-\(deploymentState.rawValue)"
+    }
+
+    private static func installStateSlug(for state: ModelInstallState) -> String {
+        switch state {
+        case .ready:
+            return "ready"
+        case .simulated:
+            return "simulated"
+        case .notDownloaded:
+            return "not-downloaded"
+        }
+    }
+}
+
 enum SelectionAccessibilityMetadata {
     static func workspaceLabel(for tab: WorkspaceTab) -> String {
         "\(tab.title)工作区"
@@ -1958,6 +2040,7 @@ struct HeaderMetricChip: View {
 
 struct StatusBadge: View {
     let state: ModelInstallState
+    var exposesAccessibility: Bool = false
 
     var body: some View {
         Text(state.title)
@@ -1968,6 +2051,26 @@ struct StatusBadge: View {
             .padding(.vertical, 3)
             .background(state.tint.opacity(0.12), in: Capsule())
             .overlay(Capsule().stroke(state.tint.opacity(0.35), lineWidth: 1))
+            .modifier(InstallStatusBadgeAccessibilityModifier(state: state, isEnabled: exposesAccessibility))
+    }
+}
+
+private struct InstallStatusBadgeAccessibilityModifier: ViewModifier {
+    let state: ModelInstallState
+    let isEnabled: Bool
+
+    func body(content: Content) -> some View {
+        if isEnabled {
+            content
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(ModelStatusBadgeAccessibilityMetadata.label(for: state))
+                .accessibilityValue(ModelStatusBadgeAccessibilityMetadata.value(for: state))
+                .accessibilityHint(ModelStatusBadgeAccessibilityMetadata.hint)
+                .accessibilityInputLabels(ModelStatusBadgeAccessibilityMetadata.inputLabels(for: state))
+                .accessibilityIdentifier(ModelStatusBadgeAccessibilityMetadata.identifier(for: state))
+        } else {
+            content.accessibilityHidden(true)
+        }
     }
 }
 
@@ -3410,7 +3513,7 @@ struct ModelSelectorPanel: View {
             .accessibilityIdentifier(ModelDeploymentControlAccessibilityMetadata.modelSelectorIdentifier)
 
             HStack(spacing: 8) {
-                StatusBadge(state: selectedModel.installState)
+                StatusBadge(state: selectedModel.installState, exposesAccessibility: true)
                 AvailabilityBadge(availability: validation.availability)
                 DeploymentBadge(state: deploymentState)
             }
@@ -3431,6 +3534,12 @@ struct AvailabilityBadge: View {
             .padding(.vertical, 3)
             .background(tint.opacity(0.12), in: Capsule())
             .overlay(Capsule().stroke(tint.opacity(0.34), lineWidth: 1))
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(ModelStatusBadgeAccessibilityMetadata.label(for: availability))
+            .accessibilityValue(ModelStatusBadgeAccessibilityMetadata.value(for: availability))
+            .accessibilityHint(ModelStatusBadgeAccessibilityMetadata.hint)
+            .accessibilityInputLabels(ModelStatusBadgeAccessibilityMetadata.inputLabels(for: availability))
+            .accessibilityIdentifier(ModelStatusBadgeAccessibilityMetadata.identifier(for: availability))
     }
 
     private var tint: Color {
@@ -3457,6 +3566,12 @@ struct DeploymentBadge: View {
             .padding(.vertical, 3)
             .background((state == .running ? Color.green : Color.white).opacity(state == .running ? 0.14 : 0.08), in: Capsule())
             .overlay(Capsule().stroke((state == .running ? Color.green : Color.white).opacity(0.26), lineWidth: 1))
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(ModelStatusBadgeAccessibilityMetadata.label(for: state))
+            .accessibilityValue(ModelStatusBadgeAccessibilityMetadata.value(for: state))
+            .accessibilityHint(ModelStatusBadgeAccessibilityMetadata.hint)
+            .accessibilityInputLabels(ModelStatusBadgeAccessibilityMetadata.inputLabels(for: state))
+            .accessibilityIdentifier(ModelStatusBadgeAccessibilityMetadata.identifier(for: state))
     }
 }
 

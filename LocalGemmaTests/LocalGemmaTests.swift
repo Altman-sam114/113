@@ -1919,6 +1919,110 @@ final class LocalGemmaTests: XCTestCase {
         )
     }
 
+    func testModelStatusBadgesExposeAccessibilityMetadata() {
+        let model = ModelCatalog.defaultModels[0]
+        let hint = ModelStatusBadgeAccessibilityMetadata.hint
+        XCTAssertTrue(hint.contains("本地模型状态"))
+        XCTAssertTrue(hint.contains("不会下载模型权重"))
+        XCTAssertTrue(hint.contains("不会启动真实 runtime"))
+        XCTAssertTrue(hint.contains("不会发送到云端服务"))
+        XCTAssertTrue(hint.contains("不会绕过 artifact verified 门禁"))
+
+        XCTAssertEqual(
+            ModelInstallState.allCases.map { ModelStatusBadgeAccessibilityMetadata.identifier(for: $0) },
+            [
+                "model-status-badge-install-ready",
+                "model-status-badge-install-simulated",
+                "model-status-badge-install-not-downloaded"
+            ]
+        )
+        XCTAssertEqual(
+            ModelStatusBadgeAccessibilityMetadata.label(for: ModelInstallState.simulated),
+            "模型安装状态 Simulation"
+        )
+        XCTAssertTrue(
+            ModelStatusBadgeAccessibilityMetadata.value(for: ModelInstallState.ready)
+                .contains("模型已标记为可用")
+        )
+        XCTAssertTrue(
+            ModelStatusBadgeAccessibilityMetadata.value(for: ModelInstallState.simulated)
+                .contains("本地模拟 runtime")
+        )
+        XCTAssertTrue(
+            ModelStatusBadgeAccessibilityMetadata.value(for: ModelInstallState.notDownloaded)
+                .contains("模型文件尚未导入")
+        )
+        XCTAssertEqual(
+            ModelStatusBadgeAccessibilityMetadata.inputLabels(for: ModelInstallState.notDownloaded),
+            ["安装状态", "模型安装状态", "Not downloaded"]
+        )
+
+        XCTAssertEqual(
+            [ArtifactAvailability.missing, .staged, .verified].map {
+                ModelStatusBadgeAccessibilityMetadata.identifier(for: $0)
+            },
+            [
+                "model-status-badge-artifact-missing",
+                "model-status-badge-artifact-staged",
+                "model-status-badge-artifact-verified"
+            ]
+        )
+        XCTAssertEqual(
+            ModelStatusBadgeAccessibilityMetadata.label(for: ArtifactAvailability.missing),
+            "模型 artifact 状态 Missing"
+        )
+        XCTAssertTrue(
+            ModelStatusBadgeAccessibilityMetadata.value(for: ArtifactAvailability.missing)
+                .contains("缺少本地模型文件")
+        )
+        XCTAssertTrue(
+            ModelStatusBadgeAccessibilityMetadata.value(for: ArtifactAvailability.staged)
+                .contains("等待 SHA-256 校验")
+        )
+        XCTAssertTrue(
+            ModelStatusBadgeAccessibilityMetadata.value(for: ArtifactAvailability.verified)
+                .contains("允许进入真实 runtime 计划")
+        )
+        XCTAssertEqual(
+            ModelStatusBadgeAccessibilityMetadata.inputLabels(for: ArtifactAvailability.verified),
+            ["artifact 状态", "模型文件状态", "Verified"]
+        )
+
+        XCTAssertEqual(
+            [ModelDeploymentState.stopped, .running].map {
+                ModelStatusBadgeAccessibilityMetadata.identifier(for: $0)
+            },
+            [
+                "model-status-badge-deployment-stopped",
+                "model-status-badge-deployment-running"
+            ]
+        )
+        XCTAssertEqual(
+            ModelStatusBadgeAccessibilityMetadata.label(for: ModelDeploymentState.running),
+            "模型部署状态 Running"
+        )
+        XCTAssertTrue(
+            ModelStatusBadgeAccessibilityMetadata.value(for: ModelDeploymentState.stopped)
+                .contains("未启动本地部署")
+        )
+        XCTAssertTrue(
+            ModelStatusBadgeAccessibilityMetadata.value(for: ModelDeploymentState.running)
+                .contains("部署运行中")
+        )
+        XCTAssertEqual(
+            ModelStatusBadgeAccessibilityMetadata.inputLabels(for: ModelDeploymentState.running),
+            ["部署状态", "模型部署状态", "运行中"]
+        )
+        XCTAssertFalse(
+            ModelStatusBadgeAccessibilityMetadata.identifier(for: ModelInstallState.simulated)
+                .contains(model.name)
+        )
+        XCTAssertFalse(
+            ModelStatusBadgeAccessibilityMetadata.identifier(for: ArtifactAvailability.verified)
+                .contains("prompt")
+        )
+    }
+
     func testModelDeploymentControlsExposeAccessibilityMetadata() {
         let model = ModelCatalog.defaultModels[0]
         let missingValidation = LocalArtifactValidator.validate(
