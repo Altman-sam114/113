@@ -1041,6 +1041,30 @@ final class LocalGemmaTests: XCTestCase {
         )
     }
 
+    func testComposerBarLayoutPolicyConstrainsWideComposerInput() {
+        XCTAssertEqual(ComposerBarLayoutPolicy.horizontalPadding, 18)
+        XCTAssertEqual(ComposerBarLayoutPolicy.bottomPadding, 12)
+        XCTAssertEqual(ComposerBarLayoutPolicy.minimumReadableWidth, 320)
+        XCTAssertEqual(ComposerBarLayoutPolicy.maximumContentWidth, 760)
+
+        XCTAssertEqual(
+            ComposerBarLayoutPolicy.contentWidth(forContainerWidth: 390),
+            354
+        )
+        XCTAssertEqual(
+            ComposerBarLayoutPolicy.contentWidth(forContainerWidth: 834),
+            ComposerBarLayoutPolicy.maximumContentWidth
+        )
+        XCTAssertEqual(
+            ComposerBarLayoutPolicy.contentWidth(forContainerWidth: 1_200),
+            ComposerBarLayoutPolicy.maximumContentWidth
+        )
+        XCTAssertEqual(
+            ComposerBarLayoutPolicy.contentWidth(forContainerWidth: -1),
+            ComposerBarLayoutPolicy.minimumReadableWidth
+        )
+    }
+
     func testChatTranscriptExposesAccessibilityMetadata() {
         let userMessage = ChatMessage(
             id: UUID(uuidString: "12345678-1234-5678-9ABC-123456789ABC")!,

@@ -48,7 +48,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A[用户在 Composer 输入 prompt<br/>输入框与发送/停止控件有辅助标识] --> B{输入是否为空}
+    A[用户在 Composer 输入 prompt<br/>输入框与发送/停止控件有辅助标识<br/>宽屏输入行宽受 ComposerBarLayoutPolicy 限制] --> B{输入是否为空}
     B -- 是 --> C[忽略，不创建消息]
     B -- 否 --> D[InferenceEngine 创建用户消息]
     D --> E[创建 assistant 占位消息]
@@ -63,7 +63,7 @@ flowchart TD
 
 ## 4. UI 布局与工作区流
 
-读图说明：这张图展示 ContentView 如何根据容器尺寸选择单栏、compact 双栏或 regular 大屏双栏布局，然后进入具体工作区。iPhone 横屏、iPad 竖屏大画布、Mac Catalyst 和桌面窗口都走同一套尺寸断点；regular 大屏侧栏显示工作区用途说明，compact 侧栏保持紧凑；Mac Catalyst 和 iPad 外接键盘可通过 `Command+1...4` 或系统 `工作区` 命令菜单切换工作区，也可通过系统 `会话` 命令菜单或会话栏可见按钮新建/导出当前会话；顶部模型胶囊、模型概要面板、模型详情右栏与行级内容、模型文件工作流面板、模型状态徽章、会话 chip 选择/删除动作、聊天记录容器、聊天消息气泡、聊天气泡宽屏宽度策略、工作区导航、头部主题与模型库入口、会话栏操作、导出弹层分享/复制、壁纸控件、composer 输入框和发送/停止按钮、模型选择器、部署控件、运行策略开关、运行策略开关宽屏网格、芯片准备度、优化指标卡、优化指标网格宽度策略、提示词模板宽屏布局策略、提示词分类筛选 chip 和提示词模板动作会向辅助技术暴露当前操作语义。
+读图说明：这张图展示 ContentView 如何根据容器尺寸选择单栏、compact 双栏或 regular 大屏双栏布局，然后进入具体工作区。iPhone 横屏、iPad 竖屏大画布、Mac Catalyst 和桌面窗口都走同一套尺寸断点；regular 大屏侧栏显示工作区用途说明，compact 侧栏保持紧凑；Mac Catalyst 和 iPad 外接键盘可通过 `Command+1...4` 或系统 `工作区` 命令菜单切换工作区，也可通过系统 `会话` 命令菜单或会话栏可见按钮新建/导出当前会话；顶部模型胶囊、模型概要面板、模型详情右栏与行级内容、模型文件工作流面板、模型状态徽章、会话 chip 选择/删除动作、聊天记录容器、聊天消息气泡、聊天气泡宽屏宽度策略、composer 宽屏输入宽度策略、工作区导航、头部主题与模型库入口、会话栏操作、导出弹层分享/复制、壁纸控件、composer 输入框和发送/停止按钮、模型选择器、部署控件、运行策略开关、运行策略开关宽屏网格、芯片准备度、优化指标卡、优化指标网格宽度策略、提示词模板宽屏布局策略、提示词分类筛选 chip 和提示词模板动作会向辅助技术暴露当前操作语义。
 
 ```mermaid
 flowchart TD
@@ -81,7 +81,7 @@ flowchart TD
     K[键盘导航<br/>Command+1/2/3/4 切换工作区] --> F
     M[系统菜单<br/>工作区 CommandMenu + 会话 CommandMenu<br/>复用 focused 映射] --> F
     L[会话/输入焦点<br/>Command+N 新建<br/>Command+Shift+E 导出<br/>Command+Return 发送或停止<br/>切回推理/会话/模板后聚焦输入] --> G
-    F -- 推理 --> G[ChatWorkspace<br/>顶部模型胶囊整体辅助语义<br/>会话 chip 动作语义<br/>会话 + 消息 + 输入<br/>聊天记录容器辅助语义<br/>聊天消息气泡辅助语义<br/>聊天气泡宽屏宽度策略<br/>SessionSidebarLayoutPolicy<br/>会话栏操作辅助语义<br/>导出弹层分享/复制辅助语义]
+    F -- 推理 --> G[ChatWorkspace<br/>顶部模型胶囊整体辅助语义<br/>会话 chip 动作语义<br/>会话 + 消息 + 输入<br/>聊天记录容器辅助语义<br/>聊天消息气泡辅助语义<br/>聊天气泡宽屏宽度策略<br/>composer 宽屏输入宽度策略<br/>SessionSidebarLayoutPolicy<br/>会话栏操作辅助语义<br/>导出弹层分享/复制辅助语义]
     F -- 模型 --> H[ModelLibraryView<br/>ModelLibraryLayoutMode<br/>窄屏单栏 / 宽屏内部双栏<br/>选择器/状态徽章/部署控件辅助语义<br/>模型文件工作流面板辅助语义<br/>模型概要面板 + 详情右栏/行级辅助语义]
     F -- 提示词 --> I[PromptTemplatesWorkspace<br/>模板网格宽屏布局策略<br/>模板筛选/填入/发送<br/>分类筛选辅助语义<br/>模板动作辅助语义]
     F -- 设置 --> J[SettingsWorkspace<br/>主题按钮辅助语义<br/>壁纸控件/芯片策略<br/>运行策略开关辅助语义<br/>运行策略开关宽屏网格<br/>芯片准备度辅助语义 + 隐私状态<br/>优化指标网格宽度策略<br/>优化指标卡辅助语义]

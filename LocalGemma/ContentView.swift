@@ -2381,8 +2381,10 @@ struct ChatWorkspace: View {
                 },
                 stop: inference.stop
             )
-            .padding(.horizontal, 18)
-            .padding(.bottom, 12)
+            .frame(maxWidth: ComposerBarLayoutPolicy.maximumContentWidth)
+            .frame(maxWidth: .infinity, alignment: .center)
+            .padding(.horizontal, ComposerBarLayoutPolicy.horizontalPadding)
+            .padding(.bottom, ComposerBarLayoutPolicy.bottomPadding)
         }
     }
 
@@ -3534,6 +3536,20 @@ struct ComposerBar: View {
             focusedField = .input
             clearFocusRequest()
         }
+    }
+}
+
+enum ComposerBarLayoutPolicy {
+    static let horizontalPadding: CGFloat = 18
+    static let bottomPadding: CGFloat = 12
+    static let minimumReadableWidth: CGFloat = 320
+    static let maximumContentWidth: CGFloat = 760
+
+    static func contentWidth(forContainerWidth containerWidth: CGFloat) -> CGFloat {
+        min(
+            max(containerWidth - horizontalPadding * 2, minimumReadableWidth),
+            maximumContentWidth
+        )
     }
 }
 
