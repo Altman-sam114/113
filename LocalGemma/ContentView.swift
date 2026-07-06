@@ -2584,6 +2584,20 @@ struct ExportPayload: Identifiable {
     }
 }
 
+enum SessionChipActionLayoutPolicy {
+    static let minimumTouchTarget: CGFloat = 44
+    static let deleteButtonSize: CGFloat = minimumTouchTarget
+
+    static func usesMinimumTouchTarget(for action: SessionChipActionAccessibilityMetadata.Action) -> Bool {
+        switch action {
+        case .select:
+            return false
+        case .delete:
+            return deleteButtonSize >= minimumTouchTarget
+        }
+    }
+}
+
 enum ExportSessionActionAccessibilityMetadata {
     enum Action: CaseIterable, Identifiable {
         case shareMarkdownFile
@@ -2854,6 +2868,11 @@ struct SessionChip: View {
                     .labelStyle(.iconOnly)
                     .font(.system(size: 10, weight: .bold))
                     .foregroundStyle(isActive ? theme.inverseText.opacity(0.82) : theme.warning)
+                    .frame(
+                        width: SessionChipActionLayoutPolicy.deleteButtonSize,
+                        height: SessionChipActionLayoutPolicy.deleteButtonSize
+                    )
+                    .contentShape(Circle())
             }
             .buttonStyle(.plain)
             .disabled(canDelete == false)

@@ -1719,6 +1719,20 @@ final class LocalGemmaTests: XCTestCase {
         XCTAssertFalse(deleteIdentifier.contains(namedSession.title))
     }
 
+    func testSessionChipActionLayoutPolicyMaintainsTouchTargets() {
+        XCTAssertEqual(SessionChipActionLayoutPolicy.minimumTouchTarget, 44)
+        XCTAssertGreaterThanOrEqual(
+            SessionChipActionLayoutPolicy.deleteButtonSize,
+            SessionChipActionLayoutPolicy.minimumTouchTarget
+        )
+        XCTAssertTrue(
+            SessionChipActionLayoutPolicy.usesMinimumTouchTarget(for: .delete)
+        )
+        XCTAssertFalse(
+            SessionChipActionLayoutPolicy.usesMinimumTouchTarget(for: .select)
+        )
+    }
+
     func testSelectionAccessibilityMetadataDescribesWorkspaceAndSessions() {
         XCTAssertFalse(WorkspaceLayoutMode.portrait.usesDetailedSidebar)
         XCTAssertFalse(WorkspaceLayoutMode.landscapeCompact.usesDetailedSidebar)
