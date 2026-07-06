@@ -740,6 +740,64 @@ final class LocalGemmaTests: XCTestCase {
             PromptTemplateGridLayoutPolicy.cardWidth(for: 1_400),
             PromptTemplateGridLayoutPolicy.maximumCardWidth
         )
+        XCTAssertEqual(
+            PromptTemplateGridLayoutPolicy.maximumWidth(forColumnCount: 4),
+            PromptTemplateGridLayoutPolicy.maximumCardWidth * 4
+                + PromptTemplateGridLayoutPolicy.spacing * 3
+        )
+        XCTAssertEqual(
+            PromptTemplateGridLayoutPolicy.maximumWidth(forColumnCount: 99),
+            PromptTemplateGridLayoutPolicy.maximumWidth(forColumnCount: 4)
+        )
+        XCTAssertEqual(
+            PromptTemplateGridLayoutPolicy.maximumWidth(forColumnCount: 0),
+            PromptTemplateGridLayoutPolicy.maximumCardWidth
+        )
+    }
+
+    func testPromptTemplatesWorkspaceLayoutPolicyConstrainsWidePromptContent() {
+        XCTAssertEqual(PromptTemplatesWorkspaceLayoutPolicy.horizontalPadding, 18)
+        XCTAssertEqual(PromptTemplatesWorkspaceLayoutPolicy.minimumReadableWidth, 320)
+        XCTAssertEqual(
+            PromptTemplatesWorkspaceLayoutPolicy.maximumContentWidth,
+            PromptTemplateGridLayoutPolicy.maximumWidth(
+                forColumnCount: PromptTemplateGridLayoutPolicy.maxColumnCount
+            )
+        )
+        XCTAssertEqual(PromptTemplatesWorkspaceLayoutPolicy.maximumContentWidth, 1_316)
+        XCTAssertGreaterThanOrEqual(
+            PromptTemplatesWorkspaceLayoutPolicy.maximumContentWidth,
+            PromptTemplateGridLayoutPolicy.minimumWidth(forColumnCount: 4)
+        )
+
+        XCTAssertEqual(
+            PromptTemplatesWorkspaceLayoutPolicy.contentWidth(forContainerWidth: 390),
+            354
+        )
+        XCTAssertEqual(
+            PromptTemplatesWorkspaceLayoutPolicy.contentWidth(forContainerWidth: 320),
+            284
+        )
+        XCTAssertEqual(
+            PromptTemplatesWorkspaceLayoutPolicy.contentWidth(forContainerWidth: 834),
+            798
+        )
+        XCTAssertEqual(
+            PromptTemplatesWorkspaceLayoutPolicy.contentWidth(forContainerWidth: 1_400),
+            PromptTemplatesWorkspaceLayoutPolicy.maximumContentWidth
+        )
+        XCTAssertEqual(
+            PromptTemplatesWorkspaceLayoutPolicy.contentWidth(forContainerWidth: 1_600),
+            PromptTemplatesWorkspaceLayoutPolicy.maximumContentWidth
+        )
+        XCTAssertEqual(
+            PromptTemplatesWorkspaceLayoutPolicy.contentWidth(forContainerWidth: -1),
+            PromptTemplatesWorkspaceLayoutPolicy.minimumReadableWidth
+        )
+        XCTAssertEqual(
+            PromptTemplatesWorkspaceLayoutPolicy.contentWidth(forContainerWidth: CGFloat.nan),
+            PromptTemplatesWorkspaceLayoutPolicy.minimumReadableWidth
+        )
     }
 
     func testPromptTemplateActionLayoutPolicyMaintains44PointTouchTargets() {

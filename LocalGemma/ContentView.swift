@@ -3297,38 +3297,71 @@ struct PromptTemplatesWorkspace: View {
         let validation = catalog.validation(for: model)
         let templates = PromptTemplateLibrary.templates(in: selectedCategory)
 
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                SectionHeader(
-                    eyebrow: "PROMPTS",
-                    title: "预设提示词",
-                    subtitle: "把常用本地部署、隐私、安全和产品表达整理成可复用模板。"
-                )
+        GeometryReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    SectionHeader(
+                        eyebrow: "PROMPTS",
+                        title: "预设提示词",
+                        subtitle: "把常用本地部署、隐私、安全和产品表达整理成可复用模板。"
+                    )
 
-                PromptCategorySelector(selectedCategory: $selectedCategory)
+                    PromptCategorySelector(selectedCategory: $selectedCategory)
 
-                PromptTemplateGrid(
-                    templates: templates,
-                    isGenerating: inference.isGenerating,
-                    apply: { template in
-                        inference.applyTemplate(template)
-                        openChat(.applyTemplate)
-                    },
-                    send: { template in
-                        inference.useTemplate(
-                            template,
-                            model: model,
-                            availability: validation.availability
-                        )
-                        openChat(.sendTemplate)
-                    }
+                    PromptTemplateGrid(
+                        templates: templates,
+                        isGenerating: inference.isGenerating,
+                        apply: { template in
+                            inference.applyTemplate(template)
+                            openChat(.applyTemplate)
+                        },
+                        send: { template in
+                            inference.useTemplate(
+                                template,
+                                model: model,
+                                availability: validation.availability
+                            )
+                            openChat(.sendTemplate)
+                        }
+                    )
+                }
+                .frame(
+                    width: PromptTemplatesWorkspaceLayoutPolicy.contentWidth(
+                        forContainerWidth: proxy.size.width
+                    ),
+                    alignment: .leading
                 )
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.horizontal, PromptTemplatesWorkspaceLayoutPolicy.horizontalPadding)
+                .padding(.top, 16)
+                .padding(.bottom, 28)
             }
-            .padding(.horizontal, 18)
-            .padding(.top, 16)
-            .padding(.bottom, 28)
+            .scrollIndicators(.hidden)
         }
-        .scrollIndicators(.hidden)
+    }
+}
+
+enum PromptTemplatesWorkspaceLayoutPolicy {
+    static let horizontalPadding: CGFloat = 18
+    static let minimumReadableWidth: CGFloat = 320
+    static let maximumContentWidth: CGFloat = PromptTemplateGridLayoutPolicy.maximumWidth(
+        forColumnCount: PromptTemplateGridLayoutPolicy.maxColumnCount
+    )
+
+    static func contentWidth(forContainerWidth containerWidth: CGFloat) -> CGFloat {
+        guard containerWidth.isFinite, containerWidth > 0 else {
+            return minimumReadableWidth
+        }
+
+        let paddedWidth = max(containerWidth - horizontalPadding * 2, 0)
+        guard paddedWidth >= minimumReadableWidth else {
+            return paddedWidth
+        }
+
+        return min(
+            paddedWidth,
+            maximumContentWidth
+        )
     }
 }
 
@@ -3402,6 +3435,12 @@ enum PromptTemplateGridLayoutPolicy {
     static func minimumWidth(forColumnCount columnCount: Int) -> CGFloat {
         let clampedCount = min(max(columnCount, 1), maxColumnCount)
         return CGFloat(clampedCount) * minimumCardWidth
+            + CGFloat(clampedCount - 1) * spacing
+    }
+
+    static func maximumWidth(forColumnCount columnCount: Int) -> CGFloat {
+        let clampedCount = min(max(columnCount, 1), maxColumnCount)
+        return CGFloat(clampedCount) * maximumCardWidth
             + CGFloat(clampedCount - 1) * spacing
     }
 }
