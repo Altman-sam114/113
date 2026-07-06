@@ -155,6 +155,33 @@ enum ModelLibraryLayoutMode: Equatable {
     }
 }
 
+enum ModelDetailColumnLayoutPolicy {
+    static let minimumReadableWidth: CGFloat = 320
+    static let maximumReadableWidth: CGFloat = 680
+    static let interColumnSpacing: CGFloat = 14
+
+    static func width(for size: CGSize, layoutMode: ModelLibraryLayoutMode) -> CGFloat {
+        guard layoutMode == .twoColumn, size.width.isFinite, size.width > 0 else {
+            return 0
+        }
+
+        let controlColumnWidth = layoutMode.controlColumnWidth(for: size)
+        guard controlColumnWidth.isFinite else {
+            return 0
+        }
+
+        let availableWidth = size.width - controlColumnWidth - interColumnSpacing
+        guard availableWidth.isFinite, availableWidth > 0 else {
+            return 0
+        }
+
+        return min(
+            max(availableWidth, minimumReadableWidth),
+            maximumReadableWidth
+        )
+    }
+}
+
 enum WallpaperImportError: LocalizedError, Equatable {
     case unreadableImage
     case encodingFailed
@@ -3738,7 +3765,13 @@ struct ModelLibraryView: View {
             )
 
             if layoutMode == .twoColumn {
-                HStack(alignment: .top, spacing: 14) {
+                let controlColumnWidth = layoutMode.controlColumnWidth(for: size)
+                let detailColumnWidth = ModelDetailColumnLayoutPolicy.width(
+                    for: size,
+                    layoutMode: layoutMode
+                )
+
+                HStack(alignment: .top, spacing: ModelDetailColumnLayoutPolicy.interColumnSpacing) {
                     VStack(spacing: 14) {
                         ModelSelectorPanel(
                             models: catalog.models,
@@ -3766,10 +3799,12 @@ struct ModelLibraryView: View {
                             }
                         )
                     }
-                    .frame(width: layoutMode.controlColumnWidth(for: size))
+                    .frame(width: controlColumnWidth)
 
                     ModelDetailColumn(model: model, validation: validation, report: report)
-                        .frame(maxWidth: .infinity)
+                        .frame(width: detailColumnWidth, alignment: .topLeading)
+
+                    Spacer(minLength: 0)
                 }
             } else {
                 ModelSelectorPanel(

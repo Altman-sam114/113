@@ -1852,6 +1852,68 @@ final class LocalGemmaTests: XCTestCase {
         )
     }
 
+    func testModelDetailColumnLayoutPolicyConstrainsWideReadingWidth() {
+        let singleColumnMode = ModelLibraryLayoutMode.resolve(
+            for: CGSize(width: 390, height: 844)
+        )
+        XCTAssertEqual(
+            ModelDetailColumnLayoutPolicy.width(
+                for: CGSize(width: 390, height: 844),
+                layoutMode: singleColumnMode
+            ),
+            0
+        )
+
+        let iPadPane = CGSize(width: 820, height: 1180)
+        let iPadMode = ModelLibraryLayoutMode.resolve(for: iPadPane)
+        let iPadWidth = ModelDetailColumnLayoutPolicy.width(
+            for: iPadPane,
+            layoutMode: iPadMode
+        )
+        XCTAssertEqual(iPadMode, .twoColumn)
+        XCTAssertGreaterThanOrEqual(iPadWidth, ModelDetailColumnLayoutPolicy.minimumReadableWidth)
+        XCTAssertLessThanOrEqual(iPadWidth, ModelDetailColumnLayoutPolicy.maximumReadableWidth)
+
+        let desktopPane = CGSize(width: 1000, height: 760)
+        let desktopMode = ModelLibraryLayoutMode.resolve(for: desktopPane)
+        let desktopControlWidth = desktopMode.controlColumnWidth(for: desktopPane)
+        XCTAssertEqual(
+            ModelDetailColumnLayoutPolicy.width(for: desktopPane, layoutMode: desktopMode),
+            desktopPane.width - desktopControlWidth - ModelDetailColumnLayoutPolicy.interColumnSpacing
+        )
+
+        let wideDesktopPane = CGSize(width: 1280, height: 800)
+        XCTAssertEqual(
+            ModelDetailColumnLayoutPolicy.width(
+                for: wideDesktopPane,
+                layoutMode: ModelLibraryLayoutMode.resolve(for: wideDesktopPane)
+            ),
+            ModelDetailColumnLayoutPolicy.maximumReadableWidth
+        )
+
+        XCTAssertEqual(
+            ModelDetailColumnLayoutPolicy.width(
+                for: CGSize(width: 1600, height: 1000),
+                layoutMode: .twoColumn
+            ),
+            ModelDetailColumnLayoutPolicy.maximumReadableWidth
+        )
+        XCTAssertEqual(
+            ModelDetailColumnLayoutPolicy.width(
+                for: CGSize(width: CGFloat.nan, height: 800),
+                layoutMode: .twoColumn
+            ),
+            0
+        )
+        XCTAssertEqual(
+            ModelDetailColumnLayoutPolicy.width(
+                for: CGSize(width: 1, height: 800),
+                layoutMode: .twoColumn
+            ),
+            0
+        )
+    }
+
     func testModelCapsuleExposesOverallAccessibilityMetadata() {
         let model = ModelCatalog.defaultModels[0]
 
