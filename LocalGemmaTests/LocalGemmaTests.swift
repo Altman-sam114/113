@@ -2368,6 +2368,72 @@ final class LocalGemmaTests: XCTestCase {
         )
     }
 
+    func testModelArtifactPanelExposesAccessibilityMetadata() {
+        let model = ModelCatalog.defaultModels[0]
+        let missingValidation = LocalArtifactValidator.validate(
+            manifest: model.artifactManifest,
+            presentFiles: []
+        )
+
+        XCTAssertEqual(ModelArtifactPanelAccessibilityMetadata.label, "模型文件工作流")
+        XCTAssertEqual(ModelArtifactPanelAccessibilityMetadata.identifier, "model-artifact-panel")
+        XCTAssertEqual(
+            ModelArtifactPanelAccessibilityMetadata.inputLabels,
+            ["模型文件", "模型文件工作流", "管理模型文件"]
+        )
+
+        let hint = ModelArtifactPanelAccessibilityMetadata.hint
+        XCTAssertTrue(hint.contains("本地模型文件工作流"))
+        XCTAssertTrue(hint.contains("不会联网下载模型权重"))
+        XCTAssertTrue(hint.contains("不会启动真实 runtime"))
+        XCTAssertTrue(hint.contains("不会发送到云端服务"))
+        XCTAssertTrue(hint.contains("不会绕过 artifact verified 门禁"))
+
+        let missingValue = ModelArtifactPanelAccessibilityMetadata.value(
+            validation: missingValidation
+        )
+        XCTAssertTrue(missingValue.contains("缺少本地 artifact"))
+        XCTAssertTrue(missingValue.contains("校验摘要 \(missingValidation.summary)"))
+        XCTAssertTrue(missingValue.contains("模拟暂存"))
+        XCTAssertTrue(missingValue.contains("卸载本地文件"))
+        XCTAssertTrue(missingValue.contains("扫描本地目录"))
+        XCTAssertTrue(missingValue.contains("Files 手动导入模型文件和 tokenizer"))
+        XCTAssertTrue(missingValue.contains("不联网下载"))
+        XCTAssertTrue(missingValue.contains("本地 manifest 必需文件"))
+
+        let stagedValidation = LocalArtifactValidator.validate(
+            manifest: model.artifactManifest,
+            presentFiles: Set(model.artifactManifest.requiredFiles)
+        )
+        let stagedValue = ModelArtifactPanelAccessibilityMetadata.value(
+            validation: stagedValidation
+        )
+        XCTAssertTrue(stagedValue.contains("artifact 已暂存但未校验"))
+        XCTAssertTrue(stagedValue.contains("等待登记官方 SHA-256"))
+
+        let verifiedManifest = ModelArtifactManifest(
+            modelFileName: "verified-gemma.mlmodelc",
+            tokenizerFileName: "verified-tokenizer.model",
+            fileFormat: "Core ML compiled package",
+            storageDirectory: "Application Support/LocalModels",
+            expectedSHA256: String(repeating: "e", count: 64),
+            allowsNetworkDownload: false,
+            importInstruction: "手动导入测试模型。"
+        )
+        let verifiedValidation = LocalArtifactValidator.validate(
+            manifest: verifiedManifest,
+            presentFiles: Set(verifiedManifest.requiredFiles),
+            observedSHA256: verifiedManifest.expectedSHA256
+        )
+        let verifiedValue = ModelArtifactPanelAccessibilityMetadata.value(
+            validation: verifiedValidation
+        )
+        XCTAssertTrue(verifiedValue.contains("artifact 已 verified"))
+        XCTAssertTrue(verifiedValue.contains("本地 artifact 已通过校验"))
+        XCTAssertFalse(ModelArtifactPanelAccessibilityMetadata.identifier.contains(missingValidation.summary))
+        XCTAssertFalse(ModelArtifactPanelAccessibilityMetadata.identifier.contains(model.name))
+    }
+
     func testWorkspaceLayoutModeConstrainsSidebarWidth() {
         let compactWidth = WorkspaceLayoutMode.landscapeCompact.sidebarWidth(
             for: CGSize(width: 844, height: 390)

@@ -1710,7 +1710,7 @@ enum ModelDeploymentControlAccessibilityMetadata {
         "model-artifact-action-\(action.rawValue)"
     }
 
-    private static func availabilityDescription(for availability: ArtifactAvailability) -> String {
+    static func availabilityDescription(for availability: ArtifactAvailability) -> String {
         switch availability {
         case .missing:
             return "缺少本地 artifact"
@@ -1719,6 +1719,24 @@ enum ModelDeploymentControlAccessibilityMetadata {
         case .verified:
             return "artifact 已 verified"
         }
+    }
+}
+
+enum ModelArtifactPanelAccessibilityMetadata {
+    static let label = "模型文件工作流"
+    static let hint = "只管理本地模型文件工作流；不会联网下载模型权重，不会启动真实 runtime，不会发送到云端服务，也不会绕过 artifact verified 门禁。"
+    static let inputLabels = ["模型文件", "模型文件工作流", "管理模型文件"]
+    static let identifier = "model-artifact-panel"
+
+    static func value(validation: ArtifactValidationResult) -> String {
+        [
+            ModelDeploymentControlAccessibilityMetadata.availabilityDescription(
+                for: validation.availability
+            ),
+            "校验摘要 \(validation.summary)",
+            "可模拟暂存、卸载本地文件、扫描本地目录、从 Files 手动导入模型文件和 tokenizer",
+            "模拟暂存不联网下载，扫描只读取本地 manifest 必需文件"
+        ].joined(separator: "。")
     }
 }
 
@@ -3886,6 +3904,14 @@ struct ArtifactActionPanel: View {
             }
         }
         .panelStyle()
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(ModelArtifactPanelAccessibilityMetadata.label)
+        .accessibilityValue(
+            ModelArtifactPanelAccessibilityMetadata.value(validation: validation)
+        )
+        .accessibilityHint(ModelArtifactPanelAccessibilityMetadata.hint)
+        .accessibilityInputLabels(ModelArtifactPanelAccessibilityMetadata.inputLabels)
+        .accessibilityIdentifier(ModelArtifactPanelAccessibilityMetadata.identifier)
     }
 }
 
