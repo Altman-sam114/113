@@ -1,6 +1,6 @@
 # 项目核心流程文档
 
-一句话总览：本项目是一个 SwiftUI iOS 原型，通过本地模拟 runtime 和严格 artifact 校验流程，验证 iPhone、iPad 与 Mac Catalyst build/run 基线下端侧部署 Gemma 1.5B 的 UI、状态管理、文件导入、会话导出、导出弹层分享/复制辅助语义、顶部模型胶囊整体辅助语义、模型概要面板与详情右栏/行级辅助语义、模型文件工作流面板辅助语义、模型状态徽章辅助语义、会话 chip 动作语义、聊天消息气泡与聊天记录容器辅助语义、聊天气泡与 composer 宽屏输入宽度策略、工作区导航辅助语义、头部主题与模型库入口辅助语义、运行策略开关辅助语义、运行策略开关宽屏网格、芯片准备度辅助语义、优化指标卡辅助语义、优化指标网格宽度策略、提示词模板宽屏布局策略、提示词模板动作辅助语义、壁纸控件辅助语义、大屏布局和 Apple Silicon 运行计划；协作流程默认采用 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载结果包验收。
+一句话总览：本项目是一个 SwiftUI iOS 原型，通过本地模拟 runtime 和严格 artifact 校验流程，验证 iPhone、iPad 与 Mac Catalyst build/run 基线下端侧部署 Gemma 1.5B 的 UI、状态管理、文件导入、会话导出、导出弹层分享/复制辅助语义、顶部模型胶囊整体辅助语义、模型概要面板与详情右栏/行级辅助语义、模型文件工作流面板辅助语义、模型状态徽章辅助语义、会话 chip 动作语义、聊天消息气泡与聊天记录容器辅助语义、聊天气泡与 composer 宽屏输入宽度策略、工作区导航辅助语义、头部主题与模型库入口辅助语义、运行策略开关辅助语义、运行策略开关宽屏网格、芯片准备度辅助语义、优化指标卡辅助语义、优化指标网格宽度策略、提示词模板宽屏布局策略、提示词模板动作辅助语义与 44pt 触控目标、壁纸控件辅助语义、大屏布局和 Apple Silicon 运行计划；协作流程默认采用 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载结果包验收。
 
 本文只写当前真实链路，不写历史流水账。
 
@@ -88,6 +88,7 @@
 - `SelectionAccessibilityMetadata` 为 workspace 和会话选择生成 label/value，当前选中项通过 `.isSelected` trait 暴露给辅助技术，不改变业务状态。
 - `PromptCategoryAccessibilityMetadata` 为提示词分类筛选 chip 生成 label/value/hint/input labels/identifier，当前筛选项通过 `.isSelected` trait 暴露给辅助技术，不改变模板筛选业务结果。
 - `PromptTemplateGridLayoutPolicy` 为提示词模板页定义共享卡片网格宽度策略；窄屏保持单列和最小卡片宽度，iPad/Mac 宽区域使用多列并让卡片在列内伸展，同时限制最大卡片宽度，避免旧固定宽度浪费宽屏空间或超宽文本行影响阅读。
+- `PromptTemplateActionLayoutPolicy` 为提示词模板卡片动作区定义共享触控目标和布局策略；“填入”按钮显式保证至少 44pt 高度，“发送”图标按钮使用 44x44，动作区 spacing 和卡片 padding 保持可测试常量，并确认现有最小卡片宽度可容纳动作行。
 - `PromptTemplateActionAccessibilityMetadata` 为提示词模板卡片的“填入”和“发送”动作生成 label/value/hint/input labels/identifier；填入动作只写入 composer、切回推理页并聚焦输入框，不发送 prompt；发送动作走本地模拟 runtime，不下载模型权重、不启动真实 runtime、不发送到云端服务，也不绕过 verified 门禁。
 - `ComposerFocusRequest`、`ComposerFocusPolicy` 和 `ComposerInputMetadata` 只管理 view 层输入焦点、输入框标识和发送/停止控件辅助语义；切回推理页、新建/切换会话、提示词模板填入或发送后会请求 composer 聚焦，不写入 `InferenceEngine` 业务状态；composer 输入框与发送/停止按钮暴露稳定 identifier、Voice Control input labels、`Command+Return` 语义、本地模拟 runtime 边界、不下载模型权重、不启动真实 runtime、不发送云端服务和不绕过 verified 门禁。
 - `会话` command menu 支持 `Command+N` 新建会话、`Command+Shift+E` 导出当前会话；会话栏保留可见按钮入口；composer 支持 `Command+Return` 发送 prompt 或停止生成，普通 Return 继续保留给 vertical input。
@@ -227,6 +228,7 @@ Agent X 不能跳过 Agent C artifact 验收；失败时不能继续下一轮并
 - `PromptCategoryAccessibilityMetadata`：提示词分类筛选的辅助技术文案、Voice Control 输入标签和稳定 identifier。
 - `OptimizationToggleGridLayoutPolicy`：设置页和优化 dashboard 运行策略开关网格的最小卡片宽度、间距、列数阈值和窄屏回退策略。
 - `PromptTemplateGridLayoutPolicy`：提示词模板页卡片网格的最小宽度、最大宽度、间距、列数阈值和宽屏伸展策略。
+- `PromptTemplateActionLayoutPolicy`：提示词模板卡片动作区的 44pt 最小触控目标、spacing、卡片 padding、发送按钮尺寸和最小动作区宽度策略。
 - `PromptTemplateActionAccessibilityMetadata`：提示词模板填入和发送动作的辅助技术文案、Voice Control 输入标签和稳定 identifier。
 - `WallpaperImageProcessor`：壁纸数据压缩和尺寸控制。
 - `script/build_and_run.sh`：项目内 Mac Catalyst 本地 build/run 入口。
@@ -276,7 +278,7 @@ Agent X 不能跳过 Agent C artifact 验收；失败时不能继续下一轮并
 - 大图壁纸必须压缩和限制尺寸。
 - iPhone 横屏、iPad 大屏与 Mac Catalyst 桌面窗口布局断点必须有测试覆盖。
 - 模型页内部宽屏双栏和窄屏单栏回退必须有测试覆盖。
-- 工作区快捷键、工作区/会话 command menu、工作区导航辅助语义、顶部模型胶囊整体辅助语义、模型概要面板与详情右栏/行级辅助语义、模型文件工作流面板辅助语义、模型状态徽章辅助语义、头部主题与模型库入口辅助语义、会话栏操作辅助语义、会话 chip 动作语义、聊天消息气泡与聊天记录容器辅助语义、composer 宽屏输入宽度策略、导出弹层分享/复制辅助语义、壁纸控件辅助语义、会话侧栏宽度、regular 侧栏说明、选择语义、composer 输入焦点/控件辅助语义、模型选择器与部署控件辅助语义、运行策略开关辅助语义、运行策略开关宽屏网格、芯片准备度辅助语义、优化指标卡辅助语义、优化指标网格宽度策略、提示词模板宽屏布局策略、提示词分类筛选辅助语义和提示词模板动作辅助语义必须有测试覆盖，避免 Mac/iPad 导航退化。
+- 工作区快捷键、工作区/会话 command menu、工作区导航辅助语义、顶部模型胶囊整体辅助语义、模型概要面板与详情右栏/行级辅助语义、模型文件工作流面板辅助语义、模型状态徽章辅助语义、头部主题与模型库入口辅助语义、会话栏操作辅助语义、会话 chip 动作语义、聊天消息气泡与聊天记录容器辅助语义、composer 宽屏输入宽度策略、导出弹层分享/复制辅助语义、壁纸控件辅助语义、会话侧栏宽度、regular 侧栏说明、选择语义、composer 输入焦点/控件辅助语义、模型选择器与部署控件辅助语义、运行策略开关辅助语义、运行策略开关宽屏网格、芯片准备度辅助语义、优化指标卡辅助语义、优化指标网格宽度策略、提示词模板宽屏布局策略、提示词模板动作 44pt 触控目标、提示词分类筛选辅助语义和提示词模板动作辅助语义必须有测试覆盖，避免 Mac/iPad 导航退化。
 - 默认协作验证以 `main` push 后的 GitHub Actions 结果包为准。
 - Agent X 循环每轮仍以 Agent B 本地轻量检查、GitHub Actions artifact 和 Agent C 下载复判为准。
 

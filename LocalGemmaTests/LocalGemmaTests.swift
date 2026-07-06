@@ -734,6 +734,35 @@ final class LocalGemmaTests: XCTestCase {
         )
     }
 
+    func testPromptTemplateActionLayoutPolicyMaintains44PointTouchTargets() {
+        XCTAssertEqual(PromptTemplateActionLayoutPolicy.minimumTouchTarget, 44)
+        XCTAssertEqual(PromptTemplateActionLayoutPolicy.sendButtonSize, 44)
+        XCTAssertGreaterThanOrEqual(
+            PromptTemplateActionLayoutPolicy.sendButtonSize,
+            PromptTemplateActionLayoutPolicy.minimumTouchTarget
+        )
+        XCTAssertEqual(PromptTemplateActionLayoutPolicy.spacing, 8)
+        XCTAssertEqual(PromptTemplateActionLayoutPolicy.cardPadding, 13)
+        XCTAssertEqual(PromptTemplateActionLayoutPolicy.minimumApplyButtonWidth, 112)
+
+        let requiredWidth = PromptTemplateActionLayoutPolicy.minimumCardWidthForActionRow()
+        XCTAssertEqual(requiredWidth, 190)
+        XCTAssertTrue(
+            PromptTemplateActionLayoutPolicy.actionRowFits(
+                inCardWidth: PromptTemplateGridLayoutPolicy.minimumCardWidth
+            )
+        )
+        XCTAssertFalse(
+            PromptTemplateActionLayoutPolicy.actionRowFits(
+                inCardWidth: requiredWidth - 0.5
+            )
+        )
+        XCTAssertGreaterThanOrEqual(
+            PromptTemplateGridLayoutPolicy.minimumCardWidth,
+            requiredWidth
+        )
+    }
+
     func testPromptCategoryAccessibilityMetadataDescribesFilterSelectionAndInputLabels() {
         XCTAssertEqual(PromptCategoryAccessibilityMetadata.allCategoryTitle, "全部")
         XCTAssertEqual(PromptCategoryAccessibilityMetadata.title(for: nil), "全部")

@@ -3365,12 +3365,13 @@ struct PromptTemplateCard: View {
 
             Spacer(minLength: 0)
 
-            HStack(spacing: 8) {
+            HStack(spacing: PromptTemplateActionLayoutPolicy.spacing) {
                 Button(action: apply) {
                     Label("填入", systemImage: "text.cursor")
                         .font(.system(size: 11, weight: .black))
                         .foregroundStyle(theme.primaryText)
                         .frame(maxWidth: .infinity)
+                        .frame(minHeight: PromptTemplateActionLayoutPolicy.minimumTouchTarget)
                         .padding(.vertical, 9)
                         .background(template.category.accentColor.opacity(0.18), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                         .overlay {
@@ -3399,7 +3400,10 @@ struct PromptTemplateCard: View {
                     Label("发送", systemImage: "paperplane.fill")
                         .labelStyle(.iconOnly)
                         .font(.system(size: 12, weight: .black))
-                        .frame(width: 36, height: 34)
+                        .frame(
+                            width: PromptTemplateActionLayoutPolicy.sendButtonSize,
+                            height: PromptTemplateActionLayoutPolicy.sendButtonSize
+                        )
                         .background(template.category.accentColor, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                         .foregroundStyle(theme.inverseText)
                 }
@@ -3422,7 +3426,7 @@ struct PromptTemplateCard: View {
             }
         }
         .foregroundStyle(theme.primaryText)
-        .padding(13)
+        .padding(PromptTemplateActionLayoutPolicy.cardPadding)
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .frame(minHeight: 168, alignment: .topLeading)
         .background(templateBackground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
@@ -3444,6 +3448,25 @@ struct PromptTemplateCard: View {
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )
+    }
+}
+
+enum PromptTemplateActionLayoutPolicy {
+    static let minimumTouchTarget: CGFloat = 44
+    static let spacing: CGFloat = 8
+    static let cardPadding: CGFloat = 13
+    static let sendButtonSize: CGFloat = minimumTouchTarget
+    static let minimumApplyButtonWidth: CGFloat = 112
+
+    static func minimumCardWidthForActionRow() -> CGFloat {
+        cardPadding * 2
+            + minimumApplyButtonWidth
+            + spacing
+            + sendButtonSize
+    }
+
+    static func actionRowFits(inCardWidth cardWidth: CGFloat) -> Bool {
+        cardWidth >= minimumCardWidthForActionRow()
     }
 }
 
