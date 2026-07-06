@@ -1545,6 +1545,59 @@ enum PromptCategoryAccessibilityMetadata {
     }
 }
 
+enum PromptCategoryLayoutPolicy {
+    static let minimumTouchTarget: CGFloat = 44
+    static let horizontalSpacing: CGFloat = 8
+    static let verticalSpacing: CGFloat = 8
+    static let horizontalPadding: CGFloat = 12
+    static let verticalPadding: CGFloat = 9
+    static let minimumChipWidth: CGFloat = 74
+
+    static func clampedAvailableWidth(_ width: CGFloat) -> CGFloat {
+        guard width.isFinite, width > 0 else {
+            return 0
+        }
+        return width
+    }
+
+    static func minimumSingleRowWidth(forCategoryCount categoryCount: Int) -> CGFloat {
+        let clampedCount = max(categoryCount, 0)
+        guard clampedCount > 0 else {
+            return 0
+        }
+
+        return CGFloat(clampedCount) * minimumChipWidth
+            + CGFloat(clampedCount - 1) * horizontalSpacing
+    }
+
+    static func usesWrapping(availableWidth: CGFloat, categoryCount: Int) -> Bool {
+        let width = clampedAvailableWidth(availableWidth)
+        guard width > 0 else {
+            return categoryCount > 0
+        }
+
+        return width < minimumSingleRowWidth(forCategoryCount: categoryCount)
+    }
+
+    static func minimumRowCount(availableWidth: CGFloat, categoryCount: Int) -> Int {
+        let clampedCount = max(categoryCount, 0)
+        guard clampedCount > 0 else {
+            return 0
+        }
+
+        let width = clampedAvailableWidth(availableWidth)
+        guard width >= minimumChipWidth else {
+            return clampedCount
+        }
+
+        let chipsPerRow = max(
+            1,
+            Int((width + horizontalSpacing) / (minimumChipWidth + horizontalSpacing))
+        )
+        return Int(ceil(Double(clampedCount) / Double(chipsPerRow)))
+    }
+}
+
 enum PromptTemplateActionAccessibilityMetadata {
     enum Action: String, CaseIterable, Identifiable {
         case apply
@@ -3332,20 +3385,18 @@ struct PromptCategorySelector: View {
     @Binding var selectedCategory: PromptTemplateCategory?
 
     var body: some View {
-        ScrollView(.horizontal) {
-            HStack(spacing: 8) {
-                categoryButton(category: nil, icon: "square.grid.2x2.fill", isSelected: selectedCategory == nil) {
-                    selectedCategory = nil
-                }
+        PromptCategoryFlowLayout {
+            categoryButton(category: nil, icon: "square.grid.2x2.fill", isSelected: selectedCategory == nil) {
+                selectedCategory = nil
+            }
 
-                ForEach(PromptTemplateCategory.allCases) { category in
-                    categoryButton(category: category, icon: category.icon, isSelected: selectedCategory == category) {
-                        selectedCategory = category
-                    }
+            ForEach(PromptTemplateCategory.allCases) { category in
+                categoryButton(category: category, icon: category.icon, isSelected: selectedCategory == category) {
+                    selectedCategory = category
                 }
             }
         }
-        .scrollIndicators(.hidden)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func categoryButton(category: PromptTemplateCategory?, icon: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
@@ -3356,8 +3407,12 @@ struct PromptCategorySelector: View {
                 .font(.system(size: 11, weight: .black))
                 .labelStyle(.titleAndIcon)
                 .foregroundStyle(isSelected ? theme.inverseText : theme.secondaryText)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 7)
+                .padding(.horizontal, PromptCategoryLayoutPolicy.horizontalPadding)
+                .padding(.vertical, PromptCategoryLayoutPolicy.verticalPadding)
+                .frame(
+                    minWidth: PromptCategoryLayoutPolicy.minimumChipWidth,
+                    minHeight: PromptCategoryLayoutPolicy.minimumTouchTarget
+                )
                 .background(isSelected ? theme.accent : theme.chipSurface, in: Capsule())
                 .overlay(Capsule().stroke(isSelected ? theme.accent.opacity(0.7) : theme.border, lineWidth: 1))
         }
@@ -3368,6 +3423,81 @@ struct PromptCategorySelector: View {
         .accessibilityInputLabels(PromptCategoryAccessibilityMetadata.inputLabels(for: category))
         .accessibilityIdentifier(PromptCategoryAccessibilityMetadata.identifier(for: category))
         .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+}
+
+struct PromptCategoryFlowLayout: Layout {
+    var horizontalSpacing: CGFloat = PromptCategoryLayoutPolicy.horizontalSpacing
+    var verticalSpacing: CGFloat = PromptCategoryLayoutPolicy.verticalSpacing
+
+    func sizeThatFits(
+        proposal: ProposedViewSize,
+        subviews: Subviews,
+        cache: inout ()
+    ) -> CGSize {
+        let proposedWidth = proposal.width ?? .infinity
+        let wraps = proposedWidth.isFinite && proposedWidth > 0
+        let maxWidth = wraps ? proposedWidth : .infinity
+
+        var lineWidth: CGFloat = 0
+        var lineHeight: CGFloat = 0
+        var totalHeight: CGFloat = 0
+        var measuredWidth: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            let spacing = lineWidth > 0 ? horizontalSpacing : 0
+
+            if wraps, lineWidth > 0, lineWidth + spacing + size.width > maxWidth {
+                measuredWidth = max(measuredWidth, lineWidth)
+                totalHeight += lineHeight + verticalSpacing
+                lineWidth = size.width
+                lineHeight = size.height
+            } else {
+                lineWidth += spacing + size.width
+                lineHeight = max(lineHeight, size.height)
+            }
+        }
+
+        measuredWidth = max(measuredWidth, lineWidth)
+        totalHeight += lineHeight
+
+        return CGSize(
+            width: wraps ? min(measuredWidth, maxWidth) : measuredWidth,
+            height: totalHeight
+        )
+    }
+
+    func placeSubviews(
+        in bounds: CGRect,
+        proposal: ProposedViewSize,
+        subviews: Subviews,
+        cache: inout ()
+    ) {
+        var origin = bounds.origin
+        var lineHeight: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            let spacing = origin.x > bounds.minX ? horizontalSpacing : 0
+            let nextMaxX = origin.x + spacing + size.width
+
+            if origin.x > bounds.minX, nextMaxX > bounds.maxX {
+                origin.x = bounds.minX
+                origin.y += lineHeight + verticalSpacing
+                lineHeight = 0
+            } else {
+                origin.x += spacing
+            }
+
+            subview.place(
+                at: origin,
+                proposal: ProposedViewSize(width: size.width, height: size.height)
+            )
+
+            origin.x += size.width
+            lineHeight = max(lineHeight, size.height)
+        }
     }
 }
 

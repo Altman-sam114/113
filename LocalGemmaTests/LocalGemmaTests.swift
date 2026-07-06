@@ -771,6 +771,93 @@ final class LocalGemmaTests: XCTestCase {
         )
     }
 
+    func testPromptCategoryLayoutPolicyWrapsFilterChips() {
+        let categoryCount = PromptTemplateCategory.allCases.count + 1
+        let singleRowWidth = PromptCategoryLayoutPolicy.minimumSingleRowWidth(
+            forCategoryCount: categoryCount
+        )
+
+        XCTAssertEqual(PromptCategoryLayoutPolicy.minimumTouchTarget, 44)
+        XCTAssertEqual(PromptCategoryLayoutPolicy.horizontalSpacing, 8)
+        XCTAssertEqual(PromptCategoryLayoutPolicy.verticalSpacing, 8)
+        XCTAssertEqual(PromptCategoryLayoutPolicy.horizontalPadding, 12)
+        XCTAssertEqual(PromptCategoryLayoutPolicy.verticalPadding, 9)
+        XCTAssertEqual(PromptCategoryLayoutPolicy.minimumChipWidth, 74)
+        XCTAssertEqual(
+            singleRowWidth,
+            CGFloat(categoryCount) * PromptCategoryLayoutPolicy.minimumChipWidth
+                + CGFloat(categoryCount - 1) * PromptCategoryLayoutPolicy.horizontalSpacing
+        )
+
+        XCTAssertTrue(
+            PromptCategoryLayoutPolicy.usesWrapping(
+                availableWidth: 390,
+                categoryCount: categoryCount
+            )
+        )
+        XCTAssertTrue(
+            PromptCategoryLayoutPolicy.usesWrapping(
+                availableWidth: singleRowWidth - 0.5,
+                categoryCount: categoryCount
+            )
+        )
+        XCTAssertFalse(
+            PromptCategoryLayoutPolicy.usesWrapping(
+                availableWidth: singleRowWidth,
+                categoryCount: categoryCount
+            )
+        )
+        XCTAssertFalse(
+            PromptCategoryLayoutPolicy.usesWrapping(
+                availableWidth: 834,
+                categoryCount: categoryCount
+            )
+        )
+
+        XCTAssertEqual(
+            PromptCategoryLayoutPolicy.minimumRowCount(
+                availableWidth: 390,
+                categoryCount: categoryCount
+            ),
+            2
+        )
+        XCTAssertEqual(
+            PromptCategoryLayoutPolicy.minimumRowCount(
+                availableWidth: 834,
+                categoryCount: categoryCount
+            ),
+            1
+        )
+        XCTAssertEqual(
+            PromptCategoryLayoutPolicy.minimumRowCount(
+                availableWidth: 1,
+                categoryCount: categoryCount
+            ),
+            categoryCount
+        )
+        XCTAssertEqual(
+            PromptCategoryLayoutPolicy.minimumRowCount(
+                availableWidth: CGFloat.nan,
+                categoryCount: categoryCount
+            ),
+            categoryCount
+        )
+        XCTAssertEqual(
+            PromptCategoryLayoutPolicy.clampedAvailableWidth(-1),
+            0
+        )
+        XCTAssertEqual(
+            PromptCategoryLayoutPolicy.clampedAvailableWidth(CGFloat.nan),
+            0
+        )
+        XCTAssertFalse(
+            PromptCategoryLayoutPolicy.usesWrapping(
+                availableWidth: 0,
+                categoryCount: 0
+            )
+        )
+    }
+
     func testPromptCategoryAccessibilityMetadataDescribesFilterSelectionAndInputLabels() {
         XCTAssertEqual(PromptCategoryAccessibilityMetadata.allCategoryTitle, "全部")
         XCTAssertEqual(PromptCategoryAccessibilityMetadata.title(for: nil), "全部")
