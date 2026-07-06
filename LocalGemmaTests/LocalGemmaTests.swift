@@ -670,6 +670,42 @@ final class LocalGemmaTests: XCTestCase {
         XCTAssertTrue(PromptTemplateLibrary.templates(in: .privacy).allSatisfy { $0.category == .privacy })
     }
 
+    func testPromptTemplateGridLayoutPolicyExpandsCardsOnWidePromptWorkspace() {
+        let twoColumnThreshold = PromptTemplateGridLayoutPolicy.minimumWidth(forColumnCount: 2)
+        let threeColumnThreshold = PromptTemplateGridLayoutPolicy.minimumWidth(forColumnCount: 3)
+        let fourColumnThreshold = PromptTemplateGridLayoutPolicy.minimumWidth(forColumnCount: 4)
+
+        XCTAssertEqual(PromptTemplateGridLayoutPolicy.minimumCardWidth, 230)
+        XCTAssertEqual(PromptTemplateGridLayoutPolicy.maximumCardWidth, 320)
+        XCTAssertEqual(PromptTemplateGridLayoutPolicy.spacing, 12)
+        XCTAssertEqual(PromptTemplateGridLayoutPolicy.maxColumnCount, 4)
+        XCTAssertEqual(PromptTemplateGridLayoutPolicy.supportedColumnCounts, [4, 3, 2, 1])
+        XCTAssertEqual(
+            twoColumnThreshold,
+            PromptTemplateGridLayoutPolicy.minimumCardWidth * 2
+                + PromptTemplateGridLayoutPolicy.spacing
+        )
+
+        XCTAssertEqual(PromptTemplateGridLayoutPolicy.columnCount(for: 320), 1)
+        XCTAssertEqual(PromptTemplateGridLayoutPolicy.columnCount(for: twoColumnThreshold - 0.5), 1)
+        XCTAssertEqual(PromptTemplateGridLayoutPolicy.columnCount(for: twoColumnThreshold), 2)
+        XCTAssertEqual(PromptTemplateGridLayoutPolicy.columnCount(for: threeColumnThreshold), 3)
+        XCTAssertEqual(PromptTemplateGridLayoutPolicy.columnCount(for: fourColumnThreshold), 4)
+        XCTAssertEqual(PromptTemplateGridLayoutPolicy.columnCount(for: 1_400), 4)
+
+        XCTAssertEqual(PromptTemplateGridLayoutPolicy.columns(for: 320).count, 1)
+        XCTAssertEqual(PromptTemplateGridLayoutPolicy.columns(for: threeColumnThreshold).count, 3)
+        XCTAssertEqual(PromptTemplateGridLayoutPolicy.columns(forColumnCount: 0).count, 1)
+        XCTAssertEqual(PromptTemplateGridLayoutPolicy.columns(forColumnCount: 9).count, 4)
+
+        XCTAssertEqual(PromptTemplateGridLayoutPolicy.cardWidth(for: 320), 320)
+        XCTAssertGreaterThan(PromptTemplateGridLayoutPolicy.cardWidth(for: 834), 230)
+        XCTAssertLessThanOrEqual(
+            PromptTemplateGridLayoutPolicy.cardWidth(for: 1_400),
+            PromptTemplateGridLayoutPolicy.maximumCardWidth
+        )
+    }
+
     func testPromptCategoryAccessibilityMetadataDescribesFilterSelectionAndInputLabels() {
         XCTAssertEqual(PromptCategoryAccessibilityMetadata.allCategoryTitle, "全部")
         XCTAssertEqual(PromptCategoryAccessibilityMetadata.title(for: nil), "全部")

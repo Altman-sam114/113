@@ -3099,32 +3099,102 @@ struct PromptTemplatesWorkspace: View {
 
                 PromptCategorySelector(selectedCategory: $selectedCategory)
 
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 230), spacing: 12)], alignment: .leading, spacing: 12) {
-                    ForEach(templates) { template in
-                        PromptTemplateCard(
-                            template: template,
-                            isGenerating: inference.isGenerating,
-                            apply: {
-                                inference.applyTemplate(template)
-                                openChat(.applyTemplate)
-                            },
-                            send: {
-                                inference.useTemplate(
-                                    template,
-                                    model: model,
-                                    availability: validation.availability
-                                )
-                                openChat(.sendTemplate)
-                            }
+                PromptTemplateGrid(
+                    templates: templates,
+                    isGenerating: inference.isGenerating,
+                    apply: { template in
+                        inference.applyTemplate(template)
+                        openChat(.applyTemplate)
+                    },
+                    send: { template in
+                        inference.useTemplate(
+                            template,
+                            model: model,
+                            availability: validation.availability
                         )
+                        openChat(.sendTemplate)
                     }
-                }
+                )
             }
             .padding(.horizontal, 18)
             .padding(.top, 16)
             .padding(.bottom, 28)
         }
         .scrollIndicators(.hidden)
+    }
+}
+
+struct PromptTemplateGrid: View {
+    let templates: [PresetPromptTemplate]
+    let isGenerating: Bool
+    let apply: (PresetPromptTemplate) -> Void
+    let send: (PresetPromptTemplate) -> Void
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            templateGrid(columnCount: 4)
+            templateGrid(columnCount: 3)
+            templateGrid(columnCount: 2)
+            templateGrid(columnCount: 1)
+        }
+    }
+
+    private func templateGrid(columnCount: Int) -> some View {
+        LazyVGrid(
+            columns: PromptTemplateGridLayoutPolicy.columns(forColumnCount: columnCount),
+            alignment: .leading,
+            spacing: PromptTemplateGridLayoutPolicy.spacing
+        ) {
+            ForEach(templates) { template in
+                PromptTemplateCard(
+                    template: template,
+                    isGenerating: isGenerating,
+                    apply: { apply(template) },
+                    send: { send(template) }
+                )
+            }
+        }
+        .frame(minWidth: PromptTemplateGridLayoutPolicy.minimumWidth(forColumnCount: columnCount))
+    }
+}
+
+enum PromptTemplateGridLayoutPolicy {
+    static let minimumCardWidth: CGFloat = 230
+    static let maximumCardWidth: CGFloat = 320
+    static let spacing: CGFloat = 12
+    static let maxColumnCount = 4
+
+    static var supportedColumnCounts: [Int] {
+        Array(stride(from: maxColumnCount, through: 1, by: -1))
+    }
+
+    static func columnCount(for availableWidth: CGFloat) -> Int {
+        supportedColumnCounts.first { availableWidth >= minimumWidth(forColumnCount: $0) } ?? 1
+    }
+
+    static func cardWidth(for availableWidth: CGFloat) -> CGFloat {
+        let columnCount = columnCount(for: availableWidth)
+        let totalSpacing = CGFloat(columnCount - 1) * spacing
+        let availableCardWidth = (availableWidth - totalSpacing) / CGFloat(columnCount)
+        return min(max(availableCardWidth, minimumCardWidth), maximumCardWidth)
+    }
+
+    static func columns(for availableWidth: CGFloat) -> [GridItem] {
+        columns(forColumnCount: columnCount(for: availableWidth))
+    }
+
+    static func columns(forColumnCount columnCount: Int) -> [GridItem] {
+        let clampedCount = min(max(columnCount, 1), maxColumnCount)
+        return Array(
+            repeating: GridItem(.flexible(minimum: minimumCardWidth, maximum: maximumCardWidth), spacing: spacing),
+            count: clampedCount
+        )
+    }
+
+    static func minimumWidth(forColumnCount columnCount: Int) -> CGFloat {
+        let clampedCount = min(max(columnCount, 1), maxColumnCount)
+        return CGFloat(clampedCount) * minimumCardWidth
+            + CGFloat(clampedCount - 1) * spacing
     }
 }
 
@@ -3282,7 +3352,7 @@ struct PromptTemplateCard: View {
         }
         .foregroundStyle(theme.primaryText)
         .padding(13)
-        .frame(width: 230, alignment: .topLeading)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
         .frame(minHeight: 168, alignment: .topLeading)
         .background(templateBackground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay {
