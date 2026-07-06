@@ -880,6 +880,29 @@ final class LocalGemmaTests: XCTestCase {
         )
     }
 
+    func testPromptCategoryTextLayoutPolicySupportsDynamicTypeFilterChips() {
+        XCTAssertEqual(PromptCategoryTextLayoutPolicy.labelLineLimit, 2)
+        XCTAssertTrue(PromptCategoryTextLayoutPolicy.allowsMultilineLabels)
+        XCTAssertGreaterThanOrEqual(
+            PromptCategoryLayoutPolicy.minimumTouchTarget,
+            CGFloat(44)
+        )
+        XCTAssertGreaterThanOrEqual(
+            PromptCategoryLayoutPolicy.verticalPadding,
+            CGFloat(9)
+        )
+        XCTAssertEqual(
+            PromptCategoryLayoutPolicy.minimumSingleRowWidth(forCategoryCount: 1),
+            PromptCategoryLayoutPolicy.minimumChipWidth
+        )
+        XCTAssertFalse(
+            PromptCategoryLayoutPolicy.usesWrapping(
+                availableWidth: PromptCategoryLayoutPolicy.minimumChipWidth,
+                categoryCount: 1
+            )
+        )
+    }
+
     func testPromptCategoryAccessibilityMetadataDescribesFilterSelectionAndInputLabels() {
         XCTAssertEqual(PromptCategoryAccessibilityMetadata.allCategoryTitle, "全部")
         XCTAssertEqual(PromptCategoryAccessibilityMetadata.title(for: nil), "全部")

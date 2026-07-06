@@ -1598,6 +1598,14 @@ enum PromptCategoryLayoutPolicy {
     }
 }
 
+enum PromptCategoryTextLayoutPolicy {
+    static let labelLineLimit = 2
+
+    static var allowsMultilineLabels: Bool {
+        labelLineLimit > 1
+    }
+}
+
 enum PromptTemplateActionAccessibilityMetadata {
     enum Action: String, CaseIterable, Identifiable {
         case apply
@@ -3404,9 +3412,12 @@ struct PromptCategorySelector: View {
 
         return Button(action: action) {
             Label(title, systemImage: icon)
-                .font(.system(size: 11, weight: .black))
+                .font(.subheadline)
+                .bold()
                 .labelStyle(.titleAndIcon)
                 .foregroundStyle(isSelected ? theme.inverseText : theme.secondaryText)
+                .lineLimit(PromptCategoryTextLayoutPolicy.labelLineLimit)
+                .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, PromptCategoryLayoutPolicy.horizontalPadding)
                 .padding(.vertical, PromptCategoryLayoutPolicy.verticalPadding)
                 .frame(
