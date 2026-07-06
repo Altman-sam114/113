@@ -2712,28 +2712,35 @@ struct ChatTranscript: View {
     let messages: [ChatMessage]
 
     var body: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(spacing: 12) {
-                    ForEach(messages) { message in
-                        ChatBubble(message: message)
+        GeometryReader { geometry in
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(spacing: 12) {
+                        ForEach(messages) { message in
+                            ChatBubble(
+                                message: message,
+                                availableWidth: ChatBubbleLayoutPolicy.contentWidth(
+                                    forTranscriptWidth: geometry.size.width
+                                )
+                            )
                             .id(message.id)
+                        }
                     }
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 10)
                 }
-                .padding(.horizontal, 18)
-                .padding(.vertical, 10)
-            }
-            .scrollIndicators(.hidden)
-            .accessibilityElement(children: .contain)
-            .accessibilityLabel(ChatTranscriptAccessibilityMetadata.label)
-            .accessibilityValue(ChatTranscriptAccessibilityMetadata.value(for: messages))
-            .accessibilityHint(ChatTranscriptAccessibilityMetadata.hint)
-            .accessibilityInputLabels(ChatTranscriptAccessibilityMetadata.inputLabels)
-            .accessibilityIdentifier(ChatTranscriptAccessibilityMetadata.identifier)
-            .onChange(of: messages) { _, messages in
-                guard let last = messages.last else { return }
-                withAnimation(.easeOut(duration: 0.22)) {
-                    proxy.scrollTo(last.id, anchor: .bottom)
+                .scrollIndicators(.hidden)
+                .accessibilityElement(children: .contain)
+                .accessibilityLabel(ChatTranscriptAccessibilityMetadata.label)
+                .accessibilityValue(ChatTranscriptAccessibilityMetadata.value(for: messages))
+                .accessibilityHint(ChatTranscriptAccessibilityMetadata.hint)
+                .accessibilityInputLabels(ChatTranscriptAccessibilityMetadata.inputLabels)
+                .accessibilityIdentifier(ChatTranscriptAccessibilityMetadata.identifier)
+                .onChange(of: messages) { _, messages in
+                    guard let last = messages.last else { return }
+                    withAnimation(.easeOut(duration: 0.22)) {
+                        proxy.scrollTo(last.id, anchor: .bottom)
+                    }
                 }
             }
         }
@@ -2991,6 +2998,7 @@ struct ExportSessionView: View {
 struct ChatBubble: View {
     @Environment(\.appTheme) private var theme
     let message: ChatMessage
+    let availableWidth: CGFloat
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 8) {
@@ -3024,7 +3032,13 @@ struct ChatBubble: View {
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .stroke(roleTint.opacity(message.role == .system ? 0.12 : 0.32), lineWidth: 1)
             }
-            .frame(maxWidth: message.role == .user ? 310 : .infinity, alignment: message.role == .user ? .trailing : .leading)
+            .frame(
+                maxWidth: ChatBubbleLayoutPolicy.maxWidth(
+                    for: message.role,
+                    availableWidth: availableWidth
+                ),
+                alignment: message.role == .user ? .trailing : .leading
+            )
 
             if message.role != .user {
                 Spacer(minLength: 24)
@@ -3072,6 +3086,61 @@ struct ChatBubble: View {
             return LinearGradient(colors: [theme.surface, theme.accent.opacity(theme.isDark ? 0.08 : 0.1)], startPoint: .topLeading, endPoint: .bottomTrailing)
         case .system:
             return LinearGradient(colors: [theme.warning.opacity(0.12), theme.surface], startPoint: .topLeading, endPoint: .bottomTrailing)
+        }
+    }
+}
+
+enum ChatBubbleLayoutPolicy {
+    static let transcriptHorizontalPadding: CGFloat = 36
+    static let minimumReadableWidth: CGFloat = 280
+    static let compactUserWidth: CGFloat = 310
+    static let maximumUserWidth: CGFloat = 520
+    static let maximumAssistantWidth: CGFloat = 680
+    static let maximumSystemWidth: CGFloat = 600
+    static let userWidthRatio: CGFloat = 0.58
+    static let assistantWidthRatio: CGFloat = 0.76
+    static let systemWidthRatio: CGFloat = 0.72
+
+    private static let userHorizontalReserve: CGFloat = 40
+    private static let assistantHorizontalReserve: CGFloat = 24
+
+    static func contentWidth(forTranscriptWidth transcriptWidth: CGFloat) -> CGFloat {
+        max(minimumReadableWidth, transcriptWidth - transcriptHorizontalPadding)
+    }
+
+    static func maxWidth(for role: ChatMessage.Role, availableWidth: CGFloat) -> CGFloat {
+        let reserve = horizontalReserve(for: role)
+        let effectiveAvailableWidth = max(availableWidth, minimumReadableWidth + reserve)
+        let usableWidth = max(minimumReadableWidth, effectiveAvailableWidth - reserve)
+        let preferredWidth = max(minimumReadableWidth, effectiveAvailableWidth * widthRatio(for: role))
+        let unclampedWidth = max(compactUserWidth, preferredWidth)
+
+        return min(usableWidth, min(maximumWidth(for: role), unclampedWidth))
+    }
+
+    private static func horizontalReserve(for role: ChatMessage.Role) -> CGFloat {
+        role == .user ? userHorizontalReserve : assistantHorizontalReserve
+    }
+
+    private static func maximumWidth(for role: ChatMessage.Role) -> CGFloat {
+        switch role {
+        case .user:
+            return maximumUserWidth
+        case .assistant:
+            return maximumAssistantWidth
+        case .system:
+            return maximumSystemWidth
+        }
+    }
+
+    private static func widthRatio(for role: ChatMessage.Role) -> CGFloat {
+        switch role {
+        case .user:
+            return userWidthRatio
+        case .assistant:
+            return assistantWidthRatio
+        case .system:
+            return systemWidthRatio
         }
     }
 }

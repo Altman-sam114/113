@@ -961,6 +961,58 @@ final class LocalGemmaTests: XCTestCase {
         )
     }
 
+    func testChatBubbleLayoutPolicyAdaptsToWideChatTranscripts() {
+        let phoneContentWidth = ChatBubbleLayoutPolicy.contentWidth(forTranscriptWidth: 390)
+        let padContentWidth = ChatBubbleLayoutPolicy.contentWidth(forTranscriptWidth: 834)
+        let desktopContentWidth = ChatBubbleLayoutPolicy.contentWidth(forTranscriptWidth: 1_200)
+
+        XCTAssertEqual(ChatBubbleLayoutPolicy.transcriptHorizontalPadding, 36)
+        XCTAssertEqual(ChatBubbleLayoutPolicy.minimumReadableWidth, 280)
+        XCTAssertEqual(ChatBubbleLayoutPolicy.compactUserWidth, 310)
+        XCTAssertEqual(ChatBubbleLayoutPolicy.maximumUserWidth, 520)
+        XCTAssertEqual(ChatBubbleLayoutPolicy.maximumAssistantWidth, 680)
+        XCTAssertEqual(ChatBubbleLayoutPolicy.maximumSystemWidth, 600)
+
+        XCTAssertEqual(phoneContentWidth, 354)
+        XCTAssertEqual(padContentWidth, 798)
+        XCTAssertEqual(desktopContentWidth, 1_164)
+        XCTAssertEqual(ChatBubbleLayoutPolicy.contentWidth(forTranscriptWidth: 280), 280)
+
+        XCTAssertEqual(
+            ChatBubbleLayoutPolicy.maxWidth(for: .user, availableWidth: phoneContentWidth),
+            310
+        )
+        XCTAssertGreaterThan(
+            ChatBubbleLayoutPolicy.maxWidth(for: .user, availableWidth: padContentWidth),
+            310
+        )
+        XCTAssertEqual(
+            ChatBubbleLayoutPolicy.maxWidth(for: .user, availableWidth: desktopContentWidth),
+            ChatBubbleLayoutPolicy.maximumUserWidth
+        )
+
+        XCTAssertEqual(
+            ChatBubbleLayoutPolicy.maxWidth(for: .assistant, availableWidth: phoneContentWidth),
+            310
+        )
+        XCTAssertGreaterThan(
+            ChatBubbleLayoutPolicy.maxWidth(for: .assistant, availableWidth: padContentWidth),
+            ChatBubbleLayoutPolicy.maxWidth(for: .user, availableWidth: padContentWidth)
+        )
+        XCTAssertEqual(
+            ChatBubbleLayoutPolicy.maxWidth(for: .assistant, availableWidth: desktopContentWidth),
+            ChatBubbleLayoutPolicy.maximumAssistantWidth
+        )
+        XCTAssertEqual(
+            ChatBubbleLayoutPolicy.maxWidth(for: .system, availableWidth: desktopContentWidth),
+            ChatBubbleLayoutPolicy.maximumSystemWidth
+        )
+        XCTAssertGreaterThanOrEqual(
+            ChatBubbleLayoutPolicy.maxWidth(for: .assistant, availableWidth: -1),
+            ChatBubbleLayoutPolicy.minimumReadableWidth
+        )
+    }
+
     func testChatTranscriptExposesAccessibilityMetadata() {
         let userMessage = ChatMessage(
             id: UUID(uuidString: "12345678-1234-5678-9ABC-123456789ABC")!,

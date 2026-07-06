@@ -75,6 +75,7 @@
 - `SessionBarActionAccessibilityMetadata` 复用 `SessionCommandAction` 为会话栏可见的新建/导出按钮生成 label/value/hint/input labels/identifier；文案说明新建会话只请求 composer focus，导出使用本地 Markdown / 文本分享兜底且不发送到云端服务。
 - `SessionChipActionAccessibilityMetadata` 为推理页单个会话 chip 的选择和删除动作生成 label/value/hint/input labels/identifier；选择动作只切换本地会话并请求 composer 输入焦点，不发送 prompt、不下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁；删除动作只作用于本地会话列表，不删除模型 artifact 或权重，并为默认空白当前会话说明不可删除原因。
 - `ChatMessageAccessibilityMetadata` 为推理页聊天消息气泡生成整体 label/value/hint/input labels/identifier；value 合并用户、本地模型或系统状态角色、正文或正在生成状态、token 数和本地会话边界，hint 说明消息气泡只展示本地会话内容，不下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁。
+- `ChatBubbleLayoutPolicy` 为推理页聊天消息气泡定义共享宽屏宽度策略；`ChatTranscript` 通过容器宽度计算消息列表内容宽度并传给 `ChatBubble`，用户消息在 iPad/Mac 宽区域从旧 310pt 上限增长但封顶，本地模型和系统消息限制最大阅读宽度，避免 Mac 宽窗口文本行无限变长。
 - `ChatTranscriptAccessibilityMetadata` 为推理页聊天记录容器生成 label/value/hint/input labels/identifier；value 合并空记录、消息总数、最新消息角色和生成中摘要，hint 说明只浏览当前本地会话消息列表，不发送 prompt、不下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁。
 - `ExportSessionActionAccessibilityMetadata` 为导出弹层的分享 Markdown 文件、文本分享兜底和复制全文动作生成 label/value/hint/input labels/identifier；文案说明本地 Markdown、文本兜底、系统剪贴板和不发送到云端服务边界。
 - `WallpaperPreferenceAccessibilityMetadata` 为设置页选择相册壁纸和恢复系统背景按钮生成 label/value/hint/input labels/identifier；文案说明系统相册、本地压缩、`AppStorage` 背景数据、系统背景恢复和不发送到云端服务边界。
@@ -216,6 +217,7 @@ Agent X 不能跳过 Agent C artifact 验收；失败时不能继续下一轮并
 - `SessionBarActionAccessibilityMetadata`：推理页会话栏新建/导出可见按钮的辅助技术文案、Voice Control 输入标签和稳定 identifier。
 - `SessionChipActionAccessibilityMetadata`：推理页单个会话 chip 选择/删除动作的辅助技术文案、删除禁用原因、Voice Control 输入标签和基于 UUID 前缀的稳定 identifier。
 - `ChatMessageAccessibilityMetadata`：推理页聊天消息气泡的整体辅助技术文案、生成中状态、token 摘要、Voice Control 输入标签和稳定 identifier。
+- `ChatBubbleLayoutPolicy`：推理页聊天消息气泡的内容宽度、角色比例、最小/最大阅读宽度和宽屏 clamp 策略。
 - `ChatTranscriptAccessibilityMetadata`：推理页聊天记录容器的辅助技术文案、消息总数、最新消息摘要、生成中状态、Voice Control 输入标签和稳定 identifier。
 - `ExportSessionActionAccessibilityMetadata`：导出弹层分享 Markdown、文本兜底和复制全文动作的辅助技术文案、Voice Control 输入标签和稳定 identifier。
 - `WallpaperPreferenceAccessibilityMetadata`：设置页选择相册壁纸和恢复系统背景控件的辅助技术文案、Voice Control 输入标签和稳定 identifier。
