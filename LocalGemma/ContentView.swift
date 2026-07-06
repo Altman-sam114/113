@@ -2607,6 +2607,18 @@ enum SessionBarLayout {
     case vertical
 }
 
+enum SessionBarActionLayoutPolicy {
+    static let minimumTouchTarget: CGFloat = 44
+    static let iconButtonSize: CGFloat = minimumTouchTarget
+
+    static func usesMinimumTouchTarget(for action: SessionCommandAction) -> Bool {
+        switch action {
+        case .createSession, .exportSession:
+            return iconButtonSize >= minimumTouchTarget
+        }
+    }
+}
+
 struct SessionBar: View {
     @Environment(\.appTheme) private var theme
 
@@ -2634,7 +2646,10 @@ struct SessionBar: View {
                     )
                         .labelStyle(.iconOnly)
                         .font(.system(size: 13, weight: .black))
-                        .frame(width: 34, height: 34)
+                        .frame(
+                            width: SessionBarActionLayoutPolicy.iconButtonSize,
+                            height: SessionBarActionLayoutPolicy.iconButtonSize
+                        )
                         .background(theme.chipSurface, in: Circle())
                         .overlay(Circle().stroke(theme.border, lineWidth: 1))
                 }
@@ -2663,7 +2678,10 @@ struct SessionBar: View {
                     )
                         .labelStyle(.iconOnly)
                         .font(.system(size: 13, weight: .black))
-                        .frame(width: 34, height: 34)
+                        .frame(
+                            width: SessionBarActionLayoutPolicy.iconButtonSize,
+                            height: SessionBarActionLayoutPolicy.iconButtonSize
+                        )
                         .background(theme.accent, in: Circle())
                         .foregroundStyle(theme.inverseText)
                 }

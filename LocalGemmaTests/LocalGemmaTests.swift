@@ -1500,6 +1500,19 @@ final class LocalGemmaTests: XCTestCase {
         )
     }
 
+    func testSessionBarActionLayoutPolicyMaintainsTouchTargets() {
+        XCTAssertEqual(SessionBarActionLayoutPolicy.minimumTouchTarget, 44)
+        XCTAssertGreaterThanOrEqual(
+            SessionBarActionLayoutPolicy.iconButtonSize,
+            SessionBarActionLayoutPolicy.minimumTouchTarget
+        )
+        XCTAssertTrue(
+            SessionCommandAction.allCases.allSatisfy {
+                SessionBarActionLayoutPolicy.usesMinimumTouchTarget(for: $0)
+            }
+        )
+    }
+
     func testSessionChipActionsExposeAccessibilityMetadata() {
         let defaultSession = ChatSession(
             id: UUID(uuidString: "11111111-2222-3333-4444-555555555555")!,
