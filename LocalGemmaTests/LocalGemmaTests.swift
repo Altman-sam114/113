@@ -1849,6 +1849,90 @@ final class LocalGemmaTests: XCTestCase {
         XCTAssertTrue(verifiedValue.contains("启用 \(verifiedModel.deploymentProfile.kvCachePolicy)"))
     }
 
+    func testModelSummaryPanelExposesAccessibilityMetadata() {
+        let model = ModelCatalog.defaultModels[0]
+        let missingValidation = LocalArtifactValidator.validate(
+            manifest: model.artifactManifest,
+            presentFiles: []
+        )
+
+        XCTAssertEqual(
+            ModelSummaryAccessibilityMetadata.label(model: model),
+            "模型概要 Gemma 1.5B Local"
+        )
+        XCTAssertEqual(ModelSummaryAccessibilityMetadata.identifier, "model-summary-panel")
+        XCTAssertEqual(
+            ModelSummaryAccessibilityMetadata.inputLabels(model: model),
+            ["模型概要", "查看模型概要", "Gemma 1.5B Local 概要"]
+        )
+
+        let hint = ModelSummaryAccessibilityMetadata.hint
+        XCTAssertTrue(hint.contains("本地模型概要"))
+        XCTAssertTrue(hint.contains("能力标签"))
+        XCTAssertTrue(hint.contains("artifact 校验摘要"))
+        XCTAssertTrue(hint.contains("不会下载模型权重"))
+        XCTAssertTrue(hint.contains("不会启动真实 runtime"))
+        XCTAssertTrue(hint.contains("不会发送到云端服务"))
+        XCTAssertTrue(hint.contains("不会绕过 artifact verified 门禁"))
+
+        let missingValue = ModelSummaryAccessibilityMetadata.value(
+            model: model,
+            validation: missingValidation
+        )
+        XCTAssertTrue(missingValue.contains(model.name))
+        XCTAssertTrue(missingValue.contains(model.summary))
+        XCTAssertTrue(missingValue.contains("能力标签 \(model.capabilities.joined(separator: "、"))"))
+        XCTAssertTrue(missingValue.contains("artifact Missing"))
+        XCTAssertTrue(missingValue.contains(missingValidation.summary))
+        XCTAssertTrue(missingValue.contains(model.artifactManifest.fileFormat))
+        XCTAssertTrue(missingValue.contains(model.sizeOnDisk))
+
+        let stagedValidation = LocalArtifactValidator.validate(
+            manifest: model.artifactManifest,
+            presentFiles: Set(model.artifactManifest.requiredFiles)
+        )
+        let stagedValue = ModelSummaryAccessibilityMetadata.value(
+            model: model,
+            validation: stagedValidation
+        )
+        XCTAssertTrue(stagedValue.contains("artifact Staged"))
+        XCTAssertTrue(stagedValue.contains("等待登记官方 SHA-256"))
+
+        let verifiedManifest = ModelArtifactManifest(
+            modelFileName: "verified-gemma.mlmodelc",
+            tokenizerFileName: "verified-tokenizer.model",
+            fileFormat: "Core ML compiled package",
+            storageDirectory: "Application Support/LocalModels",
+            expectedSHA256: String(repeating: "d", count: 64),
+            allowsNetworkDownload: false,
+            importInstruction: "手动导入测试模型。"
+        )
+        var verifiedModel = model
+        verifiedModel.artifactManifest = verifiedManifest
+        let verifiedValidation = LocalArtifactValidator.validate(
+            manifest: verifiedManifest,
+            presentFiles: Set(verifiedManifest.requiredFiles),
+            observedSHA256: verifiedManifest.expectedSHA256
+        )
+        let verifiedValue = ModelSummaryAccessibilityMetadata.value(
+            model: verifiedModel,
+            validation: verifiedValidation
+        )
+        XCTAssertTrue(verifiedValue.contains("artifact Verified"))
+        XCTAssertTrue(verifiedValue.contains("本地 artifact 已通过校验"))
+
+        var emptyCapabilityModel = model
+        emptyCapabilityModel.capabilities = []
+        XCTAssertTrue(
+            ModelSummaryAccessibilityMetadata.value(
+                model: emptyCapabilityModel,
+                validation: missingValidation
+            ).contains("无能力标签")
+        )
+        XCTAssertFalse(ModelSummaryAccessibilityMetadata.identifier.contains(model.name))
+        XCTAssertFalse(ModelSummaryAccessibilityMetadata.identifier.contains(model.summary))
+    }
+
     func testModelDetailRowsExposeAccessibilityMetadata() {
         let hint = ModelDetailRowAccessibilityMetadata.hint
         XCTAssertTrue(hint.contains("本地模型详情行"))

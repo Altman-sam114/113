@@ -1069,6 +1069,34 @@ enum ModelDetailAccessibilityMetadata {
     }
 }
 
+enum ModelSummaryAccessibilityMetadata {
+    static let identifier = "model-summary-panel"
+    static let hint = "只展示本地模型概要、能力标签和 artifact 校验摘要；不会下载模型权重，不会启动真实 runtime，不会发送到云端服务，也不会绕过 artifact verified 门禁。"
+
+    static func label(model: LocalModel) -> String {
+        "模型概要 \(model.name)"
+    }
+
+    static func value(model: LocalModel, validation: ArtifactValidationResult) -> String {
+        let capabilities = model.capabilities.isEmpty
+            ? "无能力标签"
+            : model.capabilities.joined(separator: "、")
+
+        return [
+            model.name,
+            model.summary,
+            "能力标签 \(capabilities)",
+            "artifact \(validation.availability.title)：\(validation.summary)",
+            "文件格式 \(model.artifactManifest.fileFormat)",
+            "包体大小 \(model.sizeOnDisk)"
+        ].joined(separator: "。")
+    }
+
+    static func inputLabels(model: LocalModel) -> [String] {
+        ["模型概要", "查看模型概要", "\(model.name) 概要"]
+    }
+}
+
 enum ModelDetailRowAccessibilityMetadata {
     enum AdviceKind: String, CaseIterable, Identifiable {
         case blocker
@@ -4001,6 +4029,14 @@ struct ModelSummaryPanel: View {
                 .lineLimit(2)
         }
         .panelStyle(border: theme.border)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(ModelSummaryAccessibilityMetadata.label(model: model))
+        .accessibilityValue(
+            ModelSummaryAccessibilityMetadata.value(model: model, validation: validation)
+        )
+        .accessibilityHint(ModelSummaryAccessibilityMetadata.hint)
+        .accessibilityInputLabels(ModelSummaryAccessibilityMetadata.inputLabels(model: model))
+        .accessibilityIdentifier(ModelSummaryAccessibilityMetadata.identifier)
     }
 
     private var iconFill: some ShapeStyle {
