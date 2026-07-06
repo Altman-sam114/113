@@ -370,6 +370,7 @@ final class LocalGemmaTests: XCTestCase {
             autoScanLocalArtifacts: true,
             artifactDirectoryURL: directoryURL
         )
+        XCTAssertEqual(catalog.validation(for: catalog.selectedModel).availability, .staged)
 
         catalog.startDeployment(for: catalog.selectedModel)
         XCTAssertTrue(catalog.isDeploymentRunning(for: catalog.selectedModel))
@@ -380,6 +381,13 @@ final class LocalGemmaTests: XCTestCase {
         XCTAssertEqual(catalog.validation(for: catalog.selectedModel).availability, .missing)
         XCTAssertEqual(catalog.selectedModel.installState, .notDownloaded)
         XCTAssertTrue(catalog.selectedModel.summary.contains("未下载"))
+        for fileName in model.artifactManifest.requiredFiles {
+            XCTAssertFalse(
+                FileManager.default.fileExists(
+                    atPath: directoryURL.appendingPathComponent(fileName).path
+                )
+            )
+        }
     }
 
     func testCatalogAutoScanRestoresExistingLocalArtifacts() throws {
@@ -2506,10 +2514,26 @@ final class LocalGemmaTests: XCTestCase {
             ).contains("artifact 已 verified")
         )
         XCTAssertTrue(
+            ModelDeploymentControlAccessibilityMetadata.artifactActionValue(
+                .uninstall,
+                availability: .verified
+            ).contains("打开确认后才会移除")
+        )
+        XCTAssertTrue(
             ModelDeploymentControlAccessibilityMetadata.artifactActionHint(
                 .uninstall,
                 availability: .verified
-            ).contains("停止当前模型部署")
+            ).contains("打开卸载确认弹层")
+        )
+        XCTAssertTrue(
+            ModelDeploymentControlAccessibilityMetadata.artifactActionHint(
+                .uninstall,
+                availability: .verified
+            ).contains("确认后移除")
+        )
+        XCTAssertTrue(
+            ModelDeploymentControlAccessibilityMetadata.artifactActionInputLabels(.uninstall)
+                .contains("打开卸载确认")
         )
         XCTAssertEqual(
             ModelDeploymentControlAccessibilityMetadata.artifactActionIdentifier(.scan),
@@ -2560,6 +2584,58 @@ final class LocalGemmaTests: XCTestCase {
         )
     }
 
+    func testModelUninstallConfirmationExposesAccessibilityMetadata() {
+        let model = ModelCatalog.defaultModels[0]
+
+        XCTAssertEqual(
+            ModelUninstallConfirmationAccessibilityMetadata.title(model: model),
+            "卸载 Gemma 1.5B Local 本地文件？"
+        )
+
+        let message = ModelUninstallConfirmationAccessibilityMetadata.message(model: model)
+        XCTAssertTrue(message.contains("App 托管目录"))
+        XCTAssertTrue(message.contains("artifact 和 tokenizer"))
+        XCTAssertTrue(message.contains("停止当前模型部署"))
+        XCTAssertTrue(message.contains("不会下载模型权重"))
+        XCTAssertTrue(message.contains("不会启动真实 runtime"))
+        XCTAssertTrue(message.contains("不会发送到云端服务"))
+        XCTAssertTrue(message.contains("不会绕过 artifact verified 门禁"))
+
+        XCTAssertEqual(
+            ModelUninstallConfirmationAccessibilityMetadata.confirmLabel(model: model),
+            "确认卸载 Gemma 1.5B Local"
+        )
+
+        let confirmHint = ModelUninstallConfirmationAccessibilityMetadata.confirmHint(model: model)
+        XCTAssertTrue(confirmHint.contains("删除 App 托管目录"))
+        XCTAssertTrue(confirmHint.contains("停止部署"))
+        XCTAssertTrue(confirmHint.contains("不会删除系统 Files 中的原始文件"))
+
+        XCTAssertEqual(
+            ModelUninstallConfirmationAccessibilityMetadata.confirmInputLabels(model: model),
+            ["确认卸载", "删除本地模型文件", "卸载Gemma 1.5B Local"]
+        )
+
+        let confirmIdentifier = ModelUninstallConfirmationAccessibilityMetadata.confirmIdentifier(
+            model: model
+        )
+        XCTAssertTrue(confirmIdentifier.hasPrefix("model-uninstall-confirmation-confirm-"))
+        XCTAssertFalse(confirmIdentifier.contains(model.name))
+
+        XCTAssertEqual(ModelUninstallConfirmationAccessibilityMetadata.cancelLabel, "取消卸载")
+        XCTAssertTrue(
+            ModelUninstallConfirmationAccessibilityMetadata.cancelHint.contains("不删除任何本地模型文件")
+        )
+        XCTAssertEqual(
+            ModelUninstallConfirmationAccessibilityMetadata.cancelInputLabels,
+            ["取消卸载", "保留模型文件", "关闭卸载确认"]
+        )
+        XCTAssertEqual(
+            ModelUninstallConfirmationAccessibilityMetadata.cancelIdentifier,
+            "model-uninstall-confirmation-cancel"
+        )
+    }
+
     func testModelArtifactPanelExposesAccessibilityMetadata() {
         let model = ModelCatalog.defaultModels[0]
         let missingValidation = LocalArtifactValidator.validate(
@@ -2587,7 +2663,8 @@ final class LocalGemmaTests: XCTestCase {
         XCTAssertTrue(missingValue.contains("缺少本地 artifact"))
         XCTAssertTrue(missingValue.contains("校验摘要 \(missingValidation.summary)"))
         XCTAssertTrue(missingValue.contains("模拟暂存"))
-        XCTAssertTrue(missingValue.contains("卸载本地文件"))
+        XCTAssertTrue(missingValue.contains("打开卸载确认"))
+        XCTAssertTrue(missingValue.contains("卸载确认后才删除本地托管文件"))
         XCTAssertTrue(missingValue.contains("扫描本地目录"))
         XCTAssertTrue(missingValue.contains("Files 手动导入模型文件和 tokenizer"))
         XCTAssertTrue(missingValue.contains("不联网下载"))

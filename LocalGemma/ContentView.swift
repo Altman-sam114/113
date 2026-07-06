@@ -1649,7 +1649,7 @@ enum ModelDeploymentControlAccessibilityMetadata {
         case .download:
             return "模拟暂存模型文件"
         case .uninstall:
-            return "卸载本地模型文件"
+            return "打开卸载确认"
         case .scan:
             return "扫描本地模型文件"
         case .importFiles:
@@ -1667,7 +1667,7 @@ enum ModelDeploymentControlAccessibilityMetadata {
                 ? "模拟把模型文件标记为暂存；不会联网下载真实权重。"
                 : "重新执行模拟暂存；不会联网下载真实权重。"
         case .uninstall:
-            return "移除 App 托管目录中的模型文件，并停止当前模型部署。"
+            return "打开卸载确认弹层；确认后移除 App 托管目录中的模型文件，并停止当前模型部署。"
         case .scan:
             return "扫描 App 本地模型目录，并按 manifest 和 SHA-256 更新 missing、staged 或 verified 状态。"
         case .importFiles:
@@ -1685,7 +1685,7 @@ enum ModelDeploymentControlAccessibilityMetadata {
         case .download:
             return "\(availabilitySummary)，模拟暂存，不联网下载。"
         case .uninstall:
-            return "\(availabilitySummary)，执行后会移除本地托管文件并停止部署。"
+            return "\(availabilitySummary)，打开确认后才会移除本地托管文件并停止部署。"
         case .scan:
             return "\(availabilitySummary)，执行后重新扫描本地 manifest 必需文件。"
         case .importFiles:
@@ -1698,7 +1698,7 @@ enum ModelDeploymentControlAccessibilityMetadata {
         case .download:
             return ["模拟暂存模型", "下载模型", "暂存模型文件"]
         case .uninstall:
-            return ["卸载模型", "移除模型文件", "删除本地模型"]
+            return ["打开卸载确认", "卸载模型", "确认删除模型文件"]
         case .scan:
             return ["扫描本地", "扫描模型文件", "刷新模型状态"]
         case .importFiles:
@@ -1734,9 +1734,40 @@ enum ModelArtifactPanelAccessibilityMetadata {
                 for: validation.availability
             ),
             "校验摘要 \(validation.summary)",
-            "可模拟暂存、卸载本地文件、扫描本地目录、从 Files 手动导入模型文件和 tokenizer",
-            "模拟暂存不联网下载，扫描只读取本地 manifest 必需文件"
+            "可模拟暂存、打开卸载确认、扫描本地目录、从 Files 手动导入模型文件和 tokenizer",
+            "模拟暂存不联网下载，卸载确认后才删除本地托管文件，扫描只读取本地 manifest 必需文件"
         ].joined(separator: "。")
+    }
+}
+
+enum ModelUninstallConfirmationAccessibilityMetadata {
+    static let cancelLabel = "取消卸载"
+    static let cancelHint = "关闭确认弹层，不删除任何本地模型文件。"
+    static let cancelInputLabels = ["取消卸载", "保留模型文件", "关闭卸载确认"]
+    static let cancelIdentifier = "model-uninstall-confirmation-cancel"
+
+    static func title(model: LocalModel) -> String {
+        "卸载 \(model.name) 本地文件？"
+    }
+
+    static func message(model: LocalModel) -> String {
+        "确认后只会移除 App 托管目录中的 \(model.name) artifact 和 tokenizer，并停止当前模型部署；不会下载模型权重，不会启动真实 runtime，不会发送到云端服务，也不会绕过 artifact verified 门禁。"
+    }
+
+    static func confirmLabel(model: LocalModel) -> String {
+        "确认卸载 \(model.name)"
+    }
+
+    static func confirmHint(model: LocalModel) -> String {
+        "确认后删除 App 托管目录中的 \(model.name) 本地模型文件并停止部署；此操作不会删除系统 Files 中的原始文件。"
+    }
+
+    static func confirmInputLabels(model: LocalModel) -> [String] {
+        ["确认卸载", "删除本地模型文件", "卸载\(model.name)"]
+    }
+
+    static func confirmIdentifier(model: LocalModel) -> String {
+        "model-uninstall-confirmation-confirm-\(model.id.uuidString.prefix(8).lowercased())"
     }
 }
 
@@ -3584,6 +3615,7 @@ struct ModelLibraryView: View {
     @EnvironmentObject private var catalog: ModelCatalog
     var isModal = false
     @State private var importTargetModel: LocalModel?
+    @State private var pendingUninstallModel: LocalModel?
     @State private var isShowingFileImporter = false
     @State private var operationErrorTitle = "操作失败"
     @State private var operationErrorMessage: String?
@@ -3625,6 +3657,56 @@ struct ModelLibraryView: View {
             Button("好", role: .cancel) {}
         } message: {
             Text(operationErrorMessage ?? "")
+        }
+        .confirmationDialog(
+            pendingUninstallModel.map {
+                ModelUninstallConfirmationAccessibilityMetadata.title(model: $0)
+            } ?? "卸载本地模型文件？",
+            isPresented: Binding(
+                get: { pendingUninstallModel != nil },
+                set: { isPresented in
+                    if isPresented == false {
+                        pendingUninstallModel = nil
+                    }
+                }
+            ),
+            titleVisibility: .visible,
+            presenting: pendingUninstallModel
+        ) { model in
+            Button(role: .destructive) {
+                uninstall(model)
+                pendingUninstallModel = nil
+            } label: {
+                Text(ModelUninstallConfirmationAccessibilityMetadata.confirmLabel(model: model))
+            }
+            .accessibilityLabel(
+                ModelUninstallConfirmationAccessibilityMetadata.confirmLabel(model: model)
+            )
+            .accessibilityHint(
+                ModelUninstallConfirmationAccessibilityMetadata.confirmHint(model: model)
+            )
+            .accessibilityInputLabels(
+                ModelUninstallConfirmationAccessibilityMetadata.confirmInputLabels(model: model)
+            )
+            .accessibilityIdentifier(
+                ModelUninstallConfirmationAccessibilityMetadata.confirmIdentifier(model: model)
+            )
+
+            Button(role: .cancel) {
+                pendingUninstallModel = nil
+            } label: {
+                Text(ModelUninstallConfirmationAccessibilityMetadata.cancelLabel)
+            }
+            .accessibilityLabel(ModelUninstallConfirmationAccessibilityMetadata.cancelLabel)
+            .accessibilityHint(ModelUninstallConfirmationAccessibilityMetadata.cancelHint)
+            .accessibilityInputLabels(
+                ModelUninstallConfirmationAccessibilityMetadata.cancelInputLabels
+            )
+            .accessibilityIdentifier(
+                ModelUninstallConfirmationAccessibilityMetadata.cancelIdentifier
+            )
+        } message: { model in
+            Text(ModelUninstallConfirmationAccessibilityMetadata.message(model: model))
         }
     }
 
@@ -3676,7 +3758,7 @@ struct ModelLibraryView: View {
                         ArtifactActionPanel(
                             validation: validation,
                             download: { catalog.simulateDownload(for: model) },
-                            uninstall: { uninstall(model) },
+                            uninstall: { requestUninstall(model) },
                             scan: { catalog.refreshArtifactStatus(for: model) },
                             importFiles: {
                                 importTargetModel = model
@@ -3708,7 +3790,7 @@ struct ModelLibraryView: View {
                 ArtifactActionPanel(
                     validation: validation,
                     download: { catalog.simulateDownload(for: model) },
-                    uninstall: { uninstall(model) },
+                    uninstall: { requestUninstall(model) },
                     scan: { catalog.refreshArtifactStatus(for: model) },
                     importFiles: {
                         importTargetModel = model
@@ -3742,6 +3824,10 @@ struct ModelLibraryView: View {
             operationErrorTitle = "导入失败"
             operationErrorMessage = error.localizedDescription
         }
+    }
+
+    private func requestUninstall(_ model: LocalModel) {
+        pendingUninstallModel = model
     }
 
     private func uninstall(_ model: LocalModel) {

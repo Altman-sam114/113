@@ -4,7 +4,7 @@
 
 ## 1. 项目一句话总览
 
-`Local Gemma iOS Prototype` 是一个 SwiftUI iOS 原型 App，用本地模拟 runtime 验证 iPhone、iPad 与 Mac Catalyst build/run 基线下端侧部署 Gemma 1.5B 的产品交互、模型文件管理、artifact 校验、会话导出、导出弹层分享/复制辅助语义、大屏双栏布局、Mac/iPad 工作区与会话命令菜单、顶部模型胶囊整体辅助语义、模型概要面板与详情右栏/行级辅助语义、模型文件工作流面板辅助语义、工作区导航辅助语义、头部主题与模型库入口辅助语义、会话栏操作辅助语义、会话 chip 动作语义、会话侧栏宽度策略、聊天消息气泡与聊天记录容器辅助语义、聊天气泡与 composer 宽屏输入宽度策略、模型选择器、状态徽章与部署控件辅助语义、运行策略开关辅助语义、运行策略开关宽屏网格、芯片准备度辅助语义与隐私状态动态摘要、优化指标卡辅助语义、优化指标网格宽度策略、提示词模板宽屏布局策略、提示词筛选与模板动作辅助语义、提示词模板动作 44pt 触控目标、相册壁纸控件辅助语义和 Apple Silicon 运行计划；当前不下载模型权重，不执行真实模型推理，也没有原生 macOS target。
+`Local Gemma iOS Prototype` 是一个 SwiftUI iOS 原型 App，用本地模拟 runtime 验证 iPhone、iPad 与 Mac Catalyst build/run 基线下端侧部署 Gemma 1.5B 的产品交互、模型文件管理、artifact 校验、模型卸载确认弹层辅助语义、会话导出、导出弹层分享/复制辅助语义、大屏双栏布局、Mac/iPad 工作区与会话命令菜单、顶部模型胶囊整体辅助语义、模型概要面板与详情右栏/行级辅助语义、模型文件工作流面板辅助语义、工作区导航辅助语义、头部主题与模型库入口辅助语义、会话栏操作辅助语义、会话 chip 动作语义、会话侧栏宽度策略、聊天消息气泡与聊天记录容器辅助语义、聊天气泡与 composer 宽屏输入宽度策略、模型选择器、状态徽章与部署控件辅助语义、运行策略开关辅助语义、运行策略开关宽屏网格、芯片准备度辅助语义与隐私状态动态摘要、优化指标卡辅助语义、优化指标网格宽度策略、提示词模板宽屏布局策略、提示词筛选与模板动作辅助语义、提示词模板动作 44pt 触控目标、相册壁纸控件辅助语义和 Apple Silicon 运行计划；当前不下载模型权重，不执行真实模型推理，也没有原生 macOS target。
 
 ## 2. 必读文件顺序
 
@@ -61,8 +61,9 @@ git remote -v
 - `ModelCapsuleAccessibilityMetadata` 控制顶部模型胶囊整体辅助语义；它必须合并当前模型、参数、量化、SIM/REAL、artifact 状态、后端、生成状态、速度、内存和准备度，并明确只展示本地状态、不下载权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁。
 - `ModelDetailAccessibilityMetadata` 控制模型页详情右栏和窄屏详情段的整体辅助语义；它必须合并模型规格、artifact 状态、validation summary、性能预算、主/回退后端、KV cache、blocker/next step，并明确只展示本地模型详情、不下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁。
 - `ModelSummaryAccessibilityMetadata` 控制模型页概要面板辅助语义；它必须合并模型名称、简介、能力标签、artifact availability、validation summary、文件格式和包体大小，并明确只展示本地模型概要、不下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁。
-- `ModelDeploymentControlAccessibilityMetadata` 控制模型选择器、部署电源和 artifact 操作按钮的辅助语义；模型切换不下载权重、不启动真实 runtime、模拟暂存、不联网下载、verified 门禁和 Mac/iPad VoiceOver/Voice Control 入口要有测试锁住。
-- `ModelArtifactPanelAccessibilityMetadata` 控制模型页文件工作流面板整体辅助语义；它必须合并 artifact availability、validation summary、模拟暂存、卸载、扫描本地和 Files 手动导入入口，并明确只管理本地模型文件工作流、不联网下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁，同时保留面板内各操作按钮可达。
+- `ModelDeploymentControlAccessibilityMetadata` 控制模型选择器、部署电源和 artifact 操作按钮的辅助语义；模型切换不下载权重、不启动真实 runtime、模拟暂存不联网下载，卸载按钮只打开确认弹层、不立即删除，确认后才删除 App 托管 artifact 并停止部署，取消无副作用，verified 门禁和 Mac/iPad VoiceOver/Voice Control 入口要有测试锁住。
+- `ModelArtifactPanelAccessibilityMetadata` 控制模型页文件工作流面板整体辅助语义；它必须合并 artifact availability、validation summary、模拟暂存、卸载需确认、扫描本地和 Files 手动导入入口，并明确只管理本地模型文件工作流、不联网下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁，同时保留面板内各操作按钮可达。
+- `ModelUninstallConfirmationAccessibilityMetadata` 控制模型卸载确认弹层的辅助语义；它必须明确确认后才删除 App 托管 artifact/tokenizer 并停止部署，取消不会删除文件或停止部署，不删除系统 Files 中的原始文件，不下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁。
 - `ModelStatusBadgeAccessibilityMetadata` 控制模型页安装状态、artifact 状态和部署状态徽章辅助语义；它必须为 `StatusBadge`、`AvailabilityBadge` 和 `DeploymentBadge` 暴露 label/value/hint/input labels/identifier，并明确徽章只展示本地模型状态、不下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁。
 - `ModelDetailRowAccessibilityMetadata` 控制模型详情参数行、性能行和建议行的行级辅助语义；`DetailRow` 和 `AdviceRow` 必须暴露 label/value/hint/input labels/identifier，`ModelDetailColumn` 必须允许行级元素可达，并明确行级内容只展示本地模型详情、不下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁。
 - `OptimizationToggleAccessibilityMetadata` 控制设置页和优化 dashboard 的运行策略开关辅助语义；开关本身只切换本地运行策略，不下载模型权重、不启动真实 runtime、不发送云端服务，VoiceOver/Voice Control label/value/hint/input labels/identifier 要有测试锁住。
@@ -83,7 +84,7 @@ git remote -v
 - `PromptTemplateActionLayoutPolicy` 控制提示词模板卡片动作区触控目标和布局常量；“填入”和“发送”动作必须达到至少 44pt 触控目标，动作区 spacing、卡片 padding、发送按钮尺寸和最小动作区宽度要有测试锁住，且不得改变模板动作辅助语义、生成中禁用、填入/发送状态流或模板网格列数。
 - `PromptTemplateActionAccessibilityMetadata` 控制提示词模板卡片“填入”和“发送”动作的辅助语义；它必须明确填入 composer、切回推理页聚焦输入、直接发送到本地模拟 runtime、不下载模型权重、不启动真实 runtime、不发送到云端服务和不绕过 verified 门禁。
 - `ComposerInputMetadata` 控制推理页 composer 输入框和发送/停止按钮的辅助语义；它必须暴露输入框 label/hint/input labels/identifier、动作 label/value/hint/input labels/identifier，说明 `Command+Return`、空输入禁用、停止当前模拟生成、本地模拟 runtime、不下载模型权重、不启动真实 runtime、不发送云端服务和不绕过 verified 门禁。
-- `WorkspaceTab.shortcutKey`、工作区 command menu、工作区导航辅助语义、会话 command menu、顶部模型胶囊整体辅助语义、模型概要面板与详情右栏/行级辅助语义、模型文件工作流面板辅助语义、头部主题与模型库入口辅助语义、会话栏操作辅助语义、会话 chip 动作语义、聊天消息气泡与聊天记录容器辅助语义、聊天气泡宽屏宽度策略、composer 宽屏输入宽度策略、导出弹层分享/复制辅助语义、壁纸控件辅助语义、regular 侧栏说明、选择语义、composer 输入焦点/控件辅助语义、模型选择器、状态徽章与部署控件辅助语义、运行策略开关辅助语义、运行策略开关宽屏网格、芯片准备度辅助语义、优化指标卡辅助语义、优化指标网格宽度策略、提示词模板宽屏布局策略、提示词模板动作 44pt 触控目标、提示词分类筛选辅助语义和提示词模板动作辅助语义锁住 Mac/iPad 工作区导航；改动快捷键、菜单、工作区导航、模型胶囊状态摘要、模型概要面板语义、模型详情摘要、模型详情行级语义、模型文件工作流面板语义、头部主题与模型库入口、会话栏操作、会话 chip 选择/删除动作、聊天消息气泡、聊天气泡宽度、聊天记录容器、导出弹层分享/复制、壁纸控件、侧栏文案、composer 输入框/发送/停止控件、composer 宽屏宽度、模型选择器、模型状态徽章、模型部署控件、运行策略开关、运行策略网格、芯片准备度摘要、优化指标卡、优化指标网格、提示词模板网格、提示词模板动作触控目标、提示词筛选、模板动作或可访问性映射时必须同步测试。
+- `WorkspaceTab.shortcutKey`、工作区 command menu、工作区导航辅助语义、会话 command menu、顶部模型胶囊整体辅助语义、模型概要面板与详情右栏/行级辅助语义、模型文件工作流面板与卸载确认弹层辅助语义、头部主题与模型库入口辅助语义、会话栏操作辅助语义、会话 chip 动作语义、聊天消息气泡与聊天记录容器辅助语义、聊天气泡宽屏宽度策略、composer 宽屏输入宽度策略、导出弹层分享/复制辅助语义、壁纸控件辅助语义、regular 侧栏说明、选择语义、composer 输入焦点/控件辅助语义、模型选择器、状态徽章与部署控件辅助语义、运行策略开关辅助语义、运行策略开关宽屏网格、芯片准备度辅助语义、优化指标卡辅助语义、优化指标网格宽度策略、提示词模板宽屏布局策略、提示词模板动作 44pt 触控目标、提示词分类筛选辅助语义和提示词模板动作辅助语义锁住 Mac/iPad 工作区导航；改动快捷键、菜单、工作区导航、模型胶囊状态摘要、模型概要面板语义、模型详情摘要、模型详情行级语义、模型文件工作流面板语义、模型卸载确认语义、头部主题与模型库入口、会话栏操作、会话 chip 选择/删除动作、聊天消息气泡、聊天气泡宽度、聊天记录容器、导出弹层分享/复制、壁纸控件、侧栏文案、composer 输入框/发送/停止控件、composer 宽屏宽度、模型选择器、模型状态徽章、模型部署控件、运行策略开关、运行策略网格、芯片准备度摘要、优化指标卡、优化指标网格、提示词模板网格、提示词模板动作触控目标、提示词筛选、模板动作或可访问性映射时必须同步测试。
 - `WallpaperImageProcessor` 控制相册壁纸压缩和尺寸，避免大图直接进入 `AppStorage`。
 - `ExportPayload` 和导出视图必须处理 Markdown 文件不存在时的文本分享兜底，导出弹层的分享/复制动作不得暗示云端上传。
 - `script/build_and_run.sh` 是 Mac Catalyst 本地 build/run/debug/logs 入口，不下载模型权重，不接外部推理服务，不等于原生 macOS target。

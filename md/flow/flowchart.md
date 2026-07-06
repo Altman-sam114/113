@@ -42,7 +42,23 @@ flowchart TD
     I --> K[RuntimePreparationReport<br/>canRunRealWeights=true]
 ```
 
-## 3. 推理与会话流
+## 3. 模型卸载确认流
+
+读图说明：这张图展示模型页破坏性卸载动作的确认边界。点击卸载只打开确认弹层；取消不会改文件或部署状态；确认后才进入 `ModelCatalog` 删除 App 托管 artifact/tokenizer 并停止部署。
+
+```mermaid
+flowchart TD
+    A[用户点击卸载模型<br/>卸载按钮辅助语义说明打开确认] --> B[ModelLibraryView 设置 pendingUninstallModel]
+    B --> C[显示卸载确认弹层<br/>标题/消息/确认/取消辅助语义]
+    C --> D{用户选择}
+    D -- 取消卸载 --> E[关闭弹层<br/>不删除文件<br/>不停止部署]
+    D -- 确认卸载 --> F[调用 ModelCatalog.uninstallArtifacts]
+    F --> G[ModelArtifactStore 删除 App 托管 manifest 必需文件]
+    G --> H[停止当前模型部署]
+    H --> I[刷新 validation<br/>missing + notDownloaded]
+```
+
+## 4. 推理与会话流
 
 读图说明：这张图展示用户输入如何变成一轮模拟流式回答。当前默认 runtime 是模拟器，不会调用真实权重。
 
@@ -61,9 +77,9 @@ flowchart TD
     K --> L[更新速度、内存、后端、SIM/REAL 标记<br/>顶部模型胶囊整体辅助语义]
 ```
 
-## 4. UI 布局与工作区流
+## 5. UI 布局与工作区流
 
-读图说明：这张图展示 ContentView 如何根据容器尺寸选择单栏、compact 双栏或 regular 大屏双栏布局，然后进入具体工作区。iPhone 横屏、iPad 竖屏大画布、Mac Catalyst 和桌面窗口都走同一套尺寸断点；regular 大屏侧栏显示工作区用途说明，compact 侧栏保持紧凑；Mac Catalyst 和 iPad 外接键盘可通过 `Command+1...4` 或系统 `工作区` 命令菜单切换工作区，也可通过系统 `会话` 命令菜单或会话栏可见按钮新建/导出当前会话；顶部模型胶囊、模型概要面板、模型详情右栏与行级内容、模型文件工作流面板、模型状态徽章、会话 chip 选择/删除动作、聊天记录容器、聊天消息气泡、聊天气泡宽屏宽度策略、composer 宽屏输入宽度策略、工作区导航、头部主题与模型库入口、会话栏操作、导出弹层分享/复制、壁纸控件、composer 输入框和发送/停止按钮、模型选择器、部署控件、运行策略开关、运行策略开关宽屏网格、芯片准备度、优化指标卡、优化指标网格宽度策略、提示词模板宽屏布局策略、提示词模板动作 44pt 触控目标、提示词分类筛选 chip 和提示词模板动作会向辅助技术暴露当前操作语义。
+读图说明：这张图展示 ContentView 如何根据容器尺寸选择单栏、compact 双栏或 regular 大屏双栏布局，然后进入具体工作区。iPhone 横屏、iPad 竖屏大画布、Mac Catalyst 和桌面窗口都走同一套尺寸断点；regular 大屏侧栏显示工作区用途说明，compact 侧栏保持紧凑；Mac Catalyst 和 iPad 外接键盘可通过 `Command+1...4` 或系统 `工作区` 命令菜单切换工作区，也可通过系统 `会话` 命令菜单或会话栏可见按钮新建/导出当前会话；顶部模型胶囊、模型概要面板、模型详情右栏与行级内容、模型文件工作流面板、模型卸载确认弹层、模型状态徽章、会话 chip 选择/删除动作、聊天记录容器、聊天消息气泡、聊天气泡宽屏宽度策略、composer 宽屏输入宽度策略、工作区导航、头部主题与模型库入口、会话栏操作、导出弹层分享/复制、壁纸控件、composer 输入框和发送/停止按钮、模型选择器、部署控件、运行策略开关、运行策略开关宽屏网格、芯片准备度、优化指标卡、优化指标网格宽度策略、提示词模板宽屏布局策略、提示词模板动作 44pt 触控目标、提示词分类筛选 chip 和提示词模板动作会向辅助技术暴露当前操作语义。
 
 ```mermaid
 flowchart TD
@@ -82,12 +98,12 @@ flowchart TD
     M[系统菜单<br/>工作区 CommandMenu + 会话 CommandMenu<br/>复用 focused 映射] --> F
     L[会话/输入焦点<br/>Command+N 新建<br/>Command+Shift+E 导出<br/>Command+Return 发送或停止<br/>切回推理/会话/模板后聚焦输入] --> G
     F -- 推理 --> G[ChatWorkspace<br/>顶部模型胶囊整体辅助语义<br/>会话 chip 动作语义<br/>会话 + 消息 + 输入<br/>聊天记录容器辅助语义<br/>聊天消息气泡辅助语义<br/>聊天气泡宽屏宽度策略<br/>composer 宽屏输入宽度策略<br/>SessionSidebarLayoutPolicy<br/>会话栏操作辅助语义<br/>导出弹层分享/复制辅助语义]
-    F -- 模型 --> H[ModelLibraryView<br/>ModelLibraryLayoutMode<br/>窄屏单栏 / 宽屏内部双栏<br/>选择器/状态徽章/部署控件辅助语义<br/>模型文件工作流面板辅助语义<br/>模型概要面板 + 详情右栏/行级辅助语义]
+    F -- 模型 --> H[ModelLibraryView<br/>ModelLibraryLayoutMode<br/>窄屏单栏 / 宽屏内部双栏<br/>选择器/状态徽章/部署控件辅助语义<br/>模型文件工作流面板辅助语义<br/>卸载确认弹层辅助语义<br/>模型概要面板 + 详情右栏/行级辅助语义]
     F -- 提示词 --> I[PromptTemplatesWorkspace<br/>模板网格宽屏布局策略<br/>模板筛选/填入/发送<br/>模板动作 44pt 触控目标<br/>分类筛选辅助语义<br/>模板动作辅助语义]
     F -- 设置 --> J[SettingsWorkspace<br/>主题按钮辅助语义<br/>壁纸控件/芯片策略<br/>运行策略开关辅助语义<br/>运行策略开关宽屏网格<br/>芯片准备度辅助语义 + 隐私状态<br/>优化指标网格宽度策略<br/>优化指标卡辅助语义]
 ```
 
-## 5. 相册壁纸流
+## 6. 相册壁纸流
 
 读图说明：这张图展示从相册选择图片后，项目如何压缩图片再保存为 App 背景，避免大图直接写入 AppStorage；设置页选择相册壁纸和恢复系统背景控件通过辅助语义说明系统背景、相册图片已启用、正在处理和不发送云端服务边界。
 
@@ -106,7 +122,7 @@ flowchart TD
     K --> L[用户可一键清空恢复系统背景<br/>恢复动作辅助语义]
 ```
 
-## 6. 会话导出与分享流
+## 7. 会话导出与分享流
 
 读图说明：这张图展示导出时为什么有文件分享和文本分享两条路径。目标是避免分享一个不存在的临时文件，同时让分享与复制动作向辅助技术说明本地 Markdown、文本兜底、剪贴板和不发送云端的边界。
 
@@ -124,7 +140,7 @@ flowchart TD
     I --> J[写入 UIPasteboard]
 ```
 
-## 7. main 直推与云端结果包验收流
+## 8. main 直推与云端结果包验收流
 
 读图说明：这张图展示新的协作闭环。重点是 Agent B 必须在 `main` 上提交并推送，GitHub Actions 生成带自描述 manifest 的未加密结果包，Agent C 只能验收 `origin/main` 最新 commit 对应的 artifact name、run URL、run id 和 run attempt；失败时通过追加修复 commit 回到同一条主线。
 
@@ -161,7 +177,7 @@ flowchart TD
     U --> W[人工复核<br/>进入下一轮]
 ```
 
-## 8. Agent X 主控循环迭代流
+## 9. Agent X 主控循环迭代流
 
 读图说明：这张图展示未来人工用 `agentx`、`x:` 或 `X:` 给出总目标后，Agent X 如何拆分轮次并调度 Agent A、Agent B、GitHub Actions 和 Agent C。重点是 Agent X 只能根据 Agent C 对最新 artifact 的验收结论继续、退回、暂停或完成，不能跳过云端结果包复判。
 
@@ -185,7 +201,7 @@ flowchart TD
     N -- 否 --> C
 ```
 
-## 9. Mac Catalyst 本地运行入口流
+## 10. Mac Catalyst 本地运行入口流
 
 读图说明：这张图展示 v1.0 新增的项目内 Mac Catalyst 本地 build/run 入口。重点是脚本只负责本机构建、启动、日志和调试，不下载模型权重、不调用外部推理服务；云端 CI 只检查脚本静态契约，不尝试启动 GUI App。
 
