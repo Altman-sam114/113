@@ -4424,19 +4424,11 @@ struct SettingsWorkspace: View {
 
                 OptimizerMetricGrid(metrics: optimizer.metrics)
 
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("运行策略")
-                        .font(.system(size: 15, weight: .black))
-                        .foregroundStyle(theme.primaryText)
-
-                    ForEach(optimizer.switches) { item in
-                        OptimizationToggleRow(
-                            item: item,
-                            toggle: { optimizer.toggle(item) }
-                        )
-                    }
-                }
-                .panelStyle(border: theme.border)
+                OptimizationToggleGrid(
+                    items: optimizer.switches,
+                    border: theme.border,
+                    toggle: { optimizer.toggle($0) }
+                )
             }
             .padding(.horizontal, 18)
             .padding(.top, 16)
@@ -4720,19 +4712,11 @@ struct OptimizerDashboard: View {
 
                     OptimizerMetricGrid(metrics: optimizer.metrics)
 
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("运行策略")
-                            .font(.system(size: 15, weight: .black))
-                            .foregroundStyle(.white)
-
-                        ForEach(optimizer.switches) { item in
-                            OptimizationToggleRow(
-                                item: item,
-                                toggle: { optimizer.toggle(item) }
-                            )
-                        }
-                    }
-                    .panelStyle()
+                    OptimizationToggleGrid(
+                        items: optimizer.switches,
+                        titleColor: .white,
+                        toggle: { optimizer.toggle($0) }
+                    )
                 }
                 .padding(.horizontal, 18)
                 .padding(.top, isModal ? 22 : 16)
@@ -5000,6 +4984,76 @@ enum OptimizationToggleAccessibilityMetadata {
             .split { !$0.isLetter && !$0.isNumber }
             .joined(separator: "-")
         return "optimizer-toggle-\(slug)"
+    }
+}
+
+struct OptimizationToggleGrid: View {
+    @Environment(\.appTheme) private var theme
+
+    let items: [OptimizationSwitch]
+    var titleColor: Color?
+    var border: Color = Color.primary.opacity(0.12)
+    let toggle: (OptimizationSwitch) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("运行策略")
+                .font(.system(size: 15, weight: .black))
+                .foregroundStyle(titleColor ?? theme.primaryText)
+
+            ViewThatFits(in: .horizontal) {
+                toggleGrid(columnCount: OptimizationToggleGridLayoutPolicy.maxColumnCount)
+                toggleGrid(columnCount: 1)
+            }
+        }
+        .panelStyle(border: border)
+    }
+
+    private func toggleGrid(columnCount: Int) -> some View {
+        LazyVGrid(
+            columns: OptimizationToggleGridLayoutPolicy.columns(forColumnCount: columnCount),
+            spacing: OptimizationToggleGridLayoutPolicy.spacing
+        ) {
+            ForEach(items) { item in
+                OptimizationToggleRow(
+                    item: item,
+                    toggle: { toggle(item) }
+                )
+            }
+        }
+        .frame(minWidth: OptimizationToggleGridLayoutPolicy.minimumWidth(forColumnCount: columnCount))
+    }
+}
+
+enum OptimizationToggleGridLayoutPolicy {
+    static let minimumCardWidth: CGFloat = 250
+    static let spacing: CGFloat = 10
+    static let maxColumnCount = 2
+
+    static var twoColumnThreshold: CGFloat {
+        minimumWidth(forColumnCount: maxColumnCount)
+    }
+
+    static func columnCount(for availableWidth: CGFloat) -> Int {
+        availableWidth >= twoColumnThreshold ? maxColumnCount : 1
+    }
+
+    static func columns(for availableWidth: CGFloat) -> [GridItem] {
+        columns(forColumnCount: columnCount(for: availableWidth))
+    }
+
+    static func columns(forColumnCount columnCount: Int) -> [GridItem] {
+        let clampedCount = min(max(columnCount, 1), maxColumnCount)
+        return Array(
+            repeating: GridItem(.flexible(minimum: minimumCardWidth), spacing: spacing),
+            count: clampedCount
+        )
+    }
+
+    static func minimumWidth(forColumnCount columnCount: Int) -> CGFloat {
+        let clampedCount = min(max(columnCount, 1), maxColumnCount)
+        return CGFloat(clampedCount) * minimumCardWidth
+            + CGFloat(clampedCount - 1) * spacing
     }
 }
 

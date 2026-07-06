@@ -588,6 +588,34 @@ final class LocalGemmaTests: XCTestCase {
         )
     }
 
+    func testOptimizationToggleGridLayoutPolicyUsesTwoColumnsOnWideSettingsWidth() {
+        let threshold = OptimizationToggleGridLayoutPolicy.twoColumnThreshold
+
+        XCTAssertEqual(OptimizationToggleGridLayoutPolicy.minimumCardWidth, 250)
+        XCTAssertEqual(OptimizationToggleGridLayoutPolicy.spacing, 10)
+        XCTAssertEqual(OptimizationToggleGridLayoutPolicy.maxColumnCount, 2)
+        XCTAssertEqual(
+            OptimizationToggleGridLayoutPolicy.minimumWidth(forColumnCount: 1),
+            OptimizationToggleGridLayoutPolicy.minimumCardWidth
+        )
+        XCTAssertEqual(
+            threshold,
+            OptimizationToggleGridLayoutPolicy.minimumCardWidth * 2
+                + OptimizationToggleGridLayoutPolicy.spacing
+        )
+
+        XCTAssertEqual(OptimizationToggleGridLayoutPolicy.columnCount(for: 390), 1)
+        XCTAssertEqual(OptimizationToggleGridLayoutPolicy.columnCount(for: threshold - 0.5), 1)
+        XCTAssertEqual(OptimizationToggleGridLayoutPolicy.columnCount(for: threshold), 2)
+        XCTAssertEqual(OptimizationToggleGridLayoutPolicy.columnCount(for: 834), 2)
+        XCTAssertEqual(OptimizationToggleGridLayoutPolicy.columnCount(for: 1_200), 2)
+
+        XCTAssertEqual(OptimizationToggleGridLayoutPolicy.columns(for: 390).count, 1)
+        XCTAssertEqual(OptimizationToggleGridLayoutPolicy.columns(for: threshold).count, 2)
+        XCTAssertEqual(OptimizationToggleGridLayoutPolicy.columns(forColumnCount: 0).count, 1)
+        XCTAssertEqual(OptimizationToggleGridLayoutPolicy.columns(forColumnCount: 3).count, 2)
+    }
+
     func testOptimizerMetricCardsExposeAccessibilityMetadata() {
         let optimizer = DeviceOptimizer()
         let metrics = optimizer.metrics
