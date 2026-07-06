@@ -635,6 +635,29 @@ final class LocalGemmaTests: XCTestCase {
         XCTAssertTrue(hint.contains("verified 门禁"))
     }
 
+    func testOptimizerMetricGridLayoutPolicyUsesSingleColumnOnNarrowSettingsWidth() {
+        let threshold = OptimizerMetricGridLayoutPolicy.twoColumnThreshold
+
+        XCTAssertEqual(OptimizerMetricGridLayoutPolicy.maxColumnCount, 2)
+        XCTAssertEqual(
+            OptimizerMetricGridLayoutPolicy.minimumWidth(forColumnCount: 1),
+            OptimizerMetricGridLayoutPolicy.minimumCardWidth
+        )
+        XCTAssertEqual(
+            threshold,
+            OptimizerMetricGridLayoutPolicy.minimumCardWidth * 2
+                + OptimizerMetricGridLayoutPolicy.spacing
+        )
+        XCTAssertEqual(OptimizerMetricGridLayoutPolicy.columnCount(for: 320), 1)
+        XCTAssertEqual(OptimizerMetricGridLayoutPolicy.columnCount(for: threshold - 0.5), 1)
+        XCTAssertEqual(OptimizerMetricGridLayoutPolicy.columnCount(for: threshold), 2)
+        XCTAssertEqual(OptimizerMetricGridLayoutPolicy.columnCount(for: 834), 2)
+        XCTAssertEqual(OptimizerMetricGridLayoutPolicy.columns(for: 320).count, 1)
+        XCTAssertEqual(OptimizerMetricGridLayoutPolicy.columns(for: threshold).count, 2)
+        XCTAssertEqual(OptimizerMetricGridLayoutPolicy.columns(forColumnCount: 0).count, 1)
+        XCTAssertEqual(OptimizerMetricGridLayoutPolicy.columns(forColumnCount: 3).count, 2)
+    }
+
     func testPromptTemplateLibraryProvidesMultipleCategories() {
         let templates = PromptTemplateLibrary.defaultTemplates
         let categories = Set(templates.map(\.category))

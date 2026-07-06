@@ -4283,11 +4283,7 @@ struct SettingsWorkspace: View {
                     privacyGuardEnabled: optimizer.isOfflinePrivacyGuardEnabled
                 )
 
-                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
-                    ForEach(optimizer.metrics) { metric in
-                        OptimizerMetricCard(metric: metric)
-                    }
-                }
+                OptimizerMetricGrid(metrics: optimizer.metrics)
 
                 VStack(alignment: .leading, spacing: 10) {
                     Text("运行策略")
@@ -4583,11 +4579,7 @@ struct OptimizerDashboard: View {
                         privacyGuardEnabled: optimizer.isOfflinePrivacyGuardEnabled
                     )
 
-                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
-                        ForEach(optimizer.metrics) { metric in
-                            OptimizerMetricCard(metric: metric)
-                        }
-                    }
+                    OptimizerMetricGrid(metrics: optimizer.metrics)
 
                     VStack(alignment: .leading, spacing: 10) {
                         Text("运行策略")
@@ -4743,6 +4735,61 @@ struct OptimizerMetricCard: View {
         .accessibilityHint(OptimizerMetricAccessibilityMetadata.hint)
         .accessibilityInputLabels(OptimizerMetricAccessibilityMetadata.inputLabels(for: metric))
         .accessibilityIdentifier(OptimizerMetricAccessibilityMetadata.identifier(for: metric))
+    }
+}
+
+struct OptimizerMetricGrid: View {
+    let metrics: [OptimizerMetric]
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            metricGrid(columnCount: OptimizerMetricGridLayoutPolicy.maxColumnCount)
+            metricGrid(columnCount: 1)
+        }
+    }
+
+    private func metricGrid(columnCount: Int) -> some View {
+        LazyVGrid(
+            columns: OptimizerMetricGridLayoutPolicy.columns(forColumnCount: columnCount),
+            spacing: OptimizerMetricGridLayoutPolicy.spacing
+        ) {
+            ForEach(metrics) { metric in
+                OptimizerMetricCard(metric: metric)
+            }
+        }
+        .frame(minWidth: OptimizerMetricGridLayoutPolicy.minimumWidth(forColumnCount: columnCount))
+    }
+}
+
+enum OptimizerMetricGridLayoutPolicy {
+    static let minimumCardWidth: CGFloat = 170
+    static let spacing: CGFloat = 10
+    static let maxColumnCount = 2
+
+    static var twoColumnThreshold: CGFloat {
+        minimumWidth(forColumnCount: maxColumnCount)
+    }
+
+    static func columnCount(for availableWidth: CGFloat) -> Int {
+        availableWidth >= twoColumnThreshold ? maxColumnCount : 1
+    }
+
+    static func columns(for availableWidth: CGFloat) -> [GridItem] {
+        columns(forColumnCount: columnCount(for: availableWidth))
+    }
+
+    static func columns(forColumnCount columnCount: Int) -> [GridItem] {
+        let clampedCount = min(max(columnCount, 1), maxColumnCount)
+        return Array(
+            repeating: GridItem(.flexible(minimum: minimumCardWidth), spacing: spacing),
+            count: clampedCount
+        )
+    }
+
+    static func minimumWidth(forColumnCount columnCount: Int) -> CGFloat {
+        let clampedCount = min(max(columnCount, 1), maxColumnCount)
+        return CGFloat(clampedCount) * minimumCardWidth
+            + CGFloat(clampedCount - 1) * spacing
     }
 }
 
