@@ -4815,6 +4815,24 @@ struct SettingsWorkspace: View {
     }
 }
 
+enum SettingsIconActionLayoutPolicy {
+    enum Action: CaseIterable {
+        case toggleTheme
+        case choosePhoto
+        case clearCustomWallpaper
+    }
+
+    static let minimumTouchTarget: CGFloat = 44
+    static let iconButtonSize: CGFloat = minimumTouchTarget
+
+    static func usesMinimumTouchTarget(for action: Action) -> Bool {
+        switch action {
+        case .toggleTheme, .choosePhoto, .clearCustomWallpaper:
+            return iconButtonSize >= minimumTouchTarget
+        }
+    }
+}
+
 struct ThemePreferencePanel: View {
     @Environment(\.appTheme) private var theme
 
@@ -4846,7 +4864,10 @@ struct ThemePreferencePanel: View {
             Button(action: toggleTheme) {
                 Image(systemName: themeMode.icon)
                     .font(.system(size: 15, weight: .black))
-                    .frame(width: 42, height: 42)
+                    .frame(
+                        width: SettingsIconActionLayoutPolicy.iconButtonSize,
+                        height: SettingsIconActionLayoutPolicy.iconButtonSize
+                    )
                     .background(theme.accent, in: Circle())
                     .foregroundStyle(theme.inverseText)
             }
@@ -4907,7 +4928,10 @@ struct WallpaperPreferencePanel: View {
                                 .tint(pickerForeground)
                         }
                     }
-                    .frame(width: 40, height: 40)
+                    .frame(
+                        width: SettingsIconActionLayoutPolicy.iconButtonSize,
+                        height: SettingsIconActionLayoutPolicy.iconButtonSize
+                    )
                     .background(pickerAccent, in: Circle())
                     .foregroundStyle(pickerForeground)
                 }
@@ -4940,7 +4964,10 @@ struct WallpaperPreferencePanel: View {
                 Button(action: clearWallpaper) {
                     Image(systemName: "xmark")
                         .font(.system(size: 12, weight: .black))
-                        .frame(width: 40, height: 40)
+                        .frame(
+                            width: SettingsIconActionLayoutPolicy.iconButtonSize,
+                            height: SettingsIconActionLayoutPolicy.iconButtonSize
+                        )
                         .background(theme.chipSurface, in: Circle())
                         .overlay(Circle().stroke(theme.border, lineWidth: 1))
                         .foregroundStyle(theme.primaryText)
