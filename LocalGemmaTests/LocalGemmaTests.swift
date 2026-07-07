@@ -1305,6 +1305,34 @@ final class LocalGemmaTests: XCTestCase {
         )
     }
 
+    func testComposerInputActionLayoutPolicyMaintainsTouchTargets() {
+        XCTAssertEqual(ComposerInputActionLayoutPolicy.minimumTouchTarget, 44)
+        XCTAssertEqual(ComposerInputActionLayoutPolicy.actionButtonSize, 48)
+        XCTAssertGreaterThanOrEqual(
+            ComposerInputActionLayoutPolicy.actionButtonSize,
+            ComposerInputActionLayoutPolicy.minimumTouchTarget
+        )
+
+        for action in ComposerInputAction.allCases {
+            XCTAssertEqual(
+                ComposerInputActionLayoutPolicy.buttonSize(for: action),
+                ComposerInputActionLayoutPolicy.actionButtonSize
+            )
+            XCTAssertTrue(ComposerInputActionLayoutPolicy.usesMinimumTouchTarget(for: action))
+        }
+
+        XCTAssertFalse(ComposerInputAction.send.isGenerating)
+        XCTAssertTrue(ComposerInputAction.stop.isGenerating)
+        XCTAssertEqual(
+            ComposerInputMetadata.actionIdentifier(isGenerating: ComposerInputAction.send.isGenerating),
+            "composer-send-button"
+        )
+        XCTAssertEqual(
+            ComposerInputMetadata.actionIdentifier(isGenerating: ComposerInputAction.stop.isGenerating),
+            "composer-stop-button"
+        )
+    }
+
     func testChatTranscriptExposesAccessibilityMetadata() {
         let userMessage = ChatMessage(
             id: UUID(uuidString: "12345678-1234-5678-9ABC-123456789ABC")!,

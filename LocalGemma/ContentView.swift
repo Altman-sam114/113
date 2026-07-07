@@ -2033,6 +2033,28 @@ enum ComposerInputMetadata {
     }
 }
 
+enum ComposerInputAction: CaseIterable {
+    case send
+    case stop
+
+    var isGenerating: Bool {
+        self == .stop
+    }
+}
+
+enum ComposerInputActionLayoutPolicy {
+    static let minimumTouchTarget: CGFloat = 44
+    static let actionButtonSize: CGFloat = 48
+
+    static func buttonSize(for action: ComposerInputAction) -> CGFloat {
+        actionButtonSize
+    }
+
+    static func usesMinimumTouchTarget(for action: ComposerInputAction) -> Bool {
+        buttonSize(for: action) >= minimumTouchTarget
+    }
+}
+
 struct AppBackground: View {
     let theme: AppThemePalette
     var wallpaperData: Data = Data()
@@ -4010,7 +4032,10 @@ struct ComposerBar: View {
                 )
                     .labelStyle(.iconOnly)
                     .font(.system(size: 16, weight: .black))
-                    .frame(width: 48, height: 48)
+                    .frame(
+                        width: ComposerInputActionLayoutPolicy.buttonSize(for: currentAction),
+                        height: ComposerInputActionLayoutPolicy.buttonSize(for: currentAction)
+                    )
                     .background(isGenerating ? Color.red.opacity(0.9) : theme.accent, in: Circle())
                     .foregroundStyle(theme.inverseText)
             }
@@ -4040,6 +4065,10 @@ struct ComposerBar: View {
 
     private var isSendDisabled: Bool {
         ComposerInputMetadata.isActionDisabled(text: text, isGenerating: isGenerating)
+    }
+
+    private var currentAction: ComposerInputAction {
+        isGenerating ? .stop : .send
     }
 
     private func focusComposerIfNeeded() {
