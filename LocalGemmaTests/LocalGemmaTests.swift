@@ -1722,14 +1722,18 @@ final class LocalGemmaTests: XCTestCase {
     func testSessionChipActionLayoutPolicyMaintainsTouchTargets() {
         XCTAssertEqual(SessionChipActionLayoutPolicy.minimumTouchTarget, 44)
         XCTAssertGreaterThanOrEqual(
+            SessionChipActionLayoutPolicy.selectButtonMinHeight,
+            SessionChipActionLayoutPolicy.minimumTouchTarget
+        )
+        XCTAssertGreaterThanOrEqual(
             SessionChipActionLayoutPolicy.deleteButtonSize,
             SessionChipActionLayoutPolicy.minimumTouchTarget
         )
         XCTAssertTrue(
-            SessionChipActionLayoutPolicy.usesMinimumTouchTarget(for: .delete)
-        )
-        XCTAssertFalse(
             SessionChipActionLayoutPolicy.usesMinimumTouchTarget(for: .select)
+        )
+        XCTAssertTrue(
+            SessionChipActionLayoutPolicy.usesMinimumTouchTarget(for: .delete)
         )
     }
 

@@ -2615,12 +2615,13 @@ struct ExportPayload: Identifiable {
 
 enum SessionChipActionLayoutPolicy {
     static let minimumTouchTarget: CGFloat = 44
+    static let selectButtonMinHeight: CGFloat = minimumTouchTarget
     static let deleteButtonSize: CGFloat = minimumTouchTarget
 
     static func usesMinimumTouchTarget(for action: SessionChipActionAccessibilityMetadata.Action) -> Bool {
         switch action {
         case .select:
-            return false
+            return selectButtonMinHeight >= minimumTouchTarget
         case .delete:
             return deleteButtonSize >= minimumTouchTarget
         }
@@ -2898,7 +2899,11 @@ struct SessionChip: View {
                         Spacer(minLength: 0)
                     }
                 }
-                .frame(maxWidth: layout == .vertical ? .infinity : 160, alignment: .leading)
+                .frame(
+                    maxWidth: layout == .vertical ? .infinity : 160,
+                    minHeight: SessionChipActionLayoutPolicy.selectButtonMinHeight,
+                    alignment: .leading
+                )
                 .foregroundStyle(isActive ? theme.inverseText : theme.primaryText)
             }
             .buttonStyle(.plain)

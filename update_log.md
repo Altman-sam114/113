@@ -2545,5 +2545,47 @@
 
 遗留事项：
 
-- v2.39 push 后需等待最新 `ci-results.yml` run 完成，由 Agent C 下载对应未加密结果包，核对 manifest、`artifact-name.txt`、JUnit、iOS 日志、Mac Catalyst 日志、run script 日志、baseline notes 和 `.xcresult`。
+- v2.39 push 后 GitHub Actions run `28839191027` 对最新 `origin/main` commit `f5f3f327bcd9a3c424029135b0762a7f5114f600` 验收通过；artifact `localgemma-ci-v2.39-main-f5f3f32-run28839191027-attempt1` 的 manifest、`artifact-name.txt`、JUnit、failure summary、outcomes、LogicSmoke 日志、Mac Catalyst run script 日志和三个 `.xcresult/Info.plist` 已核对，新增 `testWorkspaceNavigationActionLayoutPolicyMaintainsTouchTargets` 在 `test.log` 中通过，required checks 全部 success。
 - 本轮只建立工作区导航按钮 44pt 触控目标策略，没有做会话 chip 选择触控目标、模型页整体宽屏内容上限、导出弹层宽屏限制、完整 UI Test target、真实 runtime 接入、模型 artifact 下载或原生 macOS target。
+
+### v2.40 / 会话 Chip 选择触控目标
+
+日期：2026-07-07
+
+核心变更：
+
+- Agent X 在拉取最新 `origin/main` 后继续优化 UI、Mac 和 iPad 体验；本轮选择 v2.39 遗留的会话 chip 选择动作触控目标，归档 Agent A 提示词 `md/prompt/v2（Mac体验审计）/v2.40（会话Chip选择触控目标）.md`。
+- 扩展 `SessionChipActionLayoutPolicy`，新增 `selectButtonMinHeight`，让单个会话 chip 的选择动作和删除动作都由同一策略保持至少 44pt 触控目标。
+- `SessionChip` 选择按钮 label 显式使用 `SessionChipActionLayoutPolicy.selectButtonMinHeight`；保留 `SessionChipActionAccessibilityMetadata`、会话选择/删除状态流、删除禁用原因、composer 聚焦、模型 artifact 边界和 verified 门禁。
+- 更新 `testSessionChipActionLayoutPolicyMaintainsTouchTargets`，锁住最小触控目标、选择按钮最小高度、删除按钮尺寸，以及 select/delete action 都达标；测试函数数保持 83 个。
+- 同步 README、测试规范、核心流程文档、Mermaid 流程图、入口规则和 Agent A 提示词归档中的会话 chip 选择/删除 44pt 触控目标基线。
+
+关键文件：
+
+- `LocalGemma/ContentView.swift`
+- `LocalGemmaTests/LocalGemmaTests.swift`
+- `AGENTS.md`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v2（Mac体验审计）/v2.40（会话Chip选择触控目标）.md`
+
+验证结果：
+
+- `git diff --check`：无输出，退出码 0。
+- `test -x script/build_and_run.sh`：退出码 0。
+- `bash -n script/build_and_run.sh`：退出码 0。
+- `plutil -lint LocalGemma.xcodeproj/project.pbxproj`：输出 `LocalGemma.xcodeproj/project.pbxproj: OK`。
+- `ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'`：输出 `yaml ok`。
+- `grep -c "func test" LocalGemmaTests/LocalGemmaTests.swift`：输出 `83`。
+- `/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -sdk /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk -module-cache-path .build/SwiftSmokeModuleCache LocalGemma/AppState.swift Tools/LogicSmoke.swift -o .build/logic-smoke`：退出码 0。
+- `.build/logic-smoke`：输出 `Logic smoke passed`。
+- `/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -typecheck -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk -target arm64-apple-ios17.0-simulator -module-cache-path .build/ModuleCache LocalGemma/AppState.swift LocalGemma/ContentView.swift LocalGemma/LocalGemmaApp.swift`：退出码 0。
+- `/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -emit-module -emit-module-path .build/Typecheck/LocalGemma.swiftmodule -module-name LocalGemma -enable-testing -parse-as-library -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk -target arm64-apple-ios17.0-simulator -module-cache-path .build/ModuleCache LocalGemma/AppState.swift LocalGemma/ContentView.swift LocalGemma/LocalGemmaApp.swift`：退出码 0。
+- `/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -typecheck -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk -target arm64-apple-ios17.0-simulator -module-cache-path .build/ModuleCache -I .build/Typecheck -I /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/lib -F /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/Library/Frameworks LocalGemmaTests/LocalGemmaTests.swift`：退出码 0。
+
+遗留事项：
+
+- v2.40 push 后需等待最新 `ci-results.yml` run 完成，由 Agent C 下载对应未加密结果包，核对 manifest、`artifact-name.txt`、JUnit、iOS 日志、Mac Catalyst 日志、run script 日志、baseline notes 和 `.xcresult`。
+- 本轮只补齐会话 chip 选择动作 44pt 触控目标，没有做模型页整体宽屏内容上限、导出弹层宽屏限制、完整 UI Test target、真实 runtime 接入、模型 artifact 下载或原生 macOS target。
