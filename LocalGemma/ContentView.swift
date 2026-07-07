@@ -2665,6 +2665,46 @@ enum ExportSessionActionAccessibilityMetadata {
     }
 }
 
+enum ExportSessionActionLayoutPolicy {
+    enum Presentation: CaseIterable, Equatable {
+        case bottomShareMarkdownFile
+        case bottomShareTextFallback
+        case bottomCopyFullText
+        case toolbarShareMarkdownFile
+        case toolbarShareTextFallback
+
+        var metadataAction: ExportSessionActionAccessibilityMetadata.Action {
+            switch self {
+            case .bottomShareMarkdownFile, .toolbarShareMarkdownFile:
+                return .shareMarkdownFile
+            case .bottomShareTextFallback, .toolbarShareTextFallback:
+                return .shareTextFallback
+            case .bottomCopyFullText:
+                return .copyFullText
+            }
+        }
+    }
+
+    static let minimumTouchTarget: CGFloat = 44
+    static let bottomButtonMinHeight: CGFloat = minimumTouchTarget
+    static let toolbarButtonSize: CGFloat = minimumTouchTarget
+
+    static func usesMinimumTouchTarget(for presentation: Presentation) -> Bool {
+        switch presentation {
+        case .bottomShareMarkdownFile, .bottomShareTextFallback, .bottomCopyFullText:
+            return bottomButtonMinHeight >= minimumTouchTarget
+        case .toolbarShareMarkdownFile, .toolbarShareTextFallback:
+            return toolbarButtonSize >= minimumTouchTarget
+        }
+    }
+
+    static func presentations(
+        for action: ExportSessionActionAccessibilityMetadata.Action
+    ) -> [Presentation] {
+        Presentation.allCases.filter { $0.metadataAction == action }
+    }
+}
+
 enum SessionBarLayout {
     case horizontal
     case vertical
@@ -3009,6 +3049,9 @@ struct ExportSessionView: View {
                                 .font(.system(size: 15, weight: .black))
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 14)
+                                .frame(
+                                    minHeight: ExportSessionActionLayoutPolicy.bottomButtonMinHeight
+                                )
                                 .background(theme.accent, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                                 .foregroundStyle(theme.inverseText)
                         }
@@ -3050,6 +3093,9 @@ struct ExportSessionView: View {
                                 .font(.system(size: 15, weight: .black))
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 14)
+                                .frame(
+                                    minHeight: ExportSessionActionLayoutPolicy.bottomButtonMinHeight
+                                )
                                 .background(theme.accent, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                                 .foregroundStyle(theme.inverseText)
                         }
@@ -3092,6 +3138,9 @@ struct ExportSessionView: View {
                             .font(.system(size: 13, weight: .black))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 12)
+                            .frame(
+                                minHeight: ExportSessionActionLayoutPolicy.bottomButtonMinHeight
+                            )
                             .background(theme.chipSurface, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
                             .overlay {
                                 RoundedRectangle(cornerRadius: 13, style: .continuous)
@@ -3136,6 +3185,11 @@ struct ExportSessionView: View {
                                 systemImage: "square.and.arrow.up.fill"
                             )
                             .labelStyle(.iconOnly)
+                            .frame(
+                                width: ExportSessionActionLayoutPolicy.toolbarButtonSize,
+                                height: ExportSessionActionLayoutPolicy.toolbarButtonSize
+                            )
+                            .contentShape(Rectangle())
                         }
                         .accessibilityLabel(
                             ExportSessionActionAccessibilityMetadata.label(
@@ -3170,6 +3224,11 @@ struct ExportSessionView: View {
                                 systemImage: "text.quote"
                             )
                             .labelStyle(.iconOnly)
+                            .frame(
+                                width: ExportSessionActionLayoutPolicy.toolbarButtonSize,
+                                height: ExportSessionActionLayoutPolicy.toolbarButtonSize
+                            )
+                            .contentShape(Rectangle())
                         }
                         .accessibilityLabel(
                             ExportSessionActionAccessibilityMetadata.label(

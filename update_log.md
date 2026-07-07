@@ -16,7 +16,7 @@
 - 平台：SwiftUI iOS App，Swift 6.0，iOS deployment target 17.0，当前 app/test target 支持 iPhone、iPad 和 Mac Catalyst build-for-testing，并提供项目内 Mac Catalyst 本地 build/run 脚本入口；尚未创建原生 macOS target。
 - 当前默认模型：`Gemma 1.5B Local`
 - 当前推理：本地模拟 runtime，不下载模型权重，不执行真实模型推理。
-- 当前核心测试：`LocalGemmaTests.swift` 中 81 个 XCTest 方法。
+- 当前核心测试：`LocalGemmaTests.swift` 中 82 个 XCTest 方法。
 - 当前核心文档入口：`AGENTS.md`、`md/flow/flow.md`、`md/flow/flowchart.md`、`md/test/test.md`、`md/prompt/README.md`、`README.md`。
 - 当前协作验证：默认 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载未加密 CI 结果包验收；本地仓库当前已配置 `origin` remote，最终验收仍以最新 `origin/main` 对应的 GitHub Actions run 和结果包为准；文档已预留未来 `agentx:` 主控 Agent A -> Agent B -> Agent C 多轮循环的规则。
 
@@ -2466,3 +2466,41 @@
 
 - v2.37 push 后需等待最新 `ci-results.yml` run 完成，由 Agent C 下载对应未加密结果包，核对 manifest、`artifact-name.txt`、JUnit、iOS 日志、Mac Catalyst 日志、run script 日志、baseline notes 和 `.xcresult`。
 - 本轮只建立会话 chip 删除按钮 44pt 触控目标策略，没有做导出弹层宽屏限制、完整 UI Test target、真实 runtime 接入、模型 artifact 下载或原生 macOS target。
+
+### v2.38 / 导出弹层分享复制触控目标
+
+日期：2026-07-07
+
+核心变更：
+
+- 新增 `ExportSessionActionLayoutPolicy`，集中定义导出弹层底部 Markdown 分享、底部文本兜底分享、底部复制全文、toolbar Markdown 分享和 toolbar 文本兜底分享入口的 44pt 最小触控目标。
+- `ExportSessionView` 底部 `ShareLink`、复制按钮和 toolbar `ShareLink` 显式复用策略常量，底部分享/复制至少 44pt 高，toolbar 分享至少 44x44；保留 `ExportPayload`、`InferenceEngine` 导出文本、ShareLink 文件优先/文本兜底选择、`UIPasteboard` 写入、导出弹层辅助语义和会话状态流。
+- 新增 `testExportSessionActionLayoutPolicyMaintainsTouchTargets`，锁住最小触控目标、底部按钮高度、toolbar 尺寸、全部 presentation 达标、分享动作覆盖 Markdown/文本兜底以及复制只归底部复制入口；测试函数数从 81 个增加到 82 个。
+- 同步 README、测试规范、核心流程文档、Mermaid 流程图、入口规则和 Agent A 提示词归档中的导出弹层分享复制 44pt 触控目标基线。
+
+关键文件：
+
+- `LocalGemma/ContentView.swift`
+- `LocalGemmaTests/LocalGemmaTests.swift`
+- `AGENTS.md`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（导出弹层触控目标）/v2.38（优化导出弹层分享复制触控目标）.md`
+
+验证结果：
+
+- `git diff --check`：无输出，退出码 0。
+- `test -x script/build_and_run.sh && bash -n script/build_and_run.sh`：无输出，退出码 0。
+- `grep -c "func test" LocalGemmaTests/LocalGemmaTests.swift`：输出 `82`。
+- `find md -maxdepth 4 -type f | sort | tail -n 20`：输出包含 `md/test/test.md` 和现有 v2 prompt 归档尾部；另用 `test -f 'md/prompt/v0（导出弹层触控目标）/v2.38（优化导出弹层分享复制触控目标）.md'` 确认本轮 v2.38 Agent A 提示词存在。
+- Python workflow 标记检查：输出 `workflow markers ok`。
+- Python pbxproj 标记检查：输出 `pbxproj markers ok`。
+- `rg -n 'v2\.38|ExportSessionActionLayoutPolicy|testExportSessionActionLayoutPolicy|导出弹层分享/复制 44pt|导出弹层分享复制触控目标|当前包含 82|当前核心测试' ...`：确认源码、测试、README、测试规范、核心流程、入口规则和 v2.38 提示词均包含本轮基线。
+- 当前 Linux 容器缺少 `plutil`、`ruby`、`swiftc` 和 Xcode，未在本机执行 pbxproj plutil、Ruby YAML 解析、LogicSmoke、Swift typecheck、完整模拟器 XCTest 或 Mac Catalyst build；这些检查由 v2.38 push 后的 GitHub Actions 和 Agent C 结果包验收覆盖。
+
+遗留事项：
+
+- v2.38 push 后需等待最新 `ci-results.yml` run 完成，由 Agent C 下载对应未加密结果包，核对 manifest、`artifact-name.txt`、JUnit、iOS 日志、Mac Catalyst 日志、run script 日志、baseline notes 和 `.xcresult`。
+- 本轮只建立导出弹层分享/复制 44pt 触控目标策略，没有做导出弹层宽屏限制、完整 UI Test target、真实 runtime 接入、模型 artifact 下载或原生 macOS target。

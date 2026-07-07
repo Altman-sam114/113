@@ -7,8 +7,8 @@
 - `LocalGemma.xcodeproj`：可用 Xcode 打开的 iOS 工程，当前 app/test target 支持 iPhone、iPad，并已启用 Mac Catalyst build-for-testing 基线和项目内本地 build/run 入口；本轮没有创建原生 macOS target。
 - `LocalGemma/AppState.swift`：模型清单、`LocalInferenceRuntime` 协议、模拟/真实占位 runtime、会话管理、导出文本生成、设备优化状态、本地模型 artifact manifest、`ModelArtifactStore`、`ModelArtifactHasher`、`LocalArtifactValidator`、手动导入错误处理和 Apple Silicon 运行计划。
 - `LocalGemma/LocalGemmaApp.swift`：SwiftUI app 入口，创建共享状态对象，并在 scene 层注册 `工作区` 和 `会话` command menu，让 Mac Catalyst 和 iPad 外接键盘用户可从系统菜单发现 workspace 切换、新建会话和导出当前会话。
-- `LocalGemma/ContentView.swift`：支持暗色/亮色切换的 SwiftUI 界面，包含推理、模型、提示词、设置四个工作区；推理页改成极简会话界面，顶部 Gemma 模型胶囊集中展示运行状态、速度、内存、后端和权重状态，并以整体辅助语义合并当前模型、SIM/REAL、artifact、后端、速度、内存和准备度；全局 Header 主题切换和打开模型工作区图标动作按 `HeaderActionLayoutPolicy` 保持 44pt 触控目标；提示词模板独立成页，页面整体内容按 `PromptTemplatesWorkspaceLayoutPolicy` 在 iPad/Mac 超宽窗口居中并限制最大宽度，模板网格在窄屏单列、iPad/Mac 宽区域多列伸展之间自适应，模板卡片文本按 `PromptTemplateTextLayoutPolicy` 使用 Dynamic Type 语义字体、多行标题/副标题/正文和更高最小卡片高度，分类筛选 chip 会按 `PromptCategoryLayoutPolicy` 在窄屏换行并保持 44pt 触控高度，并按 `PromptCategoryTextLayoutPolicy` 使用 Dynamic Type 语义字体和两行文本策略，模板卡片填入和发送动作达到 44pt 触控目标；设置页整合外观、相册壁纸和芯片部署优化，页面整体内容按 `SettingsWorkspaceLayoutPolicy` 在 iPad/Mac 超宽窗口居中并限制最大宽度，外观主题、相册壁纸选择和恢复系统背景图标动作按 `SettingsIconActionLayoutPolicy` 保持 44pt 触控目标，Apple Silicon 优化指标网格与运行策略开关网格在窄屏单列、iPad/Mac 宽区域双列之间自适应；iPhone 横屏、iPad 竖屏大画布和大屏窗口达到断点后会切换为左侧导航/模型状态栏、右侧工作区；regular 大屏侧栏显示工作区用途说明，compact 侧栏保持紧凑；推理页内部会话侧栏在大屏按 `SessionSidebarLayoutPolicy` 限制宽度，会话栏新建/导出图标按钮按 `SessionBarActionLayoutPolicy` 保持 44pt 触控目标，单个会话 chip 删除按钮按 `SessionChipActionLayoutPolicy` 保持 44pt 触控目标，底部 composer 在 iPad/Mac 宽区域居中并限制最大输入行宽；模型页足够宽时内部并列展示选择/部署/文件操作与模型详情，右侧详情栏按 `ModelDetailColumnLayoutPolicy` 限制最大阅读宽度，模型文件扫描本地和导入文件按钮按 `ModelArtifactActionLayoutPolicy` 保持 44pt 触控目标，窄屏保持单栏；Mac Catalyst 和 iPad 外接键盘可用 `Command+1...4` 或系统 `工作区` 菜单切换工作区，可用系统 `会话` 菜单及 `Command+N` / `Command+Shift+E` 新建或导出当前会话，也可点击会话栏可见按钮，`Command+Return` 发送或停止；工作区导航、会话选择、会话 chip 动作、顶部模型胶囊、模型概要面板、模型详情右栏与行级内容、模型文件工作流面板、模型卸载确认弹层、模型状态徽章、聊天记录容器、聊天消息气泡、头部主题与模型工作区入口、设置页图标动作、会话栏操作、导出弹层分享/复制、壁纸控件、模型选择器、模型部署控件、运行策略开关、芯片准备度卡片/圆环、优化指标卡、提示词分类筛选和提示词模板动作会向辅助技术暴露稳定语义，芯片准备度摘要会随离线隐私保护开关显示开启或关闭，切回推理页、新建/切换会话、提示词模板填入或发送后会请求聚焦输入框。
-- `LocalGemmaTests/LocalGemmaTests.swift`：覆盖默认 Gemma 模拟状态、artifact missing/staged/verified 校验、手动导入文件复制、`.mlmodelc` 目录导入、启动自动扫描、本地模型管理状态流转、模型卸载确认弹层状态流与辅助语义、模拟输出、运行计划、优化开关、运行策略开关辅助语义、运行策略开关宽屏网格、芯片准备度辅助语义与隐私状态动态摘要、优化指标卡辅助语义、优化指标网格宽度策略、设置页整体宽屏内容宽度策略、提示词页整体宽屏内容宽度策略、提示词模板宽屏布局策略、提示词模板文本动态排版策略、提示词分类筛选换行布局策略、提示词分类文本动态排版策略、提示词模板动作 44pt 触控目标、顶部模型胶囊整体辅助语义、模型概要面板辅助语义、模型详情右栏与行级辅助语义、模型详情右栏最大阅读宽度策略、模型文件工作流面板辅助语义、模型文件操作 44pt 触控目标、模型状态徽章辅助语义、会话 chip 动作语义、会话 chip 删除触控目标、聊天消息气泡与聊天记录容器辅助语义、聊天气泡宽屏宽度策略、composer 宽屏输入宽度策略、预设提示词模板、提示词分类筛选辅助语义、提示词模板动作辅助语义、会话管理、Markdown 会话导出、导出弹层分享/复制辅助语义、工作区导航辅助语义、头部主题与模型工作区入口辅助语义、全局 Header 图标动作 44pt 触控目标、设置页图标动作 44pt 触控目标、壁纸控件辅助语义、iPhone/iPad/Mac Catalyst 桌面窗口布局断点、模型页内部宽屏布局策略、模型选择器辅助语义、模型部署控件辅助语义、会话栏操作辅助语义、会话栏操作 44pt 触控目标、会话侧栏宽度策略、工作区快捷键映射、工作区 command menu 映射、会话 command menu focused route、regular 侧栏说明、选择语义、composer 输入焦点、控件标识与辅助语义和空输入保护。
+- `LocalGemma/ContentView.swift`：支持暗色/亮色切换的 SwiftUI 界面，包含推理、模型、提示词、设置四个工作区；推理页改成极简会话界面，顶部 Gemma 模型胶囊集中展示运行状态、速度、内存、后端和权重状态，并以整体辅助语义合并当前模型、SIM/REAL、artifact、后端、速度、内存和准备度；全局 Header 主题切换和打开模型工作区图标动作按 `HeaderActionLayoutPolicy` 保持 44pt 触控目标；提示词模板独立成页，页面整体内容按 `PromptTemplatesWorkspaceLayoutPolicy` 在 iPad/Mac 超宽窗口居中并限制最大宽度，模板网格在窄屏单列、iPad/Mac 宽区域多列伸展之间自适应，模板卡片文本按 `PromptTemplateTextLayoutPolicy` 使用 Dynamic Type 语义字体、多行标题/副标题/正文和更高最小卡片高度，分类筛选 chip 会按 `PromptCategoryLayoutPolicy` 在窄屏换行并保持 44pt 触控高度，并按 `PromptCategoryTextLayoutPolicy` 使用 Dynamic Type 语义字体和两行文本策略，模板卡片填入和发送动作达到 44pt 触控目标；设置页整合外观、相册壁纸和芯片部署优化，页面整体内容按 `SettingsWorkspaceLayoutPolicy` 在 iPad/Mac 超宽窗口居中并限制最大宽度，外观主题、相册壁纸选择和恢复系统背景图标动作按 `SettingsIconActionLayoutPolicy` 保持 44pt 触控目标，Apple Silicon 优化指标网格与运行策略开关网格在窄屏单列、iPad/Mac 宽区域双列之间自适应；iPhone 横屏、iPad 竖屏大画布和大屏窗口达到断点后会切换为左侧导航/模型状态栏、右侧工作区；regular 大屏侧栏显示工作区用途说明，compact 侧栏保持紧凑；推理页内部会话侧栏在大屏按 `SessionSidebarLayoutPolicy` 限制宽度，会话栏新建/导出图标按钮按 `SessionBarActionLayoutPolicy` 保持 44pt 触控目标，单个会话 chip 删除按钮按 `SessionChipActionLayoutPolicy` 保持 44pt 触控目标，导出弹层底部分享/复制和 toolbar 分享入口按 `ExportSessionActionLayoutPolicy` 保持 44pt 触控目标，底部 composer 在 iPad/Mac 宽区域居中并限制最大输入行宽；模型页足够宽时内部并列展示选择/部署/文件操作与模型详情，右侧详情栏按 `ModelDetailColumnLayoutPolicy` 限制最大阅读宽度，模型文件扫描本地和导入文件按钮按 `ModelArtifactActionLayoutPolicy` 保持 44pt 触控目标，窄屏保持单栏；Mac Catalyst 和 iPad 外接键盘可用 `Command+1...4` 或系统 `工作区` 菜单切换工作区，可用系统 `会话` 菜单及 `Command+N` / `Command+Shift+E` 新建或导出当前会话，也可点击会话栏可见按钮，`Command+Return` 发送或停止；工作区导航、会话选择、会话 chip 动作、顶部模型胶囊、模型概要面板、模型详情右栏与行级内容、模型文件工作流面板、模型卸载确认弹层、模型状态徽章、聊天记录容器、聊天消息气泡、头部主题与模型工作区入口、设置页图标动作、会话栏操作、导出弹层分享/复制、壁纸控件、模型选择器、模型部署控件、运行策略开关、芯片准备度卡片/圆环、优化指标卡、提示词分类筛选和提示词模板动作会向辅助技术暴露稳定语义，芯片准备度摘要会随离线隐私保护开关显示开启或关闭，切回推理页、新建/切换会话、提示词模板填入或发送后会请求聚焦输入框。
+- `LocalGemmaTests/LocalGemmaTests.swift`：覆盖默认 Gemma 模拟状态、artifact missing/staged/verified 校验、手动导入文件复制、`.mlmodelc` 目录导入、启动自动扫描、本地模型管理状态流转、模型卸载确认弹层状态流与辅助语义、模拟输出、运行计划、优化开关、运行策略开关辅助语义、运行策略开关宽屏网格、芯片准备度辅助语义与隐私状态动态摘要、优化指标卡辅助语义、优化指标网格宽度策略、设置页整体宽屏内容宽度策略、提示词页整体宽屏内容宽度策略、提示词模板宽屏布局策略、提示词模板文本动态排版策略、提示词分类筛选换行布局策略、提示词分类文本动态排版策略、提示词模板动作 44pt 触控目标、顶部模型胶囊整体辅助语义、模型概要面板辅助语义、模型详情右栏与行级辅助语义、模型详情右栏最大阅读宽度策略、模型文件工作流面板辅助语义、模型文件操作 44pt 触控目标、模型状态徽章辅助语义、会话 chip 动作语义、会话 chip 删除触控目标、聊天消息气泡与聊天记录容器辅助语义、聊天气泡宽屏宽度策略、composer 宽屏输入宽度策略、预设提示词模板、提示词分类筛选辅助语义、提示词模板动作辅助语义、会话管理、Markdown 会话导出、导出弹层分享/复制辅助语义、导出弹层分享/复制 44pt 触控目标、工作区导航辅助语义、头部主题与模型工作区入口辅助语义、全局 Header 图标动作 44pt 触控目标、设置页图标动作 44pt 触控目标、壁纸控件辅助语义、iPhone/iPad/Mac Catalyst 桌面窗口布局断点、模型页内部宽屏布局策略、模型选择器辅助语义、模型部署控件辅助语义、会话栏操作辅助语义、会话栏操作 44pt 触控目标、会话侧栏宽度策略、工作区快捷键映射、工作区 command menu 映射、会话 command menu focused route、regular 侧栏说明、选择语义、composer 输入焦点、控件标识与辅助语义和空输入保护。
 - `Tools/LogicSmoke.swift`：不依赖 iOS runtime 的本地逻辑烟测，用来验证模拟模型、artifact 校验、手动导入文件复制、`.mlmodelc` 目录导入、启动自动扫描、模型管理状态流转、运行计划、提示词模板、会话管理、Markdown 导出与优化状态。
 - `AGENTS.md`：项目入口记忆、基本规则、“人工目标 -> Agent A -> Agent B -> Agent C -> 人工复核”的单轮流程，以及未来 `agentx:` 主控 A/B/C 多轮循环的准备规则。
 - `update_log.md`：版本更新记录、历史决策、完成事项和遗留问题。
@@ -125,7 +125,7 @@ App 启动时会自动扫描 `Application Support/LocalModels`，如果用户之
 - 顶部只保留一个 Gemma 模型胶囊，速度、内存、后端和权重状态都收进这里，避免重复显示模型名。
 - 会话栏参考 ChatGPT 网页端的历史列表结构，支持新建会话、切换会话、删除会话；系统 `会话` 菜单和会话栏可见按钮通过同一组 action 语义覆盖新建和导出当前会话动作；单个会话 chip 的选择和删除动作会向辅助技术说明本地会话切换、composer 聚焦、删除范围、默认空白当前会话不可删除原因、Voice Control 输入标签和稳定 identifier；会话栏按钮会向辅助技术说明快捷键、本地会话焦点流和本地 Markdown / 文本分享兜底，不会把会话发送到云端服务；会话会根据首条用户输入自动生成名字。
 - 聊天记录容器会向辅助技术说明当前本地会话消息总数、最新消息角色、生成中状态、Voice Control 输入标签和稳定 identifier；单条消息气泡继续说明角色、正文或生成中状态、token 数和本地边界。
-- 导出按钮会生成当前会话的 `.md` 文件，导出弹层显示会话摘要、正文预览、底部分享/复制按钮和 toolbar 分享入口；分享 Markdown、文本兜底和复制全文动作会向辅助技术说明本地文件、文本兜底、剪贴板和不发送云端服务边界。
+- 导出按钮会生成当前会话的 `.md` 文件，导出弹层显示会话摘要、正文预览、底部分享/复制按钮和 toolbar 分享入口；底部分享/复制至少 44pt 高，toolbar 分享至少 44x44；分享 Markdown、文本兜底和复制全文动作会向辅助技术说明本地文件、文本兜底、剪贴板和不发送云端服务边界。
 - 输入区以 `问本地模型任何问题` 为主入口，只保留发送/停止一个核心动作按钮；输入框和发送/停止按钮有稳定的辅助技术 label/value/hint、Voice Control 输入标签和 identifier，按钮保留 `Command+Return`，hint 明确本地模拟 runtime、不下载权重、不启动真实 runtime、不发送云端服务且不绕过 verified 门禁；切回推理、新建/切换会话或使用模板后会请求聚焦。
 
 提示词页提供 `部署方案`、`隐私评审`、`芯片优化`、`技术总结`、`产品文案`、`排障清单` 六个模板，并支持按部署、隐私、性能、写作、产品、排障筛选。提示词页标题、分类筛选和模板网格作为整体在 Mac/iPad 超宽窗口中居中并限制最大内容宽度；模板网格在窄屏保持单列，在 iPad/Mac 宽区域多列伸展并限制最大卡片宽度，避免旧固定宽度浪费宽屏空间。筛选 chip 会向 VoiceOver 和 Voice Control 暴露当前筛选、动作提示、输入标签和稳定 identifier。模板可先填入输入框再编辑，也可以通过卡片内发送按钮直接作为当前模型输入发送；模板动作会说明填入只写入 composer 且不发送 prompt，发送走本地模拟 runtime，不下载模型权重、不启动真实 runtime、不发送到云端服务，也不绕过 verified 门禁。
@@ -174,7 +174,7 @@ Gemma 1.5B 已预留真实模型接入清单：
 
 ## 已完成验证
 
-v2.37 本轮增加会话 chip 删除触控目标策略：推理页单个会话 chip 的删除图标按钮由 `SessionChipActionLayoutPolicy` 统一保持 44pt 触控目标，同时保留会话选择/删除辅助语义、删除禁用原因、会话状态流、composer 聚焦、模型 artifact 边界和 verified 门禁；`LocalGemmaTests.swift` 当前测试函数数为 81。
+v2.38 本轮增加导出弹层分享/复制触控目标策略：导出弹层底部 Markdown 分享、文本分享兜底和复制全文按钮由 `ExportSessionActionLayoutPolicy` 保持至少 44pt 高，toolbar 分享入口保持至少 44x44，同时保留 `ExportPayload`、ShareLink 文件优先/文本兜底选择、剪贴板写入、导出辅助语义和会话状态流；`LocalGemmaTests.swift` 当前测试函数数为 82。
 
 ```sh
 git diff --check
@@ -200,7 +200,7 @@ print('pbxproj markers ok')
 PY
 ```
 
-结果：`git diff --check` 无输出；脚本可执行且 `bash -n` 通过；测试函数数为 81；`find md` 确认 v2.37 Agent A 提示词已归档；本 Linux 容器缺少 `plutil`、`ruby`、`swiftc` 和 Xcode，未在本机执行 pbxproj plutil、Ruby YAML 解析、LogicSmoke、Swift typecheck 或完整模拟器 XCTest；已用 Python 做 workflow / pbxproj 关键标记检查。完整 iOS XCTest、Mac Catalyst 构建、plutil、workflow YAML 解析和 Swift 编译以本轮 push 后的 GitHub Actions run 和 Agent C 下载结果包验收为准。
+结果：`git diff --check` 无输出；脚本可执行且 `bash -n` 通过；测试函数数为 82；`find md` 确认 v2.38 Agent A 提示词已归档；本 Linux 容器缺少 `plutil`、`ruby`、`swiftc` 和 Xcode，未在本机执行 pbxproj plutil、Ruby YAML 解析、LogicSmoke、Swift typecheck 或完整模拟器 XCTest；已用 Python 做 workflow / pbxproj 关键标记检查。完整 iOS XCTest、Mac Catalyst 构建、plutil、workflow YAML 解析和 Swift 编译以本轮 push 后的 GitHub Actions run 和 Agent C 下载结果包验收为准。
 
 v1.0 本轮已完成本地轻量检查和 Mac Catalyst run 入口验证：
 
@@ -299,7 +299,7 @@ grep -n "func test" LocalGemmaTests/LocalGemmaTests.swift
   CODE_SIGNING_ALLOWED=NO
 ```
 
-说明：当前 Codex 容器不是 macOS/Xcode 环境，`plutil`、`ruby`、`swiftc` 和 CoreSimulator 不可用；v2.37 本轮未在本机重跑完整模拟器 XCTest、LogicSmoke 或 Swift typecheck。已在工作区内完成 `git diff --check`、脚本可执行/语法检查、Python workflow / pbxproj 关键标记检查、81 个测试函数统计和文档归档检查；完整 iOS XCTest 与云端 Mac Catalyst 重验证以本轮 push 后的 GitHub Actions run 和 Agent C 下载结果包验收为准。
+说明：当前 Codex 容器不是 macOS/Xcode 环境，`plutil`、`ruby`、`swiftc` 和 CoreSimulator 不可用；v2.38 本轮未在本机重跑完整模拟器 XCTest、LogicSmoke 或 Swift typecheck。已在工作区内完成 `git diff --check`、脚本可执行/语法检查、Python workflow / pbxproj 关键标记检查、82 个测试函数统计和文档归档检查；完整 iOS XCTest 与云端 Mac Catalyst 重验证以本轮 push 后的 GitHub Actions run 和 Agent C 下载结果包验收为准。
 
 ## 项目管理文档体系
 
@@ -438,3 +438,5 @@ v2.35 优化全局 Header 图标动作触控目标：新增 `HeaderActionLayoutP
 v2.36 优化模型文件操作触控目标：新增 `ModelArtifactActionLayoutPolicy`，模型页文件工作流面板中的扫描本地和导入文件 utility 按钮统一达到 44pt 触控目标；新增模型文件操作触控目标测试，`LocalGemmaTests.swift` 增加到 80 个测试函数。本轮仍没有原生 macOS target，不接真实模型，不下载权重。
 
 v2.37 优化会话 Chip 删除触控目标：新增 `SessionChipActionLayoutPolicy`，推理页单个会话 chip 的删除图标按钮统一达到 44pt 触控目标；新增会话 chip 删除触控目标测试，`LocalGemmaTests.swift` 增加到 81 个测试函数。本轮仍没有原生 macOS target，不接真实模型，不下载权重。
+
+v2.38 优化导出弹层分享复制触控目标：新增 `ExportSessionActionLayoutPolicy`，导出弹层底部分享/复制按钮至少 44pt 高，toolbar 分享入口至少 44x44；新增导出弹层分享复制触控目标测试，`LocalGemmaTests.swift` 增加到 82 个测试函数。本轮仍没有原生 macOS target，不接真实模型，不下载权重。

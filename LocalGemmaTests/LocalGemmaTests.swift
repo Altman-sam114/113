@@ -3356,4 +3356,45 @@ final class LocalGemmaTests: XCTestCase {
             }
         )
     }
+
+    func testExportSessionActionLayoutPolicyMaintainsTouchTargets() {
+        XCTAssertEqual(ExportSessionActionLayoutPolicy.minimumTouchTarget, 44)
+        XCTAssertGreaterThanOrEqual(
+            ExportSessionActionLayoutPolicy.bottomButtonMinHeight,
+            ExportSessionActionLayoutPolicy.minimumTouchTarget
+        )
+        XCTAssertGreaterThanOrEqual(
+            ExportSessionActionLayoutPolicy.toolbarButtonSize,
+            ExportSessionActionLayoutPolicy.minimumTouchTarget
+        )
+        XCTAssertTrue(
+            ExportSessionActionLayoutPolicy.Presentation.allCases.allSatisfy {
+                ExportSessionActionLayoutPolicy.usesMinimumTouchTarget(for: $0)
+            }
+        )
+
+        XCTAssertEqual(
+            ExportSessionActionLayoutPolicy.presentations(for: .shareMarkdownFile),
+            [.bottomShareMarkdownFile, .toolbarShareMarkdownFile]
+        )
+        XCTAssertEqual(
+            ExportSessionActionLayoutPolicy.presentations(for: .shareTextFallback),
+            [.bottomShareTextFallback, .toolbarShareTextFallback]
+        )
+        XCTAssertEqual(
+            ExportSessionActionLayoutPolicy.presentations(for: .copyFullText),
+            [.bottomCopyFullText]
+        )
+        XCTAssertFalse(
+            ExportSessionActionLayoutPolicy.presentations(for: .copyFullText)
+                .contains { presentation in
+                    switch presentation {
+                    case .toolbarShareMarkdownFile, .toolbarShareTextFallback:
+                        return true
+                    case .bottomShareMarkdownFile, .bottomShareTextFallback, .bottomCopyFullText:
+                        return false
+                    }
+                }
+        )
+    }
 }
