@@ -2883,4 +2883,4 @@
 遗留事项：
 
 - 本轮只建立 Header 标题 Dynamic Type 多行策略，没有做设置偏好行文本动态排版、优化指标卡文本动态排版、完整 UI Test target、真实 runtime 接入、模型 artifact 下载或原生 macOS target。
-- v2.47 push 后需等待 GitHub Actions 最新 run 完成，由 Agent C 下载结果包核对 manifest、`artifact-name.txt`、JUnit、关键日志和 `.xcresult`。
+- v2.47 push 后 GitHub Actions run `28855068809` 对最新 `origin/main` commit `78384c07877b5ebd304579f06eeca94561105c52` 验收通过；artifact `localgemma-ci-v2.47-main-78384c0-run28855068809-attempt1` 已下载到 `/private/tmp/localgemma-c-review-28855068809/`，manifest、`artifact-name.txt`、JUnit、failure summary、outcomes、LogicSmoke 日志、Mac Catalyst run script 日志、关键构建/测试日志和三个 `.xcresult/Info.plist` 已核对，新增 `testHeaderTitleTextLayoutPolicySupportsDynamicTypeHeadings` 在 `test.log` 中通过，required checks 全部 success。
