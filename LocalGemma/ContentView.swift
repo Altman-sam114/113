@@ -203,6 +203,19 @@ enum ModelLibraryWorkspaceLayoutPolicy {
     }
 }
 
+enum SectionHeaderTextLayoutPolicy {
+    static let verticalSpacing: CGFloat = 6
+    static let eyebrowTracking: CGFloat = 1.1
+    static let eyebrowLineLimit = 1
+    static let titleLineLimit = 2
+    static let subtitleLineLimit = 3
+    static let subtitleLineSpacing: CGFloat = 3
+
+    static var allowsMultilineTitle: Bool {
+        titleLineLimit > 1
+    }
+}
+
 enum WallpaperImportError: LocalizedError, Equatable {
     case unreadableImage
     case encodingFailed
@@ -5801,20 +5814,23 @@ struct SectionHeader: View {
     let subtitle: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: SectionHeaderTextLayoutPolicy.verticalSpacing) {
             Text(eyebrow)
-                .font(.system(size: 10, weight: .black))
+                .font(.caption.weight(.black))
                 .foregroundStyle(theme.accent)
-                .tracking(1.3)
+                .tracking(SectionHeaderTextLayoutPolicy.eyebrowTracking)
+                .lineLimit(SectionHeaderTextLayoutPolicy.eyebrowLineLimit)
             Text(title)
-                .font(.system(size: 24, weight: .heavy, design: .rounded))
+                .font(.title2.weight(.heavy))
                 .foregroundStyle(theme.primaryText)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
+                .lineLimit(SectionHeaderTextLayoutPolicy.titleLineLimit)
+                .fixedSize(horizontal: false, vertical: true)
             Text(subtitle)
-                .font(.system(size: 13, weight: .medium))
+                .font(.subheadline.weight(.medium))
                 .foregroundStyle(theme.secondaryText)
-                .lineSpacing(3)
+                .lineLimit(SectionHeaderTextLayoutPolicy.subtitleLineLimit)
+                .lineSpacing(SectionHeaderTextLayoutPolicy.subtitleLineSpacing)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

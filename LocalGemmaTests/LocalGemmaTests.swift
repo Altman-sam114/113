@@ -974,6 +974,24 @@ final class LocalGemmaTests: XCTestCase {
         )
     }
 
+    func testSectionHeaderTextLayoutPolicySupportsDynamicTypeHeadings() {
+        XCTAssertEqual(SectionHeaderTextLayoutPolicy.verticalSpacing, 6)
+        XCTAssertEqual(SectionHeaderTextLayoutPolicy.eyebrowTracking, 1.1)
+        XCTAssertEqual(SectionHeaderTextLayoutPolicy.eyebrowLineLimit, 1)
+        XCTAssertEqual(SectionHeaderTextLayoutPolicy.titleLineLimit, 2)
+        XCTAssertEqual(SectionHeaderTextLayoutPolicy.subtitleLineLimit, 3)
+        XCTAssertEqual(SectionHeaderTextLayoutPolicy.subtitleLineSpacing, 3)
+        XCTAssertTrue(SectionHeaderTextLayoutPolicy.allowsMultilineTitle)
+        XCTAssertGreaterThan(
+            SectionHeaderTextLayoutPolicy.titleLineLimit,
+            SectionHeaderTextLayoutPolicy.eyebrowLineLimit
+        )
+        XCTAssertGreaterThanOrEqual(
+            SectionHeaderTextLayoutPolicy.subtitleLineLimit,
+            SectionHeaderTextLayoutPolicy.titleLineLimit
+        )
+    }
+
     func testPromptCategoryAccessibilityMetadataDescribesFilterSelectionAndInputLabels() {
         XCTAssertEqual(PromptCategoryAccessibilityMetadata.allCategoryTitle, "全部")
         XCTAssertEqual(PromptCategoryAccessibilityMetadata.title(for: nil), "全部")
