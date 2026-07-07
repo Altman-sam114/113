@@ -1,6 +1,6 @@
 # 项目核心流程文档
 
-一句话总览：本项目是一个 SwiftUI iOS 原型，通过本地模拟 runtime 和严格 artifact 校验流程，验证 iPhone、iPad 与 Mac Catalyst build/run 基线下端侧部署 Gemma 1.5B 的 UI、状态管理、文件导入、模型卸载确认弹层辅助语义、会话导出、导出弹层分享/复制辅助语义、导出弹层分享/复制 44pt 触控目标、导出弹层整体宽屏内容宽度策略、顶部模型胶囊整体辅助语义、模型概要面板与详情右栏/行级辅助语义、模型页整体宽屏内容宽度策略、模型详情右栏最大阅读宽度策略、模型文件工作流面板辅助语义、模型状态徽章辅助语义、全局 Header 图标动作 44pt 触控目标、设置页整体宽屏内容宽度策略、设置页图标动作 44pt 触控目标、会话栏操作 44pt 触控目标、会话 chip 动作语义、聊天消息气泡与聊天记录容器辅助语义、聊天气泡与 composer 宽屏输入宽度策略、composer 发送/停止 44pt 触控目标、工作区导航辅助语义、工作区导航 44pt 触控目标、头部主题与模型库入口辅助语义、运行策略开关辅助语义、运行策略开关宽屏网格、运行策略开关行 44pt 触控目标、芯片准备度辅助语义、优化指标卡辅助语义、优化指标网格宽度策略、共享 SectionHeader 动态排版策略、提示词页整体宽屏内容宽度策略、提示词模板宽屏布局策略、提示词模板文本动态排版策略、提示词分类筛选换行布局策略、提示词分类文本动态排版策略、提示词模板动作辅助语义与 44pt 触控目标、壁纸控件辅助语义、大屏布局和 Apple Silicon 运行计划；协作流程默认采用 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载结果包验收。
+一句话总览：本项目是一个 SwiftUI iOS 原型，通过本地模拟 runtime 和严格 artifact 校验流程，验证 iPhone、iPad 与 Mac Catalyst build/run 基线下端侧部署 Gemma 1.5B 的 UI、状态管理、文件导入、模型卸载确认弹层辅助语义、会话导出、导出弹层分享/复制辅助语义、导出弹层分享/复制 44pt 触控目标、导出弹层整体宽屏内容宽度策略、顶部模型胶囊整体辅助语义、模型概要面板与详情右栏/行级辅助语义、模型页整体宽屏内容宽度策略、模型详情右栏最大阅读宽度策略、模型文件工作流面板辅助语义、模型部署控件 44pt 触控目标、模型状态徽章辅助语义、全局 Header 图标动作 44pt 触控目标、设置页整体宽屏内容宽度策略、设置页图标动作 44pt 触控目标、会话栏操作 44pt 触控目标、会话 chip 动作语义、聊天消息气泡与聊天记录容器辅助语义、聊天气泡与 composer 宽屏输入宽度策略、composer 发送/停止 44pt 触控目标、工作区导航辅助语义、工作区导航 44pt 触控目标、头部主题与模型库入口辅助语义、运行策略开关辅助语义、运行策略开关宽屏网格、运行策略开关行 44pt 触控目标、芯片准备度辅助语义、优化指标卡辅助语义、优化指标网格宽度策略、共享 SectionHeader 动态排版策略、提示词页整体宽屏内容宽度策略、提示词模板宽屏布局策略、提示词模板文本动态排版策略、提示词分类筛选换行布局策略、提示词分类文本动态排版策略、提示词模板动作辅助语义与 44pt 触控目标、壁纸控件辅助语义、大屏布局和 Apple Silicon 运行计划；协作流程默认采用 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载结果包验收。
 
 本文只写当前真实链路，不写历史流水账。
 
@@ -68,6 +68,7 @@
 - `ModelSummaryAccessibilityMetadata` 为模型页概要面板生成 label/value/hint/input labels/identifier；value 合并模型名称、简介、能力标签、artifact availability、validation summary、文件格式和包体大小，hint 说明它只展示本地模型概要和校验摘要，不下载模型权重、不启动真实 runtime、不发送到云端服务、不绕过 verified 门禁。
 - `ModelDetailRowAccessibilityMetadata` 为模型详情参数行、性能行和建议行生成行级 label/value/hint/input labels/identifier；`ModelDetailColumn` 使用 `.contain` 保留整体详情摘要并让行级元素可达，hint 说明行级内容只展示本地模型详情，不下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁。
 - `ModelDeploymentControlAccessibilityMetadata` 为模型页选择器、部署电源按钮和 artifact 操作按钮生成 label/value/hint/input labels/identifier；文案明确切换模型不下载权重、不启动真实 runtime、模拟暂存不联网下载，卸载按钮只打开确认弹层，破坏性删除只发生在确认动作，未 verified 不运行真实权重，不改变 `ModelCatalog` 状态流。
+- `ModelDeploymentControlLayoutPolicy` 为模型页选择器和部署电源按钮定义共享 44pt 最小触控目标；`ModelSelectorPanel` 和 `DeploymentPowerButton` 只复用尺寸常量，不改变模型选择、部署启停、部署控件辅助语义、模型文件、runtime 状态或 verified 门禁。
 - `ModelArtifactPanelAccessibilityMetadata` 为模型页文件工作流面板生成整体 label/value/hint/input labels/identifier；value 合并 artifact availability、validation summary、模拟暂存、卸载需确认、扫描本地目录和 Files 手动导入入口，hint 说明它只管理本地模型文件工作流，不联网下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁；`ArtifactActionPanel` 使用 `.contain` 保留四个操作按钮的独立焦点。
 - `ModelArtifactActionLayoutPolicy` 为模型页文件工作流面板的扫描本地和导入文件 utility 按钮定义共享 44pt 最小触控目标；它只影响按钮命中高度，不改变模拟暂存、卸载确认、扫描本地、Files 手动导入、artifact 校验、辅助语义或 verified 门禁。
 - `ModelUninstallConfirmationAccessibilityMetadata` 为模型卸载确认弹层生成标题、消息、确认/取消按钮 hint、Voice Control 输入标签和稳定 identifier；确认动作只删除 App 托管 artifact/tokenizer 并停止部署，取消无副作用，不删除系统 Files 原始文件，不下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁。
@@ -236,6 +237,7 @@ Agent X 不能跳过 Agent C artifact 验收；失败时不能继续下一轮并
 - `ModelSummaryAccessibilityMetadata`：模型页概要面板的辅助技术文案、能力标签摘要、validation summary、Voice Control 输入标签和稳定 identifier。
 - `ModelDetailRowAccessibilityMetadata`：模型详情参数行、性能行和建议行的行级辅助技术文案、Voice Control 输入标签和稳定 identifier。
 - `ModelDeploymentControlAccessibilityMetadata`：模型选择器、部署电源和 artifact 操作按钮的辅助技术文案、卸载确认入口说明、Voice Control 输入标签和稳定 identifier。
+- `ModelDeploymentControlLayoutPolicy`：模型选择器和部署电源按钮的 44pt 最小触控目标、当前控件高度和 identifier 映射。
 - `ModelArtifactPanelAccessibilityMetadata`：模型文件工作流面板的整体辅助技术文案、artifact availability、validation summary、本地文件动作摘要、卸载需确认说明、Voice Control 输入标签和稳定 identifier。
 - `ModelArtifactActionLayoutPolicy`：模型文件工作流面板扫描本地和导入文件 utility 按钮的 44pt 最小触控目标策略。
 - `ModelUninstallConfirmationAccessibilityMetadata`：模型卸载确认弹层的标题、消息、确认/取消动作辅助技术文案、Voice Control 输入标签和稳定 identifier。
@@ -291,7 +293,7 @@ Agent X 不能跳过 Agent C artifact 验收；失败时不能继续下一轮并
 ## 用户入口
 
 - 推理页：顶部模型胶囊汇总当前模型、artifact、SIM/REAL、后端、速度、内存和准备度并暴露整体辅助语义；会话列表、消息流、输入框、发送/停止、导出；composer 发送/停止按钮保持 44pt 触控目标；单个会话 chip 的选择/删除动作向辅助技术说明本地会话切换、删除范围和默认空白当前会话不可删除原因；聊天记录容器向辅助技术合并消息总数、最新消息和生成中状态，聊天消息气泡向辅助技术合并角色、正文或生成中状态、token 数和本地边界；Mac/iPad 可通过 `会话` command menu 或会话栏可见按钮新建或导出当前会话，会话栏操作按钮保持 44pt 触控目标，导出弹层分享/复制动作同时暴露稳定语义并保持 44pt 触控目标，导出弹层整体内容在宽 sheet 中居中并限制最大阅读宽度。
-- 模型页：选择模型、启动/关闭部署、模拟下载、导入文件、扫描本地、卸载；卸载会先显示确认弹层，取消不删除文件且不停止部署，确认后只删除 App 托管 artifact/tokenizer 并停止部署；整体内容按 `ModelLibraryWorkspaceLayoutPolicy` 在超宽 iPad/Mac 窗口中居中并限制最大宽度，足够宽时内部双栏展示部署控制和模型详情，右侧详情列按 `ModelDetailColumnLayoutPolicy` 限制最大阅读宽度，窄屏按顺序展示同一详情段；模型选择器、安装状态徽章、artifact 状态徽章、部署状态徽章、部署电源、模型文件操作按钮、模型卸载确认弹层、模型文件工作流面板、模型概要面板、模型详情摘要和参数/性能/建议行级内容向辅助技术暴露稳定语义，并保留切换不下载权重、模拟下载、扫描/导入只读本地文件、本地概要/详情摘要和 verified 门禁边界。
+- 模型页：选择模型、启动/关闭部署、模拟下载、导入文件、扫描本地、卸载；卸载会先显示确认弹层，取消不删除文件且不停止部署，确认后只删除 App 托管 artifact/tokenizer 并停止部署；整体内容按 `ModelLibraryWorkspaceLayoutPolicy` 在超宽 iPad/Mac 窗口中居中并限制最大宽度，足够宽时内部双栏展示部署控制和模型详情，右侧详情列按 `ModelDetailColumnLayoutPolicy` 限制最大阅读宽度，窄屏按顺序展示同一详情段；模型选择器和部署电源按钮按 `ModelDeploymentControlLayoutPolicy` 保持 44pt 触控目标；模型选择器、安装状态徽章、artifact 状态徽章、部署状态徽章、部署电源、模型文件操作按钮、模型卸载确认弹层、模型文件工作流面板、模型概要面板、模型详情摘要和参数/性能/建议行级内容向辅助技术暴露稳定语义，并保留切换不下载权重、模拟下载、扫描/导入只读本地文件、本地概要/详情摘要和 verified 门禁边界。
 - 提示词页：按分类筛选模板、填入输入框、直接发送；共享 `SectionHeader` 标题使用 Dynamic Type 语义字体并允许标题/副标题多行；页面整体内容在 iPad/Mac 超宽窗口中居中并限制最大宽度；模板网格在窄屏保持单列，在 iPad/Mac 宽区域用多列和卡片伸展提升宽屏利用率；模板卡片文本通过 Dynamic Type 语义字体、多行标题/副标题/正文和最小高度策略提升可读性；分类筛选 chip 通过 Dynamic Type 语义字体和两行文本策略提升可读性；分类筛选 chip 和模板填入/发送动作暴露稳定辅助语义和 Voice Control 输入标签，填入不发送 prompt，发送走本地模拟 runtime 且不发送到云端服务。
 - 设置页：主题切换、相册壁纸选择/恢复控件、Apple Silicon 优化开关；主题切换、相册壁纸选择和恢复系统背景图标动作共享 44pt 触控目标；芯片准备度卡片随离线隐私保护开关动态显示开启/关闭并暴露中文辅助语义，优化指标网格和运行策略开关网格在窄屏单列、iPad/Mac 宽区域双列之间自适应，优化指标卡暴露状态、进度和本地边界，运行策略开关向辅助技术暴露开启/关闭状态、本地策略边界和 Voice Control 输入标签，单个运行策略开关行保持 44pt 触控目标。
 
@@ -318,7 +320,7 @@ Agent X 不能跳过 Agent C artifact 验收；失败时不能继续下一轮并
 - 大图壁纸必须压缩和限制尺寸。
 - iPhone 横屏、iPad 大屏与 Mac Catalyst 桌面窗口布局断点必须有测试覆盖。
 - 模型页整体宽屏内容宽度、内部宽屏双栏和窄屏单栏回退必须有测试覆盖。
-- 工作区快捷键、工作区/会话 command menu、工作区导航辅助语义、工作区导航 44pt 触控目标、顶部模型胶囊整体辅助语义、模型概要面板与详情右栏/行级辅助语义、模型页整体宽屏内容宽度策略、模型详情右栏最大阅读宽度策略、模型文件工作流面板与卸载确认弹层辅助语义、模型文件操作 44pt 触控目标、模型状态徽章辅助语义、头部主题与模型库入口辅助语义、全局 Header 图标动作 44pt 触控目标、设置页整体宽屏内容宽度策略、设置页图标动作 44pt 触控目标、会话栏操作辅助语义、会话栏操作 44pt 触控目标、会话 chip 动作语义、会话 chip 选择/删除 44pt 触控目标、聊天消息气泡与聊天记录容器辅助语义、composer 宽屏输入宽度策略、composer 发送/停止 44pt 触控目标、导出弹层分享/复制辅助语义、导出弹层分享/复制 44pt 触控目标、导出弹层整体宽屏内容宽度策略、壁纸控件辅助语义、会话侧栏宽度、regular 侧栏说明、选择语义、composer 输入焦点/控件辅助语义、模型选择器与部署控件辅助语义、运行策略开关辅助语义、运行策略开关宽屏网格、运行策略开关行 44pt 触控目标、芯片准备度辅助语义、优化指标卡辅助语义、优化指标网格宽度策略、共享 SectionHeader 动态排版策略、提示词页整体宽屏内容宽度策略、提示词模板宽屏布局策略、提示词模板文本动态排版策略、提示词分类筛选换行布局策略、提示词分类文本动态排版策略、提示词模板动作 44pt 触控目标、提示词分类筛选辅助语义和提示词模板动作辅助语义必须有测试覆盖，避免 Mac/iPad 导航退化。
+- 工作区快捷键、工作区/会话 command menu、工作区导航辅助语义、工作区导航 44pt 触控目标、顶部模型胶囊整体辅助语义、模型概要面板与详情右栏/行级辅助语义、模型页整体宽屏内容宽度策略、模型详情右栏最大阅读宽度策略、模型文件工作流面板与卸载确认弹层辅助语义、模型文件操作 44pt 触控目标、模型部署控件 44pt 触控目标、模型状态徽章辅助语义、头部主题与模型库入口辅助语义、全局 Header 图标动作 44pt 触控目标、设置页整体宽屏内容宽度策略、设置页图标动作 44pt 触控目标、会话栏操作辅助语义、会话栏操作 44pt 触控目标、会话 chip 动作语义、会话 chip 选择/删除 44pt 触控目标、聊天消息气泡与聊天记录容器辅助语义、composer 宽屏输入宽度策略、composer 发送/停止 44pt 触控目标、导出弹层分享/复制辅助语义、导出弹层分享/复制 44pt 触控目标、导出弹层整体宽屏内容宽度策略、壁纸控件辅助语义、会话侧栏宽度、regular 侧栏说明、选择语义、composer 输入焦点/控件辅助语义、模型选择器与部署控件辅助语义、运行策略开关辅助语义、运行策略开关宽屏网格、运行策略开关行 44pt 触控目标、芯片准备度辅助语义、优化指标卡辅助语义、优化指标网格宽度策略、共享 SectionHeader 动态排版策略、提示词页整体宽屏内容宽度策略、提示词模板宽屏布局策略、提示词模板文本动态排版策略、提示词分类筛选换行布局策略、提示词分类文本动态排版策略、提示词模板动作 44pt 触控目标、提示词分类筛选辅助语义和提示词模板动作辅助语义必须有测试覆盖，避免 Mac/iPad 导航退化。
 - 默认协作验证以 `main` push 后的 GitHub Actions 结果包为准。
 - Agent X 循环每轮仍以 Agent B 本地轻量检查、GitHub Actions artifact 和 Agent C 下载复判为准。
 

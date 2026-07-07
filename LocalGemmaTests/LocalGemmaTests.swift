@@ -3029,6 +3029,40 @@ final class LocalGemmaTests: XCTestCase {
         )
     }
 
+    func testModelDeploymentControlLayoutPolicyMaintainsTouchTargets() {
+        XCTAssertEqual(ModelDeploymentControlLayoutPolicy.minimumTouchTarget, 44)
+        XCTAssertEqual(
+            ModelDeploymentControlLayoutPolicy.modelSelectorMinHeight,
+            ModelDeploymentControlLayoutPolicy.minimumTouchTarget
+        )
+        XCTAssertGreaterThanOrEqual(
+            ModelDeploymentControlLayoutPolicy.powerButtonMinHeight,
+            ModelDeploymentControlLayoutPolicy.minimumTouchTarget
+        )
+        XCTAssertEqual(ModelDeploymentControlLayoutPolicy.Control.allCases.count, 2)
+        XCTAssertTrue(
+            ModelDeploymentControlLayoutPolicy.Control.allCases.allSatisfy {
+                ModelDeploymentControlLayoutPolicy.usesMinimumTouchTarget(for: $0)
+            }
+        )
+        XCTAssertEqual(
+            ModelDeploymentControlLayoutPolicy.minimumHeight(for: .modelSelector),
+            ModelDeploymentControlLayoutPolicy.modelSelectorMinHeight
+        )
+        XCTAssertEqual(
+            ModelDeploymentControlLayoutPolicy.minimumHeight(for: .powerButton),
+            ModelDeploymentControlLayoutPolicy.powerButtonMinHeight
+        )
+        XCTAssertEqual(
+            ModelDeploymentControlLayoutPolicy.identifier(for: .modelSelector),
+            ModelDeploymentControlAccessibilityMetadata.modelSelectorIdentifier
+        )
+        XCTAssertEqual(
+            ModelDeploymentControlLayoutPolicy.identifier(for: .powerButton),
+            "model-deployment-power"
+        )
+    }
+
     func testModelUninstallConfirmationExposesAccessibilityMetadata() {
         let model = ModelCatalog.defaultModels[0]
 

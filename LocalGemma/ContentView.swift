@@ -1916,6 +1916,39 @@ enum ModelArtifactActionLayoutPolicy {
     }
 }
 
+enum ModelDeploymentControlLayoutPolicy {
+    enum Control: CaseIterable {
+        case modelSelector
+        case powerButton
+    }
+
+    static let minimumTouchTarget: CGFloat = 44
+    static let modelSelectorMinHeight: CGFloat = minimumTouchTarget
+    static let powerButtonMinHeight: CGFloat = 92
+
+    static func minimumHeight(for control: Control) -> CGFloat {
+        switch control {
+        case .modelSelector:
+            return modelSelectorMinHeight
+        case .powerButton:
+            return powerButtonMinHeight
+        }
+    }
+
+    static func usesMinimumTouchTarget(for control: Control) -> Bool {
+        minimumHeight(for: control) >= minimumTouchTarget
+    }
+
+    static func identifier(for control: Control) -> String {
+        switch control {
+        case .modelSelector:
+            return ModelDeploymentControlAccessibilityMetadata.modelSelectorIdentifier
+        case .powerButton:
+            return "model-deployment-power"
+        }
+    }
+}
+
 enum ModelArtifactPanelAccessibilityMetadata {
     static let label = "模型文件工作流"
     static let hint = "只管理本地模型文件工作流；不会联网下载模型权重，不会启动真实 runtime，不会发送到云端服务，也不会绕过 artifact verified 门禁。"
@@ -4403,7 +4436,11 @@ struct ModelSelectorPanel: View {
             }
             .pickerStyle(.menu)
             .tint(theme.primaryText)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(
+                maxWidth: .infinity,
+                minHeight: ModelDeploymentControlLayoutPolicy.modelSelectorMinHeight,
+                alignment: .leading
+            )
             .padding(.horizontal, 12)
             .padding(.vertical, 12)
             .background(theme.recessedSurface, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
@@ -4531,7 +4568,10 @@ struct DeploymentPowerButton: View {
             }
             .foregroundStyle(isRunning ? .white : .black)
             .padding(16)
-            .frame(maxWidth: .infinity, minHeight: 92)
+            .frame(
+                maxWidth: .infinity,
+                minHeight: ModelDeploymentControlLayoutPolicy.powerButtonMinHeight
+            )
             .background(buttonFill, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
