@@ -2100,6 +2100,64 @@ final class LocalGemmaTests: XCTestCase {
         )
     }
 
+    func testModelLibraryWorkspaceLayoutPolicyConstrainsWideContent() {
+        XCTAssertEqual(ModelLibraryWorkspaceLayoutPolicy.horizontalPadding, 18)
+        XCTAssertEqual(ModelLibraryWorkspaceLayoutPolicy.minimumReadableWidth, 320)
+        XCTAssertEqual(
+            ModelLibraryWorkspaceLayoutPolicy.maximumContentWidth,
+            ModelLibraryLayoutMode.maximumControlColumnWidth
+                + ModelDetailColumnLayoutPolicy.interColumnSpacing
+                + ModelDetailColumnLayoutPolicy.maximumReadableWidth
+        )
+        XCTAssertGreaterThanOrEqual(
+            ModelLibraryWorkspaceLayoutPolicy.maximumContentWidth,
+            ModelLibraryLayoutMode.twoColumnMinimumWidth
+        )
+
+        XCTAssertEqual(
+            ModelLibraryWorkspaceLayoutPolicy.contentWidth(forContainerWidth: 320),
+            284
+        )
+        XCTAssertEqual(
+            ModelLibraryWorkspaceLayoutPolicy.contentWidth(forContainerWidth: 390),
+            354
+        )
+        XCTAssertEqual(
+            ModelLibraryWorkspaceLayoutPolicy.contentWidth(forContainerWidth: 834),
+            798
+        )
+        XCTAssertEqual(
+            ModelLibraryWorkspaceLayoutPolicy.contentWidth(forContainerWidth: 1_280),
+            ModelLibraryWorkspaceLayoutPolicy.maximumContentWidth
+        )
+        XCTAssertEqual(
+            ModelLibraryWorkspaceLayoutPolicy.contentWidth(forContainerWidth: 1_600),
+            ModelLibraryWorkspaceLayoutPolicy.maximumContentWidth
+        )
+        XCTAssertEqual(
+            ModelLibraryWorkspaceLayoutPolicy.contentWidth(forContainerWidth: -1),
+            ModelLibraryWorkspaceLayoutPolicy.minimumReadableWidth
+        )
+        XCTAssertEqual(
+            ModelLibraryWorkspaceLayoutPolicy.contentWidth(forContainerWidth: .nan),
+            ModelLibraryWorkspaceLayoutPolicy.minimumReadableWidth
+        )
+
+        let cappedContentSize = CGSize(
+            width: ModelLibraryWorkspaceLayoutPolicy.maximumContentWidth,
+            height: 900
+        )
+        let cappedMode = ModelLibraryLayoutMode.resolve(for: cappedContentSize)
+        XCTAssertEqual(cappedMode, .twoColumn)
+        XCTAssertEqual(
+            ModelDetailColumnLayoutPolicy.width(
+                for: cappedContentSize,
+                layoutMode: cappedMode
+            ),
+            ModelDetailColumnLayoutPolicy.maximumReadableWidth
+        )
+    }
+
     func testModelDetailColumnLayoutPolicyConstrainsWideReadingWidth() {
         let singleColumnMode = ModelLibraryLayoutMode.resolve(
             for: CGSize(width: 390, height: 844)

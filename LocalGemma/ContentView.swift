@@ -136,9 +136,9 @@ enum ModelLibraryLayoutMode: Equatable {
     case singleColumn
     case twoColumn
 
-    private static let twoColumnMinimumWidth: CGFloat = 760
-    private static let minimumControlColumnWidth: CGFloat = 300
-    private static let maximumControlColumnWidth: CGFloat = 390
+    static let twoColumnMinimumWidth: CGFloat = 760
+    static let minimumControlColumnWidth: CGFloat = 300
+    static let maximumControlColumnWidth: CGFloat = 390
 
     static func resolve(for size: CGSize) -> ModelLibraryLayoutMode {
         size.width >= twoColumnMinimumWidth ? .twoColumn : .singleColumn
@@ -179,6 +179,27 @@ enum ModelDetailColumnLayoutPolicy {
             max(availableWidth, minimumReadableWidth),
             maximumReadableWidth
         )
+    }
+}
+
+enum ModelLibraryWorkspaceLayoutPolicy {
+    static let horizontalPadding: CGFloat = 18
+    static let minimumReadableWidth: CGFloat = 320
+    static let maximumContentWidth: CGFloat = ModelLibraryLayoutMode.maximumControlColumnWidth
+        + ModelDetailColumnLayoutPolicy.interColumnSpacing
+        + ModelDetailColumnLayoutPolicy.maximumReadableWidth
+
+    static func contentWidth(forContainerWidth containerWidth: CGFloat) -> CGFloat {
+        guard containerWidth.isFinite, containerWidth > 0 else {
+            return minimumReadableWidth
+        }
+
+        let paddedWidth = max(containerWidth - horizontalPadding * 2, 0)
+        guard paddedWidth >= minimumReadableWidth else {
+            return paddedWidth
+        }
+
+        return min(paddedWidth, maximumContentWidth)
     }
 }
 
@@ -4030,10 +4051,17 @@ struct ModelLibraryView: View {
 
             GeometryReader { proxy in
                 ScrollView {
-                    deploymentContent(size: proxy.size)
-                        .padding(.horizontal, 18)
+                    let contentWidth = ModelLibraryWorkspaceLayoutPolicy.contentWidth(
+                        forContainerWidth: proxy.size.width
+                    )
+                    deploymentContent(
+                        size: CGSize(width: contentWidth, height: proxy.size.height)
+                    )
+                        .frame(width: contentWidth, alignment: .topLeading)
+                        .padding(.horizontal, ModelLibraryWorkspaceLayoutPolicy.horizontalPadding)
                         .padding(.top, isModal ? 22 : 16)
                         .padding(.bottom, 28)
+                        .frame(maxWidth: .infinity, alignment: .center)
                 }
                 .scrollIndicators(.hidden)
             }
