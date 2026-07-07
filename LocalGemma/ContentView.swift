@@ -538,6 +538,7 @@ struct ContentView: View {
                         .labelStyle(.titleAndIcon)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)
+                        .frame(minHeight: WorkspaceNavigationActionLayoutPolicy.compactTabMinHeight)
                         .background {
                             RoundedRectangle(cornerRadius: 12, style: .continuous)
                                 .fill(selectedTab == tab ? theme.accent.opacity(0.18) : theme.chipSurface)
@@ -598,6 +599,10 @@ struct ContentView: View {
                     .foregroundStyle(selectedTab == tab ? theme.inverseText : theme.primaryText)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 11)
+                    .frame(
+                        minHeight: WorkspaceNavigationActionLayoutPolicy.sidebarTabMinHeight,
+                        alignment: .leading
+                    )
                     .background(selectedTab == tab ? theme.accent : theme.chipSurface, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
                     .overlay {
                         RoundedRectangle(cornerRadius: 13, style: .continuous)
@@ -1524,6 +1529,30 @@ enum WorkspaceNavigationAccessibilityMetadata {
 
     static func sidebarIdentifier(for tab: WorkspaceTab) -> String {
         "workspace-sidebar-tab-\(tab.rawValue)"
+    }
+}
+
+enum WorkspaceNavigationActionLayoutPolicy {
+    enum Placement: CaseIterable {
+        case compactTab
+        case sidebarTab
+    }
+
+    static let minimumTouchTarget: CGFloat = 44
+    static let compactTabMinHeight: CGFloat = minimumTouchTarget
+    static let sidebarTabMinHeight: CGFloat = minimumTouchTarget
+
+    static func minimumHeight(for placement: Placement) -> CGFloat {
+        switch placement {
+        case .compactTab:
+            compactTabMinHeight
+        case .sidebarTab:
+            sidebarTabMinHeight
+        }
+    }
+
+    static func usesMinimumTouchTarget(for placement: Placement) -> Bool {
+        minimumHeight(for: placement) >= minimumTouchTarget
     }
 }
 

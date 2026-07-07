@@ -16,7 +16,7 @@
 - 平台：SwiftUI iOS App，Swift 6.0，iOS deployment target 17.0，当前 app/test target 支持 iPhone、iPad 和 Mac Catalyst build-for-testing，并提供项目内 Mac Catalyst 本地 build/run 脚本入口；尚未创建原生 macOS target。
 - 当前默认模型：`Gemma 1.5B Local`
 - 当前推理：本地模拟 runtime，不下载模型权重，不执行真实模型推理。
-- 当前核心测试：`LocalGemmaTests.swift` 中 82 个 XCTest 方法。
+- 当前核心测试：`LocalGemmaTests.swift` 中 83 个 XCTest 方法。
 - 当前核心文档入口：`AGENTS.md`、`md/flow/flow.md`、`md/flow/flowchart.md`、`md/test/test.md`、`md/prompt/README.md`、`README.md`。
 - 当前协作验证：默认 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载未加密 CI 结果包验收；本地仓库当前已配置 `origin` remote，最终验收仍以最新 `origin/main` 对应的 GitHub Actions run 和结果包为准；文档已预留未来 `agentx:` 主控 Agent A -> Agent B -> Agent C 多轮循环的规则。
 
@@ -2381,7 +2381,7 @@
 - `/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -emit-module -emit-module-path .build/Typecheck/LocalGemma.swiftmodule -module-name LocalGemma -enable-testing -parse-as-library -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk -target arm64-apple-ios17.0-simulator -module-cache-path .build/ModuleCache LocalGemma/AppState.swift LocalGemma/ContentView.swift LocalGemma/LocalGemmaApp.swift`：退出码 0。
 - `/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -typecheck -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk -target arm64-apple-ios17.0-simulator -module-cache-path .build/ModuleCache -I .build/Typecheck -I /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/lib -F /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/Library/Frameworks LocalGemmaTests/LocalGemmaTests.swift`：退出码 0。
 
-遗留事项：
+云端验收：
 
 - v2.35 push 后 GitHub Actions run `28805129049` 对最新 `origin/main` commit `6ef51f11765ad1575a4862b187b88df2ad6b0e66` 验收通过；artifact `localgemma-ci-v2.35-main-6ef51f1-run28805129049-attempt1` 的 manifest、`artifact-name.txt`、JUnit、failure summary、LogicSmoke 日志和 Mac Catalyst run script 日志已核对，required checks 全部 success。
 
@@ -2464,7 +2464,7 @@
 
 遗留事项：
 
-- v2.37 push 后需等待最新 `ci-results.yml` run 完成，由 Agent C 下载对应未加密结果包，核对 manifest、`artifact-name.txt`、JUnit、iOS 日志、Mac Catalyst 日志、run script 日志、baseline notes 和 `.xcresult`。
+- v2.37 push 后 GitHub Actions run `28814161724` 对最新 `origin/main` commit `8cab6b7a40c3a5610e2049baf1011f1e88a9bb3b` 验收通过；artifact `localgemma-ci-v2.37-main-8cab6b7-run28814161724-attempt1` 的 manifest、`artifact-name.txt`、JUnit、failure summary、outcomes、LogicSmoke 日志、Mac Catalyst run script 日志和三个 `.xcresult/Info.plist` 已核对，新增 `testSessionChipActionLayoutPolicyMaintainsTouchTargets` 在 `test.log` 中通过，required checks 全部 success。
 - 本轮只建立会话 chip 删除按钮 44pt 触控目标策略，没有做导出弹层宽屏限制、完整 UI Test target、真实 runtime 接入、模型 artifact 下载或原生 macOS target。
 
 ### v2.38 / 导出弹层分享复制触控目标
@@ -2502,5 +2502,48 @@
 
 遗留事项：
 
-- v2.38 push 后需等待最新 `ci-results.yml` run 完成，由 Agent C 下载对应未加密结果包，核对 manifest、`artifact-name.txt`、JUnit、iOS 日志、Mac Catalyst 日志、run script 日志、baseline notes 和 `.xcresult`。
+- v2.38 push 后 GitHub Actions run `28837209804` 对最新 `origin/main` commit `3d5423475e1b9958cecc8db7b48af3738b46226e` 验收通过；artifact `localgemma-ci-v2.38-main-3d54234-run28837209804-attempt1` 的 manifest、`artifact-name.txt`、JUnit、failure summary、outcomes、LogicSmoke 日志、Mac Catalyst run script 日志和三个 `.xcresult/Info.plist` 已核对，新增 `testExportSessionActionLayoutPolicyMaintainsTouchTargets` 在 `test.log` 中通过，required checks 全部 success。
 - 本轮只建立导出弹层分享/复制 44pt 触控目标策略，没有做导出弹层宽屏限制、完整 UI Test target、真实 runtime 接入、模型 artifact 下载或原生 macOS target。
+
+### v2.39 / 工作区导航触控目标
+
+日期：2026-07-07
+
+核心变更：
+
+- Agent X 在拉取最新 `origin/main` 后继续优化 UI、Mac 和 iPad 体验；并发只读子 agent 指出顶部工作区 tab 和大屏 sidebar 工作区按钮只依赖 padding，没有显式 44pt 触控目标策略，本轮据此归档 Agent A 提示词 `md/prompt/v2（Mac体验审计）/v2.39（工作区导航触控目标）.md`。
+- 新增 `WorkspaceNavigationActionLayoutPolicy`，集中定义顶部工作区 tab 和大屏 sidebar 工作区按钮的 44pt 最小触控目标。
+- `ContentView` 的顶部 `tabPicker` 和 `sidebarTabPicker` 复用策略常量，让 compact tab 与 sidebar tab 的整体命中区域至少 44pt；保留 `WorkspaceNavigationAccessibilityMetadata`、`WorkspaceTab.shortcutKey`、工作区 command menu、`selectedTab` 状态流、composer focus 和辅助语义。
+- 新增 `testWorkspaceNavigationActionLayoutPolicyMaintainsTouchTargets`，锁住最小触控目标、compact/sidebar 两种 placement、最小高度映射和全部 placement 达标；测试函数数从 82 个增加到 83 个。
+- 同步 README、测试规范、核心流程文档、Mermaid 流程图、入口规则和 Agent A 提示词归档中的工作区导航触控目标基线。
+- 顺手补齐 v2.37 和 v2.38 云端验收记录，并整理 v2.35 云端验收标题，避免把已通过 run 继续写成等待状态。
+
+关键文件：
+
+- `LocalGemma/ContentView.swift`
+- `LocalGemmaTests/LocalGemmaTests.swift`
+- `AGENTS.md`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v2（Mac体验审计）/v2.39（工作区导航触控目标）.md`
+
+验证结果：
+
+- `git diff --check`：无输出，退出码 0。
+- `test -x script/build_and_run.sh`：退出码 0。
+- `bash -n script/build_and_run.sh`：退出码 0。
+- `plutil -lint LocalGemma.xcodeproj/project.pbxproj`：输出 `LocalGemma.xcodeproj/project.pbxproj: OK`。
+- `ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'`：输出 `yaml ok`。
+- `grep -c "func test" LocalGemmaTests/LocalGemmaTests.swift`：输出 `83`。
+- `/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -sdk /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk -module-cache-path .build/SwiftSmokeModuleCache LocalGemma/AppState.swift Tools/LogicSmoke.swift -o .build/logic-smoke`：退出码 0。
+- `.build/logic-smoke`：输出 `Logic smoke passed`。
+- `/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -typecheck -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk -target arm64-apple-ios17.0-simulator -module-cache-path .build/ModuleCache LocalGemma/AppState.swift LocalGemma/ContentView.swift LocalGemma/LocalGemmaApp.swift`：退出码 0。
+- `/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -emit-module -emit-module-path .build/Typecheck/LocalGemma.swiftmodule -module-name LocalGemma -enable-testing -parse-as-library -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk -target arm64-apple-ios17.0-simulator -module-cache-path .build/ModuleCache LocalGemma/AppState.swift LocalGemma/ContentView.swift LocalGemma/LocalGemmaApp.swift`：退出码 0。
+- `/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -typecheck -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk -target arm64-apple-ios17.0-simulator -module-cache-path .build/ModuleCache -I .build/Typecheck -I /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/lib -F /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/Library/Frameworks LocalGemmaTests/LocalGemmaTests.swift`：退出码 0。
+
+遗留事项：
+
+- v2.39 push 后需等待最新 `ci-results.yml` run 完成，由 Agent C 下载对应未加密结果包，核对 manifest、`artifact-name.txt`、JUnit、iOS 日志、Mac Catalyst 日志、run script 日志、baseline notes 和 `.xcresult`。
+- 本轮只建立工作区导航按钮 44pt 触控目标策略，没有做会话 chip 选择触控目标、模型页整体宽屏内容上限、导出弹层宽屏限制、完整 UI Test target、真实 runtime 接入、模型 artifact 下载或原生 macOS target。

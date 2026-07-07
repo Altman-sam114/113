@@ -1811,6 +1811,33 @@ final class LocalGemmaTests: XCTestCase {
         }
     }
 
+    func testWorkspaceNavigationActionLayoutPolicyMaintainsTouchTargets() {
+        XCTAssertEqual(WorkspaceNavigationActionLayoutPolicy.minimumTouchTarget, 44)
+        XCTAssertEqual(
+            WorkspaceNavigationActionLayoutPolicy.compactTabMinHeight,
+            WorkspaceNavigationActionLayoutPolicy.minimumTouchTarget
+        )
+        XCTAssertEqual(
+            WorkspaceNavigationActionLayoutPolicy.sidebarTabMinHeight,
+            WorkspaceNavigationActionLayoutPolicy.minimumTouchTarget
+        )
+        XCTAssertEqual(WorkspaceNavigationActionLayoutPolicy.Placement.allCases.count, 2)
+
+        XCTAssertTrue(
+            WorkspaceNavigationActionLayoutPolicy.Placement.allCases.allSatisfy {
+                WorkspaceNavigationActionLayoutPolicy.usesMinimumTouchTarget(for: $0)
+            }
+        )
+        XCTAssertEqual(
+            WorkspaceNavigationActionLayoutPolicy.minimumHeight(for: .compactTab),
+            WorkspaceNavigationActionLayoutPolicy.compactTabMinHeight
+        )
+        XCTAssertEqual(
+            WorkspaceNavigationActionLayoutPolicy.minimumHeight(for: .sidebarTab),
+            WorkspaceNavigationActionLayoutPolicy.sidebarTabMinHeight
+        )
+    }
+
     private func expectedWorkspaceNavigationLabel(for tab: WorkspaceTab) -> String {
         switch tab {
         case .chat:
