@@ -5716,6 +5716,15 @@ enum OptimizationToggleGridLayoutPolicy {
     }
 }
 
+enum OptimizationToggleRowLayoutPolicy {
+    static let minimumTouchTarget: CGFloat = 44
+    static let rowMinHeight: CGFloat = minimumTouchTarget
+
+    static func usesMinimumTouchTarget() -> Bool {
+        rowMinHeight >= minimumTouchTarget
+    }
+}
+
 struct OptimizationToggleRow: View {
     @Environment(\.appTheme) private var theme
 
@@ -5742,6 +5751,7 @@ struct OptimizationToggleRow: View {
                 Spacer()
             }
             .padding(12)
+            .frame(minHeight: OptimizationToggleRowLayoutPolicy.rowMinHeight)
             .background(theme.recessedSurface, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
         .buttonStyle(.plain)

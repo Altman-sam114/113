@@ -624,6 +624,19 @@ final class LocalGemmaTests: XCTestCase {
         XCTAssertEqual(OptimizationToggleGridLayoutPolicy.columns(forColumnCount: 3).count, 2)
     }
 
+    func testOptimizationToggleRowLayoutPolicyMaintainsTouchTarget() {
+        XCTAssertEqual(OptimizationToggleRowLayoutPolicy.minimumTouchTarget, 44)
+        XCTAssertEqual(
+            OptimizationToggleRowLayoutPolicy.rowMinHeight,
+            OptimizationToggleRowLayoutPolicy.minimumTouchTarget
+        )
+        XCTAssertTrue(OptimizationToggleRowLayoutPolicy.usesMinimumTouchTarget())
+        XCTAssertGreaterThanOrEqual(
+            OptimizationToggleRowLayoutPolicy.rowMinHeight,
+            OptimizationToggleRowLayoutPolicy.minimumTouchTarget
+        )
+    }
+
     func testOptimizerMetricCardsExposeAccessibilityMetadata() {
         let optimizer = DeviceOptimizer()
         let metrics = optimizer.metrics
