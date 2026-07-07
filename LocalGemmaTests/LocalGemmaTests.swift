@@ -3377,6 +3377,18 @@ final class LocalGemmaTests: XCTestCase {
         XCTAssertEqual(HeaderActionLayoutPolicy.Action.allCases.count, 2)
     }
 
+    func testHeaderTitleTextLayoutPolicySupportsDynamicTypeHeadings() {
+        XCTAssertEqual(HeaderTitleTextLayoutPolicy.verticalSpacing, 4)
+        XCTAssertEqual(HeaderTitleTextLayoutPolicy.eyebrowTracking, 1.2)
+        XCTAssertEqual(HeaderTitleTextLayoutPolicy.eyebrowLineLimit, 1)
+        XCTAssertEqual(HeaderTitleTextLayoutPolicy.titleLineLimit, 2)
+        XCTAssertTrue(HeaderTitleTextLayoutPolicy.allowsMultilineTitle)
+        XCTAssertGreaterThan(
+            HeaderTitleTextLayoutPolicy.titleLineLimit,
+            HeaderTitleTextLayoutPolicy.eyebrowLineLimit
+        )
+    }
+
     func testHeaderAndThemePreferenceActionsExposeAccessibilityMetadata() {
         XCTAssertEqual(
             HeaderActionAccessibilityMetadata.headerThemeToggleIdentifier,

@@ -216,6 +216,17 @@ enum SectionHeaderTextLayoutPolicy {
     }
 }
 
+enum HeaderTitleTextLayoutPolicy {
+    static let verticalSpacing: CGFloat = 4
+    static let eyebrowTracking: CGFloat = 1.2
+    static let eyebrowLineLimit = 1
+    static let titleLineLimit = 2
+
+    static var allowsMultilineTitle: Bool {
+        titleLineLimit > 1
+    }
+}
+
 enum WallpaperImportError: LocalizedError, Equatable {
     case unreadableImage
     case encodingFailed
@@ -2203,17 +2214,18 @@ struct HeaderView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .center, spacing: 12) {
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: HeaderTitleTextLayoutPolicy.verticalSpacing) {
                     Text("LOCAL GEMMA")
-                        .font(.system(size: 11, weight: .bold))
+                        .font(.caption.weight(.bold))
                         .foregroundStyle(theme.accent)
-                        .tracking(1.2)
+                        .tracking(HeaderTitleTextLayoutPolicy.eyebrowTracking)
+                        .lineLimit(HeaderTitleTextLayoutPolicy.eyebrowLineLimit)
 
                     Text("端侧大模型工作台")
-                        .font(.system(size: 27, weight: .heavy, design: .rounded))
+                        .font(.title2.weight(.heavy))
                         .foregroundStyle(theme.primaryText)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.84)
+                        .lineLimit(HeaderTitleTextLayoutPolicy.titleLineLimit)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
 
                 Spacer()
