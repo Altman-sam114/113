@@ -3486,4 +3486,21 @@ final class LocalGemmaTests: XCTestCase {
                 }
         )
     }
+
+    func testExportSessionLayoutPolicyConstrainsWideContent() {
+        XCTAssertEqual(ExportSessionLayoutPolicy.horizontalPadding, 18)
+        XCTAssertEqual(ExportSessionLayoutPolicy.minimumReadableWidth, 320)
+        XCTAssertEqual(ExportSessionLayoutPolicy.maximumContentWidth, 760)
+        XCTAssertGreaterThanOrEqual(
+            ExportSessionLayoutPolicy.maximumContentWidth,
+            ExportSessionActionLayoutPolicy.minimumTouchTarget * 2
+        )
+
+        XCTAssertEqual(ExportSessionLayoutPolicy.contentWidth(forContainerWidth: 320), 284)
+        XCTAssertEqual(ExportSessionLayoutPolicy.contentWidth(forContainerWidth: 390), 354)
+        XCTAssertEqual(ExportSessionLayoutPolicy.contentWidth(forContainerWidth: 834), 760)
+        XCTAssertEqual(ExportSessionLayoutPolicy.contentWidth(forContainerWidth: 1_200), 760)
+        XCTAssertEqual(ExportSessionLayoutPolicy.contentWidth(forContainerWidth: -1), 320)
+        XCTAssertEqual(ExportSessionLayoutPolicy.contentWidth(forContainerWidth: .nan), 320)
+    }
 }

@@ -2756,6 +2756,25 @@ enum ExportSessionActionLayoutPolicy {
     }
 }
 
+enum ExportSessionLayoutPolicy {
+    static let horizontalPadding: CGFloat = 18
+    static let minimumReadableWidth: CGFloat = 320
+    static let maximumContentWidth: CGFloat = 760
+
+    static func contentWidth(forContainerWidth containerWidth: CGFloat) -> CGFloat {
+        guard containerWidth.isFinite, containerWidth > 0 else {
+            return minimumReadableWidth
+        }
+
+        let paddedWidth = max(containerWidth - horizontalPadding * 2, 0)
+        guard paddedWidth >= minimumReadableWidth else {
+            return paddedWidth
+        }
+
+        return min(paddedWidth, maximumContentWidth)
+    }
+}
+
 enum SessionBarLayout {
     case horizontal
     case vertical
@@ -3056,176 +3075,29 @@ struct ExportSessionView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                HStack(spacing: 12) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(theme.accent.opacity(0.16))
-                        Image(systemName: "doc.text.fill")
-                            .font(.system(size: 20, weight: .black))
-                            .foregroundStyle(theme.accent)
-                    }
-                    .frame(width: 48, height: 48)
+            GeometryReader { proxy in
+                let contentWidth = ExportSessionLayoutPolicy.contentWidth(
+                    forContainerWidth: proxy.size.width
+                )
 
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(payload.title)
-                            .font(.system(size: 17, weight: .black, design: .rounded))
+                VStack(spacing: 0) {
+                    exportHeader
+
+                    ScrollView {
+                        Text(payload.text)
+                            .font(.system(size: 13, weight: .medium, design: .monospaced))
                             .foregroundStyle(theme.primaryText)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.76)
-                        Text("\(payload.messageCount) 条消息 · Markdown")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(theme.secondaryText)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .textSelection(.enabled)
+                            .padding(18)
                     }
 
-                    Spacer()
+                    exportActions
                 }
-                .padding(18)
-                .background(.ultraThinMaterial)
-
-                ScrollView {
-                    Text(payload.text)
-                        .font(.system(size: 13, weight: .medium, design: .monospaced))
-                        .foregroundStyle(theme.primaryText)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .textSelection(.enabled)
-                        .padding(18)
-                }
-
-                VStack(spacing: 10) {
-                    if let fileURL = payload.existingFileURL {
-                        ShareLink(item: fileURL) {
-                            Label(
-                                ExportSessionActionAccessibilityMetadata.label(
-                                    for: .shareMarkdownFile
-                                ),
-                                systemImage: "square.and.arrow.up.fill"
-                            )
-                                .font(.system(size: 15, weight: .black))
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 14)
-                                .frame(
-                                    minHeight: ExportSessionActionLayoutPolicy.bottomButtonMinHeight
-                                )
-                                .background(theme.accent, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                                .foregroundStyle(theme.inverseText)
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel(
-                            ExportSessionActionAccessibilityMetadata.label(
-                                for: .shareMarkdownFile
-                            )
-                        )
-                        .accessibilityValue(
-                            ExportSessionActionAccessibilityMetadata.value(
-                                for: .shareMarkdownFile,
-                                messageCount: payload.messageCount
-                            )
-                        )
-                        .accessibilityHint(
-                            ExportSessionActionAccessibilityMetadata.hint(
-                                for: .shareMarkdownFile
-                            )
-                        )
-                        .accessibilityInputLabels(
-                            ExportSessionActionAccessibilityMetadata.inputLabels(
-                                for: .shareMarkdownFile
-                            )
-                        )
-                        .accessibilityIdentifier(
-                            ExportSessionActionAccessibilityMetadata.identifier(
-                                for: .shareMarkdownFile
-                            )
-                        )
-                    } else {
-                        ShareLink(item: payload.text) {
-                            Label(
-                                ExportSessionActionAccessibilityMetadata.label(
-                                    for: .shareTextFallback
-                                ),
-                                systemImage: "text.quote"
-                            )
-                                .font(.system(size: 15, weight: .black))
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 14)
-                                .frame(
-                                    minHeight: ExportSessionActionLayoutPolicy.bottomButtonMinHeight
-                                )
-                                .background(theme.accent, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                                .foregroundStyle(theme.inverseText)
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel(
-                            ExportSessionActionAccessibilityMetadata.label(
-                                for: .shareTextFallback
-                            )
-                        )
-                        .accessibilityValue(
-                            ExportSessionActionAccessibilityMetadata.value(
-                                for: .shareTextFallback,
-                                messageCount: payload.messageCount
-                            )
-                        )
-                        .accessibilityHint(
-                            ExportSessionActionAccessibilityMetadata.hint(
-                                for: .shareTextFallback
-                            )
-                        )
-                        .accessibilityInputLabels(
-                            ExportSessionActionAccessibilityMetadata.inputLabels(
-                                for: .shareTextFallback
-                            )
-                        )
-                        .accessibilityIdentifier(
-                            ExportSessionActionAccessibilityMetadata.identifier(
-                                for: .shareTextFallback
-                            )
-                        )
-                    }
-
-                    Button {
-                        UIPasteboard.general.string = payload.text
-                        withAnimation(.spring(response: 0.26, dampingFraction: 0.82)) {
-                            didCopyText = true
-                        }
-                    } label: {
-                        Label(didCopyText ? "已复制" : "复制全文", systemImage: didCopyText ? "checkmark.circle.fill" : "doc.on.doc.fill")
-                            .font(.system(size: 13, weight: .black))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 12)
-                            .frame(
-                                minHeight: ExportSessionActionLayoutPolicy.bottomButtonMinHeight
-                            )
-                            .background(theme.chipSurface, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
-                            .overlay {
-                                RoundedRectangle(cornerRadius: 13, style: .continuous)
-                                    .stroke(theme.border, lineWidth: 1)
-                            }
-                            .foregroundStyle(theme.primaryText)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(
-                        ExportSessionActionAccessibilityMetadata.label(for: .copyFullText)
-                    )
-                    .accessibilityValue(
-                        ExportSessionActionAccessibilityMetadata.value(
-                            for: .copyFullText,
-                            messageCount: payload.messageCount
-                        )
-                    )
-                    .accessibilityHint(
-                        ExportSessionActionAccessibilityMetadata.hint(for: .copyFullText)
-                    )
-                    .accessibilityInputLabels(
-                        ExportSessionActionAccessibilityMetadata.inputLabels(for: .copyFullText)
-                    )
-                    .accessibilityIdentifier(
-                        ExportSessionActionAccessibilityMetadata.identifier(for: .copyFullText)
-                    )
-                }
-                .padding(.horizontal, 18)
-                .padding(.vertical, 12)
-                .background(.ultraThinMaterial)
+                .frame(width: contentWidth)
+                .frame(maxHeight: .infinity)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.horizontal, ExportSessionLayoutPolicy.horizontalPadding)
             }
             .background(AppBackground(theme: theme))
             .navigationTitle("导出会话")
@@ -3313,6 +3185,171 @@ struct ExportSessionView: View {
                 }
             }
         }
+    }
+
+    private var exportHeader: some View {
+        HStack(spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(theme.accent.opacity(0.16))
+                Image(systemName: "doc.text.fill")
+                    .font(.system(size: 20, weight: .black))
+                    .foregroundStyle(theme.accent)
+            }
+            .frame(width: 48, height: 48)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(payload.title)
+                    .font(.system(size: 17, weight: .black, design: .rounded))
+                    .foregroundStyle(theme.primaryText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.76)
+                Text("\(payload.messageCount) 条消息 · Markdown")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(theme.secondaryText)
+            }
+
+            Spacer()
+        }
+        .padding(18)
+        .background(.ultraThinMaterial)
+    }
+
+    private var exportActions: some View {
+        VStack(spacing: 10) {
+            if let fileURL = payload.existingFileURL {
+                ShareLink(item: fileURL) {
+                    Label(
+                        ExportSessionActionAccessibilityMetadata.label(
+                            for: .shareMarkdownFile
+                        ),
+                        systemImage: "square.and.arrow.up.fill"
+                    )
+                        .font(.system(size: 15, weight: .black))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .frame(
+                            minHeight: ExportSessionActionLayoutPolicy.bottomButtonMinHeight
+                        )
+                        .background(theme.accent, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .foregroundStyle(theme.inverseText)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(
+                    ExportSessionActionAccessibilityMetadata.label(
+                        for: .shareMarkdownFile
+                    )
+                )
+                .accessibilityValue(
+                    ExportSessionActionAccessibilityMetadata.value(
+                        for: .shareMarkdownFile,
+                        messageCount: payload.messageCount
+                    )
+                )
+                .accessibilityHint(
+                    ExportSessionActionAccessibilityMetadata.hint(
+                        for: .shareMarkdownFile
+                    )
+                )
+                .accessibilityInputLabels(
+                    ExportSessionActionAccessibilityMetadata.inputLabels(
+                        for: .shareMarkdownFile
+                    )
+                )
+                .accessibilityIdentifier(
+                    ExportSessionActionAccessibilityMetadata.identifier(
+                        for: .shareMarkdownFile
+                    )
+                )
+            } else {
+                ShareLink(item: payload.text) {
+                    Label(
+                        ExportSessionActionAccessibilityMetadata.label(
+                            for: .shareTextFallback
+                        ),
+                        systemImage: "text.quote"
+                    )
+                        .font(.system(size: 15, weight: .black))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .frame(
+                            minHeight: ExportSessionActionLayoutPolicy.bottomButtonMinHeight
+                        )
+                        .background(theme.accent, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .foregroundStyle(theme.inverseText)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(
+                    ExportSessionActionAccessibilityMetadata.label(
+                        for: .shareTextFallback
+                    )
+                )
+                .accessibilityValue(
+                    ExportSessionActionAccessibilityMetadata.value(
+                        for: .shareTextFallback,
+                        messageCount: payload.messageCount
+                    )
+                )
+                .accessibilityHint(
+                    ExportSessionActionAccessibilityMetadata.hint(
+                        for: .shareTextFallback
+                    )
+                )
+                .accessibilityInputLabels(
+                    ExportSessionActionAccessibilityMetadata.inputLabels(
+                        for: .shareTextFallback
+                    )
+                )
+                .accessibilityIdentifier(
+                    ExportSessionActionAccessibilityMetadata.identifier(
+                        for: .shareTextFallback
+                    )
+                )
+            }
+
+            Button {
+                UIPasteboard.general.string = payload.text
+                withAnimation(.spring(response: 0.26, dampingFraction: 0.82)) {
+                    didCopyText = true
+                }
+            } label: {
+                Label(didCopyText ? "已复制" : "复制全文", systemImage: didCopyText ? "checkmark.circle.fill" : "doc.on.doc.fill")
+                    .font(.system(size: 13, weight: .black))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .frame(
+                        minHeight: ExportSessionActionLayoutPolicy.bottomButtonMinHeight
+                    )
+                    .background(theme.chipSurface, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 13, style: .continuous)
+                            .stroke(theme.border, lineWidth: 1)
+                    }
+                    .foregroundStyle(theme.primaryText)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(
+                ExportSessionActionAccessibilityMetadata.label(for: .copyFullText)
+            )
+            .accessibilityValue(
+                ExportSessionActionAccessibilityMetadata.value(
+                    for: .copyFullText,
+                    messageCount: payload.messageCount
+                )
+            )
+            .accessibilityHint(
+                ExportSessionActionAccessibilityMetadata.hint(for: .copyFullText)
+            )
+            .accessibilityInputLabels(
+                ExportSessionActionAccessibilityMetadata.inputLabels(for: .copyFullText)
+            )
+            .accessibilityIdentifier(
+                ExportSessionActionAccessibilityMetadata.identifier(for: .copyFullText)
+            )
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 12)
+        .background(.ultraThinMaterial)
     }
 }
 
