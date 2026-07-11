@@ -2965,6 +2965,12 @@
 - Swift sources typecheck、emit-module、tests typecheck：退出码 0。
 - 本轮按项目默认策略未在本机运行完整模拟器 XCTest / Xcode build；完整 iOS 与 Mac Catalyst build/test 由 push 后的 GitHub Actions 结果包验收。
 
+验证补充（Agent C）：
+
+- GitHub Actions run `29164006779` 对 `65cbb596d465c7814291399d1ef7d2c16525c03c` 通过；artifact `localgemma-ci-v2.49-main-65cbb59-run29164006779-attempt1` 已下载到 `/private/tmp/localgemma-c-review-29164006779/`。
+- manifest 的 branch/commitSha/runId/runAttempt/version 与最新 run 一致；`artifact-name.txt`、JUnit（failures=0）、failure summary、outcomes、LogicSmoke/static 日志和三个 `.xcresult` 已核对。
+- `test.log` 包含 `testSettingsPreferenceTextLayoutPolicySupportsDynamicTypeRows` 并通过；required checks 全部 success。
+
 遗留事项：
 
 - 本轮只完成设置偏好行文本动态排版；全面科技感视觉重构、模型胶囊/详情行等其余固定字号收敛、完整 UI Test target、真实 runtime 接入、模型 artifact 下载和原生 macOS target 仍属于后续迭代。
