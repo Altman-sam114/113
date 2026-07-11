@@ -75,6 +75,7 @@ git remote -v
 - `ModelArtifactActionLayoutPolicy` 控制模型页文件工作流面板扫描本地和导入文件两个 utility 动作的最小触控目标；这些 iPhone、iPad 和 Mac Catalyst 模型文件入口必须保持至少 44pt，且不得改变模拟暂存、卸载确认、扫描本地、Files 手动导入、artifact 校验、辅助语义或 verified 门禁。
 - `ModelUninstallConfirmationAccessibilityMetadata` 控制模型卸载确认弹层的辅助语义；它必须明确确认后才删除 App 托管 artifact/tokenizer 并停止部署，取消不会删除文件或停止部署，不删除系统 Files 中的原始文件，不下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁。
 - `ModelStatusBadgeAccessibilityMetadata` 控制模型页安装状态、artifact 状态和部署状态徽章辅助语义；它必须为 `StatusBadge`、`AvailabilityBadge` 和 `DeploymentBadge` 暴露 label/value/hint/input labels/identifier，并明确徽章只展示本地模型状态、不下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁。
+- `ModelDetailRowTextLayoutPolicy` 控制模型详情参数行、性能行和建议行的 Dynamic Type 文本策略；标题/数值/建议使用语义字体并允许多行，避免 iPad/Mac 窄 split view 和较大文字设置下通过固定小字号或缩放压缩文字，且不得改变行级辅助语义、模型详情列宽、模型选择/部署、模型文件或 runtime 状态流。
 - `ModelDetailRowAccessibilityMetadata` 控制模型详情参数行、性能行和建议行的行级辅助语义；`DetailRow` 和 `AdviceRow` 必须暴露 label/value/hint/input labels/identifier，`ModelDetailColumn` 必须允许行级元素可达，并明确行级内容只展示本地模型详情、不下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁。
 - `OptimizationToggleAccessibilityMetadata` 控制设置页和优化 dashboard 的运行策略开关辅助语义；开关本身只切换本地运行策略，不下载模型权重、不启动真实 runtime、不发送云端服务，VoiceOver/Voice Control label/value/hint/input labels/identifier 要有测试锁住。
 - `OptimizationToggleGridLayoutPolicy` 控制设置页和优化 dashboard 的运行策略开关网格宽度策略；窄屏和窄 split view 必须回退单列，iPad/Mac 宽区域允许双列，列数阈值、最小卡片宽度和共享网格入口要有测试锁住。

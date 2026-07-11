@@ -2586,6 +2586,28 @@ final class LocalGemmaTests: XCTestCase {
         XCTAssertFalse(ModelSummaryAccessibilityMetadata.identifier.contains(model.summary))
     }
 
+
+    func testModelDetailRowTextLayoutPolicySupportsDynamicTypeRows() {
+        XCTAssertEqual(ModelDetailRowTextLayoutPolicy.horizontalSpacing, 12)
+        XCTAssertEqual(ModelDetailRowTextLayoutPolicy.adviceIconSpacing, 9)
+        XCTAssertEqual(ModelDetailRowTextLayoutPolicy.titleLineLimit, 2)
+        XCTAssertEqual(ModelDetailRowTextLayoutPolicy.valueLineLimit, 2)
+        XCTAssertEqual(ModelDetailRowTextLayoutPolicy.adviceLineLimit, 4)
+        XCTAssertEqual(ModelDetailRowTextLayoutPolicy.adviceLineSpacing, 2)
+        XCTAssertEqual(ModelDetailRowTextLayoutPolicy.minimumRowHeight, 28)
+        XCTAssertTrue(ModelDetailRowTextLayoutPolicy.allowsMultilineTitle)
+        XCTAssertTrue(ModelDetailRowTextLayoutPolicy.allowsMultilineValue)
+        XCTAssertTrue(ModelDetailRowTextLayoutPolicy.allowsMultilineAdvice)
+        XCTAssertGreaterThan(
+            ModelDetailRowTextLayoutPolicy.adviceLineLimit,
+            ModelDetailRowTextLayoutPolicy.titleLineLimit
+        )
+        XCTAssertGreaterThanOrEqual(
+            ModelDetailRowTextLayoutPolicy.minimumRowHeight,
+            24
+        )
+    }
+
     func testModelDetailRowsExposeAccessibilityMetadata() {
         let hint = ModelDetailRowAccessibilityMetadata.hint
         XCTAssertTrue(hint.contains("本地模型详情行"))

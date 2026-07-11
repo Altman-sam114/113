@@ -67,6 +67,7 @@
 - `ModelCapsuleAccessibilityMetadata` 为顶部模型胶囊生成整体 label/value/hint/input labels/identifier；value 合并当前模型、参数量、量化、安装状态、SIM/REAL 标记、artifact availability、生成状态、后端、速度、内存和准备度，hint 说明它只展示本地状态摘要，不下载模型权重、不启动真实 runtime、不发送到云端服务、不绕过 verified 门禁。
 - `ModelDetailAccessibilityMetadata` 为模型页详情右栏和窄屏详情段生成整体 label/value/hint/input labels/identifier；value 合并模型规格、artifact availability、validation summary、预计速度、内存预算、主后端、回退后端、KV cache、运行阻塞项和下一步，hint 说明它只展示本地模型详情，不下载模型权重、不启动真实 runtime、不发送到云端服务、不绕过 verified 门禁。
 - `ModelSummaryAccessibilityMetadata` 为模型页概要面板生成 label/value/hint/input labels/identifier；value 合并模型名称、简介、能力标签、artifact availability、validation summary、文件格式和包体大小，hint 说明它只展示本地模型概要和校验摘要，不下载模型权重、不启动真实 runtime、不发送到云端服务、不绕过 verified 门禁。
+- `ModelDetailRowTextLayoutPolicy` 为模型详情参数行、性能行和建议行定义 Dynamic Type 文本策略；标题/数值/建议使用语义字体并允许多行，移除 DetailRow 缩放压缩，同时不改变行级辅助语义、模型详情列宽、模型选择/部署、模型文件或 runtime 状态。
 - `ModelDetailRowAccessibilityMetadata` 为模型详情参数行、性能行和建议行生成行级 label/value/hint/input labels/identifier；`ModelDetailColumn` 使用 `.contain` 保留整体详情摘要并让行级元素可达，hint 说明行级内容只展示本地模型详情，不下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁。
 - `ModelDeploymentControlAccessibilityMetadata` 为模型页选择器、部署电源按钮和 artifact 操作按钮生成 label/value/hint/input labels/identifier；文案明确切换模型不下载权重、不启动真实 runtime、模拟暂存不联网下载，卸载按钮只打开确认弹层，破坏性删除只发生在确认动作，未 verified 不运行真实权重，不改变 `ModelCatalog` 状态流。
 - `ModelDeploymentControlLayoutPolicy` 为模型页选择器和部署电源按钮定义共享 44pt 最小触控目标；`ModelSelectorPanel` 和 `DeploymentPowerButton` 只复用尺寸常量，不改变模型选择、部署启停、部署控件辅助语义、模型文件、runtime 状态或 verified 门禁。
@@ -240,6 +241,7 @@ Agent X 不能跳过 Agent C artifact 验收；失败时不能继续下一轮并
 - `ModelCapsuleAccessibilityMetadata`：顶部模型胶囊整体状态摘要的辅助技术文案、Voice Control 输入标签和稳定 identifier。
 - `ModelDetailAccessibilityMetadata`：模型页详情右栏和窄屏详情段整体摘要的辅助技术文案、Voice Control 输入标签和稳定 identifier。
 - `ModelSummaryAccessibilityMetadata`：模型页概要面板的辅助技术文案、能力标签摘要、validation summary、Voice Control 输入标签和稳定 identifier。
+- `ModelDetailRowTextLayoutPolicy`：模型详情参数行、性能行和建议行的 Dynamic Type 字体、行数和最小行高策略。
 - `ModelDetailRowAccessibilityMetadata`：模型详情参数行、性能行和建议行的行级辅助技术文案、Voice Control 输入标签和稳定 identifier。
 - `ModelDeploymentControlAccessibilityMetadata`：模型选择器、部署电源和 artifact 操作按钮的辅助技术文案、卸载确认入口说明、Voice Control 输入标签和稳定 identifier。
 - `ModelDeploymentControlLayoutPolicy`：模型选择器和部署电源按钮的 44pt 最小触控目标、当前控件高度和 identifier 映射。

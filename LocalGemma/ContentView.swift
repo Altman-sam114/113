@@ -5010,6 +5010,20 @@ struct DetailPanel<Content: View>: View {
     }
 }
 
+enum ModelDetailRowTextLayoutPolicy {
+    static let horizontalSpacing: CGFloat = 12
+    static let adviceIconSpacing: CGFloat = 9
+    static let titleLineLimit = 2
+    static let valueLineLimit = 2
+    static let adviceLineLimit = 4
+    static let adviceLineSpacing: CGFloat = 2
+    static let minimumRowHeight: CGFloat = 28
+
+    static var allowsMultilineTitle: Bool { titleLineLimit > 1 }
+    static var allowsMultilineValue: Bool { valueLineLimit > 1 }
+    static var allowsMultilineAdvice: Bool { adviceLineLimit > 1 }
+}
+
 struct DetailRow: View {
     @Environment(\.appTheme) private var theme
 
@@ -5017,23 +5031,23 @@ struct DetailRow: View {
     let value: String
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
+        HStack(alignment: .firstTextBaseline, spacing: ModelDetailRowTextLayoutPolicy.horizontalSpacing) {
             Text(title)
-                .font(.system(size: 11, weight: .bold))
+                .font(.caption.weight(.bold))
                 .foregroundStyle(theme.tertiaryText)
-                .lineLimit(1)
-                .minimumScaleFactor(0.76)
+                .lineLimit(ModelDetailRowTextLayoutPolicy.titleLineLimit)
+                .fixedSize(horizontal: false, vertical: true)
 
-            Spacer(minLength: 12)
+            Spacer(minLength: ModelDetailRowTextLayoutPolicy.horizontalSpacing)
 
             Text(value)
-                .font(.system(size: 12, weight: .black, design: .rounded))
+                .font(.subheadline.weight(.black))
                 .foregroundStyle(theme.primaryText)
                 .multilineTextAlignment(.trailing)
-                .lineLimit(2)
-                .minimumScaleFactor(0.72)
+                .lineLimit(ModelDetailRowTextLayoutPolicy.valueLineLimit)
+                .fixedSize(horizontal: false, vertical: true)
         }
-        .frame(maxWidth: .infinity, minHeight: 24)
+        .frame(maxWidth: .infinity, minHeight: ModelDetailRowTextLayoutPolicy.minimumRowHeight)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(ModelDetailRowAccessibilityMetadata.label(title: title))
         .accessibilityValue(ModelDetailRowAccessibilityMetadata.value(title: title, value: value))
@@ -5053,16 +5067,17 @@ struct AdviceRow: View {
     var sequence: Int = 1
 
     var body: some View {
-        HStack(alignment: .top, spacing: 9) {
+        HStack(alignment: .top, spacing: ModelDetailRowTextLayoutPolicy.adviceIconSpacing) {
             Image(systemName: icon)
-                .font(.system(size: 12, weight: .bold))
+                .font(.caption.weight(.bold))
                 .foregroundStyle(tint)
                 .frame(width: 16)
 
             Text(text)
-                .font(.system(size: 12, weight: .semibold))
+                .font(.subheadline.weight(.semibold))
                 .foregroundStyle(theme.secondaryText)
-                .lineSpacing(2)
+                .lineSpacing(ModelDetailRowTextLayoutPolicy.adviceLineSpacing)
+                .lineLimit(ModelDetailRowTextLayoutPolicy.adviceLineLimit)
                 .fixedSize(horizontal: false, vertical: true)
 
             Spacer(minLength: 0)
