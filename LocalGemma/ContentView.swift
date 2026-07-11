@@ -4556,6 +4556,15 @@ struct DeploymentBadge: View {
     }
 }
 
+enum ModelDeploymentPowerTextLayoutPolicy {
+    static let verticalSpacing: CGFloat = 5
+    static let titleLineLimit = 2
+    static let subtitleLineLimit = 2
+
+    static var allowsMultilineTitle: Bool { titleLineLimit > 1 }
+    static var allowsMultilineSubtitle: Bool { subtitleLineLimit > 1 }
+}
+
 struct DeploymentPowerButton: View {
     let model: LocalModel
     let validation: ArtifactValidationResult
@@ -4577,14 +4586,14 @@ struct DeploymentPowerButton: View {
                 }
                 .frame(width: 58, height: 58)
 
-                VStack(alignment: .leading, spacing: 5) {
+                VStack(alignment: .leading, spacing: ModelDeploymentPowerTextLayoutPolicy.verticalSpacing) {
                     Text(isRunning ? "关闭模型部署" : "启动模型部署")
-                        .font(.system(size: 21, weight: .heavy, design: .rounded))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.72)
+                        .font(.title3.weight(.heavy))
+                        .lineLimit(ModelDeploymentPowerTextLayoutPolicy.titleLineLimit)
+                        .fixedSize(horizontal: false, vertical: true)
                     Text(deploymentSubtitle)
-                        .font(.system(size: 12, weight: .bold))
-                        .lineLimit(2)
+                        .font(.footnote.weight(.bold))
+                        .lineLimit(ModelDeploymentPowerTextLayoutPolicy.subtitleLineLimit)
                         .fixedSize(horizontal: false, vertical: true)
                 }
 

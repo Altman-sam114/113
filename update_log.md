@@ -16,7 +16,7 @@
 - 平台：SwiftUI iOS App，Swift 6.0，iOS deployment target 17.0，当前 app/test target 支持 iPhone、iPad 和 Mac Catalyst build-for-testing，并提供项目内 Mac Catalyst 本地 build/run 脚本入口；尚未创建原生 macOS target。
 - 当前默认模型：`Gemma 1.5B Local`
 - 当前推理：本地模拟 runtime，不下载模型权重，不执行真实模型推理。
-- 当前核心测试：`LocalGemmaTests.swift` 中 94 个 XCTest 方法。
+- 当前核心测试：`LocalGemmaTests.swift` 中 95 个 XCTest 方法。
 - 当前核心文档入口：`AGENTS.md`、`md/flow/flow.md`、`md/flow/flowchart.md`、`md/test/test.md`、`md/prompt/README.md`、`README.md`。
 - 当前协作验证：默认 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载未加密 CI 结果包验收；本地仓库当前已配置 `origin` remote，最终验收仍以最新 `origin/main` 对应的 GitHub Actions run 和结果包为准；文档已预留未来 `agentx:` 主控 Agent A -> Agent B -> Agent C 多轮循环的规则。
 
@@ -3050,3 +3050,35 @@
 遗留事项：
 
 - 其余固定字号收敛、全面视觉重构、UI Test target、真实 runtime、原生 macOS target 仍属后续。
+
+### v2.52 / 模型部署电源按钮文本动态排版
+
+日期：2026-07-12
+
+核心变更：
+
+- Agent X 在 v2.51 云端验收通过后继续优化 UI、Mac 和 iPad 体验；选择模型页 `DeploymentPowerButton` 固定字号与主标题缩放压缩问题，归档 `md/prompt/v2（Mac体验审计）/v2.52（模型部署电源按钮文本动态排版）.md`。
+- 新增 `ModelDeploymentPowerTextLayoutPolicy`，集中定义电源按钮标题/副标题间距与行数。
+- `DeploymentPowerButton` 主标题与副标题改用 Dynamic Type 语义字体并允许两行，移除主标题 `minimumScaleFactor`。
+- 保留 `ModelDeploymentControlLayoutPolicy` 44pt 触控目标、部署启停状态流、辅助语义、模型文件、runtime 和 verified 门禁。
+- 新增 `testModelDeploymentPowerTextLayoutPolicySupportsDynamicTypeRows`；测试函数数从 94 增加到 95。
+
+关键文件：
+
+- `LocalGemma/ContentView.swift`
+- `LocalGemmaTests/LocalGemmaTests.swift`
+- `AGENTS.md`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v2（Mac体验审计）/v2.52（模型部署电源按钮文本动态排版）.md`
+
+验证结果：
+
+- 本地轻量检查：`git diff --check`、脚本、`plutil`、workflow YAML、测试函数统计 95、LogicSmoke、Swift typecheck（无本机完整 Xcode/Simulator XCTest）。
+- 完整 iOS/Mac Catalyst 以 push 后 GitHub Actions 与 Agent C 验收为准。
+
+遗留事项：
+
+- 会话 chip 标题等其余固定字号、全面视觉重构、UI Test target、真实 runtime、原生 macOS target 仍属后续。
