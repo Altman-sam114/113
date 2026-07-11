@@ -3307,6 +3307,12 @@
 - 本地轻量检查：`git diff --check`、脚本、`plutil`、workflow YAML、测试函数统计 101、LogicSmoke、Swift typecheck（无本机完整 Xcode/Simulator XCTest）。
 - 完整 iOS/Mac Catalyst 以 push 后 GitHub Actions 与 Agent C 验收为准。
 
+验证补充（Agent C）：
+
+- GitHub Actions run `29166876339` 对 `211d223e7519a60daa0e94fb2113c652ae3999fc` 通过；artifact `localgemma-ci-v2.58-main-211d223-run29166876339-attempt1` 已下载到 `/private/tmp/localgemma-c-review-29166876339/`。
+- manifest 的 branch/commitSha/runId/runAttempt/version 与最新 run 一致；`artifact-name.txt`、JUnit（failures=0）、failure summary、outcomes 已核对。
+- `test.log` 包含 `testWorkspaceSidebarTextLayoutPolicySupportsDynamicTypeRows` 并通过；required checks 全部 success。
+
 遗留事项：
 
 - 全面视觉重构、UI Test target、真实 runtime、原生 macOS target 仍属后续；ContentView 中已无 `minimumScaleFactor` 压缩路径。
