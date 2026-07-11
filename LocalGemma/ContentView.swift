@@ -3012,6 +3012,12 @@ struct SessionBar: View {
     }
 }
 
+enum SessionChipTextLayoutPolicy {
+    static let titleLineLimit = 2
+
+    static var allowsMultilineTitle: Bool { titleLineLimit > 1 }
+}
+
 struct SessionChip: View {
     @Environment(\.appTheme) private var theme
 
@@ -3028,9 +3034,9 @@ struct SessionChip: View {
                     Image(systemName: isActive ? "message.fill" : "message")
                         .font(.system(size: 11, weight: .bold))
                     Text(session.title)
-                        .font(.system(size: 12, weight: .black))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.76)
+                        .font(.footnote.weight(.black))
+                        .lineLimit(SessionChipTextLayoutPolicy.titleLineLimit)
+                        .fixedSize(horizontal: false, vertical: true)
                     if layout == .vertical {
                         Spacer(minLength: 0)
                     }

@@ -1804,6 +1804,20 @@ final class LocalGemmaTests: XCTestCase {
         XCTAssertFalse(deleteIdentifier.contains(namedSession.title))
     }
 
+
+    func testSessionChipTextLayoutPolicySupportsDynamicTypeTitles() {
+        XCTAssertEqual(SessionChipTextLayoutPolicy.titleLineLimit, 2)
+        XCTAssertTrue(SessionChipTextLayoutPolicy.allowsMultilineTitle)
+        XCTAssertGreaterThan(
+            SessionChipTextLayoutPolicy.titleLineLimit,
+            1
+        )
+        XCTAssertGreaterThanOrEqual(
+            SessionChipActionLayoutPolicy.selectButtonMinHeight,
+            SessionChipActionLayoutPolicy.minimumTouchTarget
+        )
+    }
+
     func testSessionChipActionLayoutPolicyMaintainsTouchTargets() {
         XCTAssertEqual(SessionChipActionLayoutPolicy.minimumTouchTarget, 44)
         XCTAssertGreaterThanOrEqual(

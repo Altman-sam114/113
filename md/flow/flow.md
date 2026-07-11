@@ -89,6 +89,7 @@
 - `SessionBarActionAccessibilityMetadata` 复用 `SessionCommandAction` 为会话栏可见的新建/导出按钮生成 label/value/hint/input labels/identifier；文案说明新建会话只请求 composer focus，导出使用本地 Markdown / 文本分享兜底且不发送到云端服务。
 - `SessionBarActionLayoutPolicy` 为会话栏可见的新建/导出图标按钮定义共享 44pt 最小触控目标；横向会话栏和 iPad/Mac 大屏竖向会话栏复用同一尺寸策略，不改变会话 command menu、导出弹层、composer 聚焦或辅助语义。
 - `SessionChipActionAccessibilityMetadata` 为推理页单个会话 chip 的选择和删除动作生成 label/value/hint/input labels/identifier；选择动作只切换本地会话并请求 composer 输入焦点，不发送 prompt、不下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁；删除动作只作用于本地会话列表，不删除模型 artifact 或权重，并为默认空白当前会话说明不可删除原因。
+- `SessionChipTextLayoutPolicy` 为推理页会话 chip 标题定义 Dynamic Type 文本策略；标题使用语义字体并允许两行，移除缩放压缩，同时不改变会话选择/删除状态流、44pt 触控目标、composer 聚焦、辅助语义、模型文件或 verified 门禁。
 - `SessionChipActionLayoutPolicy` 为推理页单个会话 chip 的选择和删除动作定义 44pt 最小触控目标；它只影响选择/删除入口命中尺寸，不改变会话选择、删除禁用原因、会话删除状态流、composer 聚焦、模型 artifact、辅助语义或 verified 门禁。
 - `ChatMessageAccessibilityMetadata` 为推理页聊天消息气泡生成整体 label/value/hint/input labels/identifier；value 合并用户、本地模型或系统状态角色、正文或正在生成状态、token 数和本地会话边界，hint 说明消息气泡只展示本地会话内容，不下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁。
 - `ChatBubbleLayoutPolicy` 为推理页聊天消息气泡定义共享宽屏宽度策略；`ChatTranscript` 通过容器宽度计算消息列表内容宽度并传给 `ChatBubble`，用户消息在 iPad/Mac 宽区域从旧 310pt 上限增长但封顶，本地模型和系统消息限制最大阅读宽度，避免 Mac 宽窗口文本行无限变长。
@@ -263,6 +264,7 @@ Agent X 不能跳过 Agent C artifact 验收；失败时不能继续下一轮并
 - `SessionBarActionAccessibilityMetadata`：推理页会话栏新建/导出可见按钮的辅助技术文案、Voice Control 输入标签和稳定 identifier。
 - `SessionBarActionLayoutPolicy`：推理页会话栏新建/导出可见图标按钮的 44pt 最小触控目标策略。
 - `SessionChipActionAccessibilityMetadata`：推理页单个会话 chip 选择/删除动作的辅助技术文案、删除禁用原因、Voice Control 输入标签和基于 UUID 前缀的稳定 identifier。
+- `SessionChipTextLayoutPolicy`：推理页会话 chip 标题的 Dynamic Type 字体与行数策略。
 - `SessionChipActionLayoutPolicy`：推理页单个会话 chip 选择和删除动作的 44pt 最小触控目标策略。
 - `ChatMessageAccessibilityMetadata`：推理页聊天消息气泡的整体辅助技术文案、生成中状态、token 摘要、Voice Control 输入标签和稳定 identifier。
 - `ChatBubbleLayoutPolicy`：推理页聊天消息气泡的内容宽度、角色比例、最小/最大阅读宽度和宽屏 clamp 策略。

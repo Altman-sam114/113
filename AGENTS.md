@@ -90,6 +90,7 @@ git remote -v
 - `SessionBarActionAccessibilityMetadata` 控制推理页会话栏新建/导出可见按钮的辅助语义；它必须与系统 `会话` command menu 标题、快捷键和 focused route 保持对齐，并明确导出不发送到云端服务。
 - `SessionBarActionLayoutPolicy` 控制推理页会话栏新建/导出可见按钮的最小触控目标；横向会话栏和大屏竖向会话栏必须共享至少 44pt 的图标按钮尺寸，且不得改变会话 command menu、导出弹层、composer 聚焦或辅助语义。
 - `SessionChipActionAccessibilityMetadata` 控制推理页单个会话 chip 的选择和删除动作辅助语义；选择动作必须说明只切换本地会话并请求 composer focus，删除动作必须说明只删除本地会话记录、不删除模型 artifact 或权重，并为默认空白当前会话暴露不可删除原因；label/value/hint、Voice Control 输入标签和稳定 identifier 要有测试锁住。
+- `SessionChipTextLayoutPolicy` 控制推理页会话 chip 标题的 Dynamic Type 文本策略；标题使用语义字体并允许两行，避免 iPad split view、Mac Catalyst 窄窗口和较大文字设置下通过固定小字号或缩放压缩文字，且不得改变会话选择/删除状态流、44pt 触控目标、composer 聚焦、辅助语义、模型文件或 verified 门禁。
 - `SessionChipActionLayoutPolicy` 控制推理页单个会话 chip 选择和删除动作的最小触控目标；选择与删除入口必须保持至少 44pt，且不得改变会话选择、删除禁用原因、会话删除状态流、composer 聚焦、模型 artifact、辅助语义或 verified 门禁。
 - `ChatMessageAccessibilityMetadata` 控制推理页聊天消息气泡整体辅助语义；它必须区分用户消息、本地模型消息和系统状态消息，合并正文或生成中状态、token 数、本地会话边界、Voice Control 输入标签和稳定 identifier，并明确不下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁。
 - `ChatBubbleLayoutPolicy` 控制推理页聊天消息气泡宽屏宽度策略；iPhone 和窄 split view 必须保持紧凑可读，iPad/Mac 宽区域的用户气泡允许从旧 310pt 上限增长，本地模型和系统气泡必须限制最大阅读宽度，容器 padding、角色比例、最小/最大宽度和无效宽度 clamp 要有测试锁住。
