@@ -3748,6 +3748,19 @@ final class LocalGemmaTests: XCTestCase {
         )
     }
 
+
+    func testExportSessionTitleTextLayoutPolicySupportsDynamicTypeRows() {
+        XCTAssertEqual(ExportSessionTitleTextLayoutPolicy.verticalSpacing, 4)
+        XCTAssertEqual(ExportSessionTitleTextLayoutPolicy.titleLineLimit, 2)
+        XCTAssertEqual(ExportSessionTitleTextLayoutPolicy.metaLineLimit, 2)
+        XCTAssertTrue(ExportSessionTitleTextLayoutPolicy.allowsMultilineTitle)
+        XCTAssertTrue(ExportSessionTitleTextLayoutPolicy.allowsMultilineMeta)
+        XCTAssertGreaterThan(
+            ExportSessionTitleTextLayoutPolicy.titleLineLimit,
+            1
+        )
+    }
+
     func testExportSessionLayoutPolicyConstrainsWideContent() {
         XCTAssertEqual(ExportSessionLayoutPolicy.horizontalPadding, 18)
         XCTAssertEqual(ExportSessionLayoutPolicy.minimumReadableWidth, 320)

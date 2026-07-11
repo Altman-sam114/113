@@ -102,6 +102,7 @@
 - `ChatTranscriptAccessibilityMetadata` 为推理页聊天记录容器生成 label/value/hint/input labels/identifier；value 合并空记录、消息总数、最新消息角色和生成中摘要，hint 说明只浏览当前本地会话消息列表，不发送 prompt、不下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁。
 - `ExportSessionActionAccessibilityMetadata` 为导出弹层的分享 Markdown 文件、文本分享兜底和复制全文动作生成 label/value/hint/input labels/identifier；文案说明本地 Markdown、文本兜底、系统剪贴板和不发送到云端服务边界。
 - `ExportSessionActionLayoutPolicy` 为导出弹层底部分享、底部复制和 toolbar 分享入口定义 44pt 最小触控目标；底部 Markdown 分享、文本兜底分享和复制全文至少 44pt 高，toolbar 分享至少 44x44，只影响命中尺寸，不改变导出内容、ShareLink 文件优先/文本兜底选择、剪贴板写入、辅助语义或会话状态流。
+- `ExportSessionTitleTextLayoutPolicy` 为导出弹层会话标题与消息摘要定义 Dynamic Type 文本策略；标题与摘要使用语义字体并允许两行，移除标题缩放压缩，同时不改变 ExportPayload、ShareLink、剪贴板、分享/复制触控目标、辅助语义或会话状态流。
 - `ExportSessionLayoutPolicy` 为导出弹层整体定义宽屏内容宽度策略；iPhone 和窄 split view 保持原有可用宽度，iPad/Mac 宽 sheet 中会话摘要、Markdown 预览和底部分享/复制动作整体居中并封顶，避免导出正文预览在超宽窗口无限拉长；它不改变 `ExportPayload`、ShareLink 文件优先/文本兜底、`UIPasteboard` 复制、toolbar 分享、辅助语义或会话状态流。
 - `WallpaperPreferenceAccessibilityMetadata` 为设置页选择相册壁纸和恢复系统背景按钮生成 label/value/hint/input labels/identifier；文案说明系统相册、本地压缩、`AppStorage` 背景数据、系统背景恢复和不发送到云端服务边界。
 - `OptimizationToggleAccessibilityMetadata` 为设置页和优化 dashboard 的运行策略开关生成 label/value/hint/input labels/identifier；文案说明开启/关闭状态、策略说明、只切换本地运行策略、不下载模型权重、不启动真实 runtime 和不发送到云端服务边界。

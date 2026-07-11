@@ -103,6 +103,7 @@ git remote -v
 - `ChatTranscriptAccessibilityMetadata` 控制推理页聊天记录容器辅助语义；它必须合并空记录、消息总数、最新消息角色和生成中摘要，暴露 Voice Control 输入标签和稳定 identifier，并明确只浏览本地会话记录、不发送 prompt、不下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁。
 - `ExportSessionActionAccessibilityMetadata` 控制导出弹层分享 Markdown、文本兜底和复制全文动作的辅助语义；它必须明确本地 Markdown / 文本分享兜底 / 剪贴板边界，并说明不会发送到云端服务。
 - `ExportSessionActionLayoutPolicy` 控制导出弹层底部分享、底部复制和 toolbar 分享入口的最小触控目标；底部分享/复制必须至少 44pt 高，toolbar 分享必须至少 44x44，且不得改变 ExportPayload、ShareLink 文件优先/文本兜底、剪贴板写入、导出弹层辅助语义或会话状态流。
+- `ExportSessionTitleTextLayoutPolicy` 控制导出弹层会话标题与消息摘要的 Dynamic Type 文本策略；标题与摘要使用语义字体并允许两行，避免 iPad/Mac 宽 sheet 和较大文字设置下通过固定小字号或缩放压缩文字，且不得改变 ExportPayload、ShareLink 文件优先/文本兜底、剪贴板、分享/复制触控目标、导出弹层辅助语义或会话状态流。
 - `ExportSessionLayoutPolicy` 控制导出弹层整体内容宽度；iPhone 和窄 split view 必须保持原有可用宽度，iPad/Mac 宽 sheet 必须让会话摘要、Markdown 预览和底部分享/复制动作整体居中并限制最大宽度，且不得改变 ExportPayload、ShareLink 文件优先/文本兜底、剪贴板写入、toolbar 分享、导出弹层辅助语义或会话状态流。
 - `WallpaperPreferenceAccessibilityMetadata` 控制设置页壁纸选择和恢复系统背景控件的辅助语义；它必须明确系统相册、本地压缩、`AppStorage` 背景数据、系统背景恢复和不发送到云端服务边界。
 - `PromptTemplatesWorkspaceLayoutPolicy` 控制提示词页整体内容宽度；iPhone 和窄 split view 必须保持原有可用宽度，iPad/Mac 超宽窗口必须让标题、分类筛选和模板网格整体居中并限制最大宽度，最大内容宽度要从模板网格四列最大宽度派生，且不得改变分类筛选、模板填入/发送、生成中禁用、composer 聚焦或辅助语义。

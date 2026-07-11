@@ -3170,6 +3170,15 @@ struct ChatTranscript: View {
     }
 }
 
+enum ExportSessionTitleTextLayoutPolicy {
+    static let verticalSpacing: CGFloat = 4
+    static let titleLineLimit = 2
+    static let metaLineLimit = 2
+
+    static var allowsMultilineTitle: Bool { titleLineLimit > 1 }
+    static var allowsMultilineMeta: Bool { metaLineLimit > 1 }
+}
+
 struct ExportSessionView: View {
     @Environment(\.appTheme) private var theme
     let payload: ExportPayload
@@ -3300,15 +3309,17 @@ struct ExportSessionView: View {
             }
             .frame(width: 48, height: 48)
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: ExportSessionTitleTextLayoutPolicy.verticalSpacing) {
                 Text(payload.title)
-                    .font(.system(size: 17, weight: .black, design: .rounded))
+                    .font(.headline.weight(.black))
                     .foregroundStyle(theme.primaryText)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.76)
+                    .lineLimit(ExportSessionTitleTextLayoutPolicy.titleLineLimit)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text("\(payload.messageCount) 条消息 · Markdown")
-                    .font(.system(size: 12, weight: .bold))
+                    .font(.footnote.weight(.bold))
                     .foregroundStyle(theme.secondaryText)
+                    .lineLimit(ExportSessionTitleTextLayoutPolicy.metaLineLimit)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             Spacer()
