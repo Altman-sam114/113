@@ -1914,6 +1914,19 @@ final class LocalGemmaTests: XCTestCase {
         }
     }
 
+
+    func testWorkspaceSidebarTextLayoutPolicySupportsDynamicTypeRows() {
+        XCTAssertEqual(WorkspaceSidebarTextLayoutPolicy.titleSubtitleSpacing, 2)
+        XCTAssertEqual(WorkspaceSidebarTextLayoutPolicy.titleLineLimit, 2)
+        XCTAssertEqual(WorkspaceSidebarTextLayoutPolicy.subtitleLineLimit, 2)
+        XCTAssertTrue(WorkspaceSidebarTextLayoutPolicy.allowsMultilineTitle)
+        XCTAssertTrue(WorkspaceSidebarTextLayoutPolicy.allowsMultilineSubtitle)
+        XCTAssertGreaterThanOrEqual(
+            WorkspaceNavigationActionLayoutPolicy.sidebarTabMinHeight,
+            WorkspaceNavigationActionLayoutPolicy.minimumTouchTarget
+        )
+    }
+
     func testWorkspaceNavigationActionLayoutPolicyMaintainsTouchTargets() {
         XCTAssertEqual(WorkspaceNavigationActionLayoutPolicy.minimumTouchTarget, 44)
         XCTAssertEqual(

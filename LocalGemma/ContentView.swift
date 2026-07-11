@@ -623,15 +623,17 @@ struct ContentView: View {
                             .font(.system(size: 15, weight: .bold))
                             .frame(width: 24)
 
-                        VStack(alignment: .leading, spacing: isDetailed ? 2 : 0) {
+                        VStack(alignment: .leading, spacing: isDetailed ? WorkspaceSidebarTextLayoutPolicy.titleSubtitleSpacing : 0) {
                             Text(tab.title)
-                                .font(.system(size: 14, weight: .black))
+                                .font(.subheadline.weight(.black))
+                                .lineLimit(WorkspaceSidebarTextLayoutPolicy.titleLineLimit)
+                                .fixedSize(horizontal: false, vertical: true)
                             if isDetailed {
                                 Text(tab.sidebarSubtitle)
-                                    .font(.system(size: 11, weight: .semibold))
+                                    .font(.caption.weight(.semibold))
                                     .foregroundStyle(selectedTab == tab ? theme.inverseText.opacity(0.78) : theme.secondaryText)
-                                    .lineLimit(1)
-                                    .minimumScaleFactor(0.78)
+                                    .lineLimit(WorkspaceSidebarTextLayoutPolicy.subtitleLineLimit)
+                                    .fixedSize(horizontal: false, vertical: true)
                             }
                         }
 
@@ -1575,6 +1577,15 @@ enum WorkspaceNavigationAccessibilityMetadata {
     static func sidebarIdentifier(for tab: WorkspaceTab) -> String {
         "workspace-sidebar-tab-\(tab.rawValue)"
     }
+}
+
+enum WorkspaceSidebarTextLayoutPolicy {
+    static let titleSubtitleSpacing: CGFloat = 2
+    static let titleLineLimit = 2
+    static let subtitleLineLimit = 2
+
+    static var allowsMultilineTitle: Bool { titleLineLimit > 1 }
+    static var allowsMultilineSubtitle: Bool { subtitleLineLimit > 1 }
 }
 
 enum WorkspaceNavigationActionLayoutPolicy {

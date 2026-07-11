@@ -83,6 +83,7 @@
 - `SessionSidebarLayoutPolicy` 只控制推理页内部大屏会话列表宽度；竖向会话栏按容器宽度 28% 计算，并限制在 240 到 310 之间，窄屏单栏返回 0。
 - `WorkspaceTab.shortcutKey` 定义工作区键盘导航：`Command+1` 推理、`Command+2` 模型、`Command+3` 提示词、`Command+4` 设置。
 - `WorkspaceNavigationAccessibilityMetadata` 为顶部工作区 tab 和大屏 sidebar 工作区按钮生成 label/value/hint/input labels/identifier；hint 复用 `WorkspaceTab.sidebarSubtitle`，说明 `Command 1...4` 快捷键和只切换本地工作区边界，不改变 `selectedTab` 状态流或 command menu 映射。
+- `WorkspaceSidebarTextLayoutPolicy` 为大屏侧栏工作区标题与详细副标题定义 Dynamic Type 文本策略；标题与副标题使用语义字体并允许两行，移除副标题缩放压缩，同时不改变快捷键、command menu、`selectedTab`、composer focus、导航触控目标或辅助语义。
 - `WorkspaceNavigationActionLayoutPolicy` 为顶部工作区 tab 和大屏 sidebar 工作区按钮定义共享 44pt 最小触控目标；`tabPicker` 和 `sidebarTabPicker` 只复用最小高度常量，不改变 `WorkspaceTab.shortcutKey`、工作区 command menu、`selectedTab` 状态流、composer focus 或辅助语义。
 - `LocalGemmaApp` 的 `工作区` command menu 复用同一组 `WorkspaceTab` 映射；`ContentView` 只通过 focused scene binding 暴露 `selectedTab`，菜单命令不触碰模型、artifact、runtime 或会话状态；进入推理页时只请求 UI 层 composer focus。
 - `LocalGemmaApp` 的 `会话` command menu 复用 `SessionCommandAction` 映射；`ChatWorkspace` 通过 `SessionCommandActions` focused value 暴露新建会话和导出当前会话动作，菜单不直接持有 `InferenceEngine` 或导出 sheet 状态。
@@ -238,6 +239,7 @@ Agent X 不能跳过 Agent C artifact 验收；失败时不能继续下一轮并
 - `ModelLibraryWorkspaceLayoutPolicy`：模型页整体内容宽度、最大内容宽度、左右 padding 和无效宽度 clamp 策略。
 - `ModelDetailColumnLayoutPolicy`：模型页双栏右侧详情列最小可读宽度、最大阅读宽度、列间距和无效宽度 clamp 策略。
 - `WorkspaceNavigationAccessibilityMetadata`：顶部工作区 tab 和大屏 sidebar 工作区按钮的辅助技术文案、Voice Control 输入标签、快捷键说明和稳定 identifier。
+- `WorkspaceSidebarTextLayoutPolicy`：大屏侧栏工作区标题/副标题的 Dynamic Type 字体与行数策略。
 - `WorkspaceNavigationActionLayoutPolicy`：顶部工作区 tab 和大屏 sidebar 工作区按钮的 44pt 最小触控目标策略。
 - `HeaderActionAccessibilityMetadata`：全局头部主题切换、设置页外观主题按钮和打开模型工作区按钮的辅助技术文案、Voice Control 输入标签和稳定 identifier。
 - `HeaderActionLayoutPolicy`：全局 Header 主题切换和打开模型工作区图标动作的 44pt 最小触控目标策略。
