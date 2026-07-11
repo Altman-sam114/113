@@ -64,6 +64,7 @@
 - `HeaderActionAccessibilityMetadata` 为全局头部主题切换、设置页外观主题按钮和打开模型工作区按钮生成 label/value/hint/input labels/identifier；文案说明当前主题、切换目标、本地 UI 外观边界、模型工作区跳转边界、不下载模型权重、不启动真实 runtime、不发送云端服务和不绕过 verified 门禁。
 - `HeaderActionLayoutPolicy` 为全局 Header 主题切换和打开模型工作区两个图标动作定义共享 44pt 最小触控目标；`HeaderView` 只复用尺寸常量，不改变主题切换、工作区切换、模型胶囊状态、辅助语义、模型文件或 runtime 状态流。
 - `HeaderTitleTextLayoutPolicy` 为顶部 Header eyebrow 和主标题定义 Dynamic Type 文本策略；eyebrow 使用语义字体并保持单行，主标题使用语义标题字体并允许两行，避免 iPad split view、Mac Catalyst 窄窗口和较大文字设置下压缩或截断，同时不改变 Header 图标动作触控目标、主题切换、工作区切换、模型胶囊状态、辅助语义、模型文件或 runtime 状态流。
+- `ModelCapsuleTextLayoutPolicy` 为顶部模型胶囊与 HeaderMetricChip 定义 Dynamic Type 文本策略；模型名、状态摘要和指标 chip 使用语义字体并允许多行，移除名称/状态/数值缩放压缩，同时不改变模型胶囊辅助语义、主题切换、工作区切换、模型文件或 runtime 状态。
 - `ModelCapsuleAccessibilityMetadata` 为顶部模型胶囊生成整体 label/value/hint/input labels/identifier；value 合并当前模型、参数量、量化、安装状态、SIM/REAL 标记、artifact availability、生成状态、后端、速度、内存和准备度，hint 说明它只展示本地状态摘要，不下载模型权重、不启动真实 runtime、不发送到云端服务、不绕过 verified 门禁。
 - `ModelDetailAccessibilityMetadata` 为模型页详情右栏和窄屏详情段生成整体 label/value/hint/input labels/identifier；value 合并模型规格、artifact availability、validation summary、预计速度、内存预算、主后端、回退后端、KV cache、运行阻塞项和下一步，hint 说明它只展示本地模型详情，不下载模型权重、不启动真实 runtime、不发送到云端服务、不绕过 verified 门禁。
 - `ModelSummaryAccessibilityMetadata` 为模型页概要面板生成 label/value/hint/input labels/identifier；value 合并模型名称、简介、能力标签、artifact availability、validation summary、文件格式和包体大小，hint 说明它只展示本地模型概要和校验摘要，不下载模型权重、不启动真实 runtime、不发送到云端服务、不绕过 verified 门禁。
@@ -235,6 +236,7 @@ Agent X 不能跳过 Agent C artifact 验收；失败时不能继续下一轮并
 - `HeaderActionAccessibilityMetadata`：全局头部主题切换、设置页外观主题按钮和打开模型工作区按钮的辅助技术文案、Voice Control 输入标签和稳定 identifier。
 - `HeaderActionLayoutPolicy`：全局 Header 主题切换和打开模型工作区图标动作的 44pt 最小触控目标策略。
 - `HeaderTitleTextLayoutPolicy`：顶部 Header eyebrow 和主标题的 Dynamic Type 字体、行数、间距和多行标题策略。
+- `ModelCapsuleTextLayoutPolicy`：顶部模型胶囊与 HeaderMetricChip 的 Dynamic Type 字体、行数和指标最小高度策略。
 - `SettingsWorkspaceLayoutPolicy`：设置页整体内容宽度、水平 padding、最小可读宽度、最大内容宽度和无效宽度 clamp 策略。
 - `SettingsIconActionLayoutPolicy`：设置页外观主题切换、相册壁纸选择和恢复系统背景图标动作的 44pt 最小触控目标策略。
 - `SettingsPreferenceTextLayoutPolicy`：设置页外观模式与壁纸偏好行标题/状态的 Dynamic Type 字体、行数和多行策略。

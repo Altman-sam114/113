@@ -2287,6 +2287,21 @@ struct HeaderView: View {
     }
 }
 
+enum ModelCapsuleTextLayoutPolicy {
+    static let verticalSpacing: CGFloat = 11
+    static let titleStatusSpacing: CGFloat = 4
+    static let metricStackSpacing: CGFloat = 1
+    static let nameLineLimit = 2
+    static let statusLineLimit = 2
+    static let metricTitleLineLimit = 1
+    static let metricValueLineLimit = 2
+    static let metricMinHeight: CGFloat = 36
+
+    static var allowsMultilineName: Bool { nameLineLimit > 1 }
+    static var allowsMultilineStatus: Bool { statusLineLimit > 1 }
+    static var allowsMultilineMetricValue: Bool { metricValueLineLimit > 1 }
+}
+
 struct ModelCapsule: View {
     @Environment(\.appTheme) private var theme
 
@@ -2300,7 +2315,7 @@ struct ModelCapsule: View {
     let isSimulated: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 11) {
+        VStack(alignment: .leading, spacing: ModelCapsuleTextLayoutPolicy.verticalSpacing) {
             HStack(spacing: 12) {
                 ZStack {
                     Circle()
@@ -2311,13 +2326,13 @@ struct ModelCapsule: View {
                 }
                 .frame(width: 42, height: 42)
 
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: ModelCapsuleTextLayoutPolicy.titleStatusSpacing) {
                     HStack(spacing: 6) {
                         Text(model.name)
-                            .font(.system(size: 15, weight: .bold))
+                            .font(.subheadline.weight(.bold))
                             .foregroundStyle(theme.primaryText)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
+                            .lineLimit(ModelCapsuleTextLayoutPolicy.nameLineLimit)
+                            .fixedSize(horizontal: false, vertical: true)
 
                         StatusBadge(state: model.installState)
 
@@ -2330,10 +2345,10 @@ struct ModelCapsule: View {
                     }
 
                     Text(statusText)
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.footnote.weight(.medium))
                         .foregroundStyle(theme.secondaryText)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.78)
+                        .lineLimit(ModelCapsuleTextLayoutPolicy.statusLineLimit)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
 
                 Spacer(minLength: 0)
@@ -2450,21 +2465,22 @@ struct HeaderMetricChip: View {
     var body: some View {
         HStack(spacing: 7) {
             Image(systemName: icon)
-                .font(.system(size: 11, weight: .black))
+                .font(.caption.weight(.black))
                 .foregroundStyle(tint)
-            VStack(alignment: .leading, spacing: 1) {
+            VStack(alignment: .leading, spacing: ModelCapsuleTextLayoutPolicy.metricStackSpacing) {
                 Text(title)
-                    .font(.system(size: 8, weight: .black))
+                    .font(.caption2.weight(.black))
                     .foregroundStyle(theme.tertiaryText)
+                    .lineLimit(ModelCapsuleTextLayoutPolicy.metricTitleLineLimit)
                 Text(value)
-                    .font(.system(size: 11, weight: .heavy, design: .rounded))
+                    .font(.caption.weight(.heavy))
                     .foregroundStyle(theme.primaryText)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.72)
+                    .lineLimit(ModelCapsuleTextLayoutPolicy.metricValueLineLimit)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 0)
         }
-        .frame(maxWidth: .infinity, minHeight: 36)
+        .frame(maxWidth: .infinity, minHeight: ModelCapsuleTextLayoutPolicy.metricMinHeight)
         .padding(.horizontal, 9)
         .padding(.vertical, 6)
         .background(theme.recessedSurface, in: RoundedRectangle(cornerRadius: 11, style: .continuous))

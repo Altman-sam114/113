@@ -2305,6 +2305,29 @@ final class LocalGemmaTests: XCTestCase {
         )
     }
 
+
+    func testModelCapsuleTextLayoutPolicySupportsDynamicTypeRows() {
+        XCTAssertEqual(ModelCapsuleTextLayoutPolicy.verticalSpacing, 11)
+        XCTAssertEqual(ModelCapsuleTextLayoutPolicy.titleStatusSpacing, 4)
+        XCTAssertEqual(ModelCapsuleTextLayoutPolicy.metricStackSpacing, 1)
+        XCTAssertEqual(ModelCapsuleTextLayoutPolicy.nameLineLimit, 2)
+        XCTAssertEqual(ModelCapsuleTextLayoutPolicy.statusLineLimit, 2)
+        XCTAssertEqual(ModelCapsuleTextLayoutPolicy.metricTitleLineLimit, 1)
+        XCTAssertEqual(ModelCapsuleTextLayoutPolicy.metricValueLineLimit, 2)
+        XCTAssertEqual(ModelCapsuleTextLayoutPolicy.metricMinHeight, 36)
+        XCTAssertTrue(ModelCapsuleTextLayoutPolicy.allowsMultilineName)
+        XCTAssertTrue(ModelCapsuleTextLayoutPolicy.allowsMultilineStatus)
+        XCTAssertTrue(ModelCapsuleTextLayoutPolicy.allowsMultilineMetricValue)
+        XCTAssertGreaterThan(
+            ModelCapsuleTextLayoutPolicy.nameLineLimit,
+            ModelCapsuleTextLayoutPolicy.metricTitleLineLimit
+        )
+        XCTAssertGreaterThanOrEqual(
+            ModelCapsuleTextLayoutPolicy.metricMinHeight,
+            36
+        )
+    }
+
     func testModelCapsuleExposesOverallAccessibilityMetadata() {
         let model = ModelCatalog.defaultModels[0]
 
