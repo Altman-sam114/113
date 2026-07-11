@@ -5206,6 +5206,20 @@ enum SettingsWorkspaceLayoutPolicy {
     }
 }
 
+enum SettingsPreferenceTextLayoutPolicy {
+    static let verticalSpacing: CGFloat = 5
+    static let titleLineLimit = 2
+    static let statusLineLimit = 2
+
+    static var allowsMultilineTitle: Bool {
+        titleLineLimit > 1
+    }
+
+    static var allowsMultilineStatus: Bool {
+        statusLineLimit > 1
+    }
+}
+
 enum SettingsIconActionLayoutPolicy {
     enum Action: CaseIterable {
         case toggleTheme
@@ -5241,13 +5255,17 @@ struct ThemePreferencePanel: View {
             }
             .frame(width: 52, height: 52)
 
-            VStack(alignment: .leading, spacing: 5) {
+            VStack(alignment: .leading, spacing: SettingsPreferenceTextLayoutPolicy.verticalSpacing) {
                 Text("外观模式")
-                    .font(.system(size: 16, weight: .black, design: .rounded))
+                    .font(.headline.weight(.black))
                     .foregroundStyle(theme.primaryText)
+                    .lineLimit(SettingsPreferenceTextLayoutPolicy.titleLineLimit)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text(themeMode.title)
-                    .font(.system(size: 12, weight: .bold))
+                    .font(.subheadline.weight(.bold))
                     .foregroundStyle(theme.secondaryText)
+                    .lineLimit(SettingsPreferenceTextLayoutPolicy.statusLineLimit)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             Spacer()
@@ -5297,13 +5315,17 @@ struct WallpaperPreferencePanel: View {
         HStack(spacing: 14) {
             wallpaperPreview
 
-            VStack(alignment: .leading, spacing: 5) {
+            VStack(alignment: .leading, spacing: SettingsPreferenceTextLayoutPolicy.verticalSpacing) {
                 Text("壁纸")
-                    .font(.system(size: 16, weight: .black, design: .rounded))
+                    .font(.headline.weight(.black))
                     .foregroundStyle(theme.primaryText)
+                    .lineLimit(SettingsPreferenceTextLayoutPolicy.titleLineLimit)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text(statusText)
-                    .font(.system(size: 12, weight: .bold))
+                    .font(.subheadline.weight(.bold))
                     .foregroundStyle(theme.secondaryText)
+                    .lineLimit(SettingsPreferenceTextLayoutPolicy.statusLineLimit)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             Spacer()

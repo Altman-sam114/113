@@ -16,7 +16,7 @@
 - 平台：SwiftUI iOS App，Swift 6.0，iOS deployment target 17.0，当前 app/test target 支持 iPhone、iPad 和 Mac Catalyst build-for-testing，并提供项目内 Mac Catalyst 本地 build/run 脚本入口；尚未创建原生 macOS target。
 - 当前默认模型：`Gemma 1.5B Local`
 - 当前推理：本地模拟 runtime，不下载模型权重，不执行真实模型推理。
-- 当前核心测试：`LocalGemmaTests.swift` 中 91 个 XCTest 方法。
+- 当前核心测试：`LocalGemmaTests.swift` 中 92 个 XCTest 方法。
 - 当前核心文档入口：`AGENTS.md`、`md/flow/flow.md`、`md/flow/flowchart.md`、`md/test/test.md`、`md/prompt/README.md`、`README.md`。
 - 当前协作验证：默认 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载未加密 CI 结果包验收；本地仓库当前已配置 `origin` remote，最终验收仍以最新 `origin/main` 对应的 GitHub Actions run 和结果包为准；文档已预留未来 `agentx:` 主控 Agent A -> Agent B -> Agent C 多轮循环的规则。
 
@@ -2926,4 +2926,45 @@
 
 遗留事项：
 
+- Agent C 验收 v2.48 云端结果包通过：run `29138462221`，commit `d299798`，artifact `localgemma-ci-v2.48-main-d299798-run29138462221-attempt1`；required checks 全部 success。
 - 本轮只完成优化指标卡文本动态排版；全面科技感视觉重构、设置偏好行文本动态排版、完整 UI Test target、真实 runtime 接入、模型 artifact 下载和原生 macOS target 仍属于后续迭代。
+
+### v2.49 / 设置偏好行文本动态排版
+
+日期：2026-07-12
+
+核心变更：
+
+- Agent X 在确认 v2.48 云端 artifact 验收通过后继续优化 UI、Mac 和 iPad 体验；本轮选择 v2.48 遗留的设置页外观/壁纸偏好行文本动态排版，归档 Agent A 提示词 `md/prompt/v2（Mac体验审计）/v2.49（设置偏好行文本动态排版）.md`。
+- 新增 `SettingsPreferenceTextLayoutPolicy`，集中定义偏好行 vertical spacing、title/status 行数和多行能力。
+- `ThemePreferencePanel` 与 `WallpaperPreferencePanel` 的标题与状态改用 Dynamic Type 语义字体并允许两行，移除固定小字号，改善 iPad split view、Mac Catalyst 窄窗口和较大文字设置下的可读性。
+- 保留 `SettingsIconActionLayoutPolicy` 44pt 图标触控目标、主题切换、相册读取、本地压缩、恢复系统背景、辅助语义、设置页整体宽度、模型文件、runtime 和 verified 门禁状态流。
+- 新增 `testSettingsPreferenceTextLayoutPolicySupportsDynamicTypeRows`，锁住策略常量、多行能力和与 44pt 图标策略共存关系；测试函数数从 91 个增加到 92 个。
+- 同步 README、测试规范、核心流程文档、Mermaid 流程图、入口规则和 Agent A 提示词归档中的设置偏好行文本动态排版基线。
+
+关键文件：
+
+- `LocalGemma/ContentView.swift`
+- `LocalGemmaTests/LocalGemmaTests.swift`
+- `AGENTS.md`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v2（Mac体验审计）/v2.49（设置偏好行文本动态排版）.md`
+
+验证结果：
+
+- `git diff --check`：无输出，退出码 0。
+- `test -x script/build_and_run.sh`：退出码 0。
+- `bash -n script/build_and_run.sh`：退出码 0。
+- `plutil -lint LocalGemma.xcodeproj/project.pbxproj`：输出 `LocalGemma.xcodeproj/project.pbxproj: OK`。
+- `ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'`：输出 `yaml ok`。
+- `rg -c "func test" LocalGemmaTests/LocalGemmaTests.swift`：输出 `92`。
+- LogicSmoke compile/run：`Logic smoke passed`。
+- Swift sources typecheck、emit-module、tests typecheck：退出码 0。
+- 本轮按项目默认策略未在本机运行完整模拟器 XCTest / Xcode build；完整 iOS 与 Mac Catalyst build/test 由 push 后的 GitHub Actions 结果包验收。
+
+遗留事项：
+
+- 本轮只完成设置偏好行文本动态排版；全面科技感视觉重构、模型胶囊/详情行等其余固定字号收敛、完整 UI Test target、真实 runtime 接入、模型 artifact 下载和原生 macOS target 仍属于后续迭代。

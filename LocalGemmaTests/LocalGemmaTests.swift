@@ -3354,6 +3354,23 @@ final class LocalGemmaTests: XCTestCase {
         )
     }
 
+
+    func testSettingsPreferenceTextLayoutPolicySupportsDynamicTypeRows() {
+        XCTAssertEqual(SettingsPreferenceTextLayoutPolicy.verticalSpacing, 5)
+        XCTAssertEqual(SettingsPreferenceTextLayoutPolicy.titleLineLimit, 2)
+        XCTAssertEqual(SettingsPreferenceTextLayoutPolicy.statusLineLimit, 2)
+        XCTAssertTrue(SettingsPreferenceTextLayoutPolicy.allowsMultilineTitle)
+        XCTAssertTrue(SettingsPreferenceTextLayoutPolicy.allowsMultilineStatus)
+        XCTAssertGreaterThanOrEqual(
+            SettingsPreferenceTextLayoutPolicy.titleLineLimit,
+            1
+        )
+        XCTAssertGreaterThanOrEqual(
+            SettingsIconActionLayoutPolicy.iconButtonSize,
+            SettingsIconActionLayoutPolicy.minimumTouchTarget
+        )
+    }
+
     func testSettingsIconActionLayoutPolicyMaintainsTouchTargets() {
         XCTAssertEqual(SettingsIconActionLayoutPolicy.minimumTouchTarget, 44)
         XCTAssertGreaterThanOrEqual(

@@ -82,6 +82,7 @@
 - `LocalGemmaApp` 的 `会话` command menu 复用 `SessionCommandAction` 映射；`ChatWorkspace` 通过 `SessionCommandActions` focused value 暴露新建会话和导出当前会话动作，菜单不直接持有 `InferenceEngine` 或导出 sheet 状态。
 - `SettingsWorkspaceLayoutPolicy` 为设置页标题、外观、壁纸、芯片准备度、优化指标和运行策略开关定义整体宽屏内容宽度；`SettingsWorkspace` 在 iPad/Mac 超宽窗口中居中并限制最大内容宽度，不改变主题切换、相册读取、本地压缩、恢复系统背景、optimizer toggle、局部网格策略、图标触控目标或辅助语义。
 - `SettingsIconActionLayoutPolicy` 为设置页外观主题切换、相册壁纸选择和恢复系统背景图标动作定义共享 44pt 最小触控目标；`ThemePreferencePanel` 和 `WallpaperPreferencePanel` 只复用尺寸常量，不改变主题切换、相册读取、本地压缩、恢复系统背景、禁用状态或辅助语义。
+- `SettingsPreferenceTextLayoutPolicy` 为设置页外观模式与壁纸偏好行定义 Dynamic Type 文本策略；标题使用语义 headline 并允许两行，状态使用语义 subheadline 并允许两行，避免 iPad split view、Mac Catalyst 窄窗口和较大文字设置下通过固定小字号压缩文字，同时不改变主题切换、相册读取、本地压缩、恢复系统背景、图标触控目标、辅助语义或设置页整体宽度。
 - `SessionBarActionAccessibilityMetadata` 复用 `SessionCommandAction` 为会话栏可见的新建/导出按钮生成 label/value/hint/input labels/identifier；文案说明新建会话只请求 composer focus，导出使用本地 Markdown / 文本分享兜底且不发送到云端服务。
 - `SessionBarActionLayoutPolicy` 为会话栏可见的新建/导出图标按钮定义共享 44pt 最小触控目标；横向会话栏和 iPad/Mac 大屏竖向会话栏复用同一尺寸策略，不改变会话 command menu、导出弹层、composer 聚焦或辅助语义。
 - `SessionChipActionAccessibilityMetadata` 为推理页单个会话 chip 的选择和删除动作生成 label/value/hint/input labels/identifier；选择动作只切换本地会话并请求 composer 输入焦点，不发送 prompt、不下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁；删除动作只作用于本地会话列表，不删除模型 artifact 或权重，并为默认空白当前会话说明不可删除原因。
@@ -235,6 +236,7 @@ Agent X 不能跳过 Agent C artifact 验收；失败时不能继续下一轮并
 - `HeaderTitleTextLayoutPolicy`：顶部 Header eyebrow 和主标题的 Dynamic Type 字体、行数、间距和多行标题策略。
 - `SettingsWorkspaceLayoutPolicy`：设置页整体内容宽度、水平 padding、最小可读宽度、最大内容宽度和无效宽度 clamp 策略。
 - `SettingsIconActionLayoutPolicy`：设置页外观主题切换、相册壁纸选择和恢复系统背景图标动作的 44pt 最小触控目标策略。
+- `SettingsPreferenceTextLayoutPolicy`：设置页外观模式与壁纸偏好行标题/状态的 Dynamic Type 字体、行数和多行策略。
 - `ModelCapsuleAccessibilityMetadata`：顶部模型胶囊整体状态摘要的辅助技术文案、Voice Control 输入标签和稳定 identifier。
 - `ModelDetailAccessibilityMetadata`：模型页详情右栏和窄屏详情段整体摘要的辅助技术文案、Voice Control 输入标签和稳定 identifier。
 - `ModelSummaryAccessibilityMetadata`：模型页概要面板的辅助技术文案、能力标签摘要、validation summary、Voice Control 输入标签和稳定 identifier。

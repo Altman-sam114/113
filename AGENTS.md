@@ -65,6 +65,7 @@ git remote -v
 - `HeaderTitleTextLayoutPolicy` 控制顶部 Header eyebrow 和主标题的 Dynamic Type 文本策略；eyebrow 使用语义字体并保持单行，主标题使用语义标题字体并允许两行，避免 iPad split view、Mac Catalyst 窄窗口和较大文字设置下压缩或截断，且不得改变 Header 图标动作触控目标、主题切换、工作区切换、模型胶囊状态、辅助语义、模型文件或 runtime 状态流。
 - `SettingsWorkspaceLayoutPolicy` 控制设置页整体内容宽度；iPhone 和窄 split view 必须保持原有可用宽度，iPad/Mac 超宽窗口必须让标题、外观、壁纸、芯片准备度、优化指标和运行策略开关整体居中并限制最大宽度，且不得改变主题切换、相册读取、本地压缩、恢复系统背景、optimizer toggle、局部网格策略、图标触控目标或辅助语义。
 - `SettingsIconActionLayoutPolicy` 控制设置页外观主题切换、相册壁纸选择和恢复系统背景三个图标动作的最小触控目标；这些 iPhone、iPad split view 和 Mac Catalyst 设置入口必须保持至少 44pt，且不得改变主题切换、相册读取、本地压缩、恢复系统背景、禁用状态或辅助语义。
+- `SettingsPreferenceTextLayoutPolicy` 控制设置页外观模式与壁纸偏好行标题/状态文本的 Dynamic Type 排版；标题与状态使用语义字体并允许两行，避免 iPad split view、Mac Catalyst 窄窗口和较大文字设置下压缩或截断，且不得改变主题切换、相册读取、本地压缩、恢复系统背景、图标 44pt 触控目标、辅助语义、设置页整体宽度、模型文件或 runtime 状态流。
 - `ModelCapsuleAccessibilityMetadata` 控制顶部模型胶囊整体辅助语义；它必须合并当前模型、参数、量化、SIM/REAL、artifact 状态、后端、生成状态、速度、内存和准备度，并明确只展示本地状态、不下载权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁。
 - `ModelDetailAccessibilityMetadata` 控制模型页详情右栏和窄屏详情段的整体辅助语义；它必须合并模型规格、artifact 状态、validation summary、性能预算、主/回退后端、KV cache、blocker/next step，并明确只展示本地模型详情、不下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁。
 - `ModelSummaryAccessibilityMetadata` 控制模型页概要面板辅助语义；它必须合并模型名称、简介、能力标签、artifact availability、validation summary、文件格式和包体大小，并明确只展示本地模型概要、不下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁。
