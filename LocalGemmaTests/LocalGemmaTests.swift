@@ -684,6 +684,32 @@ final class LocalGemmaTests: XCTestCase {
         XCTAssertTrue(hint.contains("verified 门禁"))
     }
 
+    func testOptimizerMetricTextLayoutPolicySupportsDynamicTypeCards() {
+        XCTAssertEqual(OptimizerMetricTextLayoutPolicy.verticalSpacing, 10)
+        XCTAssertEqual(OptimizerMetricTextLayoutPolicy.indicatorSize, 8)
+        XCTAssertEqual(OptimizerMetricTextLayoutPolicy.labelLineLimit, 2)
+        XCTAssertEqual(OptimizerMetricTextLayoutPolicy.valueLineLimit, 2)
+        XCTAssertEqual(OptimizerMetricTextLayoutPolicy.detailLineLimit, 3)
+        XCTAssertEqual(OptimizerMetricTextLayoutPolicy.detailLineSpacing, 2)
+        XCTAssertEqual(OptimizerMetricTextLayoutPolicy.minimumCardHeight, 158)
+        XCTAssertTrue(OptimizerMetricTextLayoutPolicy.allowsMultilineLabel)
+        XCTAssertTrue(OptimizerMetricTextLayoutPolicy.allowsMultilineValue)
+        XCTAssertTrue(OptimizerMetricTextLayoutPolicy.allowsMultilineDetail)
+        XCTAssertGreaterThanOrEqual(
+            OptimizerMetricTextLayoutPolicy.minimumCardHeight,
+            OptimizationToggleRowLayoutPolicy.minimumTouchTarget
+        )
+        XCTAssertGreaterThan(
+            OptimizerMetricTextLayoutPolicy.detailLineLimit,
+            OptimizerMetricTextLayoutPolicy.labelLineLimit
+        )
+        XCTAssertEqual(
+            OptimizerMetricGridLayoutPolicy.twoColumnThreshold,
+            OptimizerMetricGridLayoutPolicy.minimumCardWidth * 2
+                + OptimizerMetricGridLayoutPolicy.spacing
+        )
+    }
+
     func testOptimizerMetricGridLayoutPolicyUsesSingleColumnOnNarrowSettingsWidth() {
         let threshold = OptimizerMetricGridLayoutPolicy.twoColumnThreshold
 

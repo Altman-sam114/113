@@ -16,7 +16,7 @@
 - 平台：SwiftUI iOS App，Swift 6.0，iOS deployment target 17.0，当前 app/test target 支持 iPhone、iPad 和 Mac Catalyst build-for-testing，并提供项目内 Mac Catalyst 本地 build/run 脚本入口；尚未创建原生 macOS target。
 - 当前默认模型：`Gemma 1.5B Local`
 - 当前推理：本地模拟 runtime，不下载模型权重，不执行真实模型推理。
-- 当前核心测试：`LocalGemmaTests.swift` 中 90 个 XCTest 方法。
+- 当前核心测试：`LocalGemmaTests.swift` 中 91 个 XCTest 方法。
 - 当前核心文档入口：`AGENTS.md`、`md/flow/flow.md`、`md/flow/flowchart.md`、`md/test/test.md`、`md/prompt/README.md`、`README.md`。
 - 当前协作验证：默认 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载未加密 CI 结果包验收；本地仓库当前已配置 `origin` remote，最终验收仍以最新 `origin/main` 对应的 GitHub Actions run 和结果包为准；文档已预留未来 `agentx:` 主控 Agent A -> Agent B -> Agent C 多轮循环的规则。
 
@@ -2884,3 +2884,46 @@
 
 - 本轮只建立 Header 标题 Dynamic Type 多行策略，没有做设置偏好行文本动态排版、优化指标卡文本动态排版、完整 UI Test target、真实 runtime 接入、模型 artifact 下载或原生 macOS target。
 - v2.47 push 后 GitHub Actions run `28855068809` 对最新 `origin/main` commit `78384c07877b5ebd304579f06eeca94561105c52` 验收通过；artifact `localgemma-ci-v2.47-main-78384c0-run28855068809-attempt1` 已下载到 `/private/tmp/localgemma-c-review-28855068809/`，manifest、`artifact-name.txt`、JUnit、failure summary、outcomes、LogicSmoke 日志、Mac Catalyst run script 日志、关键构建/测试日志和三个 `.xcresult/Info.plist` 已核对，新增 `testHeaderTitleTextLayoutPolicySupportsDynamicTypeHeadings` 在 `test.log` 中通过，required checks 全部 success。
+
+### v2.48 / 优化指标卡文本动态排版
+
+日期：2026-07-11
+
+核心变更：
+
+- Agent X 继续推进全面优化 UI、Mac 和 iPad 体验；并发只读子 agent 确认优化指标卡仍使用固定小字号、单行限制和缩放压缩，本轮据此归档 Agent A 提示词 `md/prompt/v2（Mac体验审计）/v2.48（优化指标卡文本动态排版）.md`。
+- 新增 `OptimizerMetricTextLayoutPolicy`，集中定义指标卡 vertical spacing、状态圆点尺寸、label/value/detail 行数、detail lineSpacing 和最小卡片高度。
+- `OptimizerMetricCard` 的 label、value 和 detail 改用 Dynamic Type 语义字体并允许多行，移除 label/value 的 `minimumScaleFactor` 单行压缩，改善 iPad split view、Mac Catalyst 窄窗口和较大文字设置下的可读性。
+- 保留 `DeviceOptimizer.metrics` 数据、progress、tint、`OptimizerMetricAccessibilityMetadata`、`OptimizerMetricGridLayoutPolicy`、设置页整体宽度、模型文件、runtime 和 verified 门禁状态流。
+- 新增 `testOptimizerMetricTextLayoutPolicySupportsDynamicTypeCards`，锁住策略常量、多行能力、至少 44pt 的最小卡片高度和既有网格阈值；测试函数数从 90 个增加到 91 个。
+- 同步 README、测试规范、核心流程文档、Mermaid 流程图、入口规则和 Agent A 提示词归档中的优化指标卡文本动态排版基线。
+
+关键文件：
+
+- `LocalGemma/ContentView.swift`
+- `LocalGemmaTests/LocalGemmaTests.swift`
+- `AGENTS.md`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v2（Mac体验审计）/v2.48（优化指标卡文本动态排版）.md`
+
+验证结果：
+
+- `git diff --check`：无输出，退出码 0。
+- `test -x script/build_and_run.sh`：退出码 0。
+- `bash -n script/build_and_run.sh`：退出码 0。
+- `plutil -lint LocalGemma.xcodeproj/project.pbxproj`：输出 `LocalGemma.xcodeproj/project.pbxproj: OK`。
+- `ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'`：输出 `yaml ok`。
+- `rg -c "func test" LocalGemmaTests/LocalGemmaTests.swift`：输出 `91`。
+- `/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -sdk /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk -module-cache-path .build/SwiftSmokeModuleCache LocalGemma/AppState.swift Tools/LogicSmoke.swift -o .build/logic-smoke`：退出码 0。
+- `.build/logic-smoke`：输出 `Logic smoke passed`。
+- `/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -typecheck -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk -target arm64-apple-ios17.0-simulator -module-cache-path .build/ModuleCache LocalGemma/AppState.swift LocalGemma/ContentView.swift LocalGemma/LocalGemmaApp.swift`：退出码 0。
+- `/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -emit-module -emit-module-path .build/Typecheck/LocalGemma.swiftmodule -module-name LocalGemma -enable-testing -parse-as-library -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk -target arm64-apple-ios17.0-simulator -module-cache-path .build/ModuleCache LocalGemma/AppState.swift LocalGemma/ContentView.swift LocalGemma/LocalGemmaApp.swift`：退出码 0。
+- `/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -typecheck -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk -target arm64-apple-ios17.0-simulator -module-cache-path .build/ModuleCache -I .build/Typecheck -I /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/lib -F /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/Library/Frameworks LocalGemmaTests/LocalGemmaTests.swift`：退出码 0。
+- 本轮按项目默认策略未在本机运行完整模拟器 XCTest；完整 iOS 与 Mac Catalyst build/test 由 push 后的 GitHub Actions 结果包验收。
+
+遗留事项：
+
+- 本轮只完成优化指标卡文本动态排版；全面科技感视觉重构、设置偏好行文本动态排版、完整 UI Test target、真实 runtime 接入、模型 artifact 下载和原生 macOS target 仍属于后续迭代。

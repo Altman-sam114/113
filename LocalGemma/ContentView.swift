@@ -5569,41 +5569,71 @@ enum ChipReadinessAccessibilityMetadata {
     }
 }
 
+enum OptimizerMetricTextLayoutPolicy {
+    static let verticalSpacing: CGFloat = 10
+    static let indicatorSize: CGFloat = 8
+    static let labelLineLimit = 2
+    static let valueLineLimit = 2
+    static let detailLineLimit = 3
+    static let detailLineSpacing: CGFloat = 2
+    static let minimumCardHeight: CGFloat = 158
+
+    static var allowsMultilineLabel: Bool {
+        labelLineLimit > 1
+    }
+
+    static var allowsMultilineValue: Bool {
+        valueLineLimit > 1
+    }
+
+    static var allowsMultilineDetail: Bool {
+        detailLineLimit > 1
+    }
+}
+
 struct OptimizerMetricCard: View {
     @Environment(\.appTheme) private var theme
 
     let metric: OptimizerMetric
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
+        VStack(alignment: .leading, spacing: OptimizerMetricTextLayoutPolicy.verticalSpacing) {
+            HStack(alignment: .top) {
                 Text(metric.label)
-                    .font(.system(size: 12, weight: .bold))
+                    .font(.footnote.weight(.bold))
                     .foregroundStyle(theme.secondaryText)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.78)
+                    .lineLimit(OptimizerMetricTextLayoutPolicy.labelLineLimit)
+                    .fixedSize(horizontal: false, vertical: true)
                 Spacer()
                 Circle()
                     .fill(metric.tint)
-                    .frame(width: 8, height: 8)
+                    .frame(
+                        width: OptimizerMetricTextLayoutPolicy.indicatorSize,
+                        height: OptimizerMetricTextLayoutPolicy.indicatorSize
+                    )
             }
 
             Text(metric.value)
-                .font(.system(size: 19, weight: .black, design: .rounded))
+                .font(.title3.weight(.heavy))
                 .foregroundStyle(theme.primaryText)
-                .lineLimit(1)
-                .minimumScaleFactor(0.72)
+                .lineLimit(OptimizerMetricTextLayoutPolicy.valueLineLimit)
+                .fixedSize(horizontal: false, vertical: true)
 
             Text(metric.detail)
-                .font(.system(size: 11, weight: .medium))
+                .font(.subheadline.weight(.medium))
                 .foregroundStyle(theme.secondaryText)
-                .lineLimit(2)
+                .lineLimit(OptimizerMetricTextLayoutPolicy.detailLineLimit)
+                .lineSpacing(OptimizerMetricTextLayoutPolicy.detailLineSpacing)
                 .fixedSize(horizontal: false, vertical: true)
 
             ProgressView(value: metric.progress)
                 .tint(metric.tint)
         }
-        .frame(maxWidth: .infinity, minHeight: 142, alignment: .topLeading)
+        .frame(
+            maxWidth: .infinity,
+            minHeight: OptimizerMetricTextLayoutPolicy.minimumCardHeight,
+            alignment: .topLeading
+        )
         .panelStyle()
         .accessibilityElement(children: .combine)
         .accessibilityLabel(OptimizerMetricAccessibilityMetadata.label(for: metric))
