@@ -72,6 +72,7 @@
 - `ModelDetailRowAccessibilityMetadata` 为模型详情参数行、性能行和建议行生成行级 label/value/hint/input labels/identifier；`ModelDetailColumn` 使用 `.contain` 保留整体详情摘要并让行级元素可达，hint 说明行级内容只展示本地模型详情，不下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁。
 - `ModelDeploymentControlAccessibilityMetadata` 为模型页选择器、部署电源按钮和 artifact 操作按钮生成 label/value/hint/input labels/identifier；文案明确切换模型不下载权重、不启动真实 runtime、模拟暂存不联网下载，卸载按钮只打开确认弹层，破坏性删除只发生在确认动作，未 verified 不运行真实权重，不改变 `ModelCatalog` 状态流。
 - `ModelDeploymentPowerTextLayoutPolicy` 为模型部署电源按钮标题与副标题定义 Dynamic Type 文本策略；主标题与副标题使用语义字体并允许两行，移除主标题缩放压缩，同时不改变部署启停状态流、电源按钮触控目标、辅助语义、模型文件或 verified 门禁。
+- `ModelSelectorTextLayoutPolicy` 为模型选择器选中模型名与规格摘要定义 Dynamic Type 文本策略；名称与规格使用语义字体并允许两行，移除缩放压缩，同时不改变模型选择状态流、选择器触控目标、部署/文件/runtime 状态或 verified 门禁。
 - `ModelDeploymentControlLayoutPolicy` 为模型页选择器和部署电源按钮定义共享 44pt 最小触控目标；`ModelSelectorPanel` 和 `DeploymentPowerButton` 只复用尺寸常量，不改变模型选择、部署启停、部署控件辅助语义、模型文件、runtime 状态或 verified 门禁。
 - `ModelArtifactPanelAccessibilityMetadata` 为模型页文件工作流面板生成整体 label/value/hint/input labels/identifier；value 合并 artifact availability、validation summary、模拟暂存、卸载需确认、扫描本地目录和 Files 手动导入入口，hint 说明它只管理本地模型文件工作流，不联网下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁；`ArtifactActionPanel` 使用 `.contain` 保留四个操作按钮的独立焦点。
 - `ModelArtifactActionLayoutPolicy` 为模型页文件工作流面板的扫描本地和导入文件 utility 按钮定义共享 44pt 最小触控目标；它只影响按钮命中高度，不改变模拟暂存、卸载确认、扫描本地、Files 手动导入、artifact 校验、辅助语义或 verified 门禁。

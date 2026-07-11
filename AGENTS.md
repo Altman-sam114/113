@@ -72,6 +72,7 @@ git remote -v
 - `ModelSummaryAccessibilityMetadata` 控制模型页概要面板辅助语义；它必须合并模型名称、简介、能力标签、artifact availability、validation summary、文件格式和包体大小，并明确只展示本地模型概要、不下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁。
 - `ModelDeploymentControlAccessibilityMetadata` 控制模型选择器、部署电源和 artifact 操作按钮的辅助语义；模型切换不下载权重、不启动真实 runtime、模拟暂存不联网下载，卸载按钮只打开确认弹层、不立即删除，确认后才删除 App 托管 artifact 并停止部署，取消无副作用，verified 门禁和 Mac/iPad VoiceOver/Voice Control 入口要有测试锁住。
 - `ModelDeploymentPowerTextLayoutPolicy` 控制模型部署电源按钮标题与副标题的 Dynamic Type 文本策略；主标题与副标题使用语义字体并允许两行，避免 iPad split view、Mac Catalyst 窄窗口和较大文字设置下通过固定小字号或缩放压缩文字，且不得改变部署启停状态流、电源按钮 44pt 触控目标、辅助语义、模型文件或 verified 门禁。
+- `ModelSelectorTextLayoutPolicy` 控制模型选择器选中模型名与规格摘要的 Dynamic Type 文本策略；名称与规格使用语义字体并允许两行，避免 iPad split view、Mac Catalyst 窄窗口和较大文字设置下通过固定小字号或缩放压缩文字，且不得改变模型选择状态流、选择器 44pt 触控目标、部署/文件/runtime 状态或 verified 门禁。
 - `ModelDeploymentControlLayoutPolicy` 控制模型选择器和部署电源按钮的最小触控目标；这些 iPhone、iPad 和 Mac Catalyst 模型部署核心入口必须保持至少 44pt，且不得改变模型选择、部署启停、部署控件辅助语义、模型文件、runtime 状态或 verified 门禁。
 - `ModelArtifactPanelAccessibilityMetadata` 控制模型页文件工作流面板整体辅助语义；它必须合并 artifact availability、validation summary、模拟暂存、卸载需确认、扫描本地和 Files 手动导入入口，并明确只管理本地模型文件工作流、不联网下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁，同时保留面板内各操作按钮可达。
 - `ModelArtifactActionLayoutPolicy` 控制模型页文件工作流面板扫描本地和导入文件两个 utility 动作的最小触控目标；这些 iPhone、iPad 和 Mac Catalyst 模型文件入口必须保持至少 44pt，且不得改变模拟暂存、卸载确认、扫描本地、Files 手动导入、artifact 校验、辅助语义或 verified 门禁。

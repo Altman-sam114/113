@@ -4424,6 +4424,15 @@ struct ModelLibraryView: View {
     }
 }
 
+enum ModelSelectorTextLayoutPolicy {
+    static let verticalSpacing: CGFloat = 2
+    static let nameLineLimit = 2
+    static let specLineLimit = 2
+
+    static var allowsMultilineName: Bool { nameLineLimit > 1 }
+    static var allowsMultilineSpec: Bool { specLineLimit > 1 }
+}
+
 struct ModelSelectorPanel: View {
     @Environment(\.appTheme) private var theme
 
@@ -4455,15 +4464,15 @@ struct ModelSelectorPanel: View {
                 HStack(spacing: 10) {
                     Image(systemName: "chevron.down.circle.fill")
                         .font(.system(size: 17, weight: .bold))
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: ModelSelectorTextLayoutPolicy.verticalSpacing) {
                         Text(selectedModel.name)
-                            .font(.system(size: 17, weight: .black, design: .rounded))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.74)
+                            .font(.headline.weight(.black))
+                            .lineLimit(ModelSelectorTextLayoutPolicy.nameLineLimit)
+                            .fixedSize(horizontal: false, vertical: true)
                         Text("\(selectedModel.parameterCount) · \(selectedModel.quantization)")
-                            .font(.system(size: 11, weight: .semibold))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.74)
+                            .font(.caption.weight(.semibold))
+                            .lineLimit(ModelSelectorTextLayoutPolicy.specLineLimit)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer()
                 }
