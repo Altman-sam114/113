@@ -3053,6 +3053,12 @@
 - manifest 的 branch/commitSha/runId/runAttempt/version 与最新 run 一致；`artifact-name.txt`、JUnit（failures=0）、failure summary、outcomes 已核对。
 - `test.log` 包含 `testSessionChipTextLayoutPolicySupportsDynamicTypeTitles` 并通过；required checks 全部 success。
 
+验证补充（Agent C）：
+
+- GitHub Actions run `29165271962` 对 `1f9986a9582392114cc2f9d2aabac76257639ef1` 通过；artifact `localgemma-ci-v2.54-main-1f9986a-run29165271962-attempt1` 已下载到 `/private/tmp/localgemma-c-review-29165271962/`。
+- manifest 的 branch/commitSha/runId/runAttempt/version 与最新 run 一致；`artifact-name.txt`、JUnit（failures=0）、failure summary、outcomes 已核对。
+- `test.log` 包含 `testModelSelectorTextLayoutPolicySupportsDynamicTypeRows` 并通过；required checks 全部 success。
+
 遗留事项：
 
 - 其余固定字号收敛、全面视觉重构、UI Test target、真实 runtime、原生 macOS target 仍属后续。
