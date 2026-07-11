@@ -3079,6 +3079,12 @@
 - 本地轻量检查：`git diff --check`、脚本、`plutil`、workflow YAML、测试函数统计 95、LogicSmoke、Swift typecheck（无本机完整 Xcode/Simulator XCTest）。
 - 完整 iOS/Mac Catalyst 以 push 后 GitHub Actions 与 Agent C 验收为准。
 
+验证补充（Agent C）：
+
+- GitHub Actions run `29164782546` 对 `8489771c6a2fb3c9ee0a14883172cdce74e21519` 通过；artifact `localgemma-ci-v2.52-main-8489771-run29164782546-attempt1` 已下载到 `/private/tmp/localgemma-c-review-29164782546/`。
+- manifest 的 branch/commitSha/runId/runAttempt/version 与最新 run 一致；`artifact-name.txt`、JUnit（failures=0）、failure summary、outcomes 已核对。
+- `test.log` 包含 `testModelDeploymentPowerTextLayoutPolicySupportsDynamicTypeRows` 并通过；required checks 全部 success。
+
 遗留事项：
 
 - 会话 chip 标题等其余固定字号、全面视觉重构、UI Test target、真实 runtime、原生 macOS target 仍属后续。
