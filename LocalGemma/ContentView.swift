@@ -4792,6 +4792,16 @@ struct ArtifactActionPanel: View {
     }
 }
 
+enum ModelArtifactActionTextLayoutPolicy {
+    static let verticalSpacing: CGFloat = 8
+    static let titleLineLimit = 2
+    static let subtitleLineLimit = 2
+    static let minimumHeight: CGFloat = 86
+
+    static var allowsMultilineTitle: Bool { titleLineLimit > 1 }
+    static var allowsMultilineSubtitle: Bool { subtitleLineLimit > 1 }
+}
+
 struct ArtifactActionButton: View {
     let metadataAction: ModelDeploymentControlAccessibilityMetadata.ArtifactAction
     let availability: ArtifactAvailability
@@ -4803,22 +4813,26 @@ struct ArtifactActionButton: View {
 
     var body: some View {
         Button(action: action) {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: ModelArtifactActionTextLayoutPolicy.verticalSpacing) {
                 Image(systemName: icon)
                     .font(.system(size: 23, weight: .black))
                 Spacer(minLength: 0)
                 Text(title)
-                    .font(.system(size: 15, weight: .black, design: .rounded))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.74)
+                    .font(.subheadline.weight(.black))
+                    .lineLimit(ModelArtifactActionTextLayoutPolicy.titleLineLimit)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text(subtitle)
-                    .font(.system(size: 10, weight: .bold))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.78)
+                    .font(.caption2.weight(.bold))
+                    .lineLimit(ModelArtifactActionTextLayoutPolicy.subtitleLineLimit)
+                    .fixedSize(horizontal: false, vertical: true)
                     .opacity(0.68)
             }
             .foregroundStyle(isDestructive ? .white : .black)
-            .frame(maxWidth: .infinity, minHeight: 86, alignment: .leading)
+            .frame(
+                maxWidth: .infinity,
+                minHeight: ModelArtifactActionTextLayoutPolicy.minimumHeight,
+                alignment: .leading
+            )
             .padding(12)
             .background(
                 LinearGradient(

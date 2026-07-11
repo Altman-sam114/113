@@ -3110,6 +3110,20 @@ final class LocalGemmaTests: XCTestCase {
         )
     }
 
+
+    func testModelArtifactActionTextLayoutPolicySupportsDynamicTypeRows() {
+        XCTAssertEqual(ModelArtifactActionTextLayoutPolicy.verticalSpacing, 8)
+        XCTAssertEqual(ModelArtifactActionTextLayoutPolicy.titleLineLimit, 2)
+        XCTAssertEqual(ModelArtifactActionTextLayoutPolicy.subtitleLineLimit, 2)
+        XCTAssertEqual(ModelArtifactActionTextLayoutPolicy.minimumHeight, 86)
+        XCTAssertTrue(ModelArtifactActionTextLayoutPolicy.allowsMultilineTitle)
+        XCTAssertTrue(ModelArtifactActionTextLayoutPolicy.allowsMultilineSubtitle)
+        XCTAssertGreaterThanOrEqual(
+            ModelArtifactActionTextLayoutPolicy.minimumHeight,
+            44
+        )
+    }
+
     func testModelArtifactActionLayoutPolicyMaintainsUtilityTouchTargets() {
         XCTAssertEqual(ModelArtifactActionLayoutPolicy.minimumTouchTarget, 44)
         XCTAssertGreaterThanOrEqual(
