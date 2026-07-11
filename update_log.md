@@ -3003,6 +3003,12 @@
 - 本地轻量检查：`git diff --check`、脚本、`plutil`、workflow YAML、测试函数统计 93、LogicSmoke、Swift typecheck（无本机完整 Xcode/Simulator XCTest）。
 - 完整 iOS/Mac Catalyst 以 push 后 GitHub Actions 与 Agent C 验收为准。
 
+验证补充（Agent C）：
+
+- GitHub Actions run `29164309862` 对 `4c183ca21d0fa45ae569cf85c5a7c2aa4ff1b67c` 通过；artifact `localgemma-ci-v2.50-main-4c183ca-run29164309862-attempt1` 已下载到 `/private/tmp/localgemma-c-review-29164309862/`。
+- manifest 的 branch/commitSha/runId/runAttempt/version 与最新 run 一致；`artifact-name.txt`、JUnit（failures=0）、failure summary、outcomes 和三个 `.xcresult` 已核对。
+- `test.log` 包含 `testModelDetailRowTextLayoutPolicySupportsDynamicTypeRows` 并通过；required checks 全部 success。
+
 遗留事项：
 
 - 模型胶囊/HeaderMetric 等其余固定字号、全面视觉重构、UI Test target、真实 runtime、原生 macOS target 仍属后续。
