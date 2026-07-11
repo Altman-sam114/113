@@ -69,6 +69,7 @@ git remote -v
 - `ModelCapsuleTextLayoutPolicy` 控制顶部模型胶囊与 HeaderMetricChip 的 Dynamic Type 文本策略；模型名、状态摘要和指标 chip 使用语义字体并允许多行，避免 iPad split view、Mac Catalyst 窄窗口和较大文字设置下通过固定小字号或缩放压缩文字，且不得改变模型胶囊辅助语义、主题切换、工作区切换、模型文件或 runtime 状态流。
 - `ModelCapsuleAccessibilityMetadata` 控制顶部模型胶囊整体辅助语义；它必须合并当前模型、参数、量化、SIM/REAL、artifact 状态、后端、生成状态、速度、内存和准备度，并明确只展示本地状态、不下载权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁。
 - `ModelDetailAccessibilityMetadata` 控制模型页详情右栏和窄屏详情段的整体辅助语义；它必须合并模型规格、artifact 状态、validation summary、性能预算、主/回退后端、KV cache、blocker/next step，并明确只展示本地模型详情、不下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁。
+- `ModelSummaryTextLayoutPolicy` 控制模型页概要面板名称与简介的 Dynamic Type 文本策略；名称使用语义标题字体并允许两行，简介使用语义字体并允许多行，避免 iPad split view、Mac Catalyst 窄窗口和较大文字设置下通过固定小字号或缩放压缩文字，且不得改变概要辅助语义、模型选择/部署、模型文件或 runtime 状态流。
 - `ModelSummaryAccessibilityMetadata` 控制模型页概要面板辅助语义；它必须合并模型名称、简介、能力标签、artifact availability、validation summary、文件格式和包体大小，并明确只展示本地模型概要、不下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁。
 - `ModelDeploymentControlAccessibilityMetadata` 控制模型选择器、部署电源和 artifact 操作按钮的辅助语义；模型切换不下载权重、不启动真实 runtime、模拟暂存不联网下载，卸载按钮只打开确认弹层、不立即删除，确认后才删除 App 托管 artifact 并停止部署，取消无副作用，verified 门禁和 Mac/iPad VoiceOver/Voice Control 入口要有测试锁住。
 - `ModelDeploymentPowerTextLayoutPolicy` 控制模型部署电源按钮标题与副标题的 Dynamic Type 文本策略；主标题与副标题使用语义字体并允许两行，避免 iPad split view、Mac Catalyst 窄窗口和较大文字设置下通过固定小字号或缩放压缩文字，且不得改变部署启停状态流、电源按钮 44pt 触控目标、辅助语义、模型文件或 verified 门禁。

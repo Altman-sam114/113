@@ -4883,6 +4883,16 @@ struct ModelDetailColumn: View {
     }
 }
 
+enum ModelSummaryTextLayoutPolicy {
+    static let titleSummarySpacing: CGFloat = 5
+    static let nameLineLimit = 2
+    static let summaryLineLimit = 4
+    static let summaryLineSpacing: CGFloat = 2
+
+    static var allowsMultilineName: Bool { nameLineLimit > 1 }
+    static var allowsMultilineSummary: Bool { summaryLineLimit > 1 }
+}
+
 struct ModelSummaryPanel: View {
     @Environment(\.appTheme) private var theme
 
@@ -4901,15 +4911,16 @@ struct ModelSummaryPanel: View {
                 }
                 .frame(width: 50, height: 50)
 
-                VStack(alignment: .leading, spacing: 5) {
+                VStack(alignment: .leading, spacing: ModelSummaryTextLayoutPolicy.titleSummarySpacing) {
                     Text(model.name)
-                        .font(.system(size: 19, weight: .heavy, design: .rounded))
+                        .font(.title3.weight(.heavy))
                         .foregroundStyle(theme.primaryText)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.75)
+                        .lineLimit(ModelSummaryTextLayoutPolicy.nameLineLimit)
+                        .fixedSize(horizontal: false, vertical: true)
                     Text(model.summary)
-                        .font(.system(size: 12, weight: .medium))
-                        .lineSpacing(2)
+                        .font(.footnote.weight(.medium))
+                        .lineSpacing(ModelSummaryTextLayoutPolicy.summaryLineSpacing)
+                        .lineLimit(ModelSummaryTextLayoutPolicy.summaryLineLimit)
                         .foregroundStyle(theme.secondaryText)
                         .fixedSize(horizontal: false, vertical: true)
                 }

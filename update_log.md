@@ -16,7 +16,7 @@
 - 平台：SwiftUI iOS App，Swift 6.0，iOS deployment target 17.0，当前 app/test target 支持 iPhone、iPad 和 Mac Catalyst build-for-testing，并提供项目内 Mac Catalyst 本地 build/run 脚本入口；尚未创建原生 macOS target。
 - 当前默认模型：`Gemma 1.5B Local`
 - 当前推理：本地模拟 runtime，不下载模型权重，不执行真实模型推理。
-- 当前核心测试：`LocalGemmaTests.swift` 中 97 个 XCTest 方法。
+- 当前核心测试：`LocalGemmaTests.swift` 中 98 个 XCTest 方法。
 - 当前核心文档入口：`AGENTS.md`、`md/flow/flow.md`、`md/flow/flowchart.md`、`md/test/test.md`、`md/prompt/README.md`、`README.md`。
 - 当前协作验证：默认 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载未加密 CI 结果包验收；本地仓库当前已配置 `origin` remote，最终验收仍以最新 `origin/main` 对应的 GitHub Actions run 和结果包为准；文档已预留未来 `agentx:` 主控 Agent A -> Agent B -> Agent C 多轮循环的规则。
 
@@ -3164,3 +3164,35 @@
 遗留事项：
 
 - 其余固定字号收敛、全面视觉重构、UI Test target、真实 runtime、原生 macOS target 仍属后续。
+
+### v2.55 / 模型概要标题文本动态排版
+
+日期：2026-07-12
+
+核心变更：
+
+- Agent X 在 v2.54 云端验收通过后继续优化 UI、Mac 和 iPad 体验；选择模型页 `ModelSummaryPanel` 名称固定字号与缩放压缩问题，归档 `md/prompt/v2（Mac体验审计）/v2.55（模型概要标题文本动态排版）.md`。
+- 新增 `ModelSummaryTextLayoutPolicy`，集中定义概要名称/简介行数、行距与间距。
+- 模型名称与简介改用 Dynamic Type 语义字体，名称允许两行，简介允许多行，移除名称 `minimumScaleFactor`。
+- 保留概要辅助语义、模型选择/部署、文件、runtime 和 verified 门禁。
+- 新增 `testModelSummaryTextLayoutPolicySupportsDynamicTypeRows`；测试函数数从 97 增加到 98。
+
+关键文件：
+
+- `LocalGemma/ContentView.swift`
+- `LocalGemmaTests/LocalGemmaTests.swift`
+- `AGENTS.md`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v2（Mac体验审计）/v2.55（模型概要标题文本动态排版）.md`
+
+验证结果：
+
+- 本地轻量检查：`git diff --check`、脚本、`plutil`、workflow YAML、测试函数统计 98、LogicSmoke、Swift typecheck（无本机完整 Xcode/Simulator XCTest）。
+- 完整 iOS/Mac Catalyst 以 push 后 GitHub Actions 与 Agent C 验收为准。
+
+遗留事项：
+
+- ArtifactActionButton / 侧栏副标题 / 导出标题等其余固定字号、全面视觉重构、UI Test target、真实 runtime、原生 macOS target 仍属后续。

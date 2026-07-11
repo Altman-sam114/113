@@ -2539,6 +2539,20 @@ final class LocalGemmaTests: XCTestCase {
         XCTAssertTrue(verifiedValue.contains("启用 \(verifiedModel.deploymentProfile.kvCachePolicy)"))
     }
 
+
+    func testModelSummaryTextLayoutPolicySupportsDynamicTypeRows() {
+        XCTAssertEqual(ModelSummaryTextLayoutPolicy.titleSummarySpacing, 5)
+        XCTAssertEqual(ModelSummaryTextLayoutPolicy.nameLineLimit, 2)
+        XCTAssertEqual(ModelSummaryTextLayoutPolicy.summaryLineLimit, 4)
+        XCTAssertEqual(ModelSummaryTextLayoutPolicy.summaryLineSpacing, 2)
+        XCTAssertTrue(ModelSummaryTextLayoutPolicy.allowsMultilineName)
+        XCTAssertTrue(ModelSummaryTextLayoutPolicy.allowsMultilineSummary)
+        XCTAssertGreaterThan(
+            ModelSummaryTextLayoutPolicy.summaryLineLimit,
+            ModelSummaryTextLayoutPolicy.nameLineLimit
+        )
+    }
+
     func testModelSummaryPanelExposesAccessibilityMetadata() {
         let model = ModelCatalog.defaultModels[0]
         let missingValidation = LocalArtifactValidator.validate(

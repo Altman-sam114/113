@@ -67,6 +67,7 @@
 - `ModelCapsuleTextLayoutPolicy` 为顶部模型胶囊与 HeaderMetricChip 定义 Dynamic Type 文本策略；模型名、状态摘要和指标 chip 使用语义字体并允许多行，移除名称/状态/数值缩放压缩，同时不改变模型胶囊辅助语义、主题切换、工作区切换、模型文件或 runtime 状态。
 - `ModelCapsuleAccessibilityMetadata` 为顶部模型胶囊生成整体 label/value/hint/input labels/identifier；value 合并当前模型、参数量、量化、安装状态、SIM/REAL 标记、artifact availability、生成状态、后端、速度、内存和准备度，hint 说明它只展示本地状态摘要，不下载模型权重、不启动真实 runtime、不发送到云端服务、不绕过 verified 门禁。
 - `ModelDetailAccessibilityMetadata` 为模型页详情右栏和窄屏详情段生成整体 label/value/hint/input labels/identifier；value 合并模型规格、artifact availability、validation summary、预计速度、内存预算、主后端、回退后端、KV cache、运行阻塞项和下一步，hint 说明它只展示本地模型详情，不下载模型权重、不启动真实 runtime、不发送到云端服务、不绕过 verified 门禁。
+- `ModelSummaryTextLayoutPolicy` 为模型页概要面板名称与简介定义 Dynamic Type 文本策略；名称允许两行，简介允许多行，移除名称缩放压缩，同时不改变概要辅助语义、模型选择/部署、模型文件或 runtime 状态。
 - `ModelSummaryAccessibilityMetadata` 为模型页概要面板生成 label/value/hint/input labels/identifier；value 合并模型名称、简介、能力标签、artifact availability、validation summary、文件格式和包体大小，hint 说明它只展示本地模型概要和校验摘要，不下载模型权重、不启动真实 runtime、不发送到云端服务、不绕过 verified 门禁。
 - `ModelDetailRowTextLayoutPolicy` 为模型详情参数行、性能行和建议行定义 Dynamic Type 文本策略；标题/数值/建议使用语义字体并允许多行，移除 DetailRow 缩放压缩，同时不改变行级辅助语义、模型详情列宽、模型选择/部署、模型文件或 runtime 状态。
 - `ModelDetailRowAccessibilityMetadata` 为模型详情参数行、性能行和建议行生成行级 label/value/hint/input labels/identifier；`ModelDetailColumn` 使用 `.contain` 保留整体详情摘要并让行级元素可达，hint 说明行级内容只展示本地模型详情，不下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁。
