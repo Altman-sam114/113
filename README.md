@@ -19,6 +19,7 @@
 - v2.56 的模型文件动作按钮标题/副标题按 `ModelArtifactActionTextLayoutPolicy` 使用 Dynamic Type 语义字体并允许两行，移除缩放压缩。
 - v2.57 的导出弹层标题/摘要按 `ExportSessionTitleTextLayoutPolicy` 使用 Dynamic Type 语义字体并允许两行，移除标题缩放压缩。
 - v2.58 的大屏侧栏工作区标题/副标题按 `WorkspaceSidebarTextLayoutPolicy` 使用 Dynamic Type 语义字体并允许两行，移除副标题缩放压缩。
+- v2.59 新增 `WorkbenchVisualStylePolicy`：紧凑工作区导航改为共享 material 托盘，大屏 sidebar 改为低饱和导航轨道和细选中指示器，共享 panel 改用主题感知表面、8pt 圆角与 hairline 描边；快捷键、44pt 触控目标、辅助语义和业务状态流保持不变。
 - `LocalGemmaTests/LocalGemmaTests.swift`：覆盖默认 Gemma 模拟状态、artifact missing/staged/verified 校验、手动导入文件复制、`.mlmodelc` 目录导入、启动自动扫描、本地模型管理状态流转、模型卸载确认弹层状态流与辅助语义、模拟输出、运行计划、优化开关、运行策略开关辅助语义、运行策略开关宽屏网格、运行策略开关行 44pt 触控目标、芯片准备度辅助语义与隐私状态动态摘要、优化指标卡辅助语义、优化指标网格宽度策略、设置页整体宽屏内容宽度策略、共享 SectionHeader 动态排版策略、Header 标题动态排版策略、提示词页整体宽屏内容宽度策略、提示词模板宽屏布局策略、提示词模板文本动态排版策略、提示词分类筛选换行布局策略、提示词分类文本动态排版策略、提示词模板动作 44pt 触控目标、顶部模型胶囊整体辅助语义、模型概要面板辅助语义、模型详情右栏与行级辅助语义、模型详情右栏最大阅读宽度策略、模型文件工作流面板辅助语义、模型文件操作 44pt 触控目标、模型部署控件 44pt 触控目标、模型状态徽章辅助语义、会话 chip 动作语义、会话 chip 选择/删除 44pt 触控目标、聊天消息气泡与聊天记录容器辅助语义、聊天气泡宽屏宽度策略、composer 宽屏输入宽度策略、composer 发送/停止 44pt 触控目标、预设提示词模板、提示词分类筛选辅助语义、提示词模板动作辅助语义、会话管理、Markdown 会话导出、导出弹层分享/复制辅助语义、导出弹层分享/复制 44pt 触控目标、导出弹层整体宽屏内容宽度策略、工作区导航辅助语义、工作区导航 44pt 触控目标、头部主题与模型工作区入口辅助语义、全局 Header 图标动作 44pt 触控目标、设置页图标动作 44pt 触控目标、壁纸控件辅助语义、iPhone/iPad/Mac Catalyst 桌面窗口布局断点、模型页整体宽屏内容宽度策略、模型页内部宽屏布局策略、模型选择器辅助语义、模型部署控件辅助语义、会话栏操作辅助语义、会话栏操作 44pt 触控目标、会话侧栏宽度策略、工作区快捷键映射、工作区 command menu 映射、会话 command menu focused route、regular 侧栏说明、选择语义、composer 输入焦点、控件标识与辅助语义和空输入保护。
 - v2.48 新增 `testOptimizerMetricTextLayoutPolicySupportsDynamicTypeCards`。
 - v2.49 新增 `testSettingsPreferenceTextLayoutPolicySupportsDynamicTypeRows`。
@@ -30,7 +31,8 @@
 - v2.55 新增 `testModelSummaryTextLayoutPolicySupportsDynamicTypeRows`。
 - v2.56 新增 `testModelArtifactActionTextLayoutPolicySupportsDynamicTypeRows`。
 - v2.57 新增 `testExportSessionTitleTextLayoutPolicySupportsDynamicTypeRows`。
-- v2.58 新增 `testWorkspaceSidebarTextLayoutPolicySupportsDynamicTypeRows`，当前测试函数总数为 101。
+- v2.58 新增 `testWorkspaceSidebarTextLayoutPolicySupportsDynamicTypeRows`。
+- v2.59 新增 `testWorkbenchVisualStylePolicyDefinesNavigationAndPanelHierarchy`，当前测试函数总数为 102。
 - `Tools/LogicSmoke.swift`：不依赖 iOS runtime 的本地逻辑烟测，用来验证模拟模型、artifact 校验、手动导入文件复制、`.mlmodelc` 目录导入、启动自动扫描、模型管理状态流转、运行计划、提示词模板、会话管理、Markdown 导出与优化状态。
 - `AGENTS.md`：项目入口记忆、基本规则、“人工目标 -> Agent A -> Agent B -> Agent C -> 人工复核”的单轮流程，以及未来 `agentx:` 主控 A/B/C 多轮循环的准备规则。
 - `update_log.md`：版本更新记录、历史决策、完成事项和遗留问题。
@@ -231,6 +233,8 @@ v2.57 本轮增加导出弹层标题文本动态排版策略：`exportHeader` �
 
 v2.58 本轮增加工作区侧栏文本动态排版策略：`sidebarTabPicker` 由 `WorkspaceSidebarTextLayoutPolicy` 控制，标题/副标题使用 Dynamic Type 语义字体并允许两行，移除副标题 `minimumScaleFactor`；`LocalGemmaTests.swift` 当前测试函数数为 101。完整 iOS XCTest 与 Mac Catalyst 云端重验证以本轮 push 后的 GitHub Actions run 和 Agent C 下载结果包验收为准。
 
+v2.59 本轮建立工作台视觉层级系统：`WorkbenchVisualStylePolicy` 统一紧凑导航托盘、大屏 sidebar 轨道、选中指示器和共享 panel 的几何与主题透明度；`panelStyle` 改为读取当前主题的 modifier；`LocalGemmaTests.swift` 当前测试函数数为 102。完整 iOS XCTest 与 Mac Catalyst 云端重验证以本轮 push 后的 GitHub Actions run 和 Agent C 下载结果包验收为准。
+
 v1.0 本轮已完成本地轻量检查和 Mac Catalyst run 入口验证：
 
 ```sh
@@ -274,7 +278,7 @@ grep -n "func test" LocalGemmaTests/LocalGemmaTests.swift
 
 结果：通过。
 
-同时已生成可测试导入的 `LocalGemma.swiftmodule`，并用 iPhone Simulator 的 XCTest framework 对测试源码做 API 层 typecheck。当前测试源码包含 101 个 `XCTestCase` 测试函数，覆盖提示词模板库、工作区导航 44pt 触控目标、导出弹层分享/复制 44pt 触控目标、导出弹层整体宽屏内容宽度策略、会话 chip 选择/删除 44pt 触控目标、模型文件操作 44pt 触控目标、模型部署控件 44pt 触控目标、全局 Header 图标动作 44pt 触控目标、Header 标题动态排版策略、设置页整体宽屏内容宽度策略、共享 SectionHeader 动态排版策略、优化指标卡文本动态排版策略、设置偏好行文本动态排版策略、提示词页整体宽屏内容宽度策略、提示词模板宽屏布局策略、提示词模板文本动态排版策略、提示词分类筛选换行布局策略、提示词分类文本动态排版策略、提示词模板动作 44pt 触控目标、提示词分类筛选辅助语义、提示词模板动作辅助语义、模板填入输入框、模板直接发送、会话创建/切换/删除、会话 command menu focused route、工作区导航辅助语义、设置页图标动作 44pt 触控目标、会话栏操作辅助语义、会话栏操作 44pt 触控目标、会话 chip 动作语义、聊天消息气泡与聊天记录容器辅助语义、聊天气泡宽屏宽度策略、composer 宽屏输入宽度策略、composer 发送/停止 44pt 触控目标、Markdown 会话导出、导出弹层分享/复制辅助语义、头部主题与模型工作区入口辅助语义、壁纸控件辅助语义、iPhone/iPad/Mac Catalyst 桌面窗口布局断点、模型页整体宽屏内容宽度策略、模型页内部宽屏布局策略、模型详情右栏最大阅读宽度策略、顶部模型胶囊整体辅助语义、模型概要面板辅助语义、模型详情右栏与行级辅助语义、模型文件工作流面板辅助语义、模型卸载确认弹层状态流与辅助语义、模型选择器辅助语义、模型状态徽章辅助语义、模型部署控件辅助语义、运行策略开关辅助语义、运行策略开关宽屏网格、运行策略开关行 44pt 触控目标、芯片准备度辅助语义与隐私状态动态摘要、优化指标卡辅助语义、优化指标网格宽度策略、会话侧栏宽度策略、工作区快捷键映射、工作区 command menu 映射、regular 侧栏说明、选择语义、composer 输入焦点、控件标识与辅助语义、壁纸处理和分享兜底：
+同时已生成可测试导入的 `LocalGemma.swiftmodule`，并用 iPhone Simulator 的 XCTest framework 对测试源码做 API 层 typecheck。当前测试源码包含 102 个 `XCTestCase` 测试函数，覆盖提示词模板库、工作台导航与共享 panel 视觉层级、工作区导航 44pt 触控目标、导出弹层分享/复制 44pt 触控目标、导出弹层整体宽屏内容宽度策略、会话 chip 选择/删除 44pt 触控目标、模型文件操作 44pt 触控目标、模型部署控件 44pt 触控目标、全局 Header 图标动作 44pt 触控目标、Header 标题动态排版策略、设置页整体宽屏内容宽度策略、共享 SectionHeader 动态排版策略、优化指标卡文本动态排版策略、设置偏好行文本动态排版策略、提示词页整体宽屏内容宽度策略、提示词模板宽屏布局策略、提示词模板文本动态排版策略、提示词分类筛选换行布局策略、提示词分类文本动态排版策略、提示词模板动作 44pt 触控目标、提示词分类筛选辅助语义、提示词模板动作辅助语义、模板填入输入框、模板直接发送、会话创建/切换/删除、会话 command menu focused route、工作区导航辅助语义、设置页图标动作 44pt 触控目标、会话栏操作辅助语义、会话栏操作 44pt 触控目标、会话 chip 动作语义、聊天消息气泡与聊天记录容器辅助语义、聊天气泡宽屏宽度策略、composer 宽屏输入宽度策略、composer 发送/停止 44pt 触控目标、Markdown 会话导出、导出弹层分享/复制辅助语义、头部主题与模型工作区入口辅助语义、壁纸控件辅助语义、iPhone/iPad/Mac Catalyst 桌面窗口布局断点、模型页整体宽屏内容宽度策略、模型页内部宽屏布局策略、模型详情右栏最大阅读宽度策略、顶部模型胶囊整体辅助语义、模型概要面板辅助语义、模型详情右栏与行级辅助语义、模型文件工作流面板辅助语义、模型卸载确认弹层状态流与辅助语义、模型选择器辅助语义、模型状态徽章辅助语义、模型部署控件辅助语义、运行策略开关辅助语义、运行策略开关宽屏网格、运行策略开关行 44pt 触控目标、芯片准备度辅助语义与隐私状态动态摘要、优化指标卡辅助语义、优化指标网格宽度策略、会话侧栏宽度策略、工作区快捷键映射、工作区 command menu 映射、regular 侧栏说明、选择语义、composer 输入焦点、控件标识与辅助语义、壁纸处理和分享兜底：
 
 ```sh
 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc \
@@ -495,3 +499,4 @@ v2.55 优化模型概要标题文本动态排版：新增 `ModelSummaryTextLayou
 v2.56 优化模型文件动作按钮文本动态排版：新增 `ModelArtifactActionTextLayoutPolicy`，文件动作按钮标题/副标题改用 Dynamic Type 语义字体并允许两行，移除缩放压缩；新增测试，`LocalGemmaTests.swift` 增加到 99 个测试函数。本轮仍没有原生 macOS target，不接真实模型，不下载权重。
 v2.57 优化导出弹层标题文本动态排版：新增 `ExportSessionTitleTextLayoutPolicy`，导出会话标题/摘要改用 Dynamic Type 语义字体并允许两行，移除标题缩放压缩；新增测试，`LocalGemmaTests.swift` 增加到 100 个测试函数。本轮仍没有原生 macOS target，不接真实模型，不下载权重。
 v2.58 优化工作区侧栏文本动态排版：新增 `WorkspaceSidebarTextLayoutPolicy`，侧栏标题/副标题改用 Dynamic Type 语义字体并允许两行，移除副标题缩放压缩；新增测试，`LocalGemmaTests.swift` 增加到 101 个测试函数。本轮仍没有原生 macOS target，不接真实模型，不下载权重。
+v2.59 重构工作台视觉层级：新增 `WorkbenchVisualStylePolicy`，紧凑导航使用共享托盘，大屏 sidebar 使用低饱和轨道和选中指示器，共享 panel 使用主题感知表面、8pt 圆角与 hairline 描边；新增测试，`LocalGemmaTests.swift` 增加到 102 个测试函数。本轮仍没有原生 macOS target，不接真实模型，不下载权重。

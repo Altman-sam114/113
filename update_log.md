@@ -16,7 +16,7 @@
 - 平台：SwiftUI iOS App，Swift 6.0，iOS deployment target 17.0，当前 app/test target 支持 iPhone、iPad 和 Mac Catalyst build-for-testing，并提供项目内 Mac Catalyst 本地 build/run 脚本入口；尚未创建原生 macOS target。
 - 当前默认模型：`Gemma 1.5B Local`
 - 当前推理：本地模拟 runtime，不下载模型权重，不执行真实模型推理。
-- 当前核心测试：`LocalGemmaTests.swift` 中 101 个 XCTest 方法。
+- 当前核心测试：`LocalGemmaTests.swift` 中 102 个 XCTest 方法。
 - 当前核心文档入口：`AGENTS.md`、`md/flow/flow.md`、`md/flow/flowchart.md`、`md/test/test.md`、`md/prompt/README.md`、`README.md`。
 - 当前协作验证：默认 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载未加密 CI 结果包验收；本地仓库当前已配置 `origin` remote，最终验收仍以最新 `origin/main` 对应的 GitHub Actions run 和结果包为准；文档已预留未来 `agentx:` 主控 Agent A -> Agent B -> Agent C 多轮循环的规则。
 
@@ -3316,3 +3316,37 @@
 遗留事项：
 
 - 全面视觉重构、UI Test target、真实 runtime、原生 macOS target 仍属后续；ContentView 中已无 `minimumScaleFactor` 压缩路径。
+
+### v2.59 / 工作台视觉层级系统
+
+日期：2026-07-26
+
+核心变更：
+
+- Agent X 在 v2.58 云端验收通过后继续优化 UI、Mac 和 iPad 体验；三路只读审计确认共享 panel 和工作区导航仍缺少统一视觉层级，归档 `md/prompt/v2（Mac体验审计）/v2.59（工作台视觉层级系统）.md`。
+- 新增 `WorkbenchVisualStylePolicy`，集中定义控制/面板圆角、导航间距、icon tile、选中指示器、hairline、panel padding 和亮暗主题透明度。
+- 紧凑工作区 tab 改为共享 material 托盘；大屏 sidebar 改为低饱和导航轨道、语义色 icon tile 和左侧选中指示器，不再使用整块高饱和反色选中项。
+- `panelStyle` 改为读取 `appTheme` 的 `WorkbenchPanelModifier`，共享 8pt 圆角、14pt padding、material + theme surface 和主题描边。
+- 保留工作区快捷键、command menu、`selectedTab`、composer focus、44pt 触控目标、辅助语义、模型文件、runtime 状态和 verified 门禁。
+- 新增 `testWorkbenchVisualStylePolicyDefinesNavigationAndPanelHierarchy`；测试函数数从 101 增加到 102。
+
+关键文件：
+
+- `LocalGemma/ContentView.swift`
+- `LocalGemmaTests/LocalGemmaTests.swift`
+- `AGENTS.md`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v2（Mac体验审计）/v2.59（工作台视觉层级系统）.md`
+
+验证结果：
+
+- `git diff --check`、脚本可执行/语法、`plutil -lint`、workflow YAML 解析和测试函数统计 102 均通过；LogicSmoke 输出 `Logic smoke passed`。
+- Swift UI 源码 typecheck、app module emit 和 XCTest 源码 typecheck 均退出码 0；`./script/build_and_run.sh --build-only` 的 Mac Catalyst 构建输出 `BUILD SUCCEEDED`。
+- 构建后的 Mac Catalyst App 已成功启动，前台窗口为 1024x768；系统因当前进程缺少屏幕录制权限拒绝 `screencapture`，本轮未取得可核对截图。完整 iOS/Mac Catalyst XCTest 由 push 后 GitHub Actions 与 Agent C 结果包验收。
+
+遗留事项：
+
+- v2.60 计划审计并收敛工作区 sidebar 与会话 sidebar 同时出现时的宽度策略；UI Test target、真实 runtime 和原生 macOS target 仍属后续。

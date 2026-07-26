@@ -1927,6 +1927,56 @@ final class LocalGemmaTests: XCTestCase {
         )
     }
 
+    func testWorkbenchVisualStylePolicyDefinesNavigationAndPanelHierarchy() {
+        XCTAssertEqual(WorkbenchVisualStylePolicy.controlCornerRadius, 8)
+        XCTAssertEqual(WorkbenchVisualStylePolicy.panelCornerRadius, 8)
+        XCTAssertEqual(WorkbenchVisualStylePolicy.iconCornerRadius, 6)
+        XCTAssertEqual(WorkbenchVisualStylePolicy.compactNavigationSpacing, 4)
+        XCTAssertEqual(WorkbenchVisualStylePolicy.compactNavigationInset, 4)
+        XCTAssertEqual(WorkbenchVisualStylePolicy.sidebarNavigationSpacing, 4)
+        XCTAssertEqual(WorkbenchVisualStylePolicy.sidebarIconSize, 30)
+        XCTAssertEqual(WorkbenchVisualStylePolicy.sidebarSelectionIndicatorWidth, 3)
+        XCTAssertEqual(WorkbenchVisualStylePolicy.sidebarSelectionIndicatorVerticalInset, 8)
+        XCTAssertEqual(WorkbenchVisualStylePolicy.compactSelectionIndicatorWidth, 24)
+        XCTAssertEqual(WorkbenchVisualStylePolicy.compactSelectionIndicatorHeight, 2)
+        XCTAssertEqual(WorkbenchVisualStylePolicy.hairlineWidth, 1)
+        XCTAssertEqual(WorkbenchVisualStylePolicy.panelPadding, 14)
+
+        let opacities = [
+            WorkbenchVisualStylePolicy.selectedBorderOpacity,
+            WorkbenchVisualStylePolicy.unselectedIconSurfaceOpacity,
+            WorkbenchVisualStylePolicy.selectedSurfaceOpacity(isDark: false),
+            WorkbenchVisualStylePolicy.selectedSurfaceOpacity(isDark: true),
+            WorkbenchVisualStylePolicy.panelTintOpacity(isDark: false),
+            WorkbenchVisualStylePolicy.panelTintOpacity(isDark: true),
+            WorkbenchVisualStylePolicy.sidebarTintOpacity(isDark: false),
+            WorkbenchVisualStylePolicy.sidebarTintOpacity(isDark: true)
+        ]
+        XCTAssertTrue(opacities.allSatisfy { (0..<1).contains($0) })
+        XCTAssertGreaterThan(
+            WorkbenchVisualStylePolicy.selectedSurfaceOpacity(isDark: true),
+            WorkbenchVisualStylePolicy.selectedSurfaceOpacity(isDark: false)
+        )
+        XCTAssertLessThan(
+            WorkbenchVisualStylePolicy.panelTintOpacity(isDark: true),
+            WorkbenchVisualStylePolicy.panelTintOpacity(isDark: false)
+        )
+        XCTAssertLessThan(
+            WorkbenchVisualStylePolicy.sidebarTintOpacity(isDark: true),
+            WorkbenchVisualStylePolicy.sidebarTintOpacity(isDark: false)
+        )
+        XCTAssertTrue(WorkbenchVisualStylePolicy.usesSelectionIndicator(isSelected: true))
+        XCTAssertFalse(WorkbenchVisualStylePolicy.usesSelectionIndicator(isSelected: false))
+        XCTAssertGreaterThanOrEqual(
+            WorkspaceNavigationActionLayoutPolicy.compactTabMinHeight,
+            WorkspaceNavigationActionLayoutPolicy.minimumTouchTarget
+        )
+        XCTAssertGreaterThanOrEqual(
+            WorkspaceNavigationActionLayoutPolicy.sidebarTabMinHeight,
+            WorkspaceNavigationActionLayoutPolicy.minimumTouchTarget
+        )
+    }
+
     func testWorkspaceNavigationActionLayoutPolicyMaintainsTouchTargets() {
         XCTAssertEqual(WorkspaceNavigationActionLayoutPolicy.minimumTouchTarget, 44)
         XCTAssertEqual(

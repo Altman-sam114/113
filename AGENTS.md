@@ -60,6 +60,7 @@ git remote -v
 - `ModelDetailColumnLayoutPolicy` 控制模型页详情右栏在双栏宽屏中的最大阅读宽度；单栏不启用固定详情列宽，iPad/Mac 宽区域使用剩余空间但封顶，避免概要、参数、性能和建议文本行在超宽窗口无限拉长，最小/最大宽度、列间距和无效宽度 clamp 要有测试锁住。
 - `WorkspaceNavigationAccessibilityMetadata` 控制顶部工作区 tab 和大屏 sidebar 工作区按钮的辅助语义；它必须复用工作区 label/value、说明 `Command+1...4` 快捷键、包含 regular 侧栏用途说明、暴露 Voice Control 输入标签，并明确只切换本地工作区、不下载权重、不启动真实 runtime。
 - `WorkspaceSidebarTextLayoutPolicy` 控制大屏侧栏工作区标题与详细副标题的 Dynamic Type 文本策略；标题与副标题使用语义字体并允许两行，避免 iPad/Mac regular 侧栏和较大文字设置下通过固定小字号或缩放压缩文字，且不得改变 `WorkspaceTab.shortcutKey`、command menu、`selectedTab`、composer focus、导航 44pt 触控目标或辅助语义。
+- `WorkbenchVisualStylePolicy` 控制紧凑工作区导航托盘、大屏 sidebar 导航轨道、选中指示器、主题表面和共享 panel 的视觉层级；iPhone、iPad 与 Mac Catalyst 必须复用低饱和选中表面、8pt panel 圆角和主题感知 hairline，且不得改变快捷键、command menu、`selectedTab`、composer focus、44pt 触控目标、辅助语义、模型文件、runtime 状态或 verified 门禁。
 - `WorkspaceNavigationActionLayoutPolicy` 控制顶部工作区 tab 和大屏 sidebar 工作区按钮的最小触控目标；这些全局导航入口必须保持至少 44pt，且不得改变 `WorkspaceTab.shortcutKey`、工作区 command menu、`selectedTab` 状态流、composer focus 或辅助语义。
 - `HeaderActionAccessibilityMetadata` 控制全局头部主题切换、设置页外观主题按钮和打开模型工作区按钮的辅助语义；它必须明确当前主题、切换目标、本地 UI 边界、模型工作区跳转边界、不下载权重、不启动真实 runtime、不发送云端服务和不绕过 verified 门禁。
 - `HeaderActionLayoutPolicy` 控制全局 Header 主题切换和打开模型工作区两个图标动作的最小触控目标；这些全局入口必须保持至少 44pt，且不得改变主题切换、工作区切换、模型胶囊状态、辅助语义、模型文件或 runtime 状态流。

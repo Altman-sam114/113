@@ -77,6 +77,40 @@ struct AppThemePalette {
     }
 }
 
+enum WorkbenchVisualStylePolicy {
+    static let controlCornerRadius: CGFloat = 8
+    static let panelCornerRadius: CGFloat = 8
+    static let iconCornerRadius: CGFloat = 6
+    static let compactNavigationSpacing: CGFloat = 4
+    static let compactNavigationInset: CGFloat = 4
+    static let sidebarNavigationSpacing: CGFloat = 4
+    static let sidebarIconSize: CGFloat = 30
+    static let sidebarSelectionIndicatorWidth: CGFloat = 3
+    static let sidebarSelectionIndicatorVerticalInset: CGFloat = 8
+    static let compactSelectionIndicatorWidth: CGFloat = 24
+    static let compactSelectionIndicatorHeight: CGFloat = 2
+    static let hairlineWidth: CGFloat = 1
+    static let panelPadding: CGFloat = 14
+    static let selectedBorderOpacity = 0.34
+    static let unselectedIconSurfaceOpacity = 0.06
+
+    static func selectedSurfaceOpacity(isDark: Bool) -> Double {
+        isDark ? 0.16 : 0.10
+    }
+
+    static func panelTintOpacity(isDark: Bool) -> Double {
+        isDark ? 0.36 : 0.58
+    }
+
+    static func sidebarTintOpacity(isDark: Bool) -> Double {
+        isDark ? 0.38 : 0.56
+    }
+
+    static func usesSelectionIndicator(isSelected: Bool) -> Bool {
+        isSelected
+    }
+}
+
 enum WorkspaceLayoutMode: Equatable {
     case portrait
     case landscapeCompact
@@ -489,11 +523,20 @@ struct ContentView: View {
             }
             .scrollIndicators(.hidden)
             .frame(width: sidebarWidth)
-            .background(.ultraThinMaterial)
+            .background {
+                ZStack {
+                    Rectangle().fill(.ultraThinMaterial)
+                    Rectangle().fill(
+                        theme.recessedSurface.opacity(
+                            WorkbenchVisualStylePolicy.sidebarTintOpacity(isDark: theme.isDark)
+                        )
+                    )
+                }
+            }
             .overlay(alignment: .trailing) {
                 Rectangle()
                     .fill(theme.border)
-                    .frame(width: 1)
+                    .frame(width: WorkbenchVisualStylePolicy.hairlineWidth)
             }
 
             workspacePageContent(themeMode: themeMode)
@@ -571,7 +614,7 @@ struct ContentView: View {
     private var tabPicker: some View {
         let theme = currentTheme
 
-        return HStack(spacing: 8) {
+        return HStack(spacing: WorkbenchVisualStylePolicy.compactNavigationSpacing) {
             ForEach(WorkspaceTab.allCases) { tab in
                 Button {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.82)) {
@@ -579,22 +622,44 @@ struct ContentView: View {
                     }
                 } label: {
                     Label(tab.title, systemImage: tab.icon)
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.subheadline.weight(.semibold))
                         .labelStyle(.titleAndIcon)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
+                        .padding(.vertical, 8)
                         .frame(minHeight: WorkspaceNavigationActionLayoutPolicy.compactTabMinHeight)
                         .background {
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .fill(selectedTab == tab ? theme.accent.opacity(0.18) : theme.chipSurface)
-                                .overlay {
-                                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                        .stroke(selectedTab == tab ? theme.accent.opacity(0.58) : theme.subtleBorder, lineWidth: 1)
-                                }
+                            RoundedRectangle(
+                                cornerRadius: WorkbenchVisualStylePolicy.controlCornerRadius,
+                                style: .continuous
+                            )
+                            .fill(
+                                selectedTab == tab
+                                    ? theme.accent.opacity(
+                                        WorkbenchVisualStylePolicy.selectedSurfaceOpacity(
+                                            isDark: theme.isDark
+                                        )
+                                    )
+                                    : Color.clear
+                            )
+                        }
+                        .overlay(alignment: .bottom) {
+                            if WorkbenchVisualStylePolicy.usesSelectionIndicator(
+                                isSelected: selectedTab == tab
+                            ) {
+                                RoundedRectangle(cornerRadius: 1, style: .continuous)
+                                    .fill(theme.accent)
+                                    .frame(
+                                        width: WorkbenchVisualStylePolicy.compactSelectionIndicatorWidth,
+                                        height: WorkbenchVisualStylePolicy.compactSelectionIndicatorHeight
+                                    )
+                                    .padding(.bottom, 4)
+                                    .accessibilityHidden(true)
+                            }
                         }
                         .foregroundStyle(selectedTab == tab ? theme.primaryText : theme.secondaryText)
                 }
                 .buttonStyle(.plain)
+                .contentShape(Rectangle())
                 .keyboardShortcut(KeyEquivalent(tab.shortcutKey), modifiers: [.command])
                 .accessibilityLabel(WorkspaceNavigationAccessibilityMetadata.label(for: tab))
                 .accessibilityValue(
@@ -606,12 +671,38 @@ struct ContentView: View {
                 .accessibilityIdentifier(WorkspaceNavigationAccessibilityMetadata.compactIdentifier(for: tab))
             }
         }
+        .padding(WorkbenchVisualStylePolicy.compactNavigationInset)
+        .background {
+            ZStack {
+                RoundedRectangle(
+                    cornerRadius: WorkbenchVisualStylePolicy.controlCornerRadius,
+                    style: .continuous
+                )
+                .fill(.ultraThinMaterial)
+                RoundedRectangle(
+                    cornerRadius: WorkbenchVisualStylePolicy.controlCornerRadius,
+                    style: .continuous
+                )
+                .fill(
+                    theme.recessedSurface.opacity(
+                        WorkbenchVisualStylePolicy.sidebarTintOpacity(isDark: theme.isDark)
+                    )
+                )
+            }
+        }
+        .overlay {
+            RoundedRectangle(
+                cornerRadius: WorkbenchVisualStylePolicy.controlCornerRadius,
+                style: .continuous
+            )
+            .stroke(theme.border, lineWidth: WorkbenchVisualStylePolicy.hairlineWidth)
+        }
     }
 
     private func sidebarTabPicker(isDetailed: Bool) -> some View {
         let theme = currentTheme
 
-        return VStack(spacing: 8) {
+        return VStack(spacing: WorkbenchVisualStylePolicy.sidebarNavigationSpacing) {
             ForEach(WorkspaceTab.allCases) { tab in
                 Button {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.82)) {
@@ -620,18 +711,38 @@ struct ContentView: View {
                 } label: {
                     HStack(spacing: 10) {
                         Image(systemName: tab.icon)
-                            .font(.system(size: 15, weight: .bold))
-                            .frame(width: 24)
+                            .font(.subheadline.weight(.bold))
+                            .foregroundStyle(selectedTab == tab ? theme.accent : theme.tertiaryText)
+                            .frame(
+                                width: WorkbenchVisualStylePolicy.sidebarIconSize,
+                                height: WorkbenchVisualStylePolicy.sidebarIconSize
+                            )
+                            .background(
+                                selectedTab == tab
+                                    ? theme.accent.opacity(
+                                        WorkbenchVisualStylePolicy.selectedSurfaceOpacity(
+                                            isDark: theme.isDark
+                                        )
+                                    )
+                                    : theme.surface.opacity(
+                                        WorkbenchVisualStylePolicy.unselectedIconSurfaceOpacity
+                                    ),
+                                in: RoundedRectangle(
+                                    cornerRadius: WorkbenchVisualStylePolicy.iconCornerRadius,
+                                    style: .continuous
+                                )
+                            )
 
                         VStack(alignment: .leading, spacing: isDetailed ? WorkspaceSidebarTextLayoutPolicy.titleSubtitleSpacing : 0) {
                             Text(tab.title)
                                 .font(.subheadline.weight(.black))
+                                .foregroundStyle(selectedTab == tab ? theme.primaryText : theme.secondaryText)
                                 .lineLimit(WorkspaceSidebarTextLayoutPolicy.titleLineLimit)
                                 .fixedSize(horizontal: false, vertical: true)
                             if isDetailed {
                                 Text(tab.sidebarSubtitle)
                                     .font(.caption.weight(.semibold))
-                                    .foregroundStyle(selectedTab == tab ? theme.inverseText.opacity(0.78) : theme.secondaryText)
+                                    .foregroundStyle(theme.secondaryText)
                                     .lineLimit(WorkspaceSidebarTextLayoutPolicy.subtitleLineLimit)
                                     .fixedSize(horizontal: false, vertical: true)
                             }
@@ -641,22 +752,59 @@ struct ContentView: View {
                         if selectedTab == tab {
                             Image(systemName: "chevron.right")
                                 .font(.system(size: 11, weight: .black))
+                                .foregroundStyle(theme.accent)
                         }
                     }
-                    .foregroundStyle(selectedTab == tab ? theme.inverseText : theme.primaryText)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 11)
                     .frame(
                         minHeight: WorkspaceNavigationActionLayoutPolicy.sidebarTabMinHeight,
                         alignment: .leading
                     )
-                    .background(selectedTab == tab ? theme.accent : theme.chipSurface, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+                    .background(
+                        selectedTab == tab
+                            ? theme.accent.opacity(
+                                WorkbenchVisualStylePolicy.selectedSurfaceOpacity(
+                                    isDark: theme.isDark
+                                )
+                            )
+                            : Color.clear,
+                        in: RoundedRectangle(
+                            cornerRadius: WorkbenchVisualStylePolicy.controlCornerRadius,
+                            style: .continuous
+                        )
+                    )
                     .overlay {
-                        RoundedRectangle(cornerRadius: 13, style: .continuous)
-                            .stroke(selectedTab == tab ? theme.accent.opacity(0.6) : theme.border, lineWidth: 1)
+                        RoundedRectangle(
+                            cornerRadius: WorkbenchVisualStylePolicy.controlCornerRadius,
+                            style: .continuous
+                        )
+                        .stroke(
+                            selectedTab == tab
+                                ? theme.accent.opacity(
+                                    WorkbenchVisualStylePolicy.selectedBorderOpacity
+                                )
+                                : Color.clear,
+                            lineWidth: WorkbenchVisualStylePolicy.hairlineWidth
+                        )
+                    }
+                    .overlay(alignment: .leading) {
+                        if WorkbenchVisualStylePolicy.usesSelectionIndicator(
+                            isSelected: selectedTab == tab
+                        ) {
+                            RoundedRectangle(cornerRadius: 1, style: .continuous)
+                                .fill(theme.accent)
+                                .frame(width: WorkbenchVisualStylePolicy.sidebarSelectionIndicatorWidth)
+                                .padding(
+                                    .vertical,
+                                    WorkbenchVisualStylePolicy.sidebarSelectionIndicatorVerticalInset
+                                )
+                                .accessibilityHidden(true)
+                        }
                     }
                 }
                 .buttonStyle(.plain)
+                .contentShape(Rectangle())
                 .keyboardShortcut(KeyEquivalent(tab.shortcutKey), modifiers: [.command])
                 .accessibilityLabel(WorkspaceNavigationAccessibilityMetadata.label(for: tab))
                 .accessibilityValue(
@@ -6060,15 +6208,48 @@ struct FlowLayout<Data: RandomAccessCollection, Content: View>: View where Data.
     }
 }
 
-extension View {
-    func panelStyle(border: Color = Color.primary.opacity(0.12)) -> some View {
-        self
-            .padding(14)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(border, lineWidth: 1)
+private struct WorkbenchPanelModifier: ViewModifier {
+    @Environment(\.appTheme) private var theme
+
+    let border: Color?
+
+    func body(content: Content) -> some View {
+        content
+            .padding(WorkbenchVisualStylePolicy.panelPadding)
+            .background {
+                ZStack {
+                    RoundedRectangle(
+                        cornerRadius: WorkbenchVisualStylePolicy.panelCornerRadius,
+                        style: .continuous
+                    )
+                    .fill(.ultraThinMaterial)
+                    RoundedRectangle(
+                        cornerRadius: WorkbenchVisualStylePolicy.panelCornerRadius,
+                        style: .continuous
+                    )
+                    .fill(
+                        theme.surface.opacity(
+                            WorkbenchVisualStylePolicy.panelTintOpacity(isDark: theme.isDark)
+                        )
+                    )
+                }
             }
+            .overlay {
+                RoundedRectangle(
+                    cornerRadius: WorkbenchVisualStylePolicy.panelCornerRadius,
+                    style: .continuous
+                )
+                .stroke(
+                    border ?? theme.border,
+                    lineWidth: WorkbenchVisualStylePolicy.hairlineWidth
+                )
+            }
+    }
+}
+
+extension View {
+    func panelStyle(border: Color? = nil) -> some View {
+        modifier(WorkbenchPanelModifier(border: border))
     }
 
     func primaryActionStyle(isActive: Bool) -> some View {
