@@ -5066,7 +5066,21 @@ struct ComposerBar: View {
             .background(theme.recessedSurface, in: RoundedRectangle(cornerRadius: 17, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 17, style: .continuous)
-                    .stroke(theme.border, lineWidth: 1)
+                    .stroke(
+                        inputFieldBorderColor,
+                        lineWidth: ComposerFocusGlowStylePolicy.lineWidth(isFocused: isInputFocused)
+                    )
+                    .shadow(
+                        color: theme.accent.opacity(
+                            ComposerFocusGlowStylePolicy.glowOpacity(
+                                isFocused: isInputFocused,
+                                isDark: theme.isDark
+                            )
+                        ),
+                        radius: ComposerFocusGlowStylePolicy.glowRadius,
+                        x: 0,
+                        y: 0
+                    )
             }
 
             Button {
@@ -5082,13 +5096,24 @@ struct ComposerBar: View {
                         width: ComposerInputActionLayoutPolicy.buttonSize(for: currentAction),
                         height: ComposerInputActionLayoutPolicy.buttonSize(for: currentAction)
                     )
-                    .background(isGenerating ? Color.red.opacity(0.9) : theme.accent, in: Circle())
+                    .background(actionFillGradient, in: Circle())
                     .foregroundStyle(theme.inverseText)
             }
             .buttonStyle(.plain)
             .keyboardShortcut(.return, modifiers: [.command])
             .disabled(isSendDisabled)
             .opacity(isSendDisabled ? 0.55 : 1)
+            .shadow(
+                color: actionBaseColor.opacity(
+                    ComposerFocusGlowStylePolicy.sendGlowOpacity(
+                        isEnabled: !isSendDisabled,
+                        isDark: theme.isDark
+                    )
+                ),
+                radius: ComposerFocusGlowStylePolicy.sendGlowRadius,
+                x: 0,
+                y: 0
+            )
             .accessibilityLabel(ComposerInputMetadata.actionLabel(isGenerating: isGenerating))
             .accessibilityValue(ComposerInputMetadata.actionValue(text: text, isGenerating: isGenerating))
             .accessibilityHint(ComposerInputMetadata.actionHint(text: text, isGenerating: isGenerating))
@@ -5136,6 +5161,70 @@ struct ComposerBar: View {
         isGenerating ? .stop : .send
     }
 
+    private var isInputFocused: Bool {
+        focusedField == .input
+    }
+
+    private var inputFieldBorderColor: Color {
+        if ComposerFocusGlowStylePolicy.usesAccentBorder(isFocused: isInputFocused) {
+            return theme.accent.opacity(ComposerFocusGlowStylePolicy.focusedBorderOpacity)
+        }
+        return theme.border
+    }
+
+    private var actionBaseColor: Color {
+        isGenerating ? Color.red : theme.accent
+    }
+
+    private var actionFillGradient: LinearGradient {
+        let topOpacity = isGenerating
+            ? ComposerFocusGlowStylePolicy.stopGradientTopOpacity
+            : ComposerFocusGlowStylePolicy.gradientTopOpacity
+        let bottomOpacity = isGenerating
+            ? ComposerFocusGlowStylePolicy.stopGradientBottomOpacity
+            : ComposerFocusGlowStylePolicy.gradientBottomOpacity
+        return LinearGradient(
+            colors: [
+                actionBaseColor.opacity(topOpacity),
+                actionBaseColor.opacity(bottomOpacity)
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
+}
+
+enum ComposerFocusGlowStylePolicy {
+    static let focusedBorderOpacity = 0.55
+    static let glowRadius: CGFloat = 10
+    static let sendGlowRadius: CGFloat = 8
+    static let gradientTopOpacity = 1.0
+    static let gradientBottomOpacity = 0.78
+    static let stopGradientTopOpacity = 0.9
+    static let stopGradientBottomOpacity = 0.7
+
+    static func usesAccentBorder(isFocused: Bool) -> Bool {
+        isFocused
+    }
+
+    static func lineWidth(isFocused: Bool) -> CGFloat {
+        isFocused ? 1.5 : 1
+    }
+
+    static func glowOpacity(isFocused: Bool, isDark: Bool) -> Double {
+        guard isFocused else {
+            return 0
+        }
+        return isDark ? 0.35 : 0.20
+    }
+
+    static func sendGlowOpacity(isEnabled: Bool, isDark: Bool) -> Double {
+        guard isEnabled else {
+            return 0
+        }
+        return isDark ? 0.45 : 0.28
+    }
 }
 
 enum ComposerBarLayoutPolicy {

@@ -74,7 +74,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A[用户在 Composer 输入 prompt<br/>输入框与发送/停止控件有辅助标识<br/>发送/停止按钮保持 44pt 触控目标<br/>宽屏输入行宽受 ComposerBarLayoutPolicy 限制] --> B{输入是否为空}
+    A[用户在 Composer 输入 prompt<br/>输入框与发送/停止控件有辅助标识<br/>发送/停止按钮保持 44pt 触控目标<br/>宽屏输入行宽受 ComposerBarLayoutPolicy 限制<br/>聚焦光环与发送渐变（纯静态）受 ComposerFocusGlowStylePolicy 控制] --> B{输入是否为空}
     B -- 是 --> C[忽略，不创建消息]
     B -- 否 --> D[InferenceEngine 创建用户消息]
     D --> E[创建 assistant 占位消息]

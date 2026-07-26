@@ -1763,6 +1763,78 @@ final class LocalGemmaTests: XCTestCase {
         )
     }
 
+    func testComposerFocusGlowStylePolicyHighlightsKeyboardFocus() {
+        XCTAssertEqual(ComposerFocusGlowStylePolicy.focusedBorderOpacity, 0.55)
+        XCTAssertEqual(ComposerFocusGlowStylePolicy.lineWidth(isFocused: true), 1.5)
+        XCTAssertEqual(ComposerFocusGlowStylePolicy.lineWidth(isFocused: false), 1)
+        XCTAssertEqual(ComposerFocusGlowStylePolicy.glowRadius, 10)
+        XCTAssertEqual(ComposerFocusGlowStylePolicy.sendGlowRadius, 8)
+        XCTAssertEqual(ComposerFocusGlowStylePolicy.gradientTopOpacity, 1.0)
+        XCTAssertEqual(ComposerFocusGlowStylePolicy.gradientBottomOpacity, 0.78)
+        XCTAssertEqual(ComposerFocusGlowStylePolicy.stopGradientTopOpacity, 0.9)
+        XCTAssertEqual(ComposerFocusGlowStylePolicy.stopGradientBottomOpacity, 0.7)
+
+        XCTAssertEqual(ComposerFocusGlowStylePolicy.glowOpacity(isFocused: true, isDark: true), 0.35)
+        XCTAssertEqual(ComposerFocusGlowStylePolicy.glowOpacity(isFocused: true, isDark: false), 0.20)
+        XCTAssertEqual(ComposerFocusGlowStylePolicy.glowOpacity(isFocused: false, isDark: true), 0)
+        XCTAssertEqual(ComposerFocusGlowStylePolicy.glowOpacity(isFocused: false, isDark: false), 0)
+
+        XCTAssertEqual(ComposerFocusGlowStylePolicy.sendGlowOpacity(isEnabled: true, isDark: true), 0.45)
+        XCTAssertEqual(ComposerFocusGlowStylePolicy.sendGlowOpacity(isEnabled: true, isDark: false), 0.28)
+        XCTAssertEqual(ComposerFocusGlowStylePolicy.sendGlowOpacity(isEnabled: false, isDark: true), 0)
+        XCTAssertEqual(ComposerFocusGlowStylePolicy.sendGlowOpacity(isEnabled: false, isDark: false), 0)
+
+        for isDark in [true, false] {
+            XCTAssertGreaterThan(
+                ComposerFocusGlowStylePolicy.glowOpacity(isFocused: true, isDark: isDark),
+                ComposerFocusGlowStylePolicy.glowOpacity(isFocused: false, isDark: isDark)
+            )
+            XCTAssertGreaterThan(
+                ComposerFocusGlowStylePolicy.sendGlowOpacity(isEnabled: true, isDark: isDark),
+                ComposerFocusGlowStylePolicy.sendGlowOpacity(isEnabled: false, isDark: isDark)
+            )
+        }
+        XCTAssertGreaterThan(
+            ComposerFocusGlowStylePolicy.lineWidth(isFocused: true),
+            ComposerFocusGlowStylePolicy.lineWidth(isFocused: false)
+        )
+        XCTAssertTrue(ComposerFocusGlowStylePolicy.usesAccentBorder(isFocused: true))
+        XCTAssertFalse(ComposerFocusGlowStylePolicy.usesAccentBorder(isFocused: false))
+        XCTAssertGreaterThan(
+            ComposerFocusGlowStylePolicy.gradientTopOpacity,
+            ComposerFocusGlowStylePolicy.gradientBottomOpacity
+        )
+
+        let renderCases: [(CGFloat, AppThemeMode, Bool)] = [
+            (360, .light, false),
+            (360, .dark, true),
+            (680, .light, true),
+            (680, .dark, false)
+        ]
+        for (width, themeMode, isGenerating) in renderCases {
+            let renderer = ImageRenderer(
+                content: ComposerBar(
+                    text: .constant("hello"),
+                    isGenerating: isGenerating,
+                    isChatActive: false,
+                    focusRequest: .initial,
+                    clearFocusRequest: {},
+                    send: {},
+                    stop: {}
+                )
+                .environment(\.appTheme, AppThemePalette(mode: themeMode))
+                .frame(width: width)
+            )
+            renderer.scale = 1
+            let image = renderer.uiImage
+
+            XCTAssertNotNil(image)
+            XCTAssertEqual(image?.size.width ?? 0, width, accuracy: 1)
+            XCTAssertGreaterThan(image?.size.height ?? 0, 0)
+            XCTAssertLessThan(image?.size.height ?? .infinity, 3_000)
+        }
+    }
+
     func testChatTranscriptExposesAccessibilityMetadata() {
         let userMessage = ChatMessage(
             id: UUID(uuidString: "12345678-1234-5678-9ABC-123456789ABC")!,

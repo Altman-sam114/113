@@ -16,7 +16,7 @@
 - 平台：SwiftUI iOS App，Swift 6.0，iOS deployment target 17.0，当前 app/test target 支持 iPhone、iPad 和 Mac Catalyst build-for-testing，并提供项目内 Mac Catalyst 本地 build/run 脚本入口；尚未创建原生 macOS target。
 - 当前默认模型：`Gemma 1.5B Local`
 - 当前推理：本地模拟 runtime，不下载模型权重，不执行真实模型推理。
-- 当前核心测试：`LocalGemmaTests.swift` 中 114 个 XCTest 方法。
+- 当前核心测试：`LocalGemmaTests.swift` 中 115 个 XCTest 方法。
 - 当前核心文档入口：`AGENTS.md`、`md/flow/flow.md`、`md/flow/flowchart.md`、`md/test/test.md`、`md/prompt/README.md`、`README.md`。
 - 当前协作验证：默认 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载未加密 CI 结果包验收；本地仓库当前已配置 `origin` remote，最终验收仍以最新 `origin/main` 对应的 GitHub Actions run 和结果包为准；文档已预留未来 `agentx:` 主控 Agent A -> Agent B -> Agent C 多轮循环的规则。
 
@@ -3758,6 +3758,38 @@
 - 源码声明与云端日志归一化后均为 114 个唯一 XCTest、0 failed，集合级交叉核对完全一致；新增 `testGenerationIndicatorStylePolicyPulsesOnlyWithoutReduceMotion` 明确通过且只出现一次。本轮 `testWorkspaceLayoutModeConstrainsSidebarWidth` 输出被诊断日志拆行，前后片段与完整源码集合交叉确认通过。
 - JUnit XML 合法，含 7 个 CI 阶段、0 failure、1 个预期 skipped；iOS 与 Mac Catalyst 日志均包含 `TEST BUILD SUCCEEDED`，XCTest 包含 `TEST EXECUTE SUCCEEDED`，LogicSmoke 与脚本契约通过。
 - 三份 xcresult 均为 3.58，plist 合法，root 对象存在且无空文件。实现 diff 复核确认 `AppMotionEffect` 保持 5 个 case、辅助语义字符串未改动、新测试无像素/私有层级断言。Agent C 未运行本地构建、未编辑 Swift 源码，独立验收结论为 PASS。
+
+遗留事项：
+
+- 完整 VoiceOver 人工走查和真实 Mac 窗口拖拽继续作为后续独立候选。
+- UI Test target、真实 runtime 和原生 macOS target 仍属后续；本轮不下载模型权重、不接入云端推理、不绕过 verified 门禁。
+
+### v2.70 / Composer 聚焦光环与发送按钮渐变
+
+日期：2026-07-26
+
+核心变更：
+
+- 基于 v2.69 最终云端验收 commit `cd0c26e`（run `30203118117` 全绿、Agent C 验收 PASS，验收记录 commit `9a16bc0`）继续提升 UI 科技感；本轮聚焦键盘用户每天第一眼的交互点：composer 输入区与发送按钮。
+- 新增纯值 `ComposerFocusGlowStylePolicy`：聚焦描边 accent 透明度 0.55、`lineWidth(isFocused:)` 1.5/1、`glowRadius=10`、`glowOpacity(isFocused:isDark:)`（聚焦暗 0.35 / 聚焦亮 0.20 / 未聚焦一律 0）、`sendGlowRadius=8`、`sendGlowOpacity(isEnabled:isDark:)`（可用暗 0.45 / 可用亮 0.28 / 禁用一律 0）、发送渐变端点 1.0/0.78、停止渐变端点 0.9/0.7（顶端与旧纯色 `red.opacity(0.9)` 对齐）、`usesAccentBorder(isFocused:)` 布尔分支（未聚焦必须原样 `theme.border`，不能用 accent 低透明近似）。
+- `ComposerBar` 内场圆角 17 描边 overlay 改为从策略读值：聚焦时 accent 描边加柔和光环，shadow 挂在描边 `RoundedRectangle` 上而非整个输入容器，避免 TextField 文字投影；发送/停止圆钮填充改 `LinearGradient`（topLeading -> bottomTrailing），可用时按状态基色（accent / red）加 8pt 光环。全部纯静态、零动画、天然 Reduce Motion 免疫，不新增 `withAnimation`、不给 `AppMotionEffect` 加 case（保持 5 个）。
+- 外壳 `.ultraThinMaterial` 圆角 22 与生成态 `theme.success.opacity(0.32)` / 常态 `theme.accent.opacity(0.18)` 描边不动；`ComposerInputMetadata` 全部字符串、`Command+Return`、空输入禁用、发送/停止闭包、`ComposerFocusRequest`/`ComposerFocusPolicy`/`ComposerFocusTaskID` 焦点机制、44/48pt 触控目标、`ComposerBarLayoutPolicy` 18/12/320/760pt、内场 `theme.recessedSurface` 背景与 `.padding(.horizontal, 13)` / `.padding(.vertical, 12)` 均未改动。
+- 新增 `testComposerFocusGlowStylePolicyHighlightsKeyboardFocus`，精确断言全部策略常量、`glowOpacity`/`sendGlowOpacity` 四值表、单调性与 `usesAccentBorder` 布尔分支，并用生产 `ImageRenderer` 渲染真实 `ComposerBar` 未聚焦外观（360/680pt × 亮/暗主题 × 发送/停止态，`isChatActive: false`、`focusRequest: .initial`），只断言图像非 nil、宽度 accuracy 1、高度大于 0 且小于 3000pt；`@FocusState` 无法从外部注入，聚焦态契约由纯值断言锁住，不做像素/私有层级断言。测试函数数从 114 增加到 115。
+
+关键文件：
+
+- `LocalGemma/ContentView.swift`
+- `LocalGemmaTests/LocalGemmaTests.swift`
+- `AGENTS.md`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v2（Mac体验审计）/v2.70（Composer聚焦光环）.md`
+
+验证结果：
+
+- 按人工要求，本轮不运行本地 Xcode、Simulator、XCTest、Mac Catalyst build/run 或截图；仅执行 `git diff --check`、`plutil -lint`、workflow YAML 解析、115 个测试函数统计和 `xcrun swiftc -parse` 语法快检，完整 iOS build、Mac Catalyst build、LogicSmoke 和 115 项 XCTest 由 GitHub Actions 云端执行，最终以本轮 push 后的最新 run 和 Agent C 下载结果包验收为准。
 
 遗留事项：
 

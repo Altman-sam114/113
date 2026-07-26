@@ -113,6 +113,7 @@ v2.64 的顶部模型胶囊还会按真实 chrome 可用宽度切换堆叠/横�
 - `GenerationIndicatorStylePolicy` 为推理页空文本 assistant 生成占位定义专用脉冲指示：文本「正在生成」沿用语义字体和 `theme.secondaryText`，尾随 3 个 `theme.accent` 圆点（5pt 直径、4pt 间距），opacity 在 0.35 与 1.0 之间以 0.9 秒 easeInOut `repeatForever(autoreverses:)` 脉冲并逐点延迟 0.15 秒；`ChatBubble` 直接读系统 `accessibilityReduceMotion`，开启时不启动任何 repeatForever 动画，圆点使用 0.35/0.65/1.0 静态梯度，运行时切换用 `.task(id: reduceMotion)` 取消旧任务并重置相位。它不给 `AppMotionEffect` 新增 case、不改变 `ChatMessageAccessibilityMetadata` 生成中朗读文案、`message.text.isEmpty` 触发条件、非空正文渲染、消息状态流、runtime 或 verified 门禁。
 - `ComposerBarLayoutPolicy` 为推理页底部 composer 定义共享宽屏输入宽度策略；`ChatWorkspace.chatSurface` 保留 `ComposerBar` 内部输入、发送/停止、焦点和辅助语义，只在外层让 composer 在 iPad/Mac 宽区域居中并限制最大输入行宽，iPhone 和窄 split view 继续使用可用宽度。
 - `ComposerInputActionLayoutPolicy` 为推理页 composer 发送/停止按钮定义 44pt 最小触控目标；`ComposerBar` 只复用按钮尺寸常量，不改变发送/停止闭包、空输入禁用、`Command+Return`、输入焦点、`ComposerInputMetadata` 辅助语义或模型/runtime 状态。
+- `ComposerFocusGlowStylePolicy` 为推理页 composer 内场聚焦描边与发送/停止按钮定义纯静态样式值：键盘聚焦时内场圆角 17 描边改 `theme.accent` 0.55 透明度、1.5pt 线宽，并在描边形状上加 10pt 柔和光环（暗 0.35 / 亮 0.20），未聚焦保持 `theme.border`、1pt、零光环；发送圆钮填充 accent 1.0/0.78 对角渐变，停止圆钮填充 red 0.9/0.7 同构渐变，可用时按钮加 8pt 光环（暗 0.45 / 亮 0.28），禁用时光环为 0。全部效果 overlay/shadow 实现、零动画、天然 Reduce Motion 免疫，不改布局与外壳生成态描边，不改变 `ComposerInputMetadata` 辅助语义、`Command+Return`、空输入禁用、发送/停止闭包、`ComposerFocusRequest` 焦点机制、44/48pt 触控目标、composer 宽屏宽度策略、`AppMotionEffect` 五 case、模型文件、runtime 或 verified 门禁。
 - `SectionHeaderTextLayoutPolicy` 为提示词页、模型页、设置页和优化区共享 `SectionHeader` 定义 Dynamic Type 文本策略；eyebrow 使用语义 caption 并保持单行，title 使用语义 title2 且允许两行，subtitle 使用语义 subheadline 且允许多行，避免 Mac/iPad 窄 split view 和较大文字设置下标题被压缩或截断。
 - `ChatTranscriptAccessibilityMetadata` 为推理页聊天记录容器生成 label/value/hint/input labels/identifier；value 合并空记录、消息总数、最新消息角色和生成中摘要，hint 说明只浏览当前本地会话消息列表，不发送 prompt、不下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁。
 - `ExportSessionActionAccessibilityMetadata` 为导出弹层的分享 Markdown 文件、文本分享兜底和复制全文动作生成 label/value/hint/input labels/identifier；文案说明本地 Markdown、文本兜底、系统剪贴板和不发送到云端服务边界。
@@ -302,6 +303,7 @@ Agent X 不能跳过 Agent C artifact 验收；失败时不能继续下一轮并
 - `GenerationIndicatorStylePolicy`：推理页空文本生成占位的圆点数量、5pt 直径、4pt 间距、0.35...1.0 脉冲 opacity、0.9 秒时长、0.15 秒逐点相位延迟与 Reduce Motion 静态梯度 0.35/0.65/1.0 策略。
 - `ComposerBarLayoutPolicy`：推理页 composer 的横向 padding、底部 padding、最小可读宽度、最大内容宽度和宽屏居中策略。
 - `ComposerInputActionLayoutPolicy`：推理页 composer 发送/停止按钮的 44pt 最小触控目标策略。
+- `ComposerFocusGlowStylePolicy`：推理页 composer 内场聚焦描边颜色/1.5pt 线宽/10pt 光环、发送与停止按钮 1.0/0.78 与 0.9/0.7 渐变端点及 8pt 可用态光环的纯静态样式策略。
 - `SectionHeaderTextLayoutPolicy`：提示词页、模型页、设置页和优化区共享小节标题的 Dynamic Type 字体、行数、间距和多行标题策略。
 - `ChatTranscriptAccessibilityMetadata`：推理页聊天记录容器的辅助技术文案、消息总数、最新消息摘要、生成中状态、Voice Control 输入标签和稳定 identifier。
 - `ExportSessionActionAccessibilityMetadata`：导出弹层分享 Markdown、文本兜底和复制全文动作的辅助技术文案、Voice Control 输入标签和稳定 identifier。
