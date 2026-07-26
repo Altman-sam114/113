@@ -3642,3 +3642,36 @@
 
 - 短会话在高窗口中的纵向定位、显式生成状态、完整 VoiceOver 和真实 Mac 窗口拖拽继续作为后续独立候选。
 - UI Test target、真实 runtime 和原生 macOS target 仍属后续；本轮不下载模型权重、不接入云端推理、不绕过 verified 门禁。
+
+### v2.67 / 会话侧栏视觉层级
+
+日期：2026-07-26
+
+核心变更：
+
+- Agent X 在 v2.66 最新 `origin/main` commit `05fadfdb819dd3045defc627ab0ee0d416fd99e0`、run `30194942000` 与 Agent C 最终验收通过后继续三路并发审计；审计指出 iPad/Mac 分栏中的竖向选中会话仍使用高饱和整块 accent 胶囊，与新建和发送主动作竞争视觉注意力。
+- 新增纯值 `SessionChipVisualStylePlan` 与 `SessionChipVisualStylePolicy`；竖向选中行复用工作台 8pt 圆角、主题感知低饱和 accent 表面、主文字色、1pt hairline 描边与 3pt 左侧指示条，未选中行使用轻量表面。
+- 横向会话 chip 保持既有胶囊、高饱和选中表面与反色文字，避免扩大 iPhone 和窄 split view 的回归面；删除按钮跟随同一前景角色，竖向行继续使用 warning 色。
+- 会话选择/删除、44pt 触控目标、Dynamic Type、辅助语义、Voice Control、composer focus、command menu、模型文件、runtime 和 verified 门禁保持不变。
+- 新增 `testSessionChipVisualStylePolicyAlignsWideSidebarHierarchy`，锁住竖向 8/3/8/1pt 几何、选中/未选中与横向选中/未选中计划，并用生产 `ImageRenderer` 覆盖 220/240/310pt、亮/暗主题和 Accessibility Dynamic Type；测试函数数从 111 增加到 112。
+
+关键文件：
+
+- `LocalGemma/ContentView.swift`
+- `LocalGemmaTests/LocalGemmaTests.swift`
+- `AGENTS.md`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v2（Mac体验审计）/v2.67（会话侧栏视觉层级）.md`
+
+验证结果：
+
+- 按人工要求，本轮不运行本地 Xcode、Simulator、Mac Catalyst build 或截图；仅执行 Git/diff/结构检查，完整 iOS build、Mac Catalyst build、LogicSmoke 和 112 项 XCTest 将由 GitHub Actions 云端执行。
+- GitHub Actions 与 Agent C artifact 验收仍待本轮实现提交后补充，未伪装为已通过。
+
+遗留事项：
+
+- 短会话在高窗口中的纵向定位、显式生成状态、完整 VoiceOver 和真实 Mac 窗口拖拽继续作为后续独立候选。
+- UI Test target、真实 runtime 和原生 macOS target 仍属后续；本轮不下载模型权重、不接入云端推理、不绕过 verified 门禁。

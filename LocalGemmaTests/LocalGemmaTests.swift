@@ -2089,6 +2089,87 @@ final class LocalGemmaTests: XCTestCase {
         )
     }
 
+    func testSessionChipVisualStylePolicyAlignsWideSidebarHierarchy() {
+        XCTAssertEqual(SessionChipVisualStylePolicy.sidebarCornerRadius, 8)
+        XCTAssertEqual(SessionChipVisualStylePolicy.selectionIndicatorWidth, 3)
+        XCTAssertEqual(SessionChipVisualStylePolicy.selectionIndicatorVerticalInset, 8)
+        XCTAssertEqual(SessionChipVisualStylePolicy.borderWidth, 1)
+        XCTAssertEqual(SessionChipVisualStylePolicy.unselectedSidebarSurfaceOpacity, 0.34)
+
+        XCTAssertEqual(
+            SessionChipVisualStylePolicy.resolve(layout: .vertical, isSelected: true),
+            SessionChipVisualStylePlan(
+                usesSidebarRowShape: true,
+                usesMutedSelectionSurface: true,
+                usesInverseForeground: false,
+                showsSelectionIndicator: true
+            )
+        )
+        XCTAssertEqual(
+            SessionChipVisualStylePolicy.resolve(layout: .vertical, isSelected: false),
+            SessionChipVisualStylePlan(
+                usesSidebarRowShape: true,
+                usesMutedSelectionSurface: false,
+                usesInverseForeground: false,
+                showsSelectionIndicator: false
+            )
+        )
+        XCTAssertEqual(
+            SessionChipVisualStylePolicy.resolve(layout: .horizontal, isSelected: true),
+            SessionChipVisualStylePlan(
+                usesSidebarRowShape: false,
+                usesMutedSelectionSurface: false,
+                usesInverseForeground: true,
+                showsSelectionIndicator: false
+            )
+        )
+        XCTAssertEqual(
+            SessionChipVisualStylePolicy.resolve(layout: .horizontal, isSelected: false),
+            SessionChipVisualStylePlan(
+                usesSidebarRowShape: false,
+                usesMutedSelectionSurface: false,
+                usesInverseForeground: false,
+                showsSelectionIndicator: false
+            )
+        )
+
+        let session = ChatSession(
+            title: "较长的本地部署验证会话标题",
+            messages: []
+        )
+        let renderCases: [
+            (CGFloat, AppThemeMode, DynamicTypeSize, Bool, SessionBarLayout)
+        ] = [
+            (240, .light, .large, true, .vertical),
+            (240, .dark, .accessibility3, true, .vertical),
+            (310, .light, .accessibility3, false, .vertical),
+            (310, .dark, .large, false, .vertical),
+            (220, .dark, .large, true, .horizontal),
+            (220, .light, .accessibility3, false, .horizontal)
+        ]
+        for (width, themeMode, dynamicTypeSize, isActive, layout) in renderCases {
+            let renderer = ImageRenderer(
+                content: SessionChip(
+                    session: session,
+                    isActive: isActive,
+                    layout: layout,
+                    select: {},
+                    delete: {}
+                )
+                .environment(\.appTheme, AppThemePalette(mode: themeMode))
+                .environment(\.dynamicTypeSize, dynamicTypeSize)
+                .frame(width: width)
+            )
+            renderer.scale = 1
+            let image = renderer.uiImage
+
+            XCTAssertNotNil(image)
+            XCTAssertEqual(image?.size.width ?? 0, width, accuracy: 1)
+            XCTAssertGreaterThan(image?.size.height ?? 0, 0)
+            XCTAssertLessThan(image?.size.height ?? .infinity, 300)
+        }
+    }
+
     func testSessionChipActionLayoutPolicyMaintainsTouchTargets() {
         XCTAssertEqual(SessionChipActionLayoutPolicy.minimumTouchTarget, 44)
         XCTAssertGreaterThanOrEqual(

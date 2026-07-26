@@ -3665,6 +3665,36 @@ enum SessionChipTextLayoutPolicy {
     static var allowsMultilineTitle: Bool { titleLineLimit > 1 }
 }
 
+struct SessionChipVisualStylePlan: Equatable {
+    let usesSidebarRowShape: Bool
+    let usesMutedSelectionSurface: Bool
+    let usesInverseForeground: Bool
+    let showsSelectionIndicator: Bool
+}
+
+enum SessionChipVisualStylePolicy {
+    static let sidebarCornerRadius: CGFloat = WorkbenchVisualStylePolicy.controlCornerRadius
+    static let selectionIndicatorWidth: CGFloat =
+        WorkbenchVisualStylePolicy.sidebarSelectionIndicatorWidth
+    static let selectionIndicatorVerticalInset: CGFloat =
+        WorkbenchVisualStylePolicy.sidebarSelectionIndicatorVerticalInset
+    static let borderWidth: CGFloat = WorkbenchVisualStylePolicy.hairlineWidth
+    static let unselectedSidebarSurfaceOpacity = 0.34
+
+    static func resolve(
+        layout: SessionBarLayout,
+        isSelected: Bool
+    ) -> SessionChipVisualStylePlan {
+        let usesSidebarRowShape = layout == .vertical
+        return SessionChipVisualStylePlan(
+            usesSidebarRowShape: usesSidebarRowShape,
+            usesMutedSelectionSurface: usesSidebarRowShape && isSelected,
+            usesInverseForeground: usesSidebarRowShape == false && isSelected,
+            showsSelectionIndicator: usesSidebarRowShape && isSelected
+        )
+    }
+}
+
 struct SessionChip: View {
     @Environment(\.appTheme) private var theme
 
@@ -3675,6 +3705,11 @@ struct SessionChip: View {
     let delete: () -> Void
 
     var body: some View {
+        let visualStyle = SessionChipVisualStylePolicy.resolve(
+            layout: layout,
+            isSelected: isActive
+        )
+
         HStack(spacing: 8) {
             Button(action: select) {
                 HStack(spacing: 7) {
@@ -3693,7 +3728,11 @@ struct SessionChip: View {
                     minHeight: SessionChipActionLayoutPolicy.selectButtonMinHeight,
                     alignment: .leading
                 )
-                .foregroundStyle(isActive ? theme.inverseText : theme.primaryText)
+                .foregroundStyle(
+                    visualStyle.usesInverseForeground
+                        ? theme.inverseText
+                        : theme.primaryText
+                )
             }
             .buttonStyle(.plain)
             .accessibilityLabel(
@@ -3730,7 +3769,11 @@ struct SessionChip: View {
                 )
                     .labelStyle(.iconOnly)
                     .font(.system(size: 10, weight: .bold))
-                    .foregroundStyle(isActive ? theme.inverseText.opacity(0.82) : theme.warning)
+                    .foregroundStyle(
+                        visualStyle.usesInverseForeground
+                            ? theme.inverseText.opacity(0.82)
+                            : theme.warning
+                    )
                     .frame(
                         width: SessionChipActionLayoutPolicy.deleteButtonSize,
                         height: SessionChipActionLayoutPolicy.deleteButtonSize
@@ -3769,8 +3812,62 @@ struct SessionChip: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
         .frame(maxWidth: layout == .vertical ? .infinity : nil, alignment: .leading)
-        .background(isActive ? theme.accent : theme.chipSurface, in: Capsule())
-        .overlay(Capsule().stroke(isActive ? theme.accent.opacity(0.7) : theme.border, lineWidth: 1))
+        .background {
+            if visualStyle.usesSidebarRowShape {
+                RoundedRectangle(
+                    cornerRadius: SessionChipVisualStylePolicy.sidebarCornerRadius,
+                    style: .continuous
+                )
+                .fill(
+                    visualStyle.usesMutedSelectionSurface
+                        ? theme.accent.opacity(
+                            WorkbenchVisualStylePolicy.selectedSurfaceOpacity(
+                                isDark: theme.isDark
+                            )
+                        )
+                        : theme.chipSurface.opacity(
+                            SessionChipVisualStylePolicy.unselectedSidebarSurfaceOpacity
+                        )
+                )
+            } else {
+                Capsule()
+                    .fill(isActive ? theme.accent : theme.chipSurface)
+            }
+        }
+        .overlay {
+            if visualStyle.usesSidebarRowShape {
+                RoundedRectangle(
+                    cornerRadius: SessionChipVisualStylePolicy.sidebarCornerRadius,
+                    style: .continuous
+                )
+                .stroke(
+                    isActive
+                        ? theme.accent.opacity(
+                            WorkbenchVisualStylePolicy.selectedBorderOpacity
+                        )
+                        : theme.border.opacity(0.7),
+                    lineWidth: SessionChipVisualStylePolicy.borderWidth
+                )
+            } else {
+                Capsule()
+                    .stroke(
+                        isActive ? theme.accent.opacity(0.7) : theme.border,
+                        lineWidth: SessionChipVisualStylePolicy.borderWidth
+                    )
+            }
+        }
+        .overlay(alignment: .leading) {
+            if visualStyle.showsSelectionIndicator {
+                RoundedRectangle(cornerRadius: 1, style: .continuous)
+                    .fill(theme.accent)
+                    .frame(width: SessionChipVisualStylePolicy.selectionIndicatorWidth)
+                    .padding(
+                        .vertical,
+                        SessionChipVisualStylePolicy.selectionIndicatorVerticalInset
+                    )
+                    .accessibilityHidden(true)
+            }
+        }
     }
 
     private var canDelete: Bool {
