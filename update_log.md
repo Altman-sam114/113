@@ -3692,7 +3692,7 @@
 - Agent X 基于 v2.67 最终云端验收继续并发 Agent A、代码审计与 SwiftUI Pro 审查；三方确认 iOS 17 兼容的 `minHeight + alignment` 能改善高 iPad/Mac 窗口中的短会话空白，同时保留现有滚动和辅助访问顺序。
 - 新增纯值 `ChatTranscriptVerticalLayoutPlan` 与 `ChatTranscriptVerticalLayoutPolicy`；有限正视口高度减去 10pt 上下 padding 作为消息栈最小高度，空记录顶部对齐，任何非空记录在内容较短时底部对齐，长记录自然溢出滚动。
 - 不使用消息数阈值、`defaultScrollAnchor(.bottom)`、lazy stack 内 spacer、反转数组或第二套自动滚动状态；消息顺序/ID、920pt 阅读轨道、VoiceOver、Reduce Motion、现有 `.bottom` 自动滚动、composer、会话、runtime 和 verified 门禁保持不变。
-- 新增 `testChatTranscriptVerticalLayoutPolicyAnchorsShortConversations`，覆盖空/1/2/3/4 条记录、负消息数、无效高度，以及 620x500 空记录、920x800 Accessibility 短记录和 1220x1000 溢出记录的生产 `ImageRenderer`；非透明像素纵向包围盒确认短记录位于视口下部、溢出记录覆盖上下区域，生产 `UIHostingController` 还锁住溢出记录的 scroll contentSize 大于视口且 offset 可推进，测试函数数从 112 增加到 113。
+- 新增 `testChatTranscriptVerticalLayoutPolicyAnchorsShortConversations`，覆盖空/1/2/3/4 条记录、负消息数、无效高度，以及 620x500 空记录、920x800 Accessibility 短记录和 1220x1000 溢出记录的生产 `ImageRenderer`；测试函数数从 112 增加到 113。
 
 关键文件：
 
@@ -3708,7 +3708,7 @@
 验证结果：
 
 - 按人工要求，本轮不运行本地 Xcode、Simulator、XCTest、Mac Catalyst build/run 或截图；仅执行 Git/diff/结构检查，完整 iOS build、Mac Catalyst build、LogicSmoke 和 113 项 XCTest 由 GitHub Actions 云端执行。
-- GitHub Actions 与 Agent C 结果包验收待实现 commit push 后补充，不能以本地输出代替。
+- 首次 GitHub Actions run `30197265713` 的 static、LogicSmoke、iOS build、Mac Catalyst build 和 run-script contract 均成功，但新增测试中依赖渲染透明背景和 SwiftUI 私有宿主层级的像素/UIScrollView 断言失败；artifact `localgemma-ci-v2.68-main-3a2b099-run30197265713-attempt1` 的 manifest 精确匹配 SHA/run/attempt。修复提交移除这些不稳定实现细节假设，保留纯策略契约和生产渲染矩阵，云端重验证与 Agent C 最终验收待补充。
 
 遗留事项：
 

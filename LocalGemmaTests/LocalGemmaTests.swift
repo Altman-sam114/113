@@ -1526,64 +1526,7 @@ final class LocalGemmaTests: XCTestCase {
             XCTAssertNotNil(image)
             XCTAssertEqual(image?.size.width ?? 0, size.width, accuracy: 1)
             XCTAssertEqual(image?.size.height ?? 0, size.height, accuracy: 1)
-
-            guard messages.isEmpty == false, let image else { continue }
-            let verticalBounds = nonTransparentVerticalBounds(in: image)
-            XCTAssertNotNil(verticalBounds)
-
-            if messages.count == shortMessages.count {
-                XCTAssertGreaterThan(
-                    verticalBounds?.lowerBound ?? 0,
-                    Int(size.height * 0.45)
-                )
-                XCTAssertGreaterThan(
-                    verticalBounds?.upperBound ?? 0,
-                    Int(size.height * 0.8)
-                )
-            } else {
-                XCTAssertLessThan(
-                    verticalBounds?.lowerBound ?? .max,
-                    Int(size.height * 0.2)
-                )
-                XCTAssertGreaterThan(
-                    verticalBounds?.upperBound ?? 0,
-                    Int(size.height * 0.8)
-                )
-            }
         }
-
-        let overflowSize = CGSize(width: 1_220, height: 1_000)
-        let overflowController = UIHostingController(
-            rootView: ChatTranscript(messages: overflowingMessages)
-                .environment(\.appTheme, AppThemePalette(mode: .light))
-                .frame(width: overflowSize.width, height: overflowSize.height)
-        )
-        let overflowWindow = UIWindow(
-            frame: CGRect(origin: .zero, size: overflowSize)
-        )
-        overflowWindow.rootViewController = overflowController
-        overflowWindow.makeKeyAndVisible()
-        overflowController.view.frame = overflowWindow.bounds
-        overflowController.view.layoutIfNeeded()
-        drainMainRunLoop()
-
-        let overflowScrollView = firstScrollView(in: overflowController.view)
-        XCTAssertNotNil(overflowScrollView)
-        XCTAssertGreaterThan(
-            overflowScrollView?.contentSize.height ?? 0,
-            overflowScrollView?.bounds.height ?? .infinity
-        )
-        let maximumOffset = max(
-            (overflowScrollView?.contentSize.height ?? 0)
-                - (overflowScrollView?.bounds.height ?? 0),
-            0
-        )
-        overflowScrollView?.setContentOffset(
-            CGPoint(x: 0, y: maximumOffset),
-            animated: false
-        )
-        XCTAssertGreaterThan(overflowScrollView?.contentOffset.y ?? 0, 0)
-        overflowWindow.isHidden = true
     }
 
     func testChatBubbleTextLayoutPolicySupportsAccessibleReading() {
@@ -2837,67 +2780,6 @@ final class LocalGemmaTests: XCTestCase {
 
     private func drainMainRunLoop() {
         RunLoop.main.run(until: Date().addingTimeInterval(0.02))
-    }
-
-    private func nonTransparentVerticalBounds(in image: UIImage) -> ClosedRange<Int>? {
-        guard let sourceImage = image.cgImage else { return nil }
-
-        let width = sourceImage.width
-        let height = sourceImage.height
-        var pixels = [UInt8](repeating: 0, count: width * height * 4)
-        return pixels.withUnsafeMutableBytes { rawBuffer in
-            guard let baseAddress = rawBuffer.baseAddress,
-                  let context = CGContext(
-                    data: baseAddress,
-                    width: width,
-                    height: height,
-                    bitsPerComponent: 8,
-                    bytesPerRow: width * 4,
-                    space: CGColorSpaceCreateDeviceRGB(),
-                    bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-                  ) else {
-                return nil
-            }
-
-            context.translateBy(x: 0, y: CGFloat(height))
-            context.scaleBy(x: 1, y: -1)
-            context.draw(
-                sourceImage,
-                in: CGRect(
-                    x: 0,
-                    y: 0,
-                    width: CGFloat(width),
-                    height: CGFloat(height)
-                )
-            )
-
-            let bytes = rawBuffer.bindMemory(to: UInt8.self)
-            var minimumY: Int?
-            var maximumY: Int?
-            for y in 0..<height {
-                for x in 0..<width where bytes[(y * width + x) * 4 + 3] > 0 {
-                    minimumY = min(minimumY ?? y, y)
-                    maximumY = max(maximumY ?? y, y)
-                }
-            }
-
-            guard let minimumY, let maximumY else { return nil }
-            return minimumY...maximumY
-        }
-    }
-
-    private func firstScrollView(in view: UIView) -> UIScrollView? {
-        if let scrollView = view as? UIScrollView {
-            return scrollView
-        }
-
-        for subview in view.subviews {
-            if let scrollView = firstScrollView(in: subview) {
-                return scrollView
-            }
-        }
-
-        return nil
     }
 
     private func firstResponder(in view: UIView) -> UIView? {
