@@ -3669,7 +3669,14 @@
 验证结果：
 
 - 按人工要求，本轮不运行本地 Xcode、Simulator、Mac Catalyst build 或截图；仅执行 Git/diff/结构检查，完整 iOS build、Mac Catalyst build、LogicSmoke 和 112 项 XCTest 将由 GitHub Actions 云端执行。
-- GitHub Actions 与 Agent C artifact 验收仍待本轮实现提交后补充，未伪装为已通过。
+
+验证补充（Agent C）：
+
+- GitHub Actions run `30195737768` attempt `1` 对 `origin/main` commit `b4bc094db520d22f3966c75f8f95f53e86388ce7` 通过；artifact `localgemma-ci-v2.67-main-b4bc094-run30195737768-attempt1` 已下载到 `.build/ci-artifacts/v267-run30195737768/`，GitHub API、artifact、manifest、SHA、branch、version、run 和 attempt 一致。
+- required static、LogicSmoke、iOS build、112 项 XCTest、Mac Catalyst build 和 run-script contract outcomes 全部 success；两个可选检查按既有设计 skipped。
+- 源码声明与云端日志归一化后均为 112 个唯一 XCTest、0 failed，新增 `testSessionChipVisualStylePolicyAlignsWideSidebarHierarchy` 明确通过且只出现一次；一条 iPad 布局测试输出被诊断日志拆行，前后片段与完整源码集合交叉确认通过。
+- JUnit XML 合法，含 7 个 CI 阶段、0 failure、1 个预期 skipped；iOS 与 Mac Catalyst 日志均包含 `TEST BUILD SUCCEEDED`，XCTest 包含 `TEST EXECUTE SUCCEEDED`，LogicSmoke 与脚本契约通过。
+- 三份 xcresult 均为 3.58，plist 合法，root 对象存在，Data/refs 集合一致且无空文件。Agent C 未运行本地构建、未编辑仓库，独立验收结论为 PASS。
 
 遗留事项：
 
