@@ -16,7 +16,7 @@
 - 平台：SwiftUI iOS App，Swift 6.0，iOS deployment target 17.0，当前 app/test target 支持 iPhone、iPad 和 Mac Catalyst build-for-testing，并提供项目内 Mac Catalyst 本地 build/run 脚本入口；尚未创建原生 macOS target。
 - 当前默认模型：`Gemma 1.5B Local`
 - 当前推理：本地模拟 runtime，不下载模型权重，不执行真实模型推理。
-- 当前核心测试：`LocalGemmaTests.swift` 中 106 个 XCTest 方法。
+- 当前核心测试：`LocalGemmaTests.swift` 中 108 个 XCTest 方法。
 - 当前核心文档入口：`AGENTS.md`、`md/flow/flow.md`、`md/flow/flowchart.md`、`md/test/test.md`、`md/prompt/README.md`、`README.md`。
 - 当前协作验证：默认 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载未加密 CI 结果包验收；本地仓库当前已配置 `origin` remote，最终验收仍以最新 `origin/main` 对应的 GitHub Actions run 和结果包为准；文档已预留未来 `agentx:` 主控 Agent A -> Agent B -> Agent C 多轮循环的规则。
 
@@ -3484,4 +3484,29 @@
 遗留事项：
 
 - page-style `TabView` 在 Mac Catalyst 上可能响应横向触控板工作区分页；本轮未执行对应人工手势验证，也不使用私有 API、透明手势层或全局 `.scrollDisabled` 规避。host 身份 probe 不证明真实触控板、完整 VoiceOver、系统 presentation 或窗口拖拽体验。
+- UI Test target、真实 runtime 和原生 macOS target 仍属后续；本轮不下载模型权重、不接入云端推理、不绕过 verified 门禁。
+
+### v2.63 / 工作区显式导航与分页手势隔离
+
+日期：2026-07-26
+
+核心变更：
+
+- Agent X 基于 v2.62 的真实 iPad 基线与三路并发审计，确认 page-style `TabView` 会为 Mac/iPad 保留横向分页入口，并与横向会话列表形成同轴手势风险；归档 `md/prompt/v2（Mac体验审计）/v2.63（工作区显式导航与分页手势隔离）.md`。
+- 新增 `WorkspacePagePresentation`、`WorkspacePagesInteractionPolicy` 与生产 `WorkspacePagesShell`。四个工作区以固定同序 `ZStack` 槽位持续存在，只有选中页可见、可命中、启用、辅助可达且位于前层；隐藏页禁用命中、控件和辅助访问，但保留局部状态身份。
+- `ContentView.workspacePages` 移除 page-style `TabView`，每个生产工作区仍只构造一次；顶部/侧栏导航、系统 `工作区` 菜单、`Command+1...4` 和既有状态路由继续驱动 `selectedTab`，composer focus、会话命令、模型文件、runtime 与 verified 门禁不变。
+- `ComposerBar` 将聊天活动态纳入可取消 focus task：离开聊天页时清空 `@FocusState` 并取消待处理聚焦，避免 Mac/iPad 隐藏输入框继续持有 first responder；聊天页活动但 request 已消费时保持既有焦点，避免 request sequence 重置撤销刚设置的焦点。
+- 新增 `testWorkspacePagesInteractionPolicyExposesOnlySelectedPage` 与 `testWorkspacePagesShellPreservesEveryPageAcrossExplicitNavigation`，测试函数数从 106 增加到 108。
+
+验证结果：
+
+- `git diff --check`、源码结构搜索和测试函数统计 108 已通过；生产源码不再包含 `.tabViewStyle(.page...)`，四个 workspace 构造器各出现一次。
+- LogicSmoke 输出 `Logic smoke passed`；SwiftUI 源码 typecheck、app module emit 和 XCTest 源码 typecheck 均退出码 0。
+- 在 iPad Pro 13-inch (M5) 模拟器定向运行两个新增 XCTest，输出 `TEST SUCCEEDED`；结果位于 `.build/DerivedData-v263-pages/Logs/Test/Test-LocalGemma-2026.07.26_13-47-06-+0800.xcresult`。
+- 最终包含生产 composer focus probe 的完整 108 项 iPad XCTest 输出 `TEST SUCCEEDED`，最终结果位于 `.build/DerivedData-v263-pages/Logs/Test/Test-LocalGemma-2026.07.26_14-10-19-+0800.xcresult`；iPad Pro 13-inch (M5) 当前构建截图 `.build/v263-ipad-final.png` 为 2064x2752，页面非空且工作区未被隐藏页覆盖；最终源码的 `--build-only` / `--verify` 也均成功。
+- 三路并发只读复核发现隐藏页数值/逐页序列断言可加强，以及隐藏 composer 可能保留焦点；已补充精确策略值、逐页 selection/`isEnabled` 序列、聊天活动态 focus gate，并用生产 `ComposerBar` 的 first-responder host probe 锁住聚焦、request 消费后保持、隐藏释放和重新聚焦生命周期。GitHub Actions 与 Agent C artifact 验收尚待执行，未伪装为已通过。
+
+遗留事项：
+
+- 本轮没有执行真实 Mac 触控板、完整 VoiceOver、系统 presentation 或窗口拖拽人工验证；窄侧栏模型胶囊截断、聊天阅读轨道与高频文本 Dynamic Type、显式生成状态作为后续独立视觉/交互候选。
 - UI Test target、真实 runtime 和原生 macOS target 仍属后续；本轮不下载模型权重、不接入云端推理、不绕过 verified 门禁。

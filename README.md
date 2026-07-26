@@ -11,6 +11,7 @@
 - v2.60 起，是否显示竖向会话栏由 `ChatWorkspacePaneLayoutPolicy` 按扣除全局侧栏后的真实 pane 宽度决定；`SessionSidebarLayoutPolicy` 只计算 240...310pt 偏好宽度，分栏必须保留至少 620pt 聊天面。
 - v2.61 起，`AppMotionAccessibilityPolicy` 统一接管 10 个显式动画入口：系统开启“减弱动态效果”时，工作区导航、聊天记录自动滚动和模型切换立即更新，主题切换与复制确认保留 0.12 秒局部 ease-out 反馈；普通模式继续使用各入口原有动画。
 - v2.62 起，`WorkspaceRootLayoutPolicy` 与生产 `WorkspaceRootShell` 用稳定的 chrome/content 两子节点和 `AnyLayout` 切换根布局轴；所有尺寸共享一个 page-style `workspacePages`，窗口跨越 700pt/regular 断点或切换工作区时不再因两套根页面树重建局部状态。`SessionCommandFocusPolicy` 同时使用结构恒定的 route 包装，只有活动聊天页在包装内提供会话 actions。
+- v2.63 起，共享页面宿主改为 `WorkspacePagesShell` 的四个固定页面槽位，移除 page-style `TabView`；`WorkspacePagesInteractionPolicy` 只让当前工作区可见、可命中、启用并对辅助技术可达，隐藏页保留状态身份但不能响应快捷键或交互。顶部/侧栏导航、系统 `工作区` 菜单、`Command+1...4` 和既有状态路由仍是显式切换入口；composer 焦点任务同时受聊天活动态约束，离开聊天页会取消待处理聚焦并清空隐藏输入框焦点。
 - v2.48 的优化指标卡按 `OptimizerMetricTextLayoutPolicy` 使用 Dynamic Type 语义字体，label、value 和 detail 允许多行，避免 iPad split view、Mac Catalyst 窄窗口和较大文字设置下缩放压缩，同时保留指标数据、进度、tint、辅助语义和网格列数。
 - v2.49 的设置页外观/壁纸偏好行按 `SettingsPreferenceTextLayoutPolicy` 使用 Dynamic Type 语义字体，标题与状态允许两行，避免 iPad split view、Mac Catalyst 窄窗口和较大文字设置下固定小字号压缩，同时保留图标 44pt 触控目标、主题切换、相册壁纸动作和辅助语义。
 - v2.50 的模型详情参数/建议行按 `ModelDetailRowTextLayoutPolicy` 使用 Dynamic Type 语义字体并允许多行，移除 DetailRow 缩放压缩，改善 iPad/Mac 窄窗口和较大文字设置下的可读性。
@@ -26,6 +27,7 @@
 - v2.60 新增 `ChatWorkspacePaneLayoutPolicy`：使用扣除全局工作区侧栏后的真实聊天 pane 宽度决定堆叠或分栏；pane 小于 860pt 时保留横向会话栏，分栏时至少保留 620pt 聊天面，`SessionSidebarLayoutPolicy` 只负责 240...310pt 会话栏偏好宽度。
 - v2.61 新增 `AppMotionEffect` 与 `AppMotionAccessibilityPolicy`：集中区分大范围空间位移和局部状态反馈，响应系统 `accessibilityReduceMotion`，同时保持导航、焦点、主题、复制、模型选择和 verified 门禁状态流不变。
 - v2.62 新增 `WorkspaceRootLayoutPlan`、`WorkspaceRootLayoutPolicy`、`WorkspaceRootShell` 与 `SessionCommandFocusPolicy`：根布局断点只改变轴和 chrome，共享工作区 `TabView` 保持同一结构身份；隐藏聊天页保留稳定 focused route 包装，但其 actions 为 `nil`。
+- v2.63 新增 `WorkspacePagePresentation`、`WorkspacePagesInteractionPolicy` 与 `WorkspacePagesShell`：四个工作区固定同序存在，移除分页手势，只让选中页参与命中、控件启用和辅助访问。
 - `LocalGemmaTests/LocalGemmaTests.swift`：覆盖默认 Gemma 模拟状态、artifact missing/staged/verified 校验、手动导入文件复制、`.mlmodelc` 目录导入、启动自动扫描、本地模型管理状态流转、模型卸载确认弹层状态流与辅助语义、模拟输出、运行计划、优化开关、运行策略开关辅助语义、运行策略开关宽屏网格、运行策略开关行 44pt 触控目标、芯片准备度辅助语义与隐私状态动态摘要、优化指标卡辅助语义、优化指标网格宽度策略、设置页整体宽屏内容宽度策略、共享 SectionHeader 动态排版策略、Header 标题动态排版策略、提示词页整体宽屏内容宽度策略、提示词模板宽屏布局策略、提示词模板文本动态排版策略、提示词分类筛选换行布局策略、提示词分类文本动态排版策略、提示词模板动作 44pt 触控目标、顶部模型胶囊整体辅助语义、模型概要面板辅助语义、模型详情右栏与行级辅助语义、模型详情右栏最大阅读宽度策略、模型文件工作流面板辅助语义、模型文件操作 44pt 触控目标、模型部署控件 44pt 触控目标、模型状态徽章辅助语义、会话 chip 动作语义、会话 chip 选择/删除 44pt 触控目标、聊天消息气泡与聊天记录容器辅助语义、聊天气泡宽屏宽度策略、composer 宽屏输入宽度策略、composer 发送/停止 44pt 触控目标、预设提示词模板、提示词分类筛选辅助语义、提示词模板动作辅助语义、会话管理、Markdown 会话导出、导出弹层分享/复制辅助语义、导出弹层分享/复制 44pt 触控目标、导出弹层整体宽屏内容宽度策略、工作区导航辅助语义、工作区导航 44pt 触控目标、头部主题与模型工作区入口辅助语义、全局 Header 图标动作 44pt 触控目标、设置页图标动作 44pt 触控目标、壁纸控件辅助语义、iPhone/iPad/Mac Catalyst 桌面窗口布局断点、模型页整体宽屏内容宽度策略、模型页内部宽屏布局策略、模型选择器辅助语义、模型部署控件辅助语义、会话栏操作辅助语义、会话栏操作 44pt 触控目标、会话侧栏宽度策略、工作区快捷键映射、工作区 command menu 映射、会话 command menu focused route、regular 侧栏说明、选择语义、composer 输入焦点、控件标识与辅助语义和空输入保护。
 - v2.48 新增 `testOptimizerMetricTextLayoutPolicySupportsDynamicTypeCards`。
 - v2.49 新增 `testSettingsPreferenceTextLayoutPolicySupportsDynamicTypeRows`。
@@ -42,6 +44,7 @@
 - v2.60 新增 `testChatWorkspacePaneLayoutPolicyCoordinatesGlobalAndSessionSidebars`。
 - v2.61 新增 `testAppMotionAccessibilityPolicyRespectsReduceMotion`，当前测试函数总数为 104。
 - v2.62 新增 `testWorkspaceRootLayoutPolicyResolvesChromeAndAxisAtBoundaries` 与 `testWorkspaceRootShellPreservesStatefulContentAcrossLayoutPlans`；前者覆盖根断点、非法尺寸与精确侧栏 clamp，后者用生产 shell、稳定 focused route modifier、`UIHostingController` 和 `@State` UUID 验证 699.99/700/979.99/980pt 及聊天 active/inactive 往返期间 content 只 appear 一次且不中途 disappear。当前测试函数总数为 106。
+- v2.63 新增 `testWorkspacePagesInteractionPolicyExposesOnlySelectedPage` 与 `testWorkspacePagesShellPreservesEveryPageAcrossExplicitNavigation`；前者验证每种 selection 恰有一个可见、可命中、启用且辅助可达页面，后者用生产页面宿主与四个 `@State` UUID 验证多轮显式导航时四页各只 appear 一次且不重建。当前测试函数总数为 108。
 - `Tools/LogicSmoke.swift`：不依赖 iOS runtime 的本地逻辑烟测，用来验证模拟模型、artifact 校验、手动导入文件复制、`.mlmodelc` 目录导入、启动自动扫描、模型管理状态流转、运行计划、提示词模板、会话管理、Markdown 导出与优化状态。
 - `AGENTS.md`：项目入口记忆、基本规则、“人工目标 -> Agent A -> Agent B -> Agent C -> 人工复核”的单轮流程，以及未来 `agentx:` 主控 A/B/C 多轮循环的准备规则。
 - `update_log.md`：版本更新记录、历史决策、完成事项和遗留问题。
@@ -264,53 +267,53 @@ grep -n "func test" LocalGemmaTests/LocalGemmaTests.swift
 
 结果：脚本存在且可执行，`bash -n` 通过；`plutil` 输出 `LocalGemma.xcodeproj/project.pbxproj: OK`；Ruby YAML 解析输出 `yaml ok`；测试函数数仍为 34；`--build-only` 成功输出 `.build/DerivedDataCodex-MacCatalystRun/Build/Products/Debug-maccatalyst/LocalGemma.app`；`--verify` 成功构建、启动并通过 `pgrep -x LocalGemma`。本轮未修改 Swift UI 行为，未新增 XCTest。
 
-当前这轮已完成本地逻辑烟测：
+v2.63 本轮已完成本地逻辑烟测：
 
 ```sh
 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc \
   -sdk /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk \
-  -module-cache-path .build/SwiftSmokeModuleCache \
+  -module-cache-path .build/v263/SwiftSmokeModuleCache \
   LocalGemma/AppState.swift Tools/LogicSmoke.swift \
-  -o .build/logic-smoke
+  -o .build/v263/logic-smoke
 
-.build/logic-smoke
+.build/v263/logic-smoke
 ```
 
 结果：`Logic smoke passed`。
 
-当前这轮已完成 Swift 编译器验证：
+v2.63 本轮已完成 Swift 编译器验证：
 
 ```sh
 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc \
   -typecheck \
   -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk \
   -target arm64-apple-ios17.0-simulator \
-  -module-cache-path .build/ModuleCache \
+  -module-cache-path .build/v263/ModuleCache \
   LocalGemma/AppState.swift LocalGemma/ContentView.swift LocalGemma/LocalGemmaApp.swift
 ```
 
 结果：通过。
 
-同时已生成可测试导入的 `LocalGemma.swiftmodule`，并用 iPhone Simulator 的 XCTest framework 对测试源码做 API 层 typecheck。当前测试源码包含 106 个 `XCTestCase` 测试函数，覆盖工作区根布局纯策略、生产 shell 结构身份、活动聊天 focused route、提示词模板库、工作台导航与共享 panel 视觉层级、聊天工作区双侧栏宽度协调、工作台 Reduce Motion 动画分类、工作区导航 44pt 触控目标、导出弹层分享/复制 44pt 触控目标、导出弹层整体宽屏内容宽度策略、会话 chip 选择/删除 44pt 触控目标、模型文件操作 44pt 触控目标、模型部署控件 44pt 触控目标、全局 Header 图标动作 44pt 触控目标、Header 标题动态排版策略、设置页整体宽屏内容宽度策略、共享 SectionHeader 动态排版策略、优化指标卡文本动态排版策略、设置偏好行文本动态排版策略、提示词页整体宽屏内容宽度策略、提示词模板宽屏布局策略、提示词模板文本动态排版策略、提示词分类筛选换行布局策略、提示词分类文本动态排版策略、提示词模板动作 44pt 触控目标、提示词分类筛选辅助语义、提示词模板动作辅助语义、模板填入输入框、模板直接发送、会话创建/切换/删除、会话 command menu focused route、工作区导航辅助语义、设置页图标动作 44pt 触控目标、会话栏操作辅助语义、会话栏操作 44pt 触控目标、会话 chip 动作语义、聊天消息气泡与聊天记录容器辅助语义、聊天气泡宽屏宽度策略、composer 宽屏输入宽度策略、composer 发送/停止 44pt 触控目标、Markdown 会话导出、导出弹层分享/复制辅助语义、头部主题与模型工作区入口辅助语义、壁纸控件辅助语义、iPhone/iPad/Mac Catalyst 桌面窗口布局断点、模型页整体宽屏内容宽度策略、模型页内部宽屏布局策略、模型详情右栏最大阅读宽度策略、顶部模型胶囊整体辅助语义、模型概要面板辅助语义、模型详情右栏与行级辅助语义、模型文件工作流面板辅助语义、模型卸载确认弹层状态流与辅助语义、模型选择器辅助语义、模型状态徽章辅助语义、模型部署控件辅助语义、运行策略开关辅助语义、运行策略开关宽屏网格、运行策略开关行 44pt 触控目标、芯片准备度辅助语义与隐私状态动态摘要、优化指标卡辅助语义、优化指标网格宽度策略、会话侧栏宽度策略、工作区快捷键映射、工作区 command menu 映射、regular 侧栏说明、选择语义、composer 输入焦点、控件标识与辅助语义、壁纸处理和分享兜底：
+同时已生成可测试导入的 `LocalGemma.swiftmodule`，并用 iPhone Simulator 的 XCTest framework 对测试源码做 API 层 typecheck。当前测试源码包含 108 个 `XCTestCase` 测试函数，覆盖工作区根布局纯策略、生产 shell 结构身份、工作区页面显式导航与交互隔离、活动聊天 focused route、提示词模板库、工作台导航与共享 panel 视觉层级、聊天工作区双侧栏宽度协调、工作台 Reduce Motion 动画分类、工作区导航 44pt 触控目标、导出弹层分享/复制 44pt 触控目标、导出弹层整体宽屏内容宽度策略、会话 chip 选择/删除 44pt 触控目标、模型文件操作 44pt 触控目标、模型部署控件 44pt 触控目标、全局 Header 图标动作 44pt 触控目标、Header 标题动态排版策略、设置页整体宽屏内容宽度策略、共享 SectionHeader 动态排版策略、优化指标卡文本动态排版策略、设置偏好行文本动态排版策略、提示词页整体宽屏内容宽度策略、提示词模板宽屏布局策略、提示词模板文本动态排版策略、提示词分类筛选换行布局策略、提示词分类文本动态排版策略、提示词模板动作 44pt 触控目标、提示词分类筛选辅助语义、提示词模板动作辅助语义、模板填入输入框、模板直接发送、会话创建/切换/删除、会话 command menu focused route、工作区导航辅助语义、设置页图标动作 44pt 触控目标、会话栏操作辅助语义、会话栏操作 44pt 触控目标、会话 chip 动作语义、聊天消息气泡与聊天记录容器辅助语义、聊天气泡宽屏宽度策略、composer 宽屏输入宽度策略、composer 发送/停止 44pt 触控目标、Markdown 会话导出、导出弹层分享/复制辅助语义、头部主题与模型工作区入口辅助语义、壁纸控件辅助语义、iPhone/iPad/Mac Catalyst 桌面窗口布局断点、模型页整体宽屏内容宽度策略、模型页内部宽屏布局策略、模型详情右栏最大阅读宽度策略、顶部模型胶囊整体辅助语义、模型概要面板辅助语义、模型详情右栏与行级辅助语义、模型文件工作流面板辅助语义、模型卸载确认弹层状态流与辅助语义、模型选择器辅助语义、模型状态徽章辅助语义、模型部署控件辅助语义、运行策略开关辅助语义、运行策略开关宽屏网格、运行策略开关行 44pt 触控目标、芯片准备度辅助语义与隐私状态动态摘要、优化指标卡辅助语义、优化指标网格宽度策略、会话侧栏宽度策略、工作区快捷键映射、工作区 command menu 映射、regular 侧栏说明、选择语义、composer 输入焦点、控件标识与辅助语义、壁纸处理和分享兜底：
 
 ```sh
 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc \
   -emit-module \
-  -emit-module-path .build/Typecheck/LocalGemma.swiftmodule \
+  -emit-module-path .build/v263/Typecheck/LocalGemma.swiftmodule \
   -module-name LocalGemma \
   -enable-testing \
   -parse-as-library \
   -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk \
   -target arm64-apple-ios17.0-simulator \
-  -module-cache-path .build/ModuleCache \
+  -module-cache-path .build/v263/ModuleCache \
   LocalGemma/AppState.swift LocalGemma/ContentView.swift LocalGemma/LocalGemmaApp.swift
 
 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc \
   -typecheck \
   -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk \
   -target arm64-apple-ios17.0-simulator \
-  -module-cache-path .build/ModuleCache \
-  -I .build/Typecheck \
+  -module-cache-path .build/v263/TestModuleCache \
+  -I .build/v263/Typecheck \
   -I /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/lib \
   -F /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/Library/Frameworks \
   LocalGemmaTests/LocalGemmaTests.swift
@@ -516,3 +519,4 @@ v2.59 重构工作台视觉层级：新增 `WorkbenchVisualStylePolicy`，紧凑
 v2.60 协调聊天工作区双侧栏宽度：新增 `ChatWorkspacePaneLayoutPolicy`，按实际聊天 pane 宽度选择堆叠/分栏，860pt 以下堆叠，分栏至少保留 620pt 聊天面；新增测试，`LocalGemmaTests.swift` 增加到 103 个测试函数。本轮仍没有原生 macOS target，不接真实模型，不下载权重。
 v2.61 适配工作台减弱动态效果：新增 `AppMotionEffect` 与 `AppMotionAccessibilityPolicy`，覆盖 10 个显式动画入口，大范围空间位移在 Reduce Motion 下立即更新，主题/复制局部反馈收敛为 0.12 秒；新增测试，`LocalGemmaTests.swift` 增加到 104 个测试函数。本轮仍没有原生 macOS target，不接真实模型，不下载权重。
 v2.62 稳定工作区响应式结构身份：新增 `WorkspaceRootLayoutPolicy` 与生产 `WorkspaceRootShell`，用稳定 chrome/content 两子节点和单一 page-style `workspacePages` 跨根断点复用工作区；新增活动聊天 focused route gate、纯布局策略测试和 `UIHostingController` 身份探针，`LocalGemmaTests.swift` 增加到 106 个测试函数。本轮未把 host probe 解释为 Mac 触控板分页或完整人工 UI 验证，仍没有原生 macOS target，不接真实模型，不下载权重。
+v2.63 隔离工作区分页手势：以四个固定页面槽位的 `WorkspacePagesShell` 替换 page-style `TabView`，只有选中页可见、可交互且辅助可达，隐藏页禁用但保留状态身份；新增策略与生产宿主身份测试，`LocalGemmaTests.swift` 增加到 108 个测试函数。本轮仍没有原生 macOS target，不接真实模型，不下载权重。

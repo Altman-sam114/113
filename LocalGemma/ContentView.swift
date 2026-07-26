@@ -266,6 +266,77 @@ struct WorkspaceRootShell<Chrome: View, Content: View>: View {
     }
 }
 
+struct WorkspacePagePresentation: Equatable {
+    let opacity: Double
+    let allowsHitTesting: Bool
+    let isDisabled: Bool
+    let isAccessibilityHidden: Bool
+    let zIndex: Double
+}
+
+enum WorkspacePagesInteractionPolicy {
+    static func presentation(
+        for page: WorkspaceTab,
+        selectedTab: WorkspaceTab
+    ) -> WorkspacePagePresentation {
+        let isSelected = page == selectedTab
+
+        return WorkspacePagePresentation(
+            opacity: isSelected ? 1 : 0,
+            allowsHitTesting: isSelected,
+            isDisabled: !isSelected,
+            isAccessibilityHidden: !isSelected,
+            zIndex: isSelected ? 1 : 0
+        )
+    }
+}
+
+struct WorkspacePagesShell<Chat: View, Models: View, Prompts: View, Settings: View>: View {
+    let selectedTab: WorkspaceTab
+    let chat: Chat
+    let models: Models
+    let prompts: Prompts
+    let settings: Settings
+
+    init(
+        selectedTab: WorkspaceTab,
+        @ViewBuilder chat: () -> Chat,
+        @ViewBuilder models: () -> Models,
+        @ViewBuilder prompts: () -> Prompts,
+        @ViewBuilder settings: () -> Settings
+    ) {
+        self.selectedTab = selectedTab
+        self.chat = chat()
+        self.models = models()
+        self.prompts = prompts()
+        self.settings = settings()
+    }
+
+    var body: some View {
+        ZStack {
+            page(chat, tab: .chat)
+            page(models, tab: .models)
+            page(prompts, tab: .prompts)
+            page(settings, tab: .settings)
+        }
+    }
+
+    private func page<Page: View>(_ page: Page, tab: WorkspaceTab) -> some View {
+        let presentation = WorkspacePagesInteractionPolicy.presentation(
+            for: tab,
+            selectedTab: selectedTab
+        )
+
+        return page
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .opacity(presentation.opacity)
+            .allowsHitTesting(presentation.allowsHitTesting)
+            .disabled(presentation.isDisabled)
+            .accessibilityHidden(presentation.isAccessibilityHidden)
+            .zIndex(presentation.zIndex)
+    }
+}
+
 enum SessionSidebarLayoutPolicy {
     static let minimumWidth: CGFloat = 240
     static let maximumWidth: CGFloat = 310
@@ -755,21 +826,18 @@ struct ContentView: View {
     }
 
     private func workspacePages(themeMode: AppThemeMode) -> some View {
-        TabView(selection: workspaceSelection) {
+        WorkspacePagesShell(selectedTab: selectedTab) {
             ChatWorkspace(
                 isActive: selectedTab == .chat,
                 composerFocusRequest: composerFocusRequest,
                 requestComposerFocus: requestComposerFocus,
                 clearComposerFocusRequest: clearComposerFocusRequest
             )
-                .tag(WorkspaceTab.chat)
-
+        } models: {
             ModelLibraryView()
-                .tag(WorkspaceTab.models)
-
+        } prompts: {
             PromptTemplatesWorkspace(openChat: openChatAndFocus)
-            .tag(WorkspaceTab.prompts)
-
+        } settings: {
             SettingsWorkspace(
                 themeMode: themeMode,
                 wallpaperData: wallpaperImageData,
@@ -791,9 +859,7 @@ struct ContentView: View {
                     wallpaperImageData = Data()
                 }
             )
-            .tag(WorkspaceTab.settings)
         }
-        .tabViewStyle(.page(indexDisplayMode: .never))
     }
 
     private var tabPicker: some View {
@@ -2408,6 +2474,22 @@ enum ComposerFocusPolicy {
     static func requestsComposerFocus(afterSelecting tab: WorkspaceTab) -> Bool {
         tab == .chat
     }
+
+    static func shouldFocus(
+        isChatActive: Bool,
+        request: ComposerFocusRequest
+    ) -> Bool {
+        isChatActive && request.shouldFocus
+    }
+
+    static func shouldReleaseFocus(isChatActive: Bool) -> Bool {
+        !isChatActive
+    }
+}
+
+private struct ComposerFocusTaskID: Equatable {
+    let isChatActive: Bool
+    let requestSequence: Int
 }
 
 enum ComposerInputMetadata {
@@ -3042,6 +3124,7 @@ struct ChatWorkspace: View {
             ComposerBar(
                 text: $inference.inputText,
                 isGenerating: inference.isGenerating,
+                isChatActive: isActive,
                 focusRequest: composerFocusRequest,
                 clearFocusRequest: clearComposerFocusRequest,
                 send: {
@@ -4460,6 +4543,7 @@ struct ComposerBar: View {
 
     @Binding var text: String
     let isGenerating: Bool
+    let isChatActive: Bool
     let focusRequest: ComposerFocusRequest
     let clearFocusRequest: () -> Void
     let send: () -> Void
@@ -4526,11 +4610,30 @@ struct ComposerBar: View {
             RoundedRectangle(cornerRadius: 22, style: .continuous)
                 .stroke(isGenerating ? theme.success.opacity(0.32) : theme.accent.opacity(0.18), lineWidth: 1)
         }
-        .onAppear {
-            focusComposerIfNeeded()
-        }
-        .onChange(of: focusRequest.sequence) { _, _ in
-            focusComposerIfNeeded()
+        .task(
+            id: ComposerFocusTaskID(
+                isChatActive: isChatActive,
+                requestSequence: focusRequest.sequence
+            )
+        ) {
+            if ComposerFocusPolicy.shouldReleaseFocus(isChatActive: isChatActive) {
+                focusedField = nil
+                return
+            }
+
+            guard ComposerFocusPolicy.shouldFocus(
+                isChatActive: isChatActive,
+                request: focusRequest
+            ) else {
+                return
+            }
+
+            await Task.yield()
+            guard !Task.isCancelled else {
+                return
+            }
+            focusedField = .input
+            clearFocusRequest()
         }
     }
 
@@ -4542,15 +4645,6 @@ struct ComposerBar: View {
         isGenerating ? .stop : .send
     }
 
-    private func focusComposerIfNeeded() {
-        guard focusRequest.shouldFocus else {
-            return
-        }
-        Task { @MainActor in
-            focusedField = .input
-            clearFocusRequest()
-        }
-    }
 }
 
 enum ComposerBarLayoutPolicy {

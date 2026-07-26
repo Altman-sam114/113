@@ -2179,8 +2179,61 @@ final class LocalGemmaTests: XCTestCase {
         XCTAssertEqual(templateRequest.sequence, 1)
         XCTAssertEqual(templateRequest.reason, .applyTemplate)
         XCTAssertTrue(templateRequest.shouldFocus)
+        XCTAssertTrue(
+            ComposerFocusPolicy.shouldFocus(
+                isChatActive: true,
+                request: templateRequest
+            )
+        )
+        XCTAssertFalse(
+            ComposerFocusPolicy.shouldFocus(
+                isChatActive: false,
+                request: templateRequest
+            )
+        )
+        XCTAssertFalse(
+            ComposerFocusPolicy.shouldFocus(
+                isChatActive: true,
+                request: .initial
+            )
+        )
+        XCTAssertTrue(ComposerFocusPolicy.shouldReleaseFocus(isChatActive: false))
+        XCTAssertFalse(ComposerFocusPolicy.shouldReleaseFocus(isChatActive: true))
         XCTAssertEqual(templateRequest.next(for: .selectSession).sequence, 2)
         XCTAssertFalse(ComposerFocusRequest.initial.shouldFocus)
+
+        let focusStore = ComposerFocusLifecycleStore(
+            isChatActive: true,
+            focusRequest: templateRequest
+        )
+        let controller = UIHostingController(
+            rootView: ComposerFocusLifecycleHarness(store: focusStore)
+        )
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 600, height: 120))
+        window.rootViewController = controller
+        window.makeKeyAndVisible()
+        controller.view.setNeedsLayout()
+        controller.view.layoutIfNeeded()
+        drainMainRunLoop()
+
+        XCTAssertEqual(focusStore.focusRequest, .initial)
+        XCTAssertNotNil(firstResponder(in: controller.view))
+
+        focusStore.isChatActive = false
+        controller.view.setNeedsLayout()
+        controller.view.layoutIfNeeded()
+        drainMainRunLoop()
+        XCTAssertNil(firstResponder(in: controller.view))
+
+        focusStore.isChatActive = true
+        focusStore.focusRequest = .initial.next(for: .openChatWorkspace)
+        controller.view.setNeedsLayout()
+        controller.view.layoutIfNeeded()
+        drainMainRunLoop()
+        XCTAssertEqual(focusStore.focusRequest, .initial)
+        XCTAssertNotNil(firstResponder(in: controller.view))
+
+        window.isHidden = true
     }
 
     func testWorkspaceLayoutModeResolvesLandscapeVariants() {
@@ -2293,8 +2346,108 @@ final class LocalGemmaTests: XCTestCase {
         window.isHidden = true
     }
 
+    func testWorkspacePagesInteractionPolicyExposesOnlySelectedPage() {
+        for selectedTab in WorkspaceTab.allCases {
+            let presentations = WorkspaceTab.allCases.map {
+                WorkspacePagesInteractionPolicy.presentation(
+                    for: $0,
+                    selectedTab: selectedTab
+                )
+            }
+
+            XCTAssertEqual(presentations.filter { $0.opacity == 1 }.count, 1)
+            XCTAssertEqual(presentations.filter(\.allowsHitTesting).count, 1)
+            XCTAssertEqual(presentations.filter { !$0.isDisabled }.count, 1)
+            XCTAssertEqual(presentations.filter { !$0.isAccessibilityHidden }.count, 1)
+            XCTAssertEqual(presentations.filter { $0.zIndex == 1 }.count, 1)
+
+            for (page, presentation) in zip(WorkspaceTab.allCases, presentations) {
+                if page == selectedTab {
+                    XCTAssertEqual(presentation.opacity, 1)
+                    XCTAssertEqual(presentation.zIndex, 1)
+                } else {
+                    XCTAssertEqual(presentation.opacity, 0)
+                    XCTAssertEqual(presentation.zIndex, 0)
+                    XCTAssertFalse(presentation.allowsHitTesting)
+                    XCTAssertTrue(presentation.isDisabled)
+                    XCTAssertTrue(presentation.isAccessibilityHidden)
+                }
+            }
+
+            let selectedPresentation = WorkspacePagesInteractionPolicy.presentation(
+                for: selectedTab,
+                selectedTab: selectedTab
+            )
+            XCTAssertEqual(
+                selectedPresentation,
+                WorkspacePagePresentation(
+                    opacity: 1,
+                    allowsHitTesting: true,
+                    isDisabled: false,
+                    isAccessibilityHidden: false,
+                    zIndex: 1
+                )
+            )
+        }
+    }
+
+    func testWorkspacePagesShellPreservesEveryPageAcrossExplicitNavigation() {
+        let store = WorkspacePagesSelectionStore(selectedTab: .chat)
+        let recorder = WorkspacePagesIdentityRecorder()
+        let controller = UIHostingController(
+            rootView: WorkspacePagesIdentityHarness(store: store, recorder: recorder)
+        )
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 1_024, height: 900))
+        window.rootViewController = controller
+        window.makeKeyAndVisible()
+        controller.view.setNeedsLayout()
+        controller.view.layoutIfNeeded()
+        drainMainRunLoop()
+
+        let route: [WorkspaceTab] = [
+            .models, .prompts, .settings, .chat, .settings, .prompts, .models, .chat
+        ]
+        for tab in route {
+            store.selectedTab = tab
+            controller.view.setNeedsLayout()
+            controller.view.layoutIfNeeded()
+            drainMainRunLoop()
+        }
+
+        for tab in WorkspaceTab.allCases {
+            XCTAssertEqual(recorder.appearCount(for: tab), 1)
+            XCTAssertEqual(recorder.disappearCount(for: tab), 0)
+            XCTAssertEqual(recorder.tokens(for: tab).count, 1)
+            XCTAssertEqual(
+                recorder.observations(for: tab).map(\.selectedTab),
+                [.chat] + route
+            )
+            XCTAssertEqual(
+                recorder.observations(for: tab).map(\.isEnabled),
+                ([.chat] + route).map { $0 == tab }
+            )
+        }
+
+        XCTAssertEqual(recorder.selectedTabObservations.count, 4 * (route.count + 1))
+        window.isHidden = true
+    }
+
     private func drainMainRunLoop() {
         RunLoop.main.run(until: Date().addingTimeInterval(0.02))
+    }
+
+    private func firstResponder(in view: UIView) -> UIView? {
+        if view.isFirstResponder {
+            return view
+        }
+
+        for subview in view.subviews {
+            if let responder = firstResponder(in: subview) {
+                return responder
+            }
+        }
+
+        return nil
     }
 
     func testWorkspaceLayoutModeSupportsIPadWideContainers() {
@@ -4193,5 +4346,168 @@ private struct WorkspaceRootIdentityProbe: View {
             .onDisappear {
                 recorder.recordDisappearance()
             }
+    }
+}
+
+private final class WorkspacePagesSelectionStore: ObservableObject {
+    @Published var selectedTab: WorkspaceTab
+
+    init(selectedTab: WorkspaceTab) {
+        self.selectedTab = selectedTab
+    }
+}
+
+private final class WorkspacePagesIdentityRecorder {
+    struct Observation {
+        let tab: WorkspaceTab
+        let token: UUID
+        let selectedTab: WorkspaceTab
+        let isEnabled: Bool
+    }
+
+    private(set) var appearances: [WorkspaceTab: Int] = [:]
+    private(set) var disappearances: [WorkspaceTab: Int] = [:]
+    private(set) var observations: [Observation] = []
+
+    var selectedTabObservations: [WorkspaceTab] {
+        observations.map(\.selectedTab)
+    }
+
+    func recordAppearance(
+        tab: WorkspaceTab,
+        token: UUID,
+        selectedTab: WorkspaceTab,
+        isEnabled: Bool
+    ) {
+        appearances[tab, default: 0] += 1
+        observations.append(
+            Observation(tab: tab, token: token, selectedTab: selectedTab, isEnabled: isEnabled)
+        )
+    }
+
+    func recordUpdate(
+        tab: WorkspaceTab,
+        token: UUID,
+        selectedTab: WorkspaceTab,
+        isEnabled: Bool
+    ) {
+        observations.append(
+            Observation(tab: tab, token: token, selectedTab: selectedTab, isEnabled: isEnabled)
+        )
+    }
+
+    func recordDisappearance(tab: WorkspaceTab) {
+        disappearances[tab, default: 0] += 1
+    }
+
+    func appearCount(for tab: WorkspaceTab) -> Int {
+        appearances[tab, default: 0]
+    }
+
+    func disappearCount(for tab: WorkspaceTab) -> Int {
+        disappearances[tab, default: 0]
+    }
+
+    func tokens(for tab: WorkspaceTab) -> Set<UUID> {
+        Set(observations.filter { $0.tab == tab }.map(\.token))
+    }
+
+    func observations(for tab: WorkspaceTab) -> [Observation] {
+        observations.filter { $0.tab == tab }
+    }
+}
+
+private struct WorkspacePagesIdentityHarness: View {
+    @ObservedObject var store: WorkspacePagesSelectionStore
+    let recorder: WorkspacePagesIdentityRecorder
+
+    var body: some View {
+        WorkspacePagesShell(selectedTab: store.selectedTab) {
+            WorkspacePageIdentityProbe(
+                tab: .chat,
+                selectedTab: store.selectedTab,
+                recorder: recorder
+            )
+        } models: {
+            WorkspacePageIdentityProbe(
+                tab: .models,
+                selectedTab: store.selectedTab,
+                recorder: recorder
+            )
+        } prompts: {
+            WorkspacePageIdentityProbe(
+                tab: .prompts,
+                selectedTab: store.selectedTab,
+                recorder: recorder
+            )
+        } settings: {
+            WorkspacePageIdentityProbe(
+                tab: .settings,
+                selectedTab: store.selectedTab,
+                recorder: recorder
+            )
+        }
+    }
+}
+
+private struct WorkspacePageIdentityProbe: View {
+    @Environment(\.isEnabled) private var isEnabled
+    @State private var token = UUID()
+
+    let tab: WorkspaceTab
+    let selectedTab: WorkspaceTab
+    let recorder: WorkspacePagesIdentityRecorder
+
+    var body: some View {
+        Color.clear
+            .onAppear {
+                recorder.recordAppearance(
+                    tab: tab,
+                    token: token,
+                    selectedTab: selectedTab,
+                    isEnabled: isEnabled
+                )
+            }
+            .onChange(of: selectedTab) { _, newSelectedTab in
+                recorder.recordUpdate(
+                    tab: tab,
+                    token: token,
+                    selectedTab: newSelectedTab,
+                    isEnabled: isEnabled
+                )
+            }
+            .onDisappear {
+                recorder.recordDisappearance(tab: tab)
+            }
+    }
+}
+
+private final class ComposerFocusLifecycleStore: ObservableObject {
+    @Published var text = ""
+    @Published var isChatActive: Bool
+    @Published var focusRequest: ComposerFocusRequest
+
+    init(isChatActive: Bool, focusRequest: ComposerFocusRequest) {
+        self.isChatActive = isChatActive
+        self.focusRequest = focusRequest
+    }
+}
+
+private struct ComposerFocusLifecycleHarness: View {
+    @ObservedObject var store: ComposerFocusLifecycleStore
+
+    var body: some View {
+        ComposerBar(
+            text: $store.text,
+            isGenerating: false,
+            isChatActive: store.isChatActive,
+            focusRequest: store.focusRequest,
+            clearFocusRequest: {
+                store.focusRequest = .initial
+            },
+            send: {},
+            stop: {}
+        )
+        .frame(width: 560)
     }
 }

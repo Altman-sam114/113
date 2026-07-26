@@ -25,7 +25,8 @@ flowchart TD
     M -- top navigation --> N[Header + tab picker]
     M -- compact sidebar --> O[紧凑侧栏]
     M -- detailed sidebar --> P[详细侧栏 + 用途说明]
-    L --> Q[同一个 page-style workspacePages TabView<br/>共享 content 结构位置<br/>根断点往返不替换 content 节点]
+    L --> Q[同一个 WorkspacePagesShell<br/>四个固定同序页面槽位<br/>根断点往返不替换 content 节点]
+    Q --> Q1[WorkspacePagesInteractionPolicy<br/>选中页可见/可命中/启用/辅助可达<br/>隐藏页禁用但保持身份]
     Q --> R{selectedTab 是否为推理}
     R -- 是 --> S[SessionCommandFocusPolicy<br/>发布会话 focused route]
     R -- 否 --> T[隐藏 ChatWorkspace<br/>稳定 route 包装内 actions 为 nil]
@@ -88,7 +89,7 @@ flowchart TD
 
 ## 5. UI 布局与工作区流
 
-读图说明：这张图展示 `ContentView` 如何把容器尺寸解析成根布局计划，再由生产 `WorkspaceRootShell` 在不替换工作区 content 的前提下切换布局轴与 chrome。iPhone 横屏、iPad 竖屏大画布、Mac Catalyst 和桌面窗口都复用 `WorkspaceLayoutMode` 尺寸断点；所有尺寸始终共享同一个 page-style `workspacePages`，shell 直接子节点固定为 chrome、content，跨断点时页面局部状态不因两套根页面树而重建；只有活动聊天页通过 `SessionCommandFocusPolicy` 发布会话 focused route。`WorkbenchVisualStylePolicy`、`AppMotionAccessibilityPolicy`、工作区快捷键、44pt 触控目标、辅助语义、模型文件与 verified 门禁保持既有边界。
+读图说明：这张图展示 `ContentView` 如何把容器尺寸解析成根布局计划，再由生产 `WorkspaceRootShell` 在不替换工作区 content 的前提下切换布局轴与 chrome。iPhone 横屏、iPad 竖屏大画布、Mac Catalyst 和桌面窗口都复用 `WorkspaceLayoutMode` 尺寸断点；所有尺寸始终共享同一个 `WorkspacePagesShell`，四页固定同序存在且没有横向分页手势，只有当前页可交互和辅助可达；shell 直接子节点固定为 chrome、content，跨断点和显式导航时页面局部状态不重建。只有活动聊天页通过 `SessionCommandFocusPolicy` 发布会话 focused route。`WorkbenchVisualStylePolicy`、`AppMotionAccessibilityPolicy`、工作区快捷键、44pt 触控目标、辅助语义、模型文件与 verified 门禁保持既有边界。
 
 ```mermaid
 flowchart TD
@@ -103,9 +104,10 @@ flowchart TD
     P --> X
     X --> V[WorkbenchVisualStylePolicy<br/>导航托盘/轨道 + 主题感知 panel<br/>8pt 圆角 + hairline 描边]
     V --> R[AppMotionAccessibilityPolicy<br/>10 个显式动画入口<br/>空间位移在 Reduce Motion 下立即更新<br/>主题/复制反馈 0.12 秒 ease-out]
-    R --> T[同一个 page-style workspacePages TabView<br/>共享 content 结构位置<br/>根断点往返保持 content 身份]
+    R --> T[同一个 WorkspacePagesShell<br/>四个页面固定同序存在<br/>无横向分页手势]
     N --> X
     T --> F{当前 selectedTab}
+    F --> Y[WorkspacePagesInteractionPolicy<br/>仅当前页可见/命中/启用/辅助可达<br/>隐藏页保持身份]
     K[键盘导航<br/>Command+1/2/3/4 切换工作区] --> F
     M[系统菜单<br/>工作区 CommandMenu + 会话 CommandMenu<br/>复用 focused 映射] --> F
     F --> Q{聊天工作区是否活动}

@@ -56,7 +56,9 @@ git remote -v
 - `ContentView` 和各 workspace 负责 UI，不应绕过状态层直接改核心状态。
 - `WorkspaceLayoutMode` 按容器尺寸控制单栏、compact 双栏和 regular 大屏双栏；iPhone 横屏、iPad 大屏与 Mac/Catalyst 桌面窗口断点要有测试锁住。
 - `WorkspaceRootLayoutPolicy` 将 `WorkspaceLayoutMode` 映射为根布局轴、顶部导航/紧凑侧栏/详细侧栏 chrome 和既有侧栏宽度；它不得建立第二套断点，也不得改变快捷键、导航、辅助语义、模型文件、runtime 或 verified 门禁。
-- `WorkspaceRootShell` 使用 `AnyLayout` 在纵向/横向算法间切换，并始终保持 chrome、content 两个同序直接子节点；`ContentView` 在所有尺寸只构造一个共享 page-style `workspacePages`，根断点变化不得重建工作区局部状态。
+- `WorkspaceRootShell` 使用 `AnyLayout` 在纵向/横向算法间切换，并始终保持 chrome、content 两个同序直接子节点；`ContentView` 在所有尺寸只构造一个共享 `WorkspacePagesShell`，根断点变化不得重建工作区局部状态。
+- `WorkspacePagesInteractionPolicy` 和 `WorkspacePagesShell` 用四个固定同序页面槽位隔离工作区分页手势；只有选中页可见、可命中、启用且对辅助技术可达，隐藏页必须禁用命中、控件和辅助访问，同时保持局部状态身份。工作区切换只允许经顶部/侧栏导航、系统菜单、`Command+1...4` 和既有状态路由，不得重新引入 page-style `TabView`、私有 API、透明手势阻断层或全局 `.scrollDisabled`。
+- `ComposerBar` 的焦点任务必须同时受 `ComposerFocusRequest` 和聊天页活动态约束；离开聊天页必须取消待处理聚焦并显式清空 `@FocusState`，重新进入聊天页继续复用既有 focus request 路由。
 - `ModelLibraryLayoutMode` 控制模型页内部单栏/双栏；Mac/iPad 足够宽的模型部署工作流和窄屏回退要有测试锁住。
 - `ModelLibraryWorkspaceLayoutPolicy` 控制模型页整体内容宽度；iPhone 和窄 split view 必须保持原有可用宽度，iPad/Mac 超宽窗口必须让标题、选择/部署/文件操作和模型详情整体居中并限制最大宽度，最大内容宽度要从控制列最大宽度、详情列最大阅读宽度和列间距派生，且不得改变模型选择、部署、模型文件操作、卸载确认、内部双栏、详情列宽度、辅助语义或 verified 门禁。
 - `ModelDetailColumnLayoutPolicy` 控制模型页详情右栏在双栏宽屏中的最大阅读宽度；单栏不启用固定详情列宽，iPad/Mac 宽区域使用剩余空间但封顶，避免概要、参数、性能和建议文本行在超宽窗口无限拉长，最小/最大宽度、列间距和无效宽度 clamp 要有测试锁住。

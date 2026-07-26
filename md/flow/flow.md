@@ -55,11 +55,13 @@
 
 - `ContentView` 包含四个工作区：推理、模型、提示词、设置。
 - `WorkspaceRootLayoutPolicy` 复用 `WorkspaceLayoutMode`，把容器尺寸解析为纵向/横向轴、顶部导航/紧凑侧栏/详细侧栏 chrome 和既有侧栏宽度；不维护第二套断点。
-- `WorkspaceRootShell` 用 `AnyLayout(VStackLayout/HStackLayout)` 切换根布局算法，并始终保留 chrome、content 两个同序直接子节点；第二个节点在所有尺寸都是同一个 `workspacePages` page-style `TabView`。
-- 小屏容器的 chrome 使用顶部 header 和 tab picker；iPhone 横屏、iPad 大画布、Mac Catalyst 或其他大屏窗口达到断点后，chrome 切为左侧状态/导航栏，但共享 `TabView` 及其四个页面不重建，页面局部 sheet、筛选、焦点与滚动状态可跨根断点保留。
+- `WorkspaceRootShell` 用 `AnyLayout(VStackLayout/HStackLayout)` 切换根布局算法，并始终保留 chrome、content 两个同序直接子节点；第二个节点在所有尺寸都是同一个 `WorkspacePagesShell`。
+- `WorkspacePagesShell` 用同序四槽位 `ZStack` 持有推理、模型、提示词和设置页；`WorkspacePagesInteractionPolicy` 只让 `selectedTab` 对应页面 opacity 1、可命中、启用、辅助可达且位于 z-index 1，隐藏页 opacity 0、禁用命中/控件/辅助访问但不移除结构。页面宿主不提供横向分页手势。
+- 小屏容器的 chrome 使用顶部 header 和 tab picker；iPhone 横屏、iPad 大画布、Mac Catalyst 或其他大屏窗口达到断点后，chrome 切为左侧状态/导航栏，但共享页面宿主及其四个页面不重建，页面局部 sheet、筛选、焦点与滚动状态可跨根断点和显式导航保留。
 - `WorkspaceLayoutMode` 负责按容器尺寸判断 portrait、landscapeCompact、landscapeRegular；case 名称保留历史兼容，但 v0.8 起含义是单栏、compact 双栏和 regular 大屏双栏。
 - `WorkspaceLayoutMode.usesDetailedSidebar` 只在 regular 大屏双栏启用，用于让 Mac/iPad 大画布侧栏显示一行 workspace 用途说明；compact 双栏保持紧凑按钮。
 - `SessionCommandFocusPolicy` 为共享 `ChatWorkspace` 增加活动态 gate；结构恒定的 `SessionCommandFocusedRoute` 始终保留相同 modifier，只有 `selectedTab == .chat` 时包装内提供 `SessionCommandActions`，隐藏聊天页的 actions 为 `nil`，系统会话菜单仍沿用既有新建、导出和 composer focus 状态流。
+- `ComposerBar` 的可取消 focus task 以聊天活动态和 request sequence 作为身份；隐藏聊天页立即清空 `@FocusState`，并取消尚未完成的聚焦任务；聊天页活动但没有新 request 时保持既有焦点，避免消费 request 后重置 sequence 立即撤销刚设置的焦点。
 - `ModelLibraryLayoutMode` 只控制模型页内部部署控制台的单栏/双栏；足够宽的 iPad/Mac 模型页显示“选择/部署/文件操作”和“模型详情”并列，窄屏继续单栏。
 - `ModelLibraryWorkspaceLayoutPolicy` 控制模型页整体内容宽度；iPhone 和窄 split view 保持原有可用宽度，iPad/Mac 超宽窗口中标题、选择/部署/文件操作和模型详情整体居中并限制最大宽度，最大内容宽度从控制列最大宽度、详情列最大阅读宽度和列间距派生，不改变模型状态流、内部双栏、详情列宽度、辅助语义或 verified 门禁。
 - `ModelDetailColumnLayoutPolicy` 只控制模型页双栏右侧详情列宽度；单栏不启用固定详情列宽，iPad/Mac 宽区域按剩余宽度计算并限制最大阅读宽度，避免概要、参数、性能和建议文本行在超宽窗口无限拉长。
@@ -241,7 +243,8 @@ Agent X 不能跳过 Agent C artifact 验收；失败时不能继续下一轮并
 - `PromptTemplateLibrary`：内置提示词模板。
 - `WorkspaceLayoutMode`：主界面容器尺寸断点，覆盖 iPhone 横屏、iPad 竖屏大画布、Mac Catalyst 和桌面大屏窗口。
 - `WorkspaceRootLayoutPlan` / `WorkspaceRootLayoutPolicy`：复用根断点并生成 axis、chrome 和侧栏宽度的纯布局计划。
-- `WorkspaceRootShell`：生产根容器，通过 `AnyLayout` 保持 chrome/content 两子节点顺序和共享 `workspacePages` 的结构身份。
+- `WorkspaceRootShell`：生产根容器，通过 `AnyLayout` 保持 chrome/content 两子节点顺序和共享 `WorkspacePagesShell` 的结构身份。
+- `WorkspacePagesInteractionPolicy` / `WorkspacePagesShell`：固定持有四个工作区，隔离分页手势，并统一选中页与隐藏页的可见性、命中、禁用、辅助访问和层级。
 - `SessionCommandFocusPolicy`：只让当前活动聊天页发布系统会话菜单的 focused actions。
 - `ModelLibraryLayoutMode`：模型页内部单栏/双栏断点，覆盖窄屏回退和 Mac/iPad 宽屏部署工作流。
 - `ModelLibraryWorkspaceLayoutPolicy`：模型页整体内容宽度、最大内容宽度、左右 padding 和无效宽度 clamp 策略。
