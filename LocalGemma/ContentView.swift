@@ -157,12 +157,78 @@ enum SessionSidebarLayoutPolicy {
     static let maximumWidth: CGFloat = 310
     static let widthRatio: CGFloat = 0.28
 
+    static func preferredWidth(forContainerWidth width: CGFloat) -> CGFloat {
+        guard width.isFinite, width > 0 else {
+            return 0
+        }
+
+        return min(max(width * widthRatio, minimumWidth), maximumWidth)
+    }
+
     static func width(for size: CGSize, layoutMode: WorkspaceLayoutMode) -> CGFloat {
         guard layoutMode.usesSidebar else {
             return 0
         }
 
-        return min(max(size.width * widthRatio, minimumWidth), maximumWidth)
+        return preferredWidth(forContainerWidth: size.width)
+    }
+}
+
+enum ChatWorkspacePaneMode: Equatable {
+    case stacked
+    case split
+}
+
+struct ChatWorkspacePaneLayout: Equatable {
+    let mode: ChatWorkspacePaneMode
+    let sessionSidebarWidth: CGFloat
+    let chatSurfaceWidth: CGFloat
+}
+
+enum ChatWorkspacePaneLayoutPolicy {
+    static let minimumChatSurfaceWidth: CGFloat = 620
+
+    static var minimumSplitContainerWidth: CGFloat {
+        minimumChatSurfaceWidth + SessionSidebarLayoutPolicy.minimumWidth
+    }
+
+    static func resolve(for size: CGSize) -> ChatWorkspacePaneLayout {
+        let containerWidth = size.width
+        guard containerWidth.isFinite, containerWidth > 0 else {
+            return ChatWorkspacePaneLayout(
+                mode: .stacked,
+                sessionSidebarWidth: 0,
+                chatSurfaceWidth: 0
+            )
+        }
+
+        guard containerWidth >= minimumSplitContainerWidth else {
+            return ChatWorkspacePaneLayout(
+                mode: .stacked,
+                sessionSidebarWidth: 0,
+                chatSurfaceWidth: containerWidth
+            )
+        }
+
+        let preferredSidebarWidth = SessionSidebarLayoutPolicy.preferredWidth(
+            forContainerWidth: containerWidth
+        )
+        let availableSidebarWidth = containerWidth - minimumChatSurfaceWidth
+        let sessionSidebarWidth = min(preferredSidebarWidth, availableSidebarWidth)
+
+        guard sessionSidebarWidth >= SessionSidebarLayoutPolicy.minimumWidth else {
+            return ChatWorkspacePaneLayout(
+                mode: .stacked,
+                sessionSidebarWidth: 0,
+                chatSurfaceWidth: containerWidth
+            )
+        }
+
+        return ChatWorkspacePaneLayout(
+            mode: .split,
+            sessionSidebarWidth: sessionSidebarWidth,
+            chatSurfaceWidth: containerWidth - sessionSidebarWidth
+        )
     }
 }
 
@@ -2751,69 +2817,49 @@ struct ChatWorkspace: View {
 
     var body: some View {
         GeometryReader { proxy in
-            let layoutMode = WorkspaceLayoutMode.resolve(for: proxy.size)
-            let isLandscape = layoutMode.usesSidebar
+            let paneLayout = ChatWorkspacePaneLayoutPolicy.resolve(for: proxy.size)
+            let usesSessionSidebar = paneLayout.mode == .split
+            let workspaceLayout = usesSessionSidebar
+                ? AnyLayout(HStackLayout(spacing: 0))
+                : AnyLayout(VStackLayout(spacing: 10))
 
-            if isLandscape {
-                HStack(spacing: 0) {
-                    SessionBar(
-                        sessions: inference.sessions,
-                        activeSessionID: inference.activeSessionID,
-                        layout: .vertical,
-                        create: {
-                            inference.createSession()
-                            requestComposerFocus(.createSession)
-                        },
-                        select: { session in
-                            inference.selectSession(session)
-                            requestComposerFocus(.selectSession)
-                        },
-                        delete: { session in
-                            inference.deleteSession(session)
-                        },
-                        export: prepareExport
-                    )
-                    .padding(14)
-                    .frame(
-                        width: SessionSidebarLayoutPolicy.width(
-                            for: proxy.size,
-                            layoutMode: layoutMode
-                        )
-                    )
-                    .background(.ultraThinMaterial)
-                    .overlay(alignment: .trailing) {
+            workspaceLayout {
+                SessionBar(
+                    sessions: inference.sessions,
+                    activeSessionID: inference.activeSessionID,
+                    layout: usesSessionSidebar ? .vertical : .horizontal,
+                    create: {
+                        inference.createSession()
+                        requestComposerFocus(.createSession)
+                    },
+                    select: { session in
+                        inference.selectSession(session)
+                        requestComposerFocus(.selectSession)
+                    },
+                    delete: { session in
+                        inference.deleteSession(session)
+                    },
+                    export: prepareExport
+                )
+                .padding(.horizontal, usesSessionSidebar ? 14 : 18)
+                .padding(.vertical, usesSessionSidebar ? 14 : 0)
+                .padding(.top, usesSessionSidebar ? 0 : 12)
+                .frame(width: usesSessionSidebar ? paneLayout.sessionSidebarWidth : nil)
+                .background {
+                    if usesSessionSidebar {
+                        Rectangle().fill(.ultraThinMaterial)
+                    }
+                }
+                .overlay(alignment: .trailing) {
+                    if usesSessionSidebar {
                         Rectangle()
                             .fill(theme.border)
-                            .frame(width: 1)
+                            .frame(width: WorkbenchVisualStylePolicy.hairlineWidth)
                     }
-
-                    chatSurface
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-            } else {
-                VStack(spacing: 10) {
-                    SessionBar(
-                        sessions: inference.sessions,
-                        activeSessionID: inference.activeSessionID,
-                        layout: .horizontal,
-                        create: {
-                            inference.createSession()
-                            requestComposerFocus(.createSession)
-                        },
-                        select: { session in
-                            inference.selectSession(session)
-                            requestComposerFocus(.selectSession)
-                        },
-                        delete: { session in
-                            inference.deleteSession(session)
-                        },
-                        export: prepareExport
-                    )
-                    .padding(.horizontal, 18)
-                    .padding(.top, 12)
 
-                    chatSurface
-                }
+                chatSurface
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .sheet(item: $exportPayload) { payload in

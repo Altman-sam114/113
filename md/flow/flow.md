@@ -80,7 +80,8 @@
 - `ModelArtifactActionLayoutPolicy` 为模型页文件工作流面板的扫描本地和导入文件 utility 按钮定义共享 44pt 最小触控目标；它只影响按钮命中高度，不改变模拟暂存、卸载确认、扫描本地、Files 手动导入、artifact 校验、辅助语义或 verified 门禁。
 - `ModelUninstallConfirmationAccessibilityMetadata` 为模型卸载确认弹层生成标题、消息、确认/取消按钮 hint、Voice Control 输入标签和稳定 identifier；确认动作只删除 App 托管 artifact/tokenizer 并停止部署，取消无副作用，不删除系统 Files 原始文件，不下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁。
 - `ModelStatusBadgeAccessibilityMetadata` 为模型页安装状态、artifact 状态和部署状态徽章生成 label/value/hint/input labels/identifier；文案明确徽章只展示本地模型状态，不下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁。
-- `SessionSidebarLayoutPolicy` 只控制推理页内部大屏会话列表宽度；竖向会话栏按容器宽度 28% 计算，并限制在 240 到 310 之间，窄屏单栏返回 0。
+- `SessionSidebarLayoutPolicy` 只计算推理页竖向会话栏偏好宽度；按实际聊天 pane 宽度的 28% 计算并限制在 240 到 310 之间，无效宽度返回 0。
+- `ChatWorkspacePaneLayoutPolicy` 使用 `ChatWorkspace` 在全局工作区侧栏分配后得到的真实 pane 宽度协调会话栏和聊天面；pane 小于 860pt 时使用横向会话栏堆叠布局，达到阈值后才启用竖向会话栏，并把侧栏宽度封顶到至少保留 620pt 聊天面。`ChatWorkspace` 通过 `AnyLayout` 在同一组 `SessionBar` 和 `chatSurface` 子视图间切换 `VStackLayout` / `HStackLayout`，保持会话回调、composer 聚焦、导出和辅助语义不变。
 - `WorkspaceTab.shortcutKey` 定义工作区键盘导航：`Command+1` 推理、`Command+2` 模型、`Command+3` 提示词、`Command+4` 设置。
 - `WorkspaceNavigationAccessibilityMetadata` 为顶部工作区 tab 和大屏 sidebar 工作区按钮生成 label/value/hint/input labels/identifier；hint 复用 `WorkspaceTab.sidebarSubtitle`，说明 `Command 1...4` 快捷键和只切换本地工作区边界，不改变 `selectedTab` 状态流或 command menu 映射。
 - `WorkspaceSidebarTextLayoutPolicy` 为大屏侧栏工作区标题与详细副标题定义 Dynamic Type 文本策略；标题与副标题使用语义字体并允许两行，移除副标题缩放压缩，同时不改变快捷键、command menu、`selectedTab`、composer focus、导航触控目标或辅助语义。
@@ -267,7 +268,8 @@ Agent X 不能跳过 Agent C artifact 验收；失败时不能继续下一轮并
 - `OptimizerMetricAccessibilityMetadata`：设置页和优化 dashboard Apple Silicon 指标卡的辅助技术文案、进度百分比、Voice Control 输入标签和稳定 identifier。
 - `OptimizerMetricTextLayoutPolicy`：设置页和优化 dashboard Apple Silicon 指标卡的 Dynamic Type 字体、label/value/detail 行数、detail lineSpacing 和最小卡片高度策略。
 - `OptimizerMetricGridLayoutPolicy`：设置页和优化 dashboard Apple Silicon 指标网格的最小卡片宽度、间距、列数阈值和窄屏回退策略。
-- `SessionSidebarLayoutPolicy`：推理页大屏会话列表宽度策略，覆盖 Mac/iPad 会话栏最小/最大宽度和窄屏回退。
+- `SessionSidebarLayoutPolicy`：推理页竖向会话栏 240...310pt 偏好宽度与无效宽度 clamp。
+- `ChatWorkspacePaneLayoutPolicy`：按扣除全局侧栏后的真实聊天 pane 宽度选择堆叠/分栏，覆盖 860pt 阈值、620pt 最小聊天面、宽度守恒及 iPad/Mac 根窗口组合。
 - `SessionCommandAction` / `SessionCommandActions`：Mac/iPad 会话命令菜单元数据和 focused action bridge。
 - `SessionBarActionAccessibilityMetadata`：推理页会话栏新建/导出可见按钮的辅助技术文案、Voice Control 输入标签和稳定 identifier。
 - `SessionBarActionLayoutPolicy`：推理页会话栏新建/导出可见图标按钮的 44pt 最小触控目标策略。

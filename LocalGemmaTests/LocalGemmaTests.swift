@@ -2226,6 +2226,109 @@ final class LocalGemmaTests: XCTestCase {
         }
     }
 
+    func testChatWorkspacePaneLayoutPolicyCoordinatesGlobalAndSessionSidebars() {
+        XCTAssertEqual(ChatWorkspacePaneLayoutPolicy.minimumChatSurfaceWidth, 620)
+        XCTAssertEqual(ChatWorkspacePaneLayoutPolicy.minimumSplitContainerWidth, 860)
+        XCTAssertEqual(
+            SessionSidebarLayoutPolicy.preferredWidth(forContainerWidth: .nan),
+            0
+        )
+        XCTAssertEqual(
+            SessionSidebarLayoutPolicy.preferredWidth(forContainerWidth: -.infinity),
+            0
+        )
+
+        let invalidSizes = [
+            CGSize(width: CGFloat.nan, height: 800),
+            CGSize(width: -CGFloat.infinity, height: 800),
+            CGSize(width: 0, height: 800),
+            CGSize(width: -1, height: 800)
+        ]
+        for size in invalidSizes {
+            let layout = ChatWorkspacePaneLayoutPolicy.resolve(for: size)
+            XCTAssertEqual(layout.mode, .stacked)
+            XCTAssertEqual(layout.sessionSidebarWidth, 0)
+            XCTAssertEqual(layout.chatSurfaceWidth, 0)
+        }
+
+        let belowThreshold = ChatWorkspacePaneLayoutPolicy.resolve(
+            for: CGSize(width: 859.99, height: 800)
+        )
+        XCTAssertEqual(belowThreshold.mode, .stacked)
+        XCTAssertEqual(belowThreshold.sessionSidebarWidth, 0)
+        XCTAssertEqual(belowThreshold.chatSurfaceWidth, 859.99, accuracy: 0.01)
+
+        let threshold = ChatWorkspacePaneLayoutPolicy.resolve(
+            for: CGSize(width: 860, height: 800)
+        )
+        XCTAssertEqual(threshold.mode, .split)
+        XCTAssertEqual(
+            threshold.sessionSidebarWidth,
+            SessionSidebarLayoutPolicy.minimumWidth
+        )
+        XCTAssertEqual(
+            threshold.chatSurfaceWidth,
+            ChatWorkspacePaneLayoutPolicy.minimumChatSurfaceWidth
+        )
+
+        let widePane = ChatWorkspacePaneLayoutPolicy.resolve(
+            for: CGSize(width: 1_440, height: 900)
+        )
+        XCTAssertEqual(widePane.mode, .split)
+        XCTAssertEqual(
+            widePane.sessionSidebarWidth,
+            SessionSidebarLayoutPolicy.maximumWidth
+        )
+        XCTAssertGreaterThanOrEqual(
+            widePane.chatSurfaceWidth,
+            ChatWorkspacePaneLayoutPolicy.minimumChatSurfaceWidth
+        )
+
+        let rootWindowCases: [(CGSize, ChatWorkspacePaneMode)] = [
+            (CGSize(width: 390, height: 844), .stacked),
+            (CGSize(width: 820, height: 1_180), .stacked),
+            (CGSize(width: 1_024, height: 1_366), .stacked),
+            (CGSize(width: 1_030, height: 800), .stacked),
+            (CGSize(width: 1_180, height: 820), .stacked),
+            (CGSize(width: 1_280, height: 800), .split),
+            (CGSize(width: 1_366, height: 900), .split)
+        ]
+
+        for (rootSize, expectedMode) in rootWindowCases {
+            let workspaceMode = WorkspaceLayoutMode.resolve(for: rootSize)
+            let workspaceSidebarWidth = workspaceMode.sidebarWidth(for: rootSize)
+            let paneWidth = rootSize.width - workspaceSidebarWidth
+            let paneLayout = ChatWorkspacePaneLayoutPolicy.resolve(
+                for: CGSize(width: paneWidth, height: rootSize.height)
+            )
+
+            XCTAssertEqual(paneLayout.mode, expectedMode, "Unexpected mode for \(rootSize).")
+            XCTAssertLessThanOrEqual(
+                workspaceSidebarWidth
+                    + paneLayout.sessionSidebarWidth
+                    + paneLayout.chatSurfaceWidth,
+                rootSize.width + 0.01
+            )
+            if paneLayout.mode == .split {
+                XCTAssertGreaterThanOrEqual(
+                    paneLayout.sessionSidebarWidth,
+                    SessionSidebarLayoutPolicy.minimumWidth
+                )
+                XCTAssertLessThanOrEqual(
+                    paneLayout.sessionSidebarWidth,
+                    SessionSidebarLayoutPolicy.maximumWidth
+                )
+                XCTAssertGreaterThanOrEqual(
+                    paneLayout.chatSurfaceWidth,
+                    ChatWorkspacePaneLayoutPolicy.minimumChatSurfaceWidth
+                )
+            } else {
+                XCTAssertEqual(paneLayout.sessionSidebarWidth, 0)
+                XCTAssertEqual(paneLayout.chatSurfaceWidth, paneWidth, accuracy: 0.01)
+            }
+        }
+    }
+
     func testModelLibraryLayoutModeSupportsWideModelWorkflows() {
         let phonePortrait = ModelLibraryLayoutMode.resolve(
             for: CGSize(width: 390, height: 844)

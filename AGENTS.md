@@ -4,7 +4,7 @@
 
 ## 1. 项目一句话总览
 
-`Local Gemma iOS Prototype` 是一个 SwiftUI iOS 原型 App，用本地模拟 runtime 验证 iPhone、iPad 与 Mac Catalyst build/run 基线下端侧部署 Gemma 1.5B 的产品交互、模型文件管理、artifact 校验、模型卸载确认弹层辅助语义、会话导出、导出弹层分享/复制辅助语义、导出弹层分享/复制 44pt 触控目标、导出弹层整体宽屏内容宽度策略、大屏双栏布局、Mac/iPad 工作区与会话命令菜单、顶部模型胶囊整体辅助语义、模型概要面板与详情右栏/行级辅助语义、模型页整体宽屏内容宽度策略、模型详情右栏最大阅读宽度策略、模型文件工作流面板辅助语义、工作区导航辅助语义、工作区导航 44pt 触控目标、头部主题与模型库入口辅助语义、全局 Header 图标动作 44pt 触控目标、Header 标题动态排版策略、设置页整体宽屏内容宽度策略、设置页图标动作 44pt 触控目标、会话栏操作辅助语义、会话栏操作 44pt 触控目标、会话 chip 动作语义、会话侧栏宽度策略、聊天消息气泡与聊天记录容器辅助语义、聊天气泡与 composer 宽屏输入宽度策略、composer 发送/停止 44pt 触控目标、模型选择器、状态徽章与部署控件辅助语义、模型部署控件 44pt 触控目标、运行策略开关辅助语义、运行策略开关宽屏网格、运行策略开关行 44pt 触控目标、芯片准备度辅助语义与隐私状态动态摘要、优化指标卡辅助语义、优化指标卡文本动态排版策略、优化指标网格宽度策略、共享 SectionHeader 动态排版策略、提示词页整体宽屏内容宽度策略、提示词模板宽屏布局策略、提示词模板文本动态排版策略、提示词分类筛选换行布局策略、提示词分类文本动态排版策略、提示词筛选与模板动作辅助语义、提示词模板动作 44pt 触控目标、相册壁纸控件辅助语义和 Apple Silicon 运行计划；当前不下载模型权重，不执行真实模型推理，也没有原生 macOS target。
+`Local Gemma iOS Prototype` 是一个 SwiftUI iOS 原型 App，用本地模拟 runtime 验证 iPhone、iPad 与 Mac Catalyst build/run 基线下端侧部署 Gemma 1.5B 的产品交互、模型文件管理、artifact 校验、模型卸载确认弹层辅助语义、会话导出、导出弹层分享/复制辅助语义、导出弹层分享/复制 44pt 触控目标、导出弹层整体宽屏内容宽度策略、大屏双栏布局、聊天工作区双侧栏宽度协调、Mac/iPad 工作区与会话命令菜单、顶部模型胶囊整体辅助语义、模型概要面板与详情右栏/行级辅助语义、模型页整体宽屏内容宽度策略、模型详情右栏最大阅读宽度策略、模型文件工作流面板辅助语义、工作区导航辅助语义、工作区导航 44pt 触控目标、头部主题与模型库入口辅助语义、全局 Header 图标动作 44pt 触控目标、Header 标题动态排版策略、设置页整体宽屏内容宽度策略、设置页图标动作 44pt 触控目标、会话栏操作辅助语义、会话栏操作 44pt 触控目标、会话 chip 动作语义、会话侧栏宽度策略、聊天消息气泡与聊天记录容器辅助语义、聊天气泡与 composer 宽屏输入宽度策略、composer 发送/停止 44pt 触控目标、模型选择器、状态徽章与部署控件辅助语义、模型部署控件 44pt 触控目标、运行策略开关辅助语义、运行策略开关宽屏网格、运行策略开关行 44pt 触控目标、芯片准备度辅助语义与隐私状态动态摘要、优化指标卡辅助语义、优化指标卡文本动态排版策略、优化指标网格宽度策略、共享 SectionHeader 动态排版策略、提示词页整体宽屏内容宽度策略、提示词模板宽屏布局策略、提示词模板文本动态排版策略、提示词分类筛选换行布局策略、提示词分类文本动态排版策略、提示词筛选与模板动作辅助语义、提示词模板动作 44pt 触控目标、相册壁纸控件辅助语义和 Apple Silicon 运行计划；当前不下载模型权重，不执行真实模型推理，也没有原生 macOS target。
 
 ## 2. 必读文件顺序
 
@@ -91,7 +91,8 @@ git remote -v
 - `OptimizerMetricAccessibilityMetadata` 控制设置页和优化 dashboard 的 Apple Silicon 指标卡辅助语义；指标卡只展示本地优化摘要，不下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁，VoiceOver/Voice Control label/value/hint/input labels/identifier 要有测试锁住。
 - `OptimizerMetricTextLayoutPolicy` 控制设置页和优化 dashboard 的 Apple Silicon 指标卡文本动态排版；指标 label、value 和 detail 必须使用 Dynamic Type 语义字体并允许多行，避免 iPad/Mac 窄 split view 和较大文字设置下通过固定小字号或缩放压缩文字，且不得改变指标数据、进度、tint、网格列数、辅助语义、模型文件或 runtime 状态。
 - `OptimizerMetricGridLayoutPolicy` 控制设置页和优化 dashboard 的 Apple Silicon 指标网格宽度策略；窄屏和窄 split view 必须回退单列，iPad/Mac 宽区域保持双列，列数阈值和共享网格入口要有测试锁住。
-- `SessionSidebarLayoutPolicy` 控制推理页大屏会话列表宽度；Mac/iPad 会话栏最小/最大宽度和窄屏回退要有测试锁住。
+- `SessionSidebarLayoutPolicy` 只计算推理页竖向会话栏的偏好宽度；Mac/iPad 会话栏必须保持 240...310pt，宽度比例和无效宽度 clamp 要有测试锁住。
+- `ChatWorkspacePaneLayoutPolicy` 使用 `ChatWorkspace` 扣除全局工作区侧栏后的真实 pane 宽度协调会话栏和聊天面；pane 小于 860pt 必须使用横向会话栏堆叠布局，分栏时聊天面必须保持至少 620pt，且不得改变会话状态流、composer 聚焦、导出、辅助语义或 verified 门禁。
 - `SessionBarActionAccessibilityMetadata` 控制推理页会话栏新建/导出可见按钮的辅助语义；它必须与系统 `会话` command menu 标题、快捷键和 focused route 保持对齐，并明确导出不发送到云端服务。
 - `SessionBarActionLayoutPolicy` 控制推理页会话栏新建/导出可见按钮的最小触控目标；横向会话栏和大屏竖向会话栏必须共享至少 44pt 的图标按钮尺寸，且不得改变会话 command menu、导出弹层、composer 聚焦或辅助语义。
 - `SessionChipActionAccessibilityMetadata` 控制推理页单个会话 chip 的选择和删除动作辅助语义；选择动作必须说明只切换本地会话并请求 composer focus，删除动作必须说明只删除本地会话记录、不删除模型 artifact 或权重，并为默认空白当前会话暴露不可删除原因；label/value/hint、Voice Control 输入标签和稳定 identifier 要有测试锁住。

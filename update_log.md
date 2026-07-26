@@ -16,7 +16,7 @@
 - 平台：SwiftUI iOS App，Swift 6.0，iOS deployment target 17.0，当前 app/test target 支持 iPhone、iPad 和 Mac Catalyst build-for-testing，并提供项目内 Mac Catalyst 本地 build/run 脚本入口；尚未创建原生 macOS target。
 - 当前默认模型：`Gemma 1.5B Local`
 - 当前推理：本地模拟 runtime，不下载模型权重，不执行真实模型推理。
-- 当前核心测试：`LocalGemmaTests.swift` 中 102 个 XCTest 方法。
+- 当前核心测试：`LocalGemmaTests.swift` 中 103 个 XCTest 方法。
 - 当前核心文档入口：`AGENTS.md`、`md/flow/flow.md`、`md/flow/flowchart.md`、`md/test/test.md`、`md/prompt/README.md`、`README.md`。
 - 当前协作验证：默认 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载未加密 CI 结果包验收；本地仓库当前已配置 `origin` remote，最终验收仍以最新 `origin/main` 对应的 GitHub Actions run 和结果包为准；文档已预留未来 `agentx:` 主控 Agent A -> Agent B -> Agent C 多轮循环的规则。
 
@@ -3357,3 +3357,37 @@
 遗留事项：
 
 - v2.60 计划审计并收敛工作区 sidebar 与会话 sidebar 同时出现时的宽度策略；UI Test target、真实 runtime 和原生 macOS target 仍属后续。
+
+### v2.60 / 聊天工作区双侧栏宽度策略
+
+日期：2026-07-26
+
+核心变更：
+
+- Agent X 在 v2.59 云端验收通过后继续优化 iPad 与 Mac 宽屏体验；三路只读审计确认 `ChatWorkspace` 在全局工作区侧栏内再次按根断点启用会话侧栏，约 1029 -> 1030pt 的根窗口变化会让聊天面骤减约 240pt，归档 `md/prompt/v2（Mac体验审计）/v2.60（聊天工作区双侧栏宽度策略）.md`。
+- `SessionSidebarLayoutPolicy` 新增基于实际容器宽度的偏好宽度入口，继续维持 28% 比例及 240...310pt 范围，并对无效宽度返回 0。
+- 新增 `ChatWorkspacePaneLayoutPolicy`，使用全局工作区侧栏分配后的真实聊天 pane 宽度决定堆叠或分栏；pane 小于 860pt 时保持横向会话栏，分栏时至少保留 620pt 聊天面。
+- `ChatWorkspace` 使用 `AnyLayout` 在 `VStackLayout` 和 `HStackLayout` 间切换，同一组 `SessionBar` / `chatSurface` 保留新建、选择、删除、导出、composer 聚焦、辅助语义和业务状态流。
+- 新增 `testChatWorkspacePaneLayoutPolicyCoordinatesGlobalAndSessionSidebars`；测试函数数从 102 增加到 103。
+
+关键文件：
+
+- `LocalGemma/ContentView.swift`
+- `LocalGemmaTests/LocalGemmaTests.swift`
+- `AGENTS.md`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v2（Mac体验审计）/v2.60（聊天工作区双侧栏宽度策略）.md`
+
+验证结果：
+
+- `git diff --check`、脚本可执行/语法、`plutil -lint`、workflow YAML 解析和测试函数统计 103 均通过；LogicSmoke 输出 `Logic smoke passed`。
+- SwiftUI 源码 typecheck、app module emit 和 XCTest 源码 typecheck 均退出码 0；首次手工 XCTest typecheck 漏传既有 iPhoneSimulator `Developer/usr/lib` 搜索路径而无法解析 Swift XCTest overlay，按 README 完整命令补跑后通过。
+- `./script/build_and_run.sh --build-only` 的 Mac Catalyst 构建输出 `BUILD SUCCEEDED`；`./script/build_and_run.sh --verify` 再次构建成功，并确认 App 启动进程存在。
+- 完整 iOS/Mac Catalyst XCTest 由 push 后 GitHub Actions 与 Agent C 结果包验收。
+
+遗留事项：
+
+- Reduce Motion、UI Test target、真实 runtime 和原生 macOS target 仍属后续；本轮不下载模型权重、不接入云端推理、不绕过 verified 门禁。
