@@ -1,5 +1,7 @@
-import XCTest
+import Combine
 import SwiftUI
+import UIKit
+import XCTest
 @testable import LocalGemma
 
 @MainActor
@@ -1637,6 +1639,18 @@ final class LocalGemmaTests: XCTestCase {
 
         XCTAssertFalse(SessionCommandRoutingPolicy.isEnabled(hasFocusedActions: false))
         XCTAssertTrue(SessionCommandRoutingPolicy.isEnabled(hasFocusedActions: true))
+        XCTAssertNil(
+            SessionCommandFocusPolicy.focusedActions(
+                isChatActive: false,
+                actions: actions
+            )
+        )
+        XCTAssertNotNil(
+            SessionCommandFocusPolicy.focusedActions(
+                isChatActive: true,
+                actions: actions
+            )
+        )
         XCTAssertTrue(
             SessionCommandRoutingPolicy.requestsComposerFocus(after: .createSession)
         )
@@ -2186,6 +2200,101 @@ final class LocalGemmaTests: XCTestCase {
             WorkspaceLayoutMode.resolve(for: CGSize(width: 1180, height: 820)),
             .landscapeRegular
         )
+    }
+
+    func testWorkspaceRootLayoutPolicyResolvesChromeAndAxisAtBoundaries() {
+        let cases: [(
+            size: CGSize,
+            mode: WorkspaceLayoutMode,
+            axis: WorkspaceRootAxis,
+            chrome: WorkspaceChromePresentation
+        )] = [
+            (CGSize(width: 699.99, height: 900), .portrait, .vertical, .topNavigation),
+            (CGSize(width: 700, height: 900), .landscapeCompact, .horizontal, .compactSidebar),
+            (CGSize(width: 979.99, height: 700), .landscapeCompact, .horizontal, .compactSidebar),
+            (CGSize(width: 980, height: 699.99), .landscapeCompact, .horizontal, .compactSidebar),
+            (CGSize(width: 980, height: 700), .landscapeRegular, .horizontal, .detailedSidebar),
+            (CGSize(width: 820, height: 1_180), .landscapeCompact, .horizontal, .compactSidebar),
+            (CGSize(width: 1_024, height: 1_366), .landscapeRegular, .horizontal, .detailedSidebar)
+        ]
+
+        let expectedSidebarWidths: [CGFloat] = [0, 250, 293.997, 294, 320, 250, 327.68]
+
+        for (item, expectedSidebarWidth) in zip(cases, expectedSidebarWidths) {
+            let plan = WorkspaceRootLayoutPolicy.resolve(for: item.size)
+            XCTAssertEqual(plan.mode, item.mode)
+            XCTAssertEqual(plan.axis, item.axis)
+            XCTAssertEqual(plan.chrome, item.chrome)
+            XCTAssertEqual(plan.sidebarWidth, expectedSidebarWidth, accuracy: 0.001)
+
+            if item.mode.usesSidebar {
+                XCTAssertGreaterThan(plan.sidebarWidth, 0)
+                XCTAssertTrue(plan.sidebarWidth.isFinite)
+            } else {
+                XCTAssertEqual(plan.sidebarWidth, 0)
+            }
+        }
+
+        let invalidPlans = [
+            CGSize(width: -1, height: 900),
+            CGSize(width: CGFloat.nan, height: 900),
+            CGSize(width: 699, height: CGFloat.infinity)
+        ].map(WorkspaceRootLayoutPolicy.resolve)
+        for plan in invalidPlans {
+            XCTAssertEqual(plan.mode, .portrait)
+            XCTAssertEqual(plan.axis, .vertical)
+            XCTAssertEqual(plan.chrome, .topNavigation)
+            XCTAssertEqual(plan.sidebarWidth, 0)
+        }
+
+        let infiniteWidthPlan = WorkspaceRootLayoutPolicy.resolve(
+            for: CGSize(width: CGFloat.infinity, height: 900)
+        )
+        XCTAssertEqual(infiniteWidthPlan.mode, .landscapeRegular)
+        XCTAssertEqual(infiniteWidthPlan.sidebarWidth, 390)
+        XCTAssertTrue(infiniteWidthPlan.sidebarWidth.isFinite)
+    }
+
+    func testWorkspaceRootShellPreservesStatefulContentAcrossLayoutPlans() {
+        let plans = [
+            CGSize(width: 699.99, height: 900),
+            CGSize(width: 700, height: 900),
+            CGSize(width: 979.99, height: 700),
+            CGSize(width: 980, height: 700),
+            CGSize(width: 700, height: 900),
+            CGSize(width: 699.99, height: 900)
+        ].map(WorkspaceRootLayoutPolicy.resolve)
+        let store = WorkspaceRootPlanStore(plan: plans[0])
+        let recorder = WorkspaceRootIdentityRecorder()
+        let controller = UIHostingController(
+            rootView: WorkspaceRootIdentityHarness(store: store, recorder: recorder)
+        )
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 1_024, height: 900))
+        window.rootViewController = controller
+        window.makeKeyAndVisible()
+        controller.view.setNeedsLayout()
+        controller.view.layoutIfNeeded()
+        drainMainRunLoop()
+
+        for plan in plans.dropFirst() {
+            store.isChatActive.toggle()
+            store.plan = plan
+            controller.view.setNeedsLayout()
+            controller.view.layoutIfNeeded()
+            drainMainRunLoop()
+        }
+
+        XCTAssertEqual(recorder.appearCount, 1)
+        XCTAssertEqual(recorder.disappearCount, 0)
+        XCTAssertEqual(recorder.observations.count, plans.count)
+        XCTAssertEqual(Set(recorder.observations.map(\.token)).count, 1)
+        XCTAssertEqual(recorder.observations.map(\.plan), plans)
+
+        window.isHidden = true
+    }
+
+    private func drainMainRunLoop() {
+        RunLoop.main.run(until: Date().addingTimeInterval(0.02))
     }
 
     func testWorkspaceLayoutModeSupportsIPadWideContainers() {
@@ -4005,5 +4114,84 @@ final class LocalGemmaTests: XCTestCase {
         XCTAssertEqual(ExportSessionLayoutPolicy.contentWidth(forContainerWidth: 1_200), 760)
         XCTAssertEqual(ExportSessionLayoutPolicy.contentWidth(forContainerWidth: -1), 320)
         XCTAssertEqual(ExportSessionLayoutPolicy.contentWidth(forContainerWidth: .nan), 320)
+    }
+}
+
+private final class WorkspaceRootPlanStore: ObservableObject {
+    @Published var plan: WorkspaceRootLayoutPlan
+    @Published var isChatActive = true
+
+    init(plan: WorkspaceRootLayoutPlan) {
+        self.plan = plan
+    }
+}
+
+private final class WorkspaceRootIdentityRecorder {
+    struct Observation {
+        let token: UUID
+        let plan: WorkspaceRootLayoutPlan
+    }
+
+    private(set) var observations: [Observation] = []
+    private(set) var appearCount = 0
+    private(set) var disappearCount = 0
+
+    func recordAppearance(token: UUID, plan: WorkspaceRootLayoutPlan) {
+        appearCount += 1
+        observations.append(Observation(token: token, plan: plan))
+    }
+
+    func recordUpdate(token: UUID, plan: WorkspaceRootLayoutPlan) {
+        observations.append(Observation(token: token, plan: plan))
+    }
+
+    func recordDisappearance() {
+        disappearCount += 1
+    }
+}
+
+private struct WorkspaceRootIdentityHarness: View {
+    @ObservedObject var store: WorkspaceRootPlanStore
+    let recorder: WorkspaceRootIdentityRecorder
+
+    var body: some View {
+        WorkspaceRootShell(plan: store.plan) {
+            Color.clear.frame(width: max(store.plan.sidebarWidth, 1), height: 1)
+        } content: {
+            WorkspaceRootIdentityProbe(plan: store.plan, recorder: recorder)
+        }
+        .modifier(
+            SessionCommandFocusModifier(
+                route: SessionCommandFocusedRoute(
+                    actions: SessionCommandFocusPolicy.focusedActions(
+                        isChatActive: store.isChatActive,
+                        actions: SessionCommandActions(
+                            createSession: {},
+                            exportSession: {}
+                        )
+                    )
+                )
+            )
+        )
+    }
+}
+
+private struct WorkspaceRootIdentityProbe: View {
+    @State private var token = UUID()
+
+    let plan: WorkspaceRootLayoutPlan
+    let recorder: WorkspaceRootIdentityRecorder
+
+    var body: some View {
+        Color.clear
+            .onAppear {
+                recorder.recordAppearance(token: token, plan: plan)
+            }
+            .onChange(of: plan) { _, newPlan in
+                recorder.recordUpdate(token: token, plan: newPlan)
+            }
+            .onDisappear {
+                recorder.recordDisappearance()
+            }
     }
 }

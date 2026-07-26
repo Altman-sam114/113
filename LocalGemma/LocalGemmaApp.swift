@@ -37,7 +37,11 @@ struct WorkspaceCommands: Commands {
 }
 
 struct SessionCommands: Commands {
-    @FocusedValue(\.sessionCommandActions) private var sessionCommandActions
+    @FocusedValue(\.sessionCommandFocusedRoute) private var sessionCommandFocusedRoute
+
+    private var sessionCommandActions: SessionCommandActions? {
+        sessionCommandFocusedRoute?.actions
+    }
 
     var body: some Commands {
         CommandMenu(SessionCommandAction.commandMenuTitle) {

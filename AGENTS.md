@@ -55,6 +55,8 @@ git remote -v
 - `RealGemmaRuntimePlaceholder` 是真实 runtime 占位，不等于真实模型推理。
 - `ContentView` 和各 workspace 负责 UI，不应绕过状态层直接改核心状态。
 - `WorkspaceLayoutMode` 按容器尺寸控制单栏、compact 双栏和 regular 大屏双栏；iPhone 横屏、iPad 大屏与 Mac/Catalyst 桌面窗口断点要有测试锁住。
+- `WorkspaceRootLayoutPolicy` 将 `WorkspaceLayoutMode` 映射为根布局轴、顶部导航/紧凑侧栏/详细侧栏 chrome 和既有侧栏宽度；它不得建立第二套断点，也不得改变快捷键、导航、辅助语义、模型文件、runtime 或 verified 门禁。
+- `WorkspaceRootShell` 使用 `AnyLayout` 在纵向/横向算法间切换，并始终保持 chrome、content 两个同序直接子节点；`ContentView` 在所有尺寸只构造一个共享 page-style `workspacePages`，根断点变化不得重建工作区局部状态。
 - `ModelLibraryLayoutMode` 控制模型页内部单栏/双栏；Mac/iPad 足够宽的模型部署工作流和窄屏回退要有测试锁住。
 - `ModelLibraryWorkspaceLayoutPolicy` 控制模型页整体内容宽度；iPhone 和窄 split view 必须保持原有可用宽度，iPad/Mac 超宽窗口必须让标题、选择/部署/文件操作和模型详情整体居中并限制最大宽度，最大内容宽度要从控制列最大宽度、详情列最大阅读宽度和列间距派生，且不得改变模型选择、部署、模型文件操作、卸载确认、内部双栏、详情列宽度、辅助语义或 verified 门禁。
 - `ModelDetailColumnLayoutPolicy` 控制模型页详情右栏在双栏宽屏中的最大阅读宽度；单栏不启用固定详情列宽，iPad/Mac 宽区域使用剩余空间但封顶，避免概要、参数、性能和建议文本行在超宽窗口无限拉长，最小/最大宽度、列间距和无效宽度 clamp 要有测试锁住。
@@ -95,6 +97,7 @@ git remote -v
 - `SessionSidebarLayoutPolicy` 只计算推理页竖向会话栏的偏好宽度；Mac/iPad 会话栏必须保持 240...310pt，宽度比例和无效宽度 clamp 要有测试锁住。
 - `ChatWorkspacePaneLayoutPolicy` 使用 `ChatWorkspace` 扣除全局工作区侧栏后的真实 pane 宽度协调会话栏和聊天面；pane 小于 860pt 必须使用横向会话栏堆叠布局，分栏时聊天面必须保持至少 620pt，且不得改变会话状态流、composer 聚焦、导出、辅助语义或 verified 门禁。
 - `SessionBarActionAccessibilityMetadata` 控制推理页会话栏新建/导出可见按钮的辅助语义；它必须与系统 `会话` command menu 标题、快捷键和 focused route 保持对齐，并明确导出不发送到云端服务。
+- `SessionCommandFocusPolicy` 控制会话 command menu 的 focused route 活动态边界；稳定 route 包装始终保持相同 SwiftUI 结构，只有当前选中的聊天工作区在包装内提供 `SessionCommandActions`，隐藏聊天页的 actions 必须为 `nil`，且不得改变 `Command+N`、`Command+Shift+E`、会话状态或 composer focus 流程。
 - `SessionBarActionLayoutPolicy` 控制推理页会话栏新建/导出可见按钮的最小触控目标；横向会话栏和大屏竖向会话栏必须共享至少 44pt 的图标按钮尺寸，且不得改变会话 command menu、导出弹层、composer 聚焦或辅助语义。
 - `SessionChipActionAccessibilityMetadata` 控制推理页单个会话 chip 的选择和删除动作辅助语义；选择动作必须说明只切换本地会话并请求 composer focus，删除动作必须说明只删除本地会话记录、不删除模型 artifact 或权重，并为默认空白当前会话暴露不可删除原因；label/value/hint、Voice Control 输入标签和稳定 identifier 要有测试锁住。
 - `SessionChipTextLayoutPolicy` 控制推理页会话 chip 标题的 Dynamic Type 文本策略；标题使用语义字体并允许两行，避免 iPad split view、Mac Catalyst 窄窗口和较大文字设置下通过固定小字号或缩放压缩文字，且不得改变会话选择/删除状态流、44pt 触控目标、composer 聚焦、辅助语义、模型文件或 verified 门禁。

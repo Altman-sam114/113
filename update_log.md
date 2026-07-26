@@ -16,7 +16,7 @@
 - 平台：SwiftUI iOS App，Swift 6.0，iOS deployment target 17.0，当前 app/test target 支持 iPhone、iPad 和 Mac Catalyst build-for-testing，并提供项目内 Mac Catalyst 本地 build/run 脚本入口；尚未创建原生 macOS target。
 - 当前默认模型：`Gemma 1.5B Local`
 - 当前推理：本地模拟 runtime，不下载模型权重，不执行真实模型推理。
-- 当前核心测试：`LocalGemmaTests.swift` 中 104 个 XCTest 方法。
+- 当前核心测试：`LocalGemmaTests.swift` 中 106 个 XCTest 方法。
 - 当前核心文档入口：`AGENTS.md`、`md/flow/flow.md`、`md/flow/flowchart.md`、`md/test/test.md`、`md/prompt/README.md`、`README.md`。
 - 当前协作验证：默认 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载未加密 CI 结果包验收；本地仓库当前已配置 `origin` remote，最终验收仍以最新 `origin/main` 对应的 GitHub Actions run 和结果包为准；文档已预留未来 `agentx:` 主控 Agent A -> Agent B -> Agent C 多轮循环的规则。
 
@@ -3440,3 +3440,40 @@
 
 - 审计另发现根窗口跨越约 700pt 时，portrait/landscape 分支会创建两棵独立 `ChatWorkspace` 结构并重建工作区身份；该问题需要单独结构重构和更强 UI 验证，留作 v2.62 候选，不与 Reduce Motion 变更混合。
 - UI Test target、真实 runtime 和原生 macOS target 仍属后续。
+
+### v2.62 / 工作区结构身份稳定性
+
+日期：2026-07-26
+
+核心变更：
+
+- Agent X 在 v2.61 云端验收通过后并发三路只读审计根工作台结构；审计确认约 700pt 断点两侧分别构造 page-style `TabView` 和独立 workspace `switch`，窗口缩放与宽屏工作区切换会重建页面局部状态，归档 `md/prompt/v2（Mac体验审计）/v2.62（工作区结构身份稳定性）.md`。
+- 新增 `WorkspaceRootLayoutPlan` 与 `WorkspaceRootLayoutPolicy`，复用 `WorkspaceLayoutMode` 的 700pt/regular 判定与侧栏宽度，纯值描述根布局 axis 和 top navigation/compact sidebar/detailed sidebar chrome。
+- 新增生产 `WorkspaceRootShell`，通过 `AnyLayout(HStackLayout/VStackLayout)` 始终保持 chrome、content 两个同序直接子节点；`ContentView` 在所有尺寸只保留一个 page-style `workspacePages`，删除 `portraitLayout`、`landscapeLayout` 和重复 `workspacePageContent` 构造路径。
+- `ChatWorkspace` 新增 `isActive` 输入，`SessionCommandFocusPolicy` 只在聊天工作区活动时发布会话 focused actions；`Command+N`、`Command+Shift+E`、composer focus、会话状态和导出流程保持不变。
+- 新增 `testWorkspaceRootLayoutPolicyResolvesChromeAndAxisAtBoundaries` 与 `testWorkspaceRootShellPreservesStatefulContentAcrossLayoutPlans`；现有 focused route 测试补充 inactive/active gate，测试函数数从 104 增加到 106。
+
+关键文件：
+
+- `LocalGemma/ContentView.swift`
+- `LocalGemma/LocalGemmaApp.swift`
+- `LocalGemmaTests/LocalGemmaTests.swift`
+- `AGENTS.md`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v2（Mac体验审计）/v2.62（工作区结构身份稳定性）.md`
+
+验证结果：
+
+- SwiftUI 源码 typecheck、app module emit 和 XCTest 源码 typecheck 均已通过。
+- 在 iPhone 17 Pro 模拟器定向运行两个新增测试，输出 `TEST SUCCEEDED`；策略测试覆盖负值、NaN、Infinity 和精确侧栏 clamp，身份 probe 依次跨越 699.99 -> 700 -> 979.99 -> 980 -> 700 -> 699.99pt 并往返聊天 active gate，所有阶段保持同一个 `@State` UUID，content appear 1 次且中途 disappear 0 次。结果位于 `.build/DerivedData-v262-identity/Logs/Test/Test-LocalGemma-2026.07.26_13-06-26-+0800.xcresult`。
+- `git diff --check`、脚本存在/可执行/语法、`plutil -lint`、workflow YAML 解析、源码结构搜索和测试函数统计 106 均通过；LogicSmoke 输出 `Logic smoke passed`；SwiftUI source typecheck、app module emit 与 XCTest source typecheck 均退出码 0；`./script/build_and_run.sh --build-only` 与 `--verify` 均输出 `BUILD SUCCEEDED`。
+- 两路并发只读复核发现 focused route 的条件 modifier 会改变子树结构，以及策略测试缺少非法尺寸/精确 clamp；已改为结构恒定的 `SessionCommandFocusedRoute` + `SessionCommandFocusModifier` 并扩展现有两个测试。Mac 触控板分页与更完整 `ContentView`/VoiceOver/presentation 集成验证作为已知残余风险保留。
+- GitHub Actions 与 Agent C 对完整 106 项 XCTest 的 artifact 验收尚待本轮提交后补充，未伪装为已通过。
+
+遗留事项：
+
+- page-style `TabView` 在 Mac Catalyst 上可能响应横向触控板工作区分页；本轮未执行对应人工手势验证，也不使用私有 API、透明手势层或全局 `.scrollDisabled` 规避。host 身份 probe 不证明真实触控板、完整 VoiceOver、系统 presentation 或窗口拖拽体验。
+- UI Test target、真实 runtime 和原生 macOS target 仍属后续；本轮不下载模型权重、不接入云端推理、不绕过 verified 门禁。

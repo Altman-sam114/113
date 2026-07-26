@@ -190,6 +190,82 @@ enum WorkspaceLayoutMode: Equatable {
     }
 }
 
+enum WorkspaceRootAxis: Equatable {
+    case vertical
+    case horizontal
+}
+
+enum WorkspaceChromePresentation: Equatable {
+    case topNavigation
+    case compactSidebar
+    case detailedSidebar
+}
+
+struct WorkspaceRootLayoutPlan: Equatable {
+    let mode: WorkspaceLayoutMode
+    let axis: WorkspaceRootAxis
+    let chrome: WorkspaceChromePresentation
+    let sidebarWidth: CGFloat
+}
+
+enum WorkspaceRootLayoutPolicy {
+    static func resolve(for size: CGSize) -> WorkspaceRootLayoutPlan {
+        let mode = WorkspaceLayoutMode.resolve(for: size)
+
+        switch mode {
+        case .portrait:
+            return WorkspaceRootLayoutPlan(
+                mode: mode,
+                axis: .vertical,
+                chrome: .topNavigation,
+                sidebarWidth: 0
+            )
+        case .landscapeCompact:
+            return WorkspaceRootLayoutPlan(
+                mode: mode,
+                axis: .horizontal,
+                chrome: .compactSidebar,
+                sidebarWidth: mode.sidebarWidth(for: size)
+            )
+        case .landscapeRegular:
+            return WorkspaceRootLayoutPlan(
+                mode: mode,
+                axis: .horizontal,
+                chrome: .detailedSidebar,
+                sidebarWidth: mode.sidebarWidth(for: size)
+            )
+        }
+    }
+}
+
+struct WorkspaceRootShell<Chrome: View, Content: View>: View {
+    let plan: WorkspaceRootLayoutPlan
+    let chrome: Chrome
+    let content: Content
+
+    init(
+        plan: WorkspaceRootLayoutPlan,
+        @ViewBuilder chrome: () -> Chrome,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.plan = plan
+        self.chrome = chrome()
+        self.content = content()
+    }
+
+    var body: some View {
+        let rootLayout = plan.axis == .horizontal
+            ? AnyLayout(HStackLayout(spacing: 0))
+            : AnyLayout(VStackLayout(spacing: 0))
+
+        rootLayout {
+            chrome
+            content
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+}
+
 enum SessionSidebarLayoutPolicy {
     static let minimumWidth: CGFloat = 240
     static let maximumWidth: CGFloat = 310
@@ -470,8 +546,12 @@ private struct WorkspaceTabSelectionFocusedKey: FocusedValueKey {
     typealias Value = Binding<WorkspaceTab>
 }
 
-private struct SessionCommandActionsFocusedKey: FocusedValueKey {
-    typealias Value = SessionCommandActions
+struct SessionCommandFocusedRoute {
+    let actions: SessionCommandActions?
+}
+
+private struct SessionCommandFocusedRouteKey: FocusedValueKey {
+    typealias Value = SessionCommandFocusedRoute
 }
 
 extension FocusedValues {
@@ -480,9 +560,9 @@ extension FocusedValues {
         set { self[WorkspaceTabSelectionFocusedKey.self] = newValue }
     }
 
-    var sessionCommandActions: SessionCommandActions? {
-        get { self[SessionCommandActionsFocusedKey.self] }
-        set { self[SessionCommandActionsFocusedKey.self] = newValue }
+    var sessionCommandFocusedRoute: SessionCommandFocusedRoute? {
+        get { self[SessionCommandFocusedRouteKey.self] }
+        set { self[SessionCommandFocusedRouteKey.self] = newValue }
     }
 }
 
@@ -507,16 +587,16 @@ struct ContentView: View {
                 AppBackground(theme: theme, wallpaperData: wallpaperImageData)
 
                 GeometryReader { proxy in
-                    let layoutMode = WorkspaceLayoutMode.resolve(for: proxy.size)
-                    if layoutMode.usesSidebar {
-                        landscapeLayout(
+                    let layoutPlan = WorkspaceRootLayoutPolicy.resolve(for: proxy.size)
+
+                    WorkspaceRootShell(plan: layoutPlan) {
+                        workspaceChrome(
                             themeMode: themeMode,
                             selectedValidation: selectedValidation,
-                            size: proxy.size,
-                            layoutMode: layoutMode
+                            layoutPlan: layoutPlan
                         )
-                    } else {
-                        portraitLayout(themeMode: themeMode, selectedValidation: selectedValidation)
+                    } content: {
+                        workspacePages(themeMode: themeMode)
                     }
                 }
             }
@@ -612,64 +692,72 @@ struct ContentView: View {
         )
     }
 
-    private func portraitLayout(themeMode: AppThemeMode, selectedValidation: ArtifactValidationResult) -> some View {
-        VStack(spacing: 0) {
-            headerView(themeMode: themeMode, selectedValidation: selectedValidation)
-                .padding(.horizontal, 18)
-                .padding(.top, 8)
+    @ViewBuilder
+    private func workspaceChrome(
+        themeMode: AppThemeMode,
+        selectedValidation: ArtifactValidationResult,
+        layoutPlan: WorkspaceRootLayoutPlan
+    ) -> some View {
+        switch layoutPlan.chrome {
+        case .topNavigation:
+            VStack(spacing: 0) {
+                headerView(themeMode: themeMode, selectedValidation: selectedValidation)
+                    .padding(.horizontal, 18)
+                    .padding(.top, 8)
 
-            tabPicker
-                .padding(.horizontal, 18)
-                .padding(.top, 14)
-
-            workspacePages(themeMode: themeMode)
+                tabPicker
+                    .padding(.horizontal, 18)
+                    .padding(.top, 14)
+            }
+        case .compactSidebar, .detailedSidebar:
+            sidebarChrome(
+                themeMode: themeMode,
+                selectedValidation: selectedValidation,
+                sidebarWidth: layoutPlan.sidebarWidth,
+                isDetailed: layoutPlan.chrome == .detailedSidebar
+            )
         }
     }
 
-    private func landscapeLayout(
+    private func sidebarChrome(
         themeMode: AppThemeMode,
         selectedValidation: ArtifactValidationResult,
-        size: CGSize,
-        layoutMode: WorkspaceLayoutMode
+        sidebarWidth: CGFloat,
+        isDetailed: Bool
     ) -> some View {
         let theme = currentTheme
-        let sidebarWidth = layoutMode.sidebarWidth(for: size)
 
-        return HStack(spacing: 0) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    headerView(themeMode: themeMode, selectedValidation: selectedValidation)
-                    sidebarTabPicker(isDetailed: layoutMode.usesDetailedSidebar)
-                }
-                .padding(.horizontal, 18)
-                .padding(.vertical, 14)
+        return ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                headerView(themeMode: themeMode, selectedValidation: selectedValidation)
+                sidebarTabPicker(isDetailed: isDetailed)
             }
-            .scrollIndicators(.hidden)
-            .frame(width: sidebarWidth)
-            .background {
-                ZStack {
-                    Rectangle().fill(.ultraThinMaterial)
-                    Rectangle().fill(
-                        theme.recessedSurface.opacity(
-                            WorkbenchVisualStylePolicy.sidebarTintOpacity(isDark: theme.isDark)
-                        )
+            .padding(.horizontal, 18)
+            .padding(.vertical, 14)
+        }
+        .scrollIndicators(.hidden)
+        .frame(width: sidebarWidth)
+        .background {
+            ZStack {
+                Rectangle().fill(.ultraThinMaterial)
+                Rectangle().fill(
+                    theme.recessedSurface.opacity(
+                        WorkbenchVisualStylePolicy.sidebarTintOpacity(isDark: theme.isDark)
                     )
-                }
+                )
             }
-            .overlay(alignment: .trailing) {
-                Rectangle()
-                    .fill(theme.border)
-                    .frame(width: WorkbenchVisualStylePolicy.hairlineWidth)
-            }
-
-            workspacePageContent(themeMode: themeMode)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .overlay(alignment: .trailing) {
+            Rectangle()
+                .fill(theme.border)
+                .frame(width: WorkbenchVisualStylePolicy.hairlineWidth)
         }
     }
 
     private func workspacePages(themeMode: AppThemeMode) -> some View {
         TabView(selection: workspaceSelection) {
             ChatWorkspace(
+                isActive: selectedTab == .chat,
                 composerFocusRequest: composerFocusRequest,
                 requestComposerFocus: requestComposerFocus,
                 clearComposerFocusRequest: clearComposerFocusRequest
@@ -706,44 +794,6 @@ struct ContentView: View {
             .tag(WorkspaceTab.settings)
         }
         .tabViewStyle(.page(indexDisplayMode: .never))
-    }
-
-    @ViewBuilder
-    private func workspacePageContent(themeMode: AppThemeMode) -> some View {
-        switch selectedTab {
-        case .chat:
-            ChatWorkspace(
-                composerFocusRequest: composerFocusRequest,
-                requestComposerFocus: requestComposerFocus,
-                clearComposerFocusRequest: clearComposerFocusRequest
-            )
-        case .models:
-            ModelLibraryView()
-        case .prompts:
-            PromptTemplatesWorkspace(openChat: openChatAndFocus)
-        case .settings:
-            SettingsWorkspace(
-                themeMode: themeMode,
-                wallpaperData: wallpaperImageData,
-                toggleTheme: {
-                    withAnimation(
-                        AppMotionAccessibilityPolicy.animation(
-                            .spring(response: 0.28, dampingFraction: 0.82),
-                            for: .themeChange,
-                            reduceMotion: reduceMotion
-                        )
-                    ) {
-                        themeModeStorage = themeMode.toggled.rawValue
-                    }
-                },
-                setWallpaperData: { data in
-                    wallpaperImageData = data
-                },
-                clearWallpaper: {
-                    wallpaperImageData = Data()
-                }
-            )
-        }
     }
 
     private var tabPicker: some View {
@@ -1169,6 +1219,15 @@ struct SessionCommandActions {
         case .exportSession:
             exportSession()
         }
+    }
+}
+
+enum SessionCommandFocusPolicy {
+    static func focusedActions(
+        isChatActive: Bool,
+        actions: SessionCommandActions
+    ) -> SessionCommandActions? {
+        isChatActive ? actions : nil
     }
 }
 
@@ -2882,15 +2941,18 @@ struct ChatWorkspace: View {
     @Environment(\.appTheme) private var theme
     @State private var exportPayload: ExportPayload?
 
+    let isActive: Bool
     let composerFocusRequest: ComposerFocusRequest
     let requestComposerFocus: (ComposerFocusReason) -> Void
     let clearComposerFocusRequest: () -> Void
 
     init(
+        isActive: Bool = true,
         composerFocusRequest: ComposerFocusRequest = .initial,
         requestComposerFocus: @escaping (ComposerFocusReason) -> Void = { _ in },
         clearComposerFocusRequest: @escaping () -> Void = {}
     ) {
+        self.isActive = isActive
         self.composerFocusRequest = composerFocusRequest
         self.requestComposerFocus = requestComposerFocus
         self.clearComposerFocusRequest = clearComposerFocusRequest
@@ -2948,7 +3010,16 @@ struct ChatWorkspace: View {
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
         }
-        .focusedSceneValue(\.sessionCommandActions, sessionCommandActions)
+        .modifier(
+            SessionCommandFocusModifier(
+                route: SessionCommandFocusedRoute(
+                    actions: SessionCommandFocusPolicy.focusedActions(
+                        isChatActive: isActive,
+                        actions: sessionCommandActions
+                    )
+                )
+            )
+        )
     }
 
     private var sessionCommandActions: SessionCommandActions {
@@ -2998,6 +3069,14 @@ struct ChatWorkspace: View {
             text: inference.exportActiveSessionText(modelName: selectedModel.name),
             fileURL: fileURL
         )
+    }
+}
+
+struct SessionCommandFocusModifier: ViewModifier {
+    let route: SessionCommandFocusedRoute
+
+    func body(content: Content) -> some View {
+        content.focusedSceneValue(\.sessionCommandFocusedRoute, route)
     }
 }
 
