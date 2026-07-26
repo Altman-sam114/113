@@ -3885,6 +3885,10 @@ struct ChatTranscript: View {
             let trackWidth = ChatTranscriptTrackLayoutPolicy.contentWidth(
                 forContainerWidth: geometry.size.width
             )
+            let verticalLayout = ChatTranscriptVerticalLayoutPolicy.resolve(
+                viewportHeight: geometry.size.height,
+                messageCount: messages.count
+            )
 
             ScrollViewReader { proxy in
                 ScrollView {
@@ -3898,8 +3902,12 @@ struct ChatTranscript: View {
                         }
                     }
                     .frame(width: trackWidth)
+                    .frame(
+                        minHeight: verticalLayout.minimumContentHeight,
+                        alignment: verticalLayout.anchorsContentToBottom ? .bottom : .top
+                    )
                     .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.vertical, 10)
+                    .padding(.vertical, ChatTranscriptVerticalLayoutPolicy.verticalPadding)
                 }
                 .scrollIndicators(.hidden)
                 .accessibilityElement(children: .contain)
@@ -4454,6 +4462,29 @@ enum ChatTranscriptTrackLayoutPolicy {
         return min(
             max(width - horizontalPadding * 2, minimumContentWidth),
             maximumContentWidth
+        )
+    }
+}
+
+struct ChatTranscriptVerticalLayoutPlan: Equatable {
+    let minimumContentHeight: CGFloat
+    let anchorsContentToBottom: Bool
+}
+
+enum ChatTranscriptVerticalLayoutPolicy {
+    static let verticalPadding: CGFloat = 10
+
+    static func resolve(
+        viewportHeight: CGFloat,
+        messageCount: Int
+    ) -> ChatTranscriptVerticalLayoutPlan {
+        let validHeight = viewportHeight.isFinite && viewportHeight > 0
+            ? viewportHeight
+            : 0
+
+        return ChatTranscriptVerticalLayoutPlan(
+            minimumContentHeight: max(validHeight - verticalPadding * 2, 0),
+            anchorsContentToBottom: messageCount > 0
         )
     }
 }

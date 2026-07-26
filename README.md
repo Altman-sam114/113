@@ -16,6 +16,7 @@
 - v2.65 起，`ChatBubbleTextLayoutPolicy` 让聊天气泡角色、正文与 token 元数据使用 Dynamic Type 语义字体并完整垂直增长；Accessibility Dynamic Type 下移除角色比例、40/24pt 左右保留空间和 8pt 相邻间距，让气泡使用真实可用宽度，同时继续遵守用户/本地模型/系统消息 520/680/600pt 最大阅读宽度，普通字号布局与消息状态流不变。
 - v2.66 起，`ChatTranscriptTrackLayoutPolicy` 让聊天记录的全宽滚动区域承载居中的消息阅读轨道；窄屏保留 18pt 单侧边距，iPad/Mac 超宽窗口在 956pt 容器阈值后封顶 920pt，避免用户与本地模型消息分散到窗口两端。
 - v2.67 起，`SessionChipVisualStylePolicy` 将 iPad/Mac 分栏中的竖向会话 chip 纳入工作台视觉层级：选中行改用 8pt 圆角、低饱和 accent 表面、主文字色、hairline 描边和 3pt 左侧指示条；横向 chip、会话状态流与辅助语义不变。
+- v2.68 起，`ChatTranscriptVerticalLayoutPolicy` 让非空短会话在高 iPad/Mac 窗口中靠近 composer 底部显示，空记录保持顶部对齐，长记录继续自然滚动；不改变消息顺序、920pt 阅读轨道、VoiceOver 或现有自动滚动。
 - v2.48 的优化指标卡按 `OptimizerMetricTextLayoutPolicy` 使用 Dynamic Type 语义字体，label、value 和 detail 允许多行，避免 iPad split view、Mac Catalyst 窄窗口和较大文字设置下缩放压缩，同时保留指标数据、进度、tint、辅助语义和网格列数。
 - v2.49 的设置页外观/壁纸偏好行按 `SettingsPreferenceTextLayoutPolicy` 使用 Dynamic Type 语义字体，标题与状态允许两行，避免 iPad split view、Mac Catalyst 窄窗口和较大文字设置下固定小字号压缩，同时保留图标 44pt 触控目标、主题切换、相册壁纸动作和辅助语义。
 - v2.50 的模型详情参数/建议行按 `ModelDetailRowTextLayoutPolicy` 使用 Dynamic Type 语义字体并允许多行，移除 DetailRow 缩放压缩，改善 iPad/Mac 窄窗口和较大文字设置下的可读性。
@@ -53,6 +54,7 @@
 - v2.65 新增 `testChatBubbleTextLayoutPolicySupportsAccessibleReading`；锁住语义文本行策略、普通/Accessibility 宽度计划、40/24pt reserve、三种消息角色最大阅读宽度、非法宽度和生产 `ImageRenderer` 多字号渲染。当前测试函数总数为 110。
 - v2.66 新增 `testChatTranscriptTrackLayoutPolicyCentersWideConversations`；锁住 18/280/920pt 常量、956pt 封顶阈值、iPhone/iPad/Mac 宽度、非法宽度回退和三种角色气泡上限。当前测试函数总数为 111。
 - v2.67 新增 `testSessionChipVisualStylePolicyAlignsWideSidebarHierarchy`；锁住竖向会话行几何、低饱和选中计划、横向胶囊回归和生产 `ImageRenderer` 的亮/暗主题、240/310pt 与 Accessibility Dynamic Type。当前测试函数总数为 112。
+- v2.68 新增 `testChatTranscriptVerticalLayoutPolicyAnchorsShortConversations`；锁住空/非空纵向对齐、视口最小高度、无效高度回退、无消息数阈值，以及空/短/溢出生产 `ImageRenderer`。当前测试函数总数为 113。
 - `Tools/LogicSmoke.swift`：不依赖 iOS runtime 的本地逻辑烟测，用来验证模拟模型、artifact 校验、手动导入文件复制、`.mlmodelc` 目录导入、启动自动扫描、模型管理状态流转、运行计划、提示词模板、会话管理、Markdown 导出与优化状态。
 - `AGENTS.md`：项目入口记忆、基本规则、“人工目标 -> Agent A -> Agent B -> Agent C -> 人工复核”的单轮流程，以及未来 `agentx:` 主控 A/B/C 多轮循环的准备规则。
 - `update_log.md`：版本更新记录、历史决策、完成事项和遗留问题。
@@ -302,7 +304,7 @@ v2.63 本轮已完成 Swift 编译器验证：
 
 结果：通过。
 
-v2.63 当时已生成可测试导入的 `LocalGemma.swiftmodule`，并用 iPhone Simulator 的 XCTest framework 对测试源码做 API 层 typecheck。当前测试源码静态包含 112 个 `XCTestCase` 测试函数（v2.67 编译与运行待 GitHub Actions），覆盖竖向会话侧栏视觉层级、聊天记录居中阅读轨道、聊天气泡文本 Dynamic Type 与 Accessibility 宽度、模型胶囊窄侧栏响应式布局、工作区根布局纯策略、生产 shell 结构身份、工作区页面显式导航与交互隔离、活动聊天 focused route、提示词模板库、工作台导航与共享 panel 视觉层级、聊天工作区双侧栏宽度协调、工作台 Reduce Motion 动画分类、工作区导航 44pt 触控目标、导出弹层分享/复制 44pt 触控目标、导出弹层整体宽屏内容宽度策略、会话 chip 选择/删除 44pt 触控目标、模型文件操作 44pt 触控目标、模型部署控件 44pt 触控目标、全局 Header 图标动作 44pt 触控目标、Header 标题动态排版策略、设置页整体宽屏内容宽度策略、共享 SectionHeader 动态排版策略、优化指标卡文本动态排版策略、设置偏好行文本动态排版策略、提示词页整体宽屏内容宽度策略、提示词模板宽屏布局策略、提示词模板文本动态排版策略、提示词分类筛选换行布局策略、提示词分类文本动态排版策略、提示词模板动作 44pt 触控目标、提示词分类筛选辅助语义、提示词模板动作辅助语义、模板填入输入框、模板直接发送、会话创建/切换/删除、会话 command menu focused route、工作区导航辅助语义、设置页图标动作 44pt 触控目标、会话栏操作辅助语义、会话栏操作 44pt 触控目标、会话 chip 动作语义、聊天消息气泡与聊天记录容器辅助语义、聊天气泡宽屏宽度策略、composer 宽屏输入宽度策略、composer 发送/停止 44pt 触控目标、Markdown 会话导出、导出弹层分享/复制辅助语义、头部主题与模型工作区入口辅助语义、壁纸控件辅助语义、iPhone/iPad/Mac Catalyst 桌面窗口布局断点、模型页整体宽屏内容宽度策略、模型页内部宽屏布局策略、模型详情右栏最大阅读宽度策略、顶部模型胶囊整体辅助语义、模型概要面板辅助语义、模型详情右栏与行级辅助语义、模型文件工作流面板辅助语义、模型卸载确认弹层状态流与辅助语义、模型选择器辅助语义、模型状态徽章辅助语义、模型部署控件辅助语义、运行策略开关辅助语义、运行策略开关宽屏网格、运行策略开关行 44pt 触控目标、芯片准备度辅助语义与隐私状态动态摘要、优化指标卡辅助语义、优化指标网格宽度策略、会话侧栏宽度策略、工作区快捷键映射、工作区 command menu 映射、regular 侧栏说明、选择语义、composer 输入焦点、控件标识与辅助语义、壁纸处理和分享兜底：
+v2.63 当时已生成可测试导入的 `LocalGemma.swiftmodule`，并用 iPhone Simulator 的 XCTest framework 对测试源码做 API 层 typecheck。当前测试源码静态包含 113 个 `XCTestCase` 测试函数（v2.68 编译与运行待 GitHub Actions），覆盖短会话纵向定位、竖向会话侧栏视觉层级、聊天记录居中阅读轨道、聊天气泡文本 Dynamic Type 与 Accessibility 宽度、模型胶囊窄侧栏响应式布局、工作区根布局纯策略、生产 shell 结构身份、工作区页面显式导航与交互隔离、活动聊天 focused route、提示词模板库、工作台导航与共享 panel 视觉层级、聊天工作区双侧栏宽度协调、工作台 Reduce Motion 动画分类、工作区导航 44pt 触控目标、导出弹层分享/复制 44pt 触控目标、导出弹层整体宽屏内容宽度策略、会话 chip 选择/删除 44pt 触控目标、模型文件操作 44pt 触控目标、模型部署控件 44pt 触控目标、全局 Header 图标动作 44pt 触控目标、Header 标题动态排版策略、设置页整体宽屏内容宽度策略、共享 SectionHeader 动态排版策略、优化指标卡文本动态排版策略、设置偏好行文本动态排版策略、提示词页整体宽屏内容宽度策略、提示词模板宽屏布局策略、提示词模板文本动态排版策略、提示词分类筛选换行布局策略、提示词分类文本动态排版策略、提示词模板动作 44pt 触控目标、提示词分类筛选辅助语义、提示词模板动作辅助语义、模板填入输入框、模板直接发送、会话创建/切换/删除、会话 command menu focused route、工作区导航辅助语义、设置页图标动作 44pt 触控目标、会话栏操作辅助语义、会话栏操作 44pt 触控目标、会话 chip 动作语义、聊天消息气泡与聊天记录容器辅助语义、聊天气泡宽屏宽度策略、composer 宽屏输入宽度策略、composer 发送/停止 44pt 触控目标、Markdown 会话导出、导出弹层分享/复制辅助语义、头部主题与模型工作区入口辅助语义、壁纸控件辅助语义、iPhone/iPad/Mac Catalyst 桌面窗口布局断点、模型页整体宽屏内容宽度策略、模型页内部宽屏布局策略、模型详情右栏最大阅读宽度策略、顶部模型胶囊整体辅助语义、模型概要面板辅助语义、模型详情右栏与行级辅助语义、模型文件工作流面板辅助语义、模型卸载确认弹层状态流与辅助语义、模型选择器辅助语义、模型状态徽章辅助语义、模型部署控件辅助语义、运行策略开关辅助语义、运行策略开关宽屏网格、运行策略开关行 44pt 触控目标、芯片准备度辅助语义与隐私状态动态摘要、优化指标卡辅助语义、优化指标网格宽度策略、会话侧栏宽度策略、工作区快捷键映射、工作区 command menu 映射、regular 侧栏说明、选择语义、composer 输入焦点、控件标识与辅助语义、壁纸处理和分享兜底：
 
 ```sh
 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc \
@@ -532,3 +534,5 @@ v2.64 优化模型胶囊窄侧栏响应式布局：新增 `ModelCapsuleLayoutPol
 v2.65 优化聊天气泡文本动态排版：新增 `ChatBubbleTextLayoutPolicy`，角色、正文和 token 元数据改用 Dynamic Type 语义字体；Accessibility 文字下移除角色比例与左右 reserve，继续锁住各角色最大阅读宽度；新增纯值与生产 `ImageRenderer` 测试，`LocalGemmaTests.swift` 增加到 110 个测试函数。本轮仍没有原生 macOS target，不接真实模型，不下载权重。
 v2.66 优化聊天记录统一阅读轨道：新增 `ChatTranscriptTrackLayoutPolicy`，保持 ScrollView 全宽，将消息栈在宽屏居中并封顶 920pt；旧气泡内容宽度入口转发到统一策略，测试函数增加到 111。本轮仍没有原生 macOS target，不接真实模型，不下载权重。
 v2.67 统一会话侧栏视觉层级：新增 `SessionChipVisualStylePolicy`，竖向选中会话改用低饱和工作台行、主文字色和左侧指示条，横向胶囊保持不变；新增策略与生产渲染测试，测试函数增加到 112。本轮仍没有原生 macOS target，不接真实模型，不下载权重。
+
+v2.68 优化短会话纵向定位：新增 `ChatTranscriptVerticalLayoutPolicy`，空记录顶部对齐，非空短记录靠近 composer 底部，长记录自然滚动；新增纯策略与空/短/溢出生产渲染测试，测试函数增加到 113。Xcode、Simulator、XCTest 和 Mac Catalyst 构建仅通过 GitHub Actions 验证。

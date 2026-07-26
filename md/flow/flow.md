@@ -296,6 +296,7 @@ Agent X 不能跳过 Agent C artifact 验收；失败时不能继续下一轮并
 - `ChatMessageAccessibilityMetadata`：推理页聊天消息气泡的整体辅助技术文案、生成中状态、token 摘要、Voice Control 输入标签和稳定 identifier。
 - `ChatBubbleLayoutPolicy`：推理页聊天消息气泡的内容宽度、角色比例、最小/最大阅读宽度和宽屏 clamp 策略。
 - `ChatTranscriptTrackLayoutPolicy`：推理页聊天记录的 18pt 单侧边距、280pt 最小宽度、920pt 最大阅读轨道和宽屏居中策略。
+- `ChatTranscriptVerticalLayoutPolicy`：根据聊天视口高度减去 10pt 上下 padding 生成消息栈最小高度；空记录顶部对齐，任何非空短记录底部对齐，长记录自然溢出滚动，不使用消息数阈值或第二套自动滚动状态。
 - `ChatBubbleTextLayoutPolicy`：推理页聊天气泡角色、正文和 token 元数据的 Dynamic Type、多行与 Accessibility 宽度策略。
 - `ComposerBarLayoutPolicy`：推理页 composer 的横向 padding、底部 padding、最小可读宽度、最大内容宽度和宽屏居中策略。
 - `ComposerInputActionLayoutPolicy`：推理页 composer 发送/停止按钮的 44pt 最小触控目标策略。
@@ -334,7 +335,7 @@ Agent X 不能跳过 Agent C artifact 验收；失败时不能继续下一轮并
 
 ## 用户入口
 
-- 推理页：顶部模型胶囊汇总当前模型、artifact、SIM/REAL、后端、速度、内存和准备度并暴露整体辅助语义；会话列表、消息流、输入框、发送/停止、导出；composer 发送/停止按钮保持 44pt 触控目标；单个会话 chip 的选择/删除动作向辅助技术说明本地会话切换、删除范围和默认空白当前会话不可删除原因；聊天记录容器向辅助技术合并消息总数、最新消息和生成中状态，聊天消息气泡向辅助技术合并角色、正文或生成中状态、token 数和本地边界；Mac/iPad 可通过 `会话` command menu 或会话栏可见按钮新建或导出当前会话，会话栏操作按钮保持 44pt 触控目标，导出弹层分享/复制动作同时暴露稳定语义并保持 44pt 触控目标，导出弹层整体内容在宽 sheet 中居中并限制最大阅读宽度。
+- 推理页：顶部模型胶囊汇总当前模型、artifact、SIM/REAL、后端、速度、内存和准备度并暴露整体辅助语义；会话列表、消息流、输入框、发送/停止、导出；composer 发送/停止按钮保持 44pt 触控目标；单个会话 chip 的选择/删除动作向辅助技术说明本地会话切换、删除范围和默认空白当前会话不可删除原因；聊天记录容器向辅助技术合并消息总数、最新消息和生成中状态，聊天消息气泡向辅助技术合并角色、正文或生成中状态、token 数和本地边界；空聊天记录保持顶部对齐，非空短记录在高 iPad/Mac 窗口中靠近 composer，长记录自然滚动；Mac/iPad 可通过 `会话` command menu 或会话栏可见按钮新建或导出当前会话，会话栏操作按钮保持 44pt 触控目标，导出弹层分享/复制动作同时暴露稳定语义并保持 44pt 触控目标，导出弹层整体内容在宽 sheet 中居中并限制最大阅读宽度。
 - 模型页：选择模型、启动/关闭部署、模拟下载、导入文件、扫描本地、卸载；卸载会先显示确认弹层，取消不删除文件且不停止部署，确认后只删除 App 托管 artifact/tokenizer 并停止部署；整体内容按 `ModelLibraryWorkspaceLayoutPolicy` 在超宽 iPad/Mac 窗口中居中并限制最大宽度，足够宽时内部双栏展示部署控制和模型详情，右侧详情列按 `ModelDetailColumnLayoutPolicy` 限制最大阅读宽度，窄屏按顺序展示同一详情段；模型选择器和部署电源按钮按 `ModelDeploymentControlLayoutPolicy` 保持 44pt 触控目标；模型选择器、安装状态徽章、artifact 状态徽章、部署状态徽章、部署电源、模型文件操作按钮、模型卸载确认弹层、模型文件工作流面板、模型概要面板、模型详情摘要和参数/性能/建议行级内容向辅助技术暴露稳定语义，并保留切换不下载权重、模拟下载、扫描/导入只读本地文件、本地概要/详情摘要和 verified 门禁边界。
 - 提示词页：按分类筛选模板、填入输入框、直接发送；共享 `SectionHeader` 标题使用 Dynamic Type 语义字体并允许标题/副标题多行；页面整体内容在 iPad/Mac 超宽窗口中居中并限制最大宽度；模板网格在窄屏保持单列，在 iPad/Mac 宽区域用多列和卡片伸展提升宽屏利用率；模板卡片文本通过 Dynamic Type 语义字体、多行标题/副标题/正文和最小高度策略提升可读性；分类筛选 chip 通过 Dynamic Type 语义字体和两行文本策略提升可读性；分类筛选 chip 和模板填入/发送动作暴露稳定辅助语义和 Voice Control 输入标签，填入不发送 prompt，发送走本地模拟 runtime 且不发送到云端服务。
 - 设置页：主题切换、相册壁纸选择/恢复控件、Apple Silicon 优化开关；主题切换、相册壁纸选择和恢复系统背景图标动作共享 44pt 触控目标；芯片准备度卡片随离线隐私保护开关动态显示开启/关闭并暴露中文辅助语义，优化指标网格和运行策略开关网格在窄屏单列、iPad/Mac 宽区域双列之间自适应，优化指标卡暴露状态、进度和本地边界，指标卡 label/value/detail 使用 Dynamic Type 语义字体和多行策略提升较大文字设置下的可读性，运行策略开关向辅助技术暴露开启/关闭状态、本地策略边界和 Voice Control 输入标签，单个运行策略开关行保持 44pt 触控目标。

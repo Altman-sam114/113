@@ -58,7 +58,7 @@ xcrun simctl list devices available
 
 当前测试基线：
 
-- `LocalGemmaTests.swift` 当前包含 112 个 `test...` 方法。
+- `LocalGemmaTests.swift` 当前包含 113 个 `test...` 方法。
 - v2.60 新增 `testChatWorkspacePaneLayoutPolicyCoordinatesGlobalAndSessionSidebars`，以真实根窗口先扣除 `WorkspaceLayoutMode` 全局侧栏，再验证聊天 pane：860pt 以下堆叠，分栏时会话栏保持 240...310pt、聊天面至少 620pt，并覆盖无效宽度、阈值和宽度守恒。
 - v2.61 新增 `testAppMotionAccessibilityPolicyRespectsReduceMotion`，锁住五类 motion effect 的完整覆盖与互斥分类：普通模式全部保留动画，Reduce Motion 下工作区导航、聊天记录自动滚动和模型切换返回 `nil`，主题切换与复制确认保留 0.12 秒局部反馈。
 - v2.62 新增 `testWorkspaceRootLayoutPolicyResolvesChromeAndAxisAtBoundaries`，锁住 699.99/700/979.99/980pt、iPad 尺寸、负值、NaN、Infinity 下的根布局 mode、axis、chrome 与精确侧栏 clamp；`testWorkspaceRootShellPreservesStatefulContentAcrossLayoutPlans` 将生产 `WorkspaceRootShell` 和稳定 `SessionCommandFocusModifier` 挂入 `UIHostingController`/`UIWindow`，在断点及聊天 active/inactive 往返时验证同一 `@State` UUID 持续存在、仅 appear 一次且中途不 disappear。现有 command/focus 测试同时锁住只有活动聊天页的 focused route 包装包含会话 actions。
@@ -67,6 +67,7 @@ xcrun simctl list devices available
 - v2.65 新增 `testChatBubbleTextLayoutPolicySupportsAccessibleReading`，锁住角色/元数据两行、正文语义字体完整增长、普通字号 40/24pt reserve、8pt 相邻间距与角色比例、Accessibility Dynamic Type 零 reserve、零间距和真实宽度、520/680/600pt 最大阅读宽度、NaN/Infinity/负值回退，并用生产 `ImageRenderer` 覆盖 user/assistant/system/生成占位、320/620pt 与 `.large`、`.xxxLarge`、Accessibility 字号，同时比较同宽度普通/Accessibility 渲染高度。
 - v2.66 新增 `testChatTranscriptTrackLayoutPolicyCentersWideConversations`，锁住 18pt 单侧边距、280pt 最小宽度、920pt 最大轨道、956pt 精确封顶阈值、390/620/834/900/1220pt 容器、非法宽度回退及 user/assistant/system 角色最大宽度。
 - v2.67 新增 `testSessionChipVisualStylePolicyAlignsWideSidebarHierarchy`，锁住竖向会话行 8pt 圆角、3pt 指示条、8pt inset、1pt 描边、低饱和选中表面与非反色文字，验证未选中和横向胶囊计划，并用生产 `ImageRenderer` 覆盖 240/310pt、亮/暗主题及 Accessibility Dynamic Type。
+- v2.68 新增 `testChatTranscriptVerticalLayoutPolicyAnchorsShortConversations`，锁住 10pt 上下 padding、空记录顶部对齐、任意非空短记录底部对齐、无 1 至 3 条消息阈值及无效高度归零；生产 `ImageRenderer` 覆盖 620x500 空记录、920x800 Accessibility 短记录和 1220x1000 溢出记录及亮/暗主题，并用非透明像素纵向包围盒确认短记录位于视口下部、溢出记录覆盖视口上下区域；生产 `UIHostingController` 进一步确认溢出记录的 scroll contentSize 大于视口且 offset 可向下推进。
 - 业务核心覆盖 artifact、模型状态、runtime plan、模拟/真实占位 runtime、提示词、会话、导出、iPhone/iPad/Mac Catalyst 桌面窗口布局断点、工作台导航与共享 panel 视觉层级策略、模型页整体宽屏内容宽度策略、模型页内部宽屏布局策略、模型详情右栏最大阅读宽度策略、顶部模型胶囊整体辅助语义、模型概要面板辅助语义、模型详情右栏与行级辅助语义、模型文件工作流面板辅助语义、模型文件操作 44pt 触控目标、模型部署控件 44pt 触控目标、模型卸载确认弹层状态流与辅助语义、模型状态徽章辅助语义、会话 chip 动作语义、会话 chip 选择/删除 44pt 触控目标、聊天消息气泡与聊天记录容器辅助语义、聊天气泡宽屏宽度策略、composer 宽屏输入宽度策略、composer 发送/停止 44pt 触控目标、模型选择器辅助语义、模型部署控件辅助语义、运行策略开关辅助语义、运行策略开关宽屏网格、运行策略开关行 44pt 触控目标、芯片准备度辅助语义与隐私状态动态摘要、优化指标卡辅助语义、优化指标卡文本动态排版策略、优化指标网格宽度策略、全局 Header 图标动作 44pt 触控目标、Header 标题动态排版策略、设置页整体宽屏内容宽度策略、共享 SectionHeader 动态排版策略、提示词页整体宽屏内容宽度策略、提示词模板宽屏布局策略、提示词模板文本动态排版策略、提示词分类筛选换行布局策略、提示词分类文本动态排版策略、提示词模板动作 44pt 触控目标、工作区导航辅助语义、工作区导航 44pt 触控目标、头部主题与模型工作区入口辅助语义、设置页图标动作 44pt 触控目标、会话栏操作辅助语义、会话栏操作 44pt 触控目标、导出弹层分享/复制辅助语义、导出弹层分享/复制 44pt 触控目标、导出弹层整体宽屏内容宽度策略、壁纸控件辅助语义、会话侧栏宽度策略、工作区快捷键映射、工作区 command menu 映射、会话 command menu focused route、regular 侧栏说明、选择语义、composer 输入焦点、控件标识与辅助语义、提示词分类筛选辅助语义、提示词模板动作辅助语义、壁纸处理和分享兜底。
 
 统计测试数量：

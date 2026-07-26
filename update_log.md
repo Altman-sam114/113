@@ -16,7 +16,7 @@
 - 平台：SwiftUI iOS App，Swift 6.0，iOS deployment target 17.0，当前 app/test target 支持 iPhone、iPad 和 Mac Catalyst build-for-testing，并提供项目内 Mac Catalyst 本地 build/run 脚本入口；尚未创建原生 macOS target。
 - 当前默认模型：`Gemma 1.5B Local`
 - 当前推理：本地模拟 runtime，不下载模型权重，不执行真实模型推理。
-- 当前核心测试：`LocalGemmaTests.swift` 中 108 个 XCTest 方法。
+- 当前核心测试：`LocalGemmaTests.swift` 中 113 个 XCTest 方法。
 - 当前核心文档入口：`AGENTS.md`、`md/flow/flow.md`、`md/flow/flowchart.md`、`md/test/test.md`、`md/prompt/README.md`、`README.md`。
 - 当前协作验证：默认 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载未加密 CI 结果包验收；本地仓库当前已配置 `origin` remote，最终验收仍以最新 `origin/main` 对应的 GitHub Actions run 和结果包为准；文档已预留未来 `agentx:` 主控 Agent A -> Agent B -> Agent C 多轮循环的规则。
 
@@ -3681,4 +3681,36 @@
 遗留事项：
 
 - 短会话在高窗口中的纵向定位、显式生成状态、完整 VoiceOver 和真实 Mac 窗口拖拽继续作为后续独立候选。
+- UI Test target、真实 runtime 和原生 macOS target 仍属后续；本轮不下载模型权重、不接入云端推理、不绕过 verified 门禁。
+
+### v2.68 / 短会话纵向定位
+
+日期：2026-07-26
+
+核心变更：
+
+- Agent X 基于 v2.67 最终云端验收继续并发 Agent A、代码审计与 SwiftUI Pro 审查；三方确认 iOS 17 兼容的 `minHeight + alignment` 能改善高 iPad/Mac 窗口中的短会话空白，同时保留现有滚动和辅助访问顺序。
+- 新增纯值 `ChatTranscriptVerticalLayoutPlan` 与 `ChatTranscriptVerticalLayoutPolicy`；有限正视口高度减去 10pt 上下 padding 作为消息栈最小高度，空记录顶部对齐，任何非空记录在内容较短时底部对齐，长记录自然溢出滚动。
+- 不使用消息数阈值、`defaultScrollAnchor(.bottom)`、lazy stack 内 spacer、反转数组或第二套自动滚动状态；消息顺序/ID、920pt 阅读轨道、VoiceOver、Reduce Motion、现有 `.bottom` 自动滚动、composer、会话、runtime 和 verified 门禁保持不变。
+- 新增 `testChatTranscriptVerticalLayoutPolicyAnchorsShortConversations`，覆盖空/1/2/3/4 条记录、负消息数、无效高度，以及 620x500 空记录、920x800 Accessibility 短记录和 1220x1000 溢出记录的生产 `ImageRenderer`；非透明像素纵向包围盒确认短记录位于视口下部、溢出记录覆盖上下区域，生产 `UIHostingController` 还锁住溢出记录的 scroll contentSize 大于视口且 offset 可推进，测试函数数从 112 增加到 113。
+
+关键文件：
+
+- `LocalGemma/ContentView.swift`
+- `LocalGemmaTests/LocalGemmaTests.swift`
+- `AGENTS.md`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v2（Mac体验审计）/v2.68（短会话纵向定位）.md`
+
+验证结果：
+
+- 按人工要求，本轮不运行本地 Xcode、Simulator、XCTest、Mac Catalyst build/run 或截图；仅执行 Git/diff/结构检查，完整 iOS build、Mac Catalyst build、LogicSmoke 和 113 项 XCTest 由 GitHub Actions 云端执行。
+- GitHub Actions 与 Agent C 结果包验收待实现 commit push 后补充，不能以本地输出代替。
+
+遗留事项：
+
+- 显式生成状态、完整 VoiceOver 和真实 Mac 窗口拖拽继续作为后续独立候选。
 - UI Test target、真实 runtime 和原生 macOS target 仍属后续；本轮不下载模型权重、不接入云端推理、不绕过 verified 门禁。
