@@ -3388,6 +3388,13 @@
 - `./script/build_and_run.sh --build-only` 的 Mac Catalyst 构建输出 `BUILD SUCCEEDED`；`./script/build_and_run.sh --verify` 再次构建成功，并确认 App 启动进程存在。
 - 完整 iOS/Mac Catalyst XCTest 由 push 后 GitHub Actions 与 Agent C 结果包验收。
 
+验证补充（Agent C）：
+
+- GitHub Actions run `30186200332` 对最新 `origin/main` commit `5511346a3fb9b4d85eea03b7f9748e7e865827b2` 通过；artifact `localgemma-ci-v2.60-main-5511346-run30186200332-attempt1` 已下载到 `/private/tmp/localgemma-c-review-30186200332/`，结果包大小 1.6MB。
+- manifest 的 repository/branch/commitSha/runId/runAttempt/version 与最新 run 一致；`artifact-name.txt`、outcomes、failure summary 和 JUnit（7 个 CI testcase、0 failure、1 个有原因的可选 skip）已核对，required checks 全部 success。
+- `xcresulttool` 从 `LocalGemma-tests.xcresult` 解析出 103 个 XCTest 且全部 `Passed`，包含 `testChatWorkspacePaneLayoutPolicyCoordinatesGlobalAndSessionSidebars`；iOS build、Mac Catalyst build 和测试三份 `.xcresult/Info.plist` 均通过 `plutil -lint`。
+- `logic-smoke.log` 包含 `Logic smoke passed`，iOS 与 Mac Catalyst build-for-testing 日志均包含 `TEST BUILD SUCCEEDED`，Mac Catalyst run script contract 为 success；Agent C 验收通过。
+
 遗留事项：
 
 - Reduce Motion、UI Test target、真实 runtime 和原生 macOS target 仍属后续；本轮不下载模型权重、不接入云端推理、不绕过 verified 门禁。
