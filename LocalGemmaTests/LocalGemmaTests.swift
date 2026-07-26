@@ -1,8 +1,71 @@
 import XCTest
+import SwiftUI
 @testable import LocalGemma
 
 @MainActor
 final class LocalGemmaTests: XCTestCase {
+    func testAppMotionAccessibilityPolicyRespectsReduceMotion() {
+        let largeSpatialEffects: Set<AppMotionEffect> = [
+            .workspaceNavigation,
+            .transcriptAutoScroll,
+            .modelSelection
+        ]
+        let localFeedbackEffects: Set<AppMotionEffect> = [
+            .themeChange,
+            .copyConfirmation
+        ]
+
+        XCTAssertEqual(
+            largeSpatialEffects.union(localFeedbackEffects),
+            Set(AppMotionEffect.allCases)
+        )
+        XCTAssertTrue(largeSpatialEffects.isDisjoint(with: localFeedbackEffects))
+        XCTAssertEqual(AppMotionAccessibilityPolicy.reducedFeedbackDuration, 0.12)
+
+        for effect in largeSpatialEffects {
+            let standardAnimation = Animation.spring(response: 0.31, dampingFraction: 0.83)
+
+            XCTAssertTrue(effect.isLargeSpatial)
+            XCTAssertEqual(
+                AppMotionAccessibilityPolicy.animation(
+                    standardAnimation,
+                    for: effect,
+                    reduceMotion: false
+                ),
+                standardAnimation
+            )
+            XCTAssertNil(
+                AppMotionAccessibilityPolicy.animation(
+                    standardAnimation,
+                    for: effect,
+                    reduceMotion: true
+                )
+            )
+        }
+
+        for effect in localFeedbackEffects {
+            let standardAnimation = Animation.spring(response: 0.27, dampingFraction: 0.81)
+
+            XCTAssertFalse(effect.isLargeSpatial)
+            XCTAssertEqual(
+                AppMotionAccessibilityPolicy.animation(
+                    standardAnimation,
+                    for: effect,
+                    reduceMotion: false
+                ),
+                standardAnimation
+            )
+            XCTAssertEqual(
+                AppMotionAccessibilityPolicy.animation(
+                    standardAnimation,
+                    for: effect,
+                    reduceMotion: true
+                ),
+                .easeOut(duration: AppMotionAccessibilityPolicy.reducedFeedbackDuration)
+            )
+        }
+    }
+
     func testDefaultCatalogStartsWithGemmaSimulation() {
         let catalog = ModelCatalog()
 

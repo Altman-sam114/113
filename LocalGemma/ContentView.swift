@@ -111,6 +111,44 @@ enum WorkbenchVisualStylePolicy {
     }
 }
 
+enum AppMotionEffect: CaseIterable, Hashable {
+    case workspaceNavigation
+    case transcriptAutoScroll
+    case modelSelection
+    case themeChange
+    case copyConfirmation
+
+    var isLargeSpatial: Bool {
+        switch self {
+        case .workspaceNavigation, .transcriptAutoScroll, .modelSelection:
+            return true
+        case .themeChange, .copyConfirmation:
+            return false
+        }
+    }
+
+}
+
+enum AppMotionAccessibilityPolicy {
+    static let reducedFeedbackDuration = 0.12
+
+    static func animation(
+        _ standardAnimation: Animation,
+        for effect: AppMotionEffect,
+        reduceMotion: Bool
+    ) -> Animation? {
+        guard reduceMotion else {
+            return standardAnimation
+        }
+
+        guard effect.isLargeSpatial == false else {
+            return nil
+        }
+
+        return .easeOut(duration: reducedFeedbackDuration)
+    }
+}
+
 enum WorkspaceLayoutMode: Equatable {
     case portrait
     case landscapeCompact
@@ -452,6 +490,7 @@ struct ContentView: View {
     @EnvironmentObject private var catalog: ModelCatalog
     @EnvironmentObject private var inference: InferenceEngine
     @EnvironmentObject private var optimizer: DeviceOptimizer
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var selectedTab: WorkspaceTab = ContentView.initialTab
     @State private var composerFocusRequest = ComposerFocusRequest.initial
@@ -515,7 +554,13 @@ struct ContentView: View {
     }
 
     private func openChatAndFocus(_ reason: ComposerFocusReason) {
-        withAnimation(.spring(response: 0.28, dampingFraction: 0.84)) {
+        withAnimation(
+            AppMotionAccessibilityPolicy.animation(
+                .spring(response: 0.28, dampingFraction: 0.84),
+                for: .workspaceNavigation,
+                reduceMotion: reduceMotion
+            )
+        ) {
             selectWorkspace(.chat, focusReason: reason)
         }
     }
@@ -543,12 +588,24 @@ struct ContentView: View {
             isSimulated: inference.lastResultWasSimulated,
             themeMode: themeMode,
             toggleTheme: {
-                withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
+                withAnimation(
+                    AppMotionAccessibilityPolicy.animation(
+                        .spring(response: 0.28, dampingFraction: 0.82),
+                        for: .themeChange,
+                        reduceMotion: reduceMotion
+                    )
+                ) {
                     themeModeStorage = themeMode.toggled.rawValue
                 }
             },
             showModels: {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.82)) {
+                withAnimation(
+                    AppMotionAccessibilityPolicy.animation(
+                        .spring(response: 0.3, dampingFraction: 0.82),
+                        for: .workspaceNavigation,
+                        reduceMotion: reduceMotion
+                    )
+                ) {
                     selectWorkspace(.models)
                 }
             }
@@ -629,7 +686,13 @@ struct ContentView: View {
                 themeMode: themeMode,
                 wallpaperData: wallpaperImageData,
                 toggleTheme: {
-                    withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
+                    withAnimation(
+                        AppMotionAccessibilityPolicy.animation(
+                            .spring(response: 0.28, dampingFraction: 0.82),
+                            for: .themeChange,
+                            reduceMotion: reduceMotion
+                        )
+                    ) {
                         themeModeStorage = themeMode.toggled.rawValue
                     }
                 },
@@ -663,7 +726,13 @@ struct ContentView: View {
                 themeMode: themeMode,
                 wallpaperData: wallpaperImageData,
                 toggleTheme: {
-                    withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
+                    withAnimation(
+                        AppMotionAccessibilityPolicy.animation(
+                            .spring(response: 0.28, dampingFraction: 0.82),
+                            for: .themeChange,
+                            reduceMotion: reduceMotion
+                        )
+                    ) {
                         themeModeStorage = themeMode.toggled.rawValue
                     }
                 },
@@ -683,7 +752,13 @@ struct ContentView: View {
         return HStack(spacing: WorkbenchVisualStylePolicy.compactNavigationSpacing) {
             ForEach(WorkspaceTab.allCases) { tab in
                 Button {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.82)) {
+                    withAnimation(
+                        AppMotionAccessibilityPolicy.animation(
+                            .spring(response: 0.3, dampingFraction: 0.82),
+                            for: .workspaceNavigation,
+                            reduceMotion: reduceMotion
+                        )
+                    ) {
                         selectWorkspace(tab)
                     }
                 } label: {
@@ -771,7 +846,13 @@ struct ContentView: View {
         return VStack(spacing: WorkbenchVisualStylePolicy.sidebarNavigationSpacing) {
             ForEach(WorkspaceTab.allCases) { tab in
                 Button {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.82)) {
+                    withAnimation(
+                        AppMotionAccessibilityPolicy.animation(
+                            .spring(response: 0.3, dampingFraction: 0.82),
+                            for: .workspaceNavigation,
+                            reduceMotion: reduceMotion
+                        )
+                    ) {
                         selectWorkspace(tab)
                     }
                 } label: {
@@ -3337,6 +3418,8 @@ struct SessionChip: View {
 }
 
 struct ChatTranscript: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     let messages: [ChatMessage]
 
     var body: some View {
@@ -3366,7 +3449,13 @@ struct ChatTranscript: View {
                 .accessibilityIdentifier(ChatTranscriptAccessibilityMetadata.identifier)
                 .onChange(of: messages) { _, messages in
                     guard let last = messages.last else { return }
-                    withAnimation(.easeOut(duration: 0.22)) {
+                    withAnimation(
+                        AppMotionAccessibilityPolicy.animation(
+                            .easeOut(duration: 0.22),
+                            for: .transcriptAutoScroll,
+                            reduceMotion: reduceMotion
+                        )
+                    ) {
                         proxy.scrollTo(last.id, anchor: .bottom)
                     }
                 }
@@ -3386,6 +3475,7 @@ enum ExportSessionTitleTextLayoutPolicy {
 
 struct ExportSessionView: View {
     @Environment(\.appTheme) private var theme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let payload: ExportPayload
     @State private var didCopyText = false
 
@@ -3627,7 +3717,13 @@ struct ExportSessionView: View {
 
             Button {
                 UIPasteboard.general.string = payload.text
-                withAnimation(.spring(response: 0.26, dampingFraction: 0.82)) {
+                withAnimation(
+                    AppMotionAccessibilityPolicy.animation(
+                        .spring(response: 0.26, dampingFraction: 0.82),
+                        for: .copyConfirmation,
+                        reduceMotion: reduceMotion
+                    )
+                ) {
                     didCopyText = true
                 }
             } label: {
@@ -4398,6 +4494,7 @@ private enum ComposerFocusedField: Hashable {
 
 struct ModelLibraryView: View {
     @EnvironmentObject private var catalog: ModelCatalog
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var isModal = false
     @State private var importTargetModel: LocalModel?
     @State private var pendingUninstallModel: LocalModel?
@@ -4507,7 +4604,13 @@ struct ModelLibraryView: View {
             get: { catalog.selectedModel.id },
             set: { id in
                 guard let model = catalog.models.first(where: { $0.id == id }) else { return }
-                withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+                withAnimation(
+                    AppMotionAccessibilityPolicy.animation(
+                        .spring(response: 0.28, dampingFraction: 0.86),
+                        for: .modelSelection,
+                        reduceMotion: reduceMotion
+                    )
+                ) {
                     catalog.select(model)
                 }
             }

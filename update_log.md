@@ -16,7 +16,7 @@
 - 平台：SwiftUI iOS App，Swift 6.0，iOS deployment target 17.0，当前 app/test target 支持 iPhone、iPad 和 Mac Catalyst build-for-testing，并提供项目内 Mac Catalyst 本地 build/run 脚本入口；尚未创建原生 macOS target。
 - 当前默认模型：`Gemma 1.5B Local`
 - 当前推理：本地模拟 runtime，不下载模型权重，不执行真实模型推理。
-- 当前核心测试：`LocalGemmaTests.swift` 中 103 个 XCTest 方法。
+- 当前核心测试：`LocalGemmaTests.swift` 中 104 个 XCTest 方法。
 - 当前核心文档入口：`AGENTS.md`、`md/flow/flow.md`、`md/flow/flowchart.md`、`md/test/test.md`、`md/prompt/README.md`、`README.md`。
 - 当前协作验证：默认 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载未加密 CI 结果包验收；本地仓库当前已配置 `origin` remote，最终验收仍以最新 `origin/main` 对应的 GitHub Actions run 和结果包为准；文档已预留未来 `agentx:` 主控 Agent A -> Agent B -> Agent C 多轮循环的规则。
 
@@ -3398,3 +3398,38 @@
 遗留事项：
 
 - Reduce Motion、UI Test target、真实 runtime 和原生 macOS target 仍属后续；本轮不下载模型权重、不接入云端推理、不绕过 verified 门禁。
+
+### v2.61 / 工作台 Reduce Motion 策略
+
+日期：2026-07-26
+
+核心变更：
+
+- Agent X 在 v2.60 云端验收通过后并发三路只读审计 iPhone、iPad 和 Mac Catalyst 工作台；审计确认 10 个显式 `withAnimation` 入口均未响应系统 `accessibilityReduceMotion`，归档 `md/prompt/v2（Mac体验审计）/v2.61（工作台 Reduce Motion 策略）.md`。
+- 新增 `AppMotionEffect` 与 `AppMotionAccessibilityPolicy`，集中区分工作区导航、聊天记录自动滚动、模型切换三类大范围空间位移，以及主题切换、复制确认两类局部状态反馈。
+- `ContentView`、`ChatTranscript`、`ExportSessionView` 和 `ModelLibraryView` 读取系统 Reduce Motion 设置；开启时大范围空间位移立即更新，局部反馈改为 0.12 秒 ease-out，普通模式保留 10 个入口各自原有动画参数。
+- 保留 `selectedTab`、composer focus、主题状态、剪贴板、模型选择、模型文件、runtime 状态和 artifact verified 门禁；本轮不下载权重、不接入云端推理。
+- 新增 `testAppMotionAccessibilityPolicyRespectsReduceMotion`，锁住五类 effect 的完整覆盖、互斥分类、普通模式动画保留和 Reduce Motion 降级；测试函数数从 103 增加到 104。
+
+关键文件：
+
+- `LocalGemma/ContentView.swift`
+- `LocalGemmaTests/LocalGemmaTests.swift`
+- `AGENTS.md`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v2（Mac体验审计）/v2.61（工作台 Reduce Motion 策略）.md`
+
+验证结果：
+
+- `git diff --check`、脚本可执行/语法、`plutil -lint`、workflow YAML 解析、10 个显式动画入口映射和测试函数统计 104 均通过；LogicSmoke 输出 `Logic smoke passed`。
+- SwiftUI source typecheck、app module emit 和 XCTest source typecheck 均退出码 0；`./script/build_and_run.sh --build-only` 输出 `BUILD SUCCEEDED`，`./script/build_and_run.sh --verify` 再次构建成功，并确认 Mac Catalyst App 进程和 app bundle 存在。
+- 两路并发只读审查完成；SwiftUI 审查未发现行为问题，文档审查提出的精确动画相等断言、环境值读取责任和验证记录三项问题均已修正。
+- 本机未运行完整 iOS Simulator XCTest，也未声称完成 Reduce Motion 手工视觉测试；完整 104 项 XCTest 与 Mac Catalyst 云端重验证以本轮 push 后 GitHub Actions 和 Agent C 下载结果包为准。
+
+遗留事项：
+
+- 审计另发现根窗口跨越约 700pt 时，portrait/landscape 分支会创建两棵独立 `ChatWorkspace` 结构并重建工作区身份；该问题需要单独结构重构和更强 UI 验证，留作 v2.62 候选，不与 Reduce Motion 变更混合。
+- UI Test target、真实 runtime 和原生 macOS target 仍属后续。
