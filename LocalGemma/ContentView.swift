@@ -4239,6 +4239,7 @@ struct ExportSessionView: View {
 struct ChatBubble: View {
     @Environment(\.appTheme) private var theme
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let message: ChatMessage
     let availableWidth: CGFloat
 
@@ -4262,12 +4263,16 @@ struct ChatBubble: View {
                     .lineLimit(textLayoutPlan.roleLineLimit)
                     .fixedSize(horizontal: false, vertical: true)
 
-                Text(message.text.isEmpty ? "正在生成..." : message.text)
-                    .font(.body.weight(.medium))
-                    .lineSpacing(ChatBubbleTextLayoutPolicy.bodyLineSpacing)
-                    .foregroundStyle(message.role == .system ? theme.secondaryText : theme.primaryText)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .textSelection(.enabled)
+                if message.text.isEmpty {
+                    GenerationIndicatorView(reduceMotion: reduceMotion)
+                } else {
+                    Text(message.text)
+                        .font(.body.weight(.medium))
+                        .lineSpacing(ChatBubbleTextLayoutPolicy.bodyLineSpacing)
+                        .foregroundStyle(message.role == .system ? theme.secondaryText : theme.primaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .textSelection(.enabled)
+                }
 
                 HStack(spacing: 4) {
                     Image(systemName: "number")
@@ -4347,6 +4352,82 @@ struct ChatBubble: View {
         case .system:
             return LinearGradient(colors: [theme.warning.opacity(0.12), theme.surface], startPoint: .topLeading, endPoint: .bottomTrailing)
         }
+    }
+}
+
+private struct GenerationIndicatorView: View {
+    @Environment(\.appTheme) private var theme
+    let reduceMotion: Bool
+    @State private var isPulsing = false
+
+    var body: some View {
+        HStack(alignment: .center, spacing: GenerationIndicatorStylePolicy.dotSpacing) {
+            Text("正在生成")
+                .font(.body.weight(.medium))
+                .foregroundStyle(theme.secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
+
+            ForEach(0..<GenerationIndicatorStylePolicy.dotCount, id: \.self) { index in
+                Circle()
+                    .fill(theme.accent)
+                    .frame(
+                        width: GenerationIndicatorStylePolicy.dotDiameter,
+                        height: GenerationIndicatorStylePolicy.dotDiameter
+                    )
+                    .opacity(dotOpacity(forDotIndex: index))
+                    .animation(dotAnimation(forDotIndex: index), value: isPulsing)
+            }
+        }
+        .task(id: reduceMotion) {
+            isPulsing = false
+            guard GenerationIndicatorStylePolicy.isAnimated(reduceMotion: reduceMotion) else {
+                return
+            }
+            await Task.yield()
+            guard !Task.isCancelled else {
+                return
+            }
+            isPulsing = true
+        }
+    }
+
+    private func dotOpacity(forDotIndex index: Int) -> Double {
+        guard GenerationIndicatorStylePolicy.isAnimated(reduceMotion: reduceMotion) else {
+            return GenerationIndicatorStylePolicy.staticOpacity(forDotIndex: index)
+        }
+        return isPulsing
+            ? GenerationIndicatorStylePolicy.maxOpacity
+            : GenerationIndicatorStylePolicy.minOpacity
+    }
+
+    private func dotAnimation(forDotIndex index: Int) -> Animation? {
+        guard GenerationIndicatorStylePolicy.isAnimated(reduceMotion: reduceMotion) else {
+            return nil
+        }
+        return .easeInOut(duration: GenerationIndicatorStylePolicy.pulseDuration)
+            .repeatForever(autoreverses: true)
+            .delay(GenerationIndicatorStylePolicy.phaseDelay * Double(index))
+    }
+}
+
+enum GenerationIndicatorStylePolicy {
+    static let dotCount = 3
+    static let dotDiameter: CGFloat = 5
+    static let dotSpacing: CGFloat = 4
+    static let minOpacity = 0.35
+    static let maxOpacity = 1.0
+    static let pulseDuration = 0.9
+    static let phaseDelay = 0.15
+
+    private static let staticOpacityGradient: [Double] = [0.35, 0.65, 1.0]
+
+    static func isAnimated(reduceMotion: Bool) -> Bool {
+        reduceMotion == false
+    }
+
+    static func staticOpacity(forDotIndex index: Int) -> Double {
+        let clampedIndex = min(max(index, 0), staticOpacityGradient.count - 1)
+        return staticOpacityGradient[clampedIndex]
     }
 }
 

@@ -1655,6 +1655,62 @@ final class LocalGemmaTests: XCTestCase {
         XCTAssertGreaterThan(accessibilityHeight, regularHeight)
     }
 
+    func testGenerationIndicatorStylePolicyPulsesOnlyWithoutReduceMotion() {
+        XCTAssertEqual(GenerationIndicatorStylePolicy.dotCount, 3)
+        XCTAssertEqual(GenerationIndicatorStylePolicy.dotDiameter, 5)
+        XCTAssertEqual(GenerationIndicatorStylePolicy.dotSpacing, 4)
+        XCTAssertEqual(GenerationIndicatorStylePolicy.minOpacity, 0.35)
+        XCTAssertEqual(GenerationIndicatorStylePolicy.maxOpacity, 1.0)
+        XCTAssertEqual(GenerationIndicatorStylePolicy.pulseDuration, 0.9)
+        XCTAssertEqual(GenerationIndicatorStylePolicy.phaseDelay, 0.15)
+
+        XCTAssertTrue(GenerationIndicatorStylePolicy.isAnimated(reduceMotion: false))
+        XCTAssertFalse(GenerationIndicatorStylePolicy.isAnimated(reduceMotion: true))
+
+        XCTAssertEqual(GenerationIndicatorStylePolicy.staticOpacity(forDotIndex: 0), 0.35)
+        XCTAssertEqual(GenerationIndicatorStylePolicy.staticOpacity(forDotIndex: 1), 0.65)
+        XCTAssertEqual(GenerationIndicatorStylePolicy.staticOpacity(forDotIndex: 2), 1.0)
+        XCTAssertEqual(
+            GenerationIndicatorStylePolicy.staticOpacity(forDotIndex: 0),
+            GenerationIndicatorStylePolicy.minOpacity
+        )
+        XCTAssertEqual(
+            GenerationIndicatorStylePolicy.staticOpacity(
+                forDotIndex: GenerationIndicatorStylePolicy.dotCount - 1
+            ),
+            GenerationIndicatorStylePolicy.maxOpacity
+        )
+        for index in 1..<GenerationIndicatorStylePolicy.dotCount {
+            XCTAssertGreaterThan(
+                GenerationIndicatorStylePolicy.staticOpacity(forDotIndex: index),
+                GenerationIndicatorStylePolicy.staticOpacity(forDotIndex: index - 1)
+            )
+        }
+
+        let generatingMessage = ChatMessage(role: .assistant, text: "", tokens: 0)
+        let renderCases: [(CGFloat, AppThemeMode, DynamicTypeSize)] = [
+            (280, .light, .large),
+            (280, .dark, .accessibility3),
+            (680, .light, .accessibility3),
+            (680, .dark, .large)
+        ]
+        for (width, themeMode, dynamicTypeSize) in renderCases {
+            let renderer = ImageRenderer(
+                content: ChatBubble(message: generatingMessage, availableWidth: width)
+                    .environment(\.appTheme, AppThemePalette(mode: themeMode))
+                    .environment(\.dynamicTypeSize, dynamicTypeSize)
+                    .frame(width: width)
+            )
+            renderer.scale = 1
+            let image = renderer.uiImage
+
+            XCTAssertNotNil(image)
+            XCTAssertEqual(image?.size.width ?? 0, width, accuracy: 1)
+            XCTAssertGreaterThan(image?.size.height ?? 0, 0)
+            XCTAssertLessThan(image?.size.height ?? .infinity, 3_000)
+        }
+    }
+
     func testComposerBarLayoutPolicyConstrainsWideComposerInput() {
         XCTAssertEqual(ComposerBarLayoutPolicy.horizontalPadding, 18)
         XCTAssertEqual(ComposerBarLayoutPolicy.bottomPadding, 12)
