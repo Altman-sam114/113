@@ -1,6 +1,6 @@
 # 项目核心流程文档
 
-一句话总览：本项目是一个 SwiftUI iOS 原型，通过本地模拟 runtime 和严格 artifact 校验流程，验证 iPhone、iPad 与 Mac Catalyst build/run 基线下端侧部署 Gemma 1.5B 的 UI、状态管理、文件导入、模型卸载确认弹层辅助语义、会话导出、导出弹层分享/复制辅助语义、导出弹层分享/复制 44pt 触控目标、导出弹层整体宽屏内容宽度策略、顶部模型胶囊整体辅助语义、模型概要面板与详情右栏/行级辅助语义、模型页整体宽屏内容宽度策略、模型详情右栏最大阅读宽度策略、模型文件工作流面板辅助语义、模型部署控件 44pt 触控目标、模型状态徽章辅助语义、全局 Header 图标动作 44pt 触控目标、Header 标题动态排版策略、设置页整体宽屏内容宽度策略、设置页图标动作 44pt 触控目标、会话栏操作 44pt 触控目标、会话 chip 动作语义、聊天消息气泡与聊天记录容器辅助语义、聊天气泡与 composer 宽屏输入宽度策略、composer 发送/停止 44pt 触控目标、工作区导航辅助语义、工作区导航 44pt 触控目标、头部主题与模型库入口辅助语义、运行策略开关辅助语义、运行策略开关宽屏网格、运行策略开关行 44pt 触控目标、芯片准备度辅助语义、优化指标卡辅助语义、优化指标卡文本动态排版策略、优化指标网格宽度策略、共享 SectionHeader 动态排版策略、提示词页整体宽屏内容宽度策略、提示词模板宽屏布局策略、提示词模板文本动态排版策略、提示词分类筛选换行布局策略、提示词分类文本动态排版策略、提示词模板动作辅助语义与 44pt 触控目标、壁纸控件辅助语义、大屏布局和 Apple Silicon 运行计划；协作流程默认采用 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载结果包验收。
+一句话总览：本项目是一个 SwiftUI iOS 原型，通过本地模拟 runtime 和严格 artifact 校验流程，验证 iPhone、iPad 与 Mac Catalyst build/run 基线下端侧部署 Gemma 1.5B 的 UI、状态管理、文件导入、模型卸载确认弹层辅助语义、会话导出、导出弹层分享/复制辅助语义、导出弹层分享/复制 44pt 触控目标、导出弹层整体宽屏内容宽度策略、顶部模型胶囊整体辅助语义、模型概要面板与详情右栏/行级辅助语义、模型页整体宽屏内容宽度策略、模型详情右栏最大阅读宽度策略、模型文件工作流面板辅助语义、模型部署控件 44pt 触控目标、模型状态徽章辅助语义、全局 Header 图标动作 44pt 触控目标、Header 标题动态排版策略、设置页整体宽屏内容宽度策略、设置页图标动作 44pt 触控目标、会话栏操作 44pt 触控目标、会话 chip 动作语义、聊天消息气泡与聊天记录容器辅助语义、聊天记录居中阅读轨道、聊天气泡与 composer 宽屏输入宽度策略、composer 发送/停止 44pt 触控目标、工作区导航辅助语义、工作区导航 44pt 触控目标、头部主题与模型库入口辅助语义、运行策略开关辅助语义、运行策略开关宽屏网格、运行策略开关行 44pt 触控目标、芯片准备度辅助语义、优化指标卡辅助语义、优化指标卡文本动态排版策略、优化指标网格宽度策略、共享 SectionHeader 动态排版策略、提示词页整体宽屏内容宽度策略、提示词模板宽屏布局策略、提示词模板文本动态排版策略、提示词分类筛选换行布局策略、提示词分类文本动态排版策略、提示词模板动作辅助语义与 44pt 触控目标、壁纸控件辅助语义、大屏布局和 Apple Silicon 运行计划；协作流程默认采用 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载结果包验收。
 
 v2.64 的顶部模型胶囊还会按真实 chrome 可用宽度切换堆叠/横向概要与 1/2/3 列指标，避免 iPhone、iPad 和 Mac Catalyst 窄侧栏截断。
 
@@ -107,6 +107,7 @@ v2.64 的顶部模型胶囊还会按真实 chrome 可用宽度切换堆叠/横�
 - `SessionChipActionLayoutPolicy` 为推理页单个会话 chip 的选择和删除动作定义 44pt 最小触控目标；它只影响选择/删除入口命中尺寸，不改变会话选择、删除禁用原因、会话删除状态流、composer 聚焦、模型 artifact、辅助语义或 verified 门禁。
 - `ChatMessageAccessibilityMetadata` 为推理页聊天消息气泡生成整体 label/value/hint/input labels/identifier；value 合并用户、本地模型或系统状态角色、正文或正在生成状态、token 数和本地会话边界，hint 说明消息气泡只展示本地会话内容，不下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁。
 - `ChatBubbleLayoutPolicy` 为推理页聊天消息气泡定义共享宽屏宽度策略；`ChatTranscript` 通过容器宽度计算消息列表内容宽度并传给 `ChatBubble`，用户消息在 iPad/Mac 宽区域从旧 310pt 上限增长但封顶，本地模型和系统消息限制最大阅读宽度，避免 Mac 宽窗口文本行无限变长。
+- `ChatTranscriptTrackLayoutPolicy` 为聊天记录定义统一居中阅读轨道；`ScrollView` 保持全宽命中区域，内部消息栈在窄屏保留 18pt 单侧边距，在 iPad/Mac 超宽窗口封顶 920pt 并居中，`ChatBubbleLayoutPolicy.contentWidth` 转发到该策略以避免两套宽度计算。
 - `ChatBubbleTextLayoutPolicy` 为聊天气泡角色、正文和 token 元数据定义 Dynamic Type 语义字体与多行策略；普通字号保留既有角色比例、40/24pt reserve 和 8pt 相邻间距，Accessibility Dynamic Type 下将三者移除并使用真实可用宽度，同时继续遵守用户/本地模型/系统消息 520/680/600pt 最大阅读宽度。它不改变消息文案、辅助语义、自动滚动、会话、composer、runtime 或 verified 门禁。
 - `ComposerBarLayoutPolicy` 为推理页底部 composer 定义共享宽屏输入宽度策略；`ChatWorkspace.chatSurface` 保留 `ComposerBar` 内部输入、发送/停止、焦点和辅助语义，只在外层让 composer 在 iPad/Mac 宽区域居中并限制最大输入行宽，iPhone 和窄 split view 继续使用可用宽度。
 - `ComposerInputActionLayoutPolicy` 为推理页 composer 发送/停止按钮定义 44pt 最小触控目标；`ComposerBar` 只复用按钮尺寸常量，不改变发送/停止闭包、空输入禁用、`Command+Return`、输入焦点、`ComposerInputMetadata` 辅助语义或模型/runtime 状态。
@@ -292,6 +293,7 @@ Agent X 不能跳过 Agent C artifact 验收；失败时不能继续下一轮并
 - `SessionChipActionLayoutPolicy`：推理页单个会话 chip 选择和删除动作的 44pt 最小触控目标策略。
 - `ChatMessageAccessibilityMetadata`：推理页聊天消息气泡的整体辅助技术文案、生成中状态、token 摘要、Voice Control 输入标签和稳定 identifier。
 - `ChatBubbleLayoutPolicy`：推理页聊天消息气泡的内容宽度、角色比例、最小/最大阅读宽度和宽屏 clamp 策略。
+- `ChatTranscriptTrackLayoutPolicy`：推理页聊天记录的 18pt 单侧边距、280pt 最小宽度、920pt 最大阅读轨道和宽屏居中策略。
 - `ChatBubbleTextLayoutPolicy`：推理页聊天气泡角色、正文和 token 元数据的 Dynamic Type、多行与 Accessibility 宽度策略。
 - `ComposerBarLayoutPolicy`：推理页 composer 的横向 padding、底部 padding、最小可读宽度、最大内容宽度和宽屏居中策略。
 - `ComposerInputActionLayoutPolicy`：推理页 composer 发送/停止按钮的 44pt 最小触控目标策略。

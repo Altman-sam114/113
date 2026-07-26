@@ -3602,3 +3602,36 @@
 
 - Mac 超宽窗口的聊天消息统一阅读轨道、短会话纵向定位和显式生成状态继续作为后续独立候选。
 - UI Test target、真实 runtime 和原生 macOS target 仍属后续；本轮不下载模型权重、不接入云端推理、不绕过 verified 门禁。
+
+### v2.66 / 聊天记录居中阅读轨道
+
+日期：2026-07-26
+
+核心变更：
+
+- Agent X 在 v2.65 最新 `origin/main` commit `609cde23e00164195b3a021e00133a888249d100`、run `30194250281` 与 Agent C 最终验收通过后继续并发审计；审计确认超宽 Mac 窗口中 assistant 靠聊天面左侧、user 靠右侧，而 composer 居中，缺少统一视觉阅读轴。
+- 新增纯值 `ChatTranscriptTrackLayoutPolicy`，定义 18pt 单侧边距、280pt 最小内容宽度和 920pt 最大阅读轨道；390/620/834/900pt 容器保持既有窄屏边距，956pt 起封顶，1220pt 容器中形成 150pt 单侧留白。
+- `ChatTranscript` 保持 `ScrollView` 全宽，只将内部 `LazyVStack` 按轨道宽度居中；气泡收到统一轨道宽度，旧 `ChatBubbleLayoutPolicy.contentWidth` 转发到新策略，避免双重 padding 与两套算法。
+- 用户/assistant/system 的 520/680/600pt 最大气泡宽度、Dynamic Type、辅助语义、自动滚动、Reduce Motion、会话、composer、runtime 和 verified 门禁保持不变。
+- 新增 `testChatTranscriptTrackLayoutPolicyCentersWideConversations`，覆盖 18/280/920pt 常量、956pt 边界、iPhone/iPad/Mac 宽度、NaN/Infinity/负值回退、三种角色上限和生产 `ChatTranscript` 的 620/956/1220pt `ImageRenderer` 烟测；测试函数数从 110 增加到 111。
+
+关键文件：
+
+- `LocalGemma/ContentView.swift`
+- `LocalGemmaTests/LocalGemmaTests.swift`
+- `AGENTS.md`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v2（Mac体验审计）/v2.66（聊天记录居中阅读轨道）.md`
+
+验证结果：
+
+- 按人工要求，本轮不运行本地 Xcode、Simulator、Mac Catalyst build 或截图；仅执行 Git/diff/结构检查，完整 iOS build、Mac Catalyst build、LogicSmoke 和 111 项 XCTest 将由 GitHub Actions 云端执行。
+- GitHub Actions 与 Agent C artifact 验收仍待本轮实现提交后补充，未伪装为已通过。
+
+遗留事项：
+
+- 短会话在高窗口中的纵向定位、显式生成状态、完整 VoiceOver 和真实 Mac 窗口拖拽继续作为后续独立候选。
+- UI Test target、真实 runtime 和原生 macOS target 仍属后续；本轮不下载模型权重、不接入云端推理、不绕过 verified 门禁。

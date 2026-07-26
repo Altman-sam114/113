@@ -3785,20 +3785,23 @@ struct ChatTranscript: View {
 
     var body: some View {
         GeometryReader { geometry in
+            let trackWidth = ChatTranscriptTrackLayoutPolicy.contentWidth(
+                forContainerWidth: geometry.size.width
+            )
+
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(spacing: 12) {
                         ForEach(messages) { message in
                             ChatBubble(
                                 message: message,
-                                availableWidth: ChatBubbleLayoutPolicy.contentWidth(
-                                    forTranscriptWidth: geometry.size.width
-                                )
+                                availableWidth: trackWidth
                             )
                             .id(message.id)
                         }
                     }
-                    .padding(.horizontal, 18)
+                    .frame(width: trackWidth)
+                    .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.vertical, 10)
                 }
                 .scrollIndicators(.hidden)
@@ -4281,7 +4284,7 @@ enum ChatBubbleLayoutPolicy {
     static let assistantHorizontalReserve: CGFloat = 24
 
     static func contentWidth(forTranscriptWidth transcriptWidth: CGFloat) -> CGFloat {
-        max(minimumReadableWidth, transcriptWidth - transcriptHorizontalPadding)
+        ChatTranscriptTrackLayoutPolicy.contentWidth(forContainerWidth: transcriptWidth)
     }
 
     static func maxWidth(
@@ -4338,6 +4341,23 @@ enum ChatBubbleLayoutPolicy {
         case .system:
             return systemWidthRatio
         }
+    }
+}
+
+enum ChatTranscriptTrackLayoutPolicy {
+    static let horizontalPadding: CGFloat = 18
+    static let minimumContentWidth: CGFloat = 280
+    static let maximumContentWidth: CGFloat = 920
+
+    static func contentWidth(forContainerWidth width: CGFloat) -> CGFloat {
+        guard width.isFinite, width > 0 else {
+            return minimumContentWidth
+        }
+
+        return min(
+            max(width - horizontalPadding * 2, minimumContentWidth),
+            maximumContentWidth
+        )
     }
 }
 

@@ -1352,7 +1352,7 @@ final class LocalGemmaTests: XCTestCase {
 
         XCTAssertEqual(phoneContentWidth, 354)
         XCTAssertEqual(padContentWidth, 798)
-        XCTAssertEqual(desktopContentWidth, 1_164)
+        XCTAssertEqual(desktopContentWidth, 920)
         XCTAssertEqual(ChatBubbleLayoutPolicy.contentWidth(forTranscriptWidth: 280), 280)
 
         XCTAssertEqual(
@@ -1388,6 +1388,74 @@ final class LocalGemmaTests: XCTestCase {
             ChatBubbleLayoutPolicy.maxWidth(for: .assistant, availableWidth: -1),
             ChatBubbleLayoutPolicy.minimumReadableWidth
         )
+    }
+
+    func testChatTranscriptTrackLayoutPolicyCentersWideConversations() {
+        XCTAssertEqual(ChatTranscriptTrackLayoutPolicy.horizontalPadding, 18)
+        XCTAssertEqual(ChatTranscriptTrackLayoutPolicy.minimumContentWidth, 280)
+        XCTAssertEqual(ChatTranscriptTrackLayoutPolicy.maximumContentWidth, 920)
+
+        let cases: [(CGFloat, CGFloat)] = [
+            (390, 354),
+            (620, 584),
+            (834, 798),
+            (900, 864),
+            (955.99, 919.99),
+            (956, 920),
+            (1_220, 920)
+        ]
+        for (containerWidth, expectedWidth) in cases {
+            XCTAssertEqual(
+                ChatTranscriptTrackLayoutPolicy.contentWidth(
+                    forContainerWidth: containerWidth
+                ),
+                expectedWidth,
+                accuracy: 0.001
+            )
+        }
+
+        for invalidWidth in [CGFloat.nan, .infinity, -.infinity, 0, -1] {
+            XCTAssertEqual(
+                ChatTranscriptTrackLayoutPolicy.contentWidth(
+                    forContainerWidth: invalidWidth
+                ),
+                ChatTranscriptTrackLayoutPolicy.minimumContentWidth
+            )
+        }
+
+        let wideTrack = ChatTranscriptTrackLayoutPolicy.contentWidth(
+            forContainerWidth: 1_220
+        )
+        XCTAssertEqual(
+            ChatBubbleLayoutPolicy.maxWidth(for: .user, availableWidth: wideTrack),
+            ChatBubbleLayoutPolicy.maximumUserWidth
+        )
+        XCTAssertEqual(
+            ChatBubbleLayoutPolicy.maxWidth(for: .assistant, availableWidth: wideTrack),
+            ChatBubbleLayoutPolicy.maximumAssistantWidth
+        )
+        XCTAssertEqual(
+            ChatBubbleLayoutPolicy.maxWidth(for: .system, availableWidth: wideTrack),
+            ChatBubbleLayoutPolicy.maximumSystemWidth
+        )
+
+        let messages = [
+            ChatMessage(role: .assistant, text: "本地模型宽屏阅读轨道验证", tokens: 12),
+            ChatMessage(role: .user, text: "用户消息保持右对齐", tokens: 8)
+        ]
+        for width in [CGFloat(620), 956, 1_220] {
+            let renderer = ImageRenderer(
+                content: ChatTranscript(messages: messages)
+                    .environment(\.appTheme, AppThemePalette(mode: .dark))
+                    .frame(width: width, height: 500)
+            )
+            renderer.scale = 1
+            let image = renderer.uiImage
+
+            XCTAssertNotNil(image)
+            XCTAssertEqual(image?.size.width ?? 0, width, accuracy: 1)
+            XCTAssertEqual(image?.size.height ?? 0, 500, accuracy: 1)
+        }
     }
 
     func testChatBubbleTextLayoutPolicySupportsAccessibleReading() {
