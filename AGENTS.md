@@ -6,6 +6,8 @@
 
 `Local Gemma iOS Prototype` 是一个 SwiftUI iOS 原型 App，用本地模拟 runtime 验证 iPhone、iPad 与 Mac Catalyst build/run 基线下端侧部署 Gemma 1.5B 的产品交互、模型文件管理、artifact 校验、模型卸载确认弹层辅助语义、会话导出、导出弹层分享/复制辅助语义、导出弹层分享/复制 44pt 触控目标、导出弹层整体宽屏内容宽度策略、大屏双栏布局、聊天工作区双侧栏宽度协调、Mac/iPad 工作区与会话命令菜单、顶部模型胶囊整体辅助语义、模型概要面板与详情右栏/行级辅助语义、模型页整体宽屏内容宽度策略、模型详情右栏最大阅读宽度策略、模型文件工作流面板辅助语义、工作区导航辅助语义、工作区导航 44pt 触控目标、头部主题与模型库入口辅助语义、全局 Header 图标动作 44pt 触控目标、Header 标题动态排版策略、设置页整体宽屏内容宽度策略、设置页图标动作 44pt 触控目标、会话栏操作辅助语义、会话栏操作 44pt 触控目标、会话 chip 动作语义、会话侧栏宽度策略、聊天消息气泡与聊天记录容器辅助语义、聊天气泡与 composer 宽屏输入宽度策略、composer 发送/停止 44pt 触控目标、模型选择器、状态徽章与部署控件辅助语义、模型部署控件 44pt 触控目标、运行策略开关辅助语义、运行策略开关宽屏网格、运行策略开关行 44pt 触控目标、芯片准备度辅助语义与隐私状态动态摘要、优化指标卡辅助语义、优化指标卡文本动态排版策略、优化指标网格宽度策略、共享 SectionHeader 动态排版策略、提示词页整体宽屏内容宽度策略、提示词模板宽屏布局策略、提示词模板文本动态排版策略、提示词分类筛选换行布局策略、提示词分类文本动态排版策略、提示词筛选与模板动作辅助语义、提示词模板动作 44pt 触控目标、相册壁纸控件辅助语义和 Apple Silicon 运行计划；当前不下载模型权重，不执行真实模型推理，也没有原生 macOS target。
 
+v2.64 起，顶部模型胶囊还包含窄侧栏响应式布局策略：sidebar 与窄 top header 使用堆叠概要，指标按可用宽度切换 1/2/3 列，`.xxxLarge` 及以上 Dynamic Type 固定回退单列。
+
 ## 2. 必读文件顺序
 
 每轮工作开始前按顺序阅读：
@@ -74,6 +76,7 @@ git remote -v
 - `SettingsIconActionLayoutPolicy` 控制设置页外观主题切换、相册壁纸选择和恢复系统背景三个图标动作的最小触控目标；这些 iPhone、iPad split view 和 Mac Catalyst 设置入口必须保持至少 44pt，且不得改变主题切换、相册读取、本地压缩、恢复系统背景、禁用状态或辅助语义。
 - `SettingsPreferenceTextLayoutPolicy` 控制设置页外观模式与壁纸偏好行标题/状态文本的 Dynamic Type 排版；标题与状态使用语义字体并允许两行，避免 iPad split view、Mac Catalyst 窄窗口和较大文字设置下压缩或截断，且不得改变主题切换、相册读取、本地压缩、恢复系统背景、图标 44pt 触控目标、辅助语义、设置页整体宽度、模型文件或 runtime 状态流。
 - `ModelCapsuleTextLayoutPolicy` 控制顶部模型胶囊与 HeaderMetricChip 的 Dynamic Type 文本策略；模型名、状态摘要和指标 chip 使用语义字体并允许多行，避免 iPad split view、Mac Catalyst 窄窗口和较大文字设置下通过固定小字号或缩放压缩文字，且不得改变模型胶囊辅助语义、主题切换、工作区切换、模型文件或 runtime 状态流。
+- `ModelCapsuleLayoutPolicy` 控制顶部模型胶囊在 top header、compact sidebar 和 regular sidebar 的响应式结构；它必须使用调用侧传入的真实 chrome 可用宽度，非法宽度和 `.xxxLarge` 及以上 Dynamic Type 回退 stacked + 1 列，portrait 最多 3 列、sidebar 最多 2 列，并锁住 248pt/436pt 阈值、18pt chrome padding、12pt capsule padding、108pt 两列最小宽度、132pt 三列最小宽度和 54pt readiness ring 实际尺寸。它不得改变模型胶囊整体辅助语义、SIM/REAL、artifact、生成状态、主题、工作区、模型文件、runtime 或 verified 门禁。
 - `ModelCapsuleAccessibilityMetadata` 控制顶部模型胶囊整体辅助语义；它必须合并当前模型、参数、量化、SIM/REAL、artifact 状态、后端、生成状态、速度、内存和准备度，并明确只展示本地状态、不下载权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁。
 - `ModelDetailAccessibilityMetadata` 控制模型页详情右栏和窄屏详情段的整体辅助语义；它必须合并模型规格、artifact 状态、validation summary、性能预算、主/回退后端、KV cache、blocker/next step，并明确只展示本地模型详情、不下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁。
 - `ModelSummaryTextLayoutPolicy` 控制模型页概要面板名称与简介的 Dynamic Type 文本策略；名称使用语义标题字体并允许两行，简介使用语义字体并允许多行，避免 iPad split view、Mac Catalyst 窄窗口和较大文字设置下通过固定小字号或缩放压缩文字，且不得改变概要辅助语义、模型选择/部署、模型文件或 runtime 状态流。

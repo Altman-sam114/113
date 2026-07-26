@@ -2,6 +2,8 @@
 
 一句话总览：本项目是一个 SwiftUI iOS 原型，通过本地模拟 runtime 和严格 artifact 校验流程，验证 iPhone、iPad 与 Mac Catalyst build/run 基线下端侧部署 Gemma 1.5B 的 UI、状态管理、文件导入、模型卸载确认弹层辅助语义、会话导出、导出弹层分享/复制辅助语义、导出弹层分享/复制 44pt 触控目标、导出弹层整体宽屏内容宽度策略、顶部模型胶囊整体辅助语义、模型概要面板与详情右栏/行级辅助语义、模型页整体宽屏内容宽度策略、模型详情右栏最大阅读宽度策略、模型文件工作流面板辅助语义、模型部署控件 44pt 触控目标、模型状态徽章辅助语义、全局 Header 图标动作 44pt 触控目标、Header 标题动态排版策略、设置页整体宽屏内容宽度策略、设置页图标动作 44pt 触控目标、会话栏操作 44pt 触控目标、会话 chip 动作语义、聊天消息气泡与聊天记录容器辅助语义、聊天气泡与 composer 宽屏输入宽度策略、composer 发送/停止 44pt 触控目标、工作区导航辅助语义、工作区导航 44pt 触控目标、头部主题与模型库入口辅助语义、运行策略开关辅助语义、运行策略开关宽屏网格、运行策略开关行 44pt 触控目标、芯片准备度辅助语义、优化指标卡辅助语义、优化指标卡文本动态排版策略、优化指标网格宽度策略、共享 SectionHeader 动态排版策略、提示词页整体宽屏内容宽度策略、提示词模板宽屏布局策略、提示词模板文本动态排版策略、提示词分类筛选换行布局策略、提示词分类文本动态排版策略、提示词模板动作辅助语义与 44pt 触控目标、壁纸控件辅助语义、大屏布局和 Apple Silicon 运行计划；协作流程默认采用 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载结果包验收。
 
+v2.64 的顶部模型胶囊还会按真实 chrome 可用宽度切换堆叠/横向概要与 1/2/3 列指标，避免 iPhone、iPad 和 Mac Catalyst 窄侧栏截断。
+
 本文只写当前真实链路，不写历史流水账。
 
 ## 当前核心数据流
@@ -69,6 +71,7 @@
 - `HeaderActionLayoutPolicy` 为全局 Header 主题切换和打开模型工作区两个图标动作定义共享 44pt 最小触控目标；`HeaderView` 只复用尺寸常量，不改变主题切换、工作区切换、模型胶囊状态、辅助语义、模型文件或 runtime 状态流。
 - `HeaderTitleTextLayoutPolicy` 为顶部 Header eyebrow 和主标题定义 Dynamic Type 文本策略；eyebrow 使用语义字体并保持单行，主标题使用语义标题字体并允许两行，避免 iPad split view、Mac Catalyst 窄窗口和较大文字设置下压缩或截断，同时不改变 Header 图标动作触控目标、主题切换、工作区切换、模型胶囊状态、辅助语义、模型文件或 runtime 状态流。
 - `ModelCapsuleTextLayoutPolicy` 为顶部模型胶囊与 HeaderMetricChip 定义 Dynamic Type 文本策略；模型名、状态摘要和指标 chip 使用语义字体并允许多行，移除名称/状态/数值缩放压缩，同时不改变模型胶囊辅助语义、主题切换、工作区切换、模型文件或 runtime 状态。
+- `ModelCapsuleLayoutPolicy` 从 top header 或 sidebar 的真实 chrome 宽度扣除两侧 18pt padding，得到胶囊外框可用宽度；宽度无效或 `.xxxLarge` 及以上 Dynamic Type 时使用 stacked + 1 列，普通 portrait 可在 248pt/436pt 外框阈值切换 1/2/3 列并在 436pt 起使用横向概要，compact/regular sidebar 始终堆叠且最多 2 列。两列最小指标宽度为 108pt，三列提高到 132pt；2 列时速度/内存并排，后端与 artifact 状态跨整行；`ReadinessRing` 使用计划中的 54pt 实际直径。该策略只改变视觉排版，不改变完整辅助 value、SIM/REAL、artifact、生成状态、模型文件、runtime 或 verified 门禁。
 - `ModelCapsuleAccessibilityMetadata` 为顶部模型胶囊生成整体 label/value/hint/input labels/identifier；value 合并当前模型、参数量、量化、安装状态、SIM/REAL 标记、artifact availability、生成状态、后端、速度、内存和准备度，hint 说明它只展示本地状态摘要，不下载模型权重、不启动真实 runtime、不发送到云端服务、不绕过 verified 门禁。
 - `ModelDetailAccessibilityMetadata` 为模型页详情右栏和窄屏详情段生成整体 label/value/hint/input labels/identifier；value 合并模型规格、artifact availability、validation summary、预计速度、内存预算、主后端、回退后端、KV cache、运行阻塞项和下一步，hint 说明它只展示本地模型详情，不下载模型权重、不启动真实 runtime、不发送到云端服务、不绕过 verified 门禁。
 - `ModelSummaryTextLayoutPolicy` 为模型页概要面板名称与简介定义 Dynamic Type 文本策略；名称允许两行，简介允许多行，移除名称缩放压缩，同时不改变概要辅助语义、模型选择/部署、模型文件或 runtime 状态。

@@ -3517,3 +3517,41 @@
 
 - 本轮没有执行真实 Mac 触控板、完整 VoiceOver、系统 presentation 或窗口拖拽人工验证；窄侧栏模型胶囊截断、聊天阅读轨道与高频文本 Dynamic Type、显式生成状态作为后续独立视觉/交互候选。
 - UI Test target、真实 runtime 和原生 macOS target 仍属后续；本轮不下载模型权重、不接入云端推理、不绕过 verified 门禁。
+
+### v2.64 / 模型胶囊窄侧栏响应式布局
+
+日期：2026-07-26
+
+核心变更：
+
+- Agent X 在 v2.63 最终 run `30191068195` 验收通过后继续并发三路审计 iPad/Mac 模型胶囊；审计和 `.build/v263-ipad-final.png` 确认 regular sidebar 中模型名被固定图标、两枚徽章、圆环和三列指标挤压截断，归档 `md/prompt/v2（Mac体验审计）/v2.64（模型胶囊窄侧栏响应式布局）.md`。
+- 新增纯值 `ModelCapsuleLayoutPolicy`，从真实 top/sidebar chrome 宽度扣除 18pt 外边距，按胶囊外框宽度、`WorkspaceLayoutMode` 和 Dynamic Type 生成 horizontal/stacked 头部及 1/2/3 列指标计划；非法宽度和 `.xxxLarge` 及以上文字统一 stacked + 1 列，portrait 最多 3 列，sidebar 最多 2 列。
+- `ModelCapsule` 在 sidebar 与窄 top header 使用堆叠概要，模型名、安装/SIM 徽章、readiness ring 和状态摘要不再争用同一行；2 列指标让速度/内存并排，后端与 artifact 状态跨整行，`.xxxLarge` 及以上文字回退单列。
+- 首轮把三列与横向概要阈值设为 364pt，iPhone 17 Pro 截图暴露 `SIMULATION` 徽章省略和 `tok/s` 难看断行；并发审查独立确认该风险后，将两列/三列最小指标宽度拆为 108/132pt，最终三列与横向概要阈值提高到 436pt，iPhone 默认回退堆叠 + 2 列。
+- `ReadinessRing` 新增真实 diameter 输入，模型胶囊计划固定 54pt，修复调用侧 54pt 但组件内部固定 66pt 的溢出；设置页既有默认 66pt 不变。完整模型胶囊辅助 value、SIM/REAL、artifact、生成状态、主题、导航、模型文件、runtime 和 verified 门禁保持不变。
+- 新增 `testModelCapsuleLayoutPolicyAdaptsToNarrowChrome`，锁住 18/12/108/132/54pt 常量、248/436pt 阈值、真实 sidebar 宽度、非法输入、`.xxxLarge` 及以上单列、生产 `ImageRenderer` 多宽度渲染和 ring 实际图像尺寸；测试函数数从 108 增加到 109。
+
+关键文件：
+
+- `LocalGemma/ContentView.swift`
+- `LocalGemmaTests/LocalGemmaTests.swift`
+- `AGENTS.md`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v2（Mac体验审计）/v2.64（模型胶囊窄侧栏响应式布局）.md`
+
+验证结果：
+
+- iOS Simulator build-for-testing 首次只因新测试误用不存在的 backend case 失败，改为真实 `.coreMLANE` 后重跑输出 `TEST BUILD SUCCEEDED`，生产源码与 109 项测试源码均编译通过。
+- 在 iPad Pro 13-inch (M5) 定向运行 `testModelCapsuleLayoutPolicyAdaptsToNarrowChrome`，输出 `TEST EXECUTE SUCCEEDED`；结果位于 `.build/DerivedData-v264-capsule/Logs/Test/Test-LocalGemma-2026.07.26_14-45-42-+0800.xcresult`。
+- 实际 App 已安装并启动，截图 `.build/v264-ipad-capsule.png` 显示 regular sidebar 中 `Gemma 1.5B Local` 完整可见，徽章、54pt 圆环、状态摘要、速度/内存双列和 ANE 状态整行均无重叠或越界。
+- `git diff --check`、脚本存在/可执行/语法、`plutil -lint`、workflow YAML 解析、测试函数统计 109 和 LogicSmoke 均通过。
+- 最终 436pt 阈值源码的完整 iPad Pro 13-inch (M5) XCTest 结果为 109 passed、0 failed、0 skipped，输出 `TEST EXECUTE SUCCEEDED`；结果位于 `.build/v264-final-tests.xcresult`。
+- 阈值审查前的 `./script/build_and_run.sh --build-only` 输出 `BUILD SUCCEEDED` 并生成 Mac Catalyst App，`--verify` 再次构建成功且确认 App 进程启动；按人工最新要求不再执行本地构建，最终 436pt 阈值源码的 Mac Catalyst 与完整重验证改由 GitHub Actions 执行。并发审查已完成，GitHub Actions 和 Agent C artifact 验收仍待执行，未伪装为已通过。
+
+遗留事项：
+
+- 本轮解决 v2.63 记录的窄侧栏模型胶囊截断；聊天阅读轨道、高频文本 Dynamic Type、显式生成状态、完整 VoiceOver 与真实 Mac 窗口拖拽仍是后续候选。
+- UI Test target、真实 runtime 和原生 macOS target 仍属后续；本轮不下载模型权重、不接入云端推理、不绕过 verified 门禁。

@@ -2833,6 +2833,137 @@ final class LocalGemmaTests: XCTestCase {
         )
     }
 
+    func testModelCapsuleLayoutPolicyAdaptsToNarrowChrome() {
+        XCTAssertEqual(ModelCapsuleLayoutPolicy.chromeHorizontalPadding, 18)
+        XCTAssertEqual(ModelCapsuleLayoutPolicy.capsuleHorizontalPadding, 12)
+        XCTAssertEqual(ModelCapsuleLayoutPolicy.metricSpacing, 8)
+        XCTAssertEqual(ModelCapsuleLayoutPolicy.minimumMetricWidth, 108)
+        XCTAssertEqual(ModelCapsuleLayoutPolicy.minimumThreeColumnMetricWidth, 132)
+        XCTAssertEqual(ModelCapsuleLayoutPolicy.readinessDiameter, 54)
+        XCTAssertEqual(ModelCapsuleLayoutPolicy.twoColumnMinimumWidth, 248)
+        XCTAssertEqual(ModelCapsuleLayoutPolicy.threeColumnMinimumWidth, 436)
+
+        XCTAssertEqual(ModelCapsuleLayoutPolicy.availableWidth(forChromeWidth: 250), 214)
+        XCTAssertEqual(ModelCapsuleLayoutPolicy.availableWidth(forChromeWidth: 310), 274)
+        XCTAssertEqual(ModelCapsuleLayoutPolicy.availableWidth(forChromeWidth: 327.68), 291.68)
+        XCTAssertEqual(ModelCapsuleLayoutPolicy.availableWidth(forChromeWidth: -1), 0)
+        XCTAssertEqual(ModelCapsuleLayoutPolicy.availableWidth(forChromeWidth: .nan), 0)
+        XCTAssertEqual(ModelCapsuleLayoutPolicy.availableWidth(forChromeWidth: .infinity), 0)
+
+        let stackedOne = ModelCapsuleLayoutPlan(
+            headerPresentation: .stacked,
+            metricColumnCount: 1
+        )
+        let stackedTwo = ModelCapsuleLayoutPlan(
+            headerPresentation: .stacked,
+            metricColumnCount: 2
+        )
+        let horizontalThree = ModelCapsuleLayoutPlan(
+            headerPresentation: .horizontal,
+            metricColumnCount: 3
+        )
+
+        for invalidWidth in [CGFloat.nan, .infinity, -1, 0] {
+            XCTAssertEqual(
+                ModelCapsuleLayoutPolicy.resolve(
+                    availableWidth: invalidWidth,
+                    layoutMode: .portrait,
+                    usesExpandedTextLayout: false
+                ),
+                stackedOne
+            )
+        }
+
+        let boundaryCases: [(CGFloat, WorkspaceLayoutMode, ModelCapsuleLayoutPlan)] = [
+            (214, .landscapeCompact, stackedOne),
+            (247.99, .landscapeCompact, stackedOne),
+            (248, .landscapeCompact, stackedTwo),
+            (257.997, .landscapeCompact, stackedTwo),
+            (258, .landscapeCompact, stackedTwo),
+            (291.68, .landscapeRegular, stackedTwo),
+            (354, .landscapeRegular, stackedTwo),
+            (435.99, .portrait, stackedTwo),
+            (436, .portrait, horizontalThree),
+            (663, .portrait, horizontalThree)
+        ]
+        for (width, mode, expectedPlan) in boundaryCases {
+            XCTAssertEqual(
+                ModelCapsuleLayoutPolicy.resolve(
+                    availableWidth: width,
+                    layoutMode: mode,
+                    usesExpandedTextLayout: false
+                ),
+                expectedPlan
+            )
+        }
+
+        for mode in [WorkspaceLayoutMode.portrait, .landscapeCompact, .landscapeRegular] {
+            XCTAssertEqual(
+                ModelCapsuleLayoutPolicy.resolve(
+                    availableWidth: 1_000,
+                    layoutMode: mode,
+                    usesExpandedTextLayout: true
+                ),
+                stackedOne
+            )
+        }
+        XCTAssertEqual(
+            ModelCapsuleLayoutPolicy.resolve(
+                availableWidth: 1_000,
+                layoutMode: .landscapeRegular,
+                usesExpandedTextLayout: false
+            ),
+            stackedTwo
+        )
+
+        let model = ModelCatalog.defaultModels[0]
+        let renderCases: [(CGFloat, WorkspaceLayoutMode, DynamicTypeSize)] = [
+            (214, .landscapeCompact, .large),
+            (291.68, .landscapeRegular, .large),
+            (354, .portrait, .large),
+            (394, .portrait, .large),
+            (394, .portrait, .xxxLarge),
+            (394, .portrait, .accessibility3)
+        ]
+        for (width, mode, dynamicTypeSize) in renderCases {
+            let renderer = ImageRenderer(
+                content: ModelCapsule(
+                    model: model,
+                    readiness: 0.76,
+                    tokensPerSecond: 36,
+                    memoryUsageMB: 1_843,
+                    backend: .coreMLANE,
+                    availability: .missing,
+                    isGenerating: false,
+                    isSimulated: true,
+                    availableWidth: width,
+                    layoutMode: mode
+                )
+                .environment(\.appTheme, AppThemePalette(mode: .dark))
+                .environment(\.dynamicTypeSize, dynamicTypeSize)
+                .frame(width: width)
+            )
+            renderer.scale = 1
+            let image = renderer.uiImage
+
+            XCTAssertNotNil(image)
+            XCTAssertEqual(image?.size.width ?? 0, width, accuracy: 1)
+            XCTAssertGreaterThan(image?.size.height ?? 0, 0)
+            XCTAssertLessThan(image?.size.height ?? .infinity, 1_000)
+        }
+
+        let ringRenderer = ImageRenderer(
+            content: ReadinessRing(
+                progress: 0.76,
+                diameter: ModelCapsuleLayoutPolicy.readinessDiameter
+            )
+            .environment(\.appTheme, AppThemePalette(mode: .dark))
+        )
+        ringRenderer.scale = 1
+        XCTAssertEqual(ringRenderer.uiImage?.size.width ?? 0, 54, accuracy: 1)
+        XCTAssertEqual(ringRenderer.uiImage?.size.height ?? 0, 54, accuracy: 1)
+    }
+
     func testModelCapsuleExposesOverallAccessibilityMetadata() {
         let model = ModelCatalog.defaultModels[0]
 

@@ -84,7 +84,7 @@ flowchart TD
     H --> I[GemmaSimulationProvider 生成模拟文本]
     I --> J[按 chunk 流式写回 assistant 消息]
     J --> K[同步 active session<br/>聊天记录容器辅助语义<br/>聊天消息气泡整体辅助语义]
-    K --> L[更新速度、内存、后端、SIM/REAL 标记<br/>顶部模型胶囊整体辅助语义]
+    K --> L[更新速度、内存、后端、SIM/REAL 标记<br/>顶部模型胶囊整体辅助语义<br/>ModelCapsuleLayoutPolicy<br/>窄侧栏堆叠 + 指标 1/2/3 列]
 ```
 
 ## 5. UI 布局与工作区流
@@ -97,9 +97,9 @@ flowchart TD
     B --> C[WorkspaceRootLayoutPlan<br/>axis + chrome + sidebar width]
     C --> D[WorkspaceRootShell<br/>AnyLayout 切换 VStack/HStack<br/>直接子节点固定 chrome + content]
     D --> E{chrome presentation}
-    E -- top navigation --> N[Header + 共享导航托盘<br/>顶部工作区 tab 44pt 触控目标]
-    E -- detailed sidebar --> O[详细侧栏<br/>标题 + 用途说明 + 选中语义]
-    E -- compact sidebar --> P[紧凑侧栏<br/>标题 + 选中语义]
+    E -- top navigation --> N[Header + 共享导航托盘<br/>顶部工作区 tab 44pt 触控目标<br/>模型胶囊按可用宽度横向/堆叠]
+    E -- detailed sidebar --> O[详细侧栏<br/>标题 + 用途说明 + 选中语义<br/>模型胶囊堆叠 + 最多 2 列指标]
+    E -- compact sidebar --> P[紧凑侧栏<br/>标题 + 选中语义<br/>模型胶囊堆叠 + 最多 2 列指标]
     O --> X[工作区导航辅助语义<br/>44pt 触控目标<br/>hint + Voice Control 输入标签<br/>用途说明 + Command 快捷键]
     P --> X
     X --> V[WorkbenchVisualStylePolicy<br/>导航托盘/轨道 + 主题感知 panel<br/>8pt 圆角 + hairline 描边]

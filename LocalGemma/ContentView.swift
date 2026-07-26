@@ -664,7 +664,8 @@ struct ContentView: View {
                         workspaceChrome(
                             themeMode: themeMode,
                             selectedValidation: selectedValidation,
-                            layoutPlan: layoutPlan
+                            layoutPlan: layoutPlan,
+                            rootSize: proxy.size
                         )
                     } content: {
                         workspacePages(themeMode: themeMode)
@@ -727,7 +728,12 @@ struct ContentView: View {
         composerFocusRequest = .initial
     }
 
-    private func headerView(themeMode: AppThemeMode, selectedValidation: ArtifactValidationResult) -> some View {
+    private func headerView(
+        themeMode: AppThemeMode,
+        selectedValidation: ArtifactValidationResult,
+        capsuleAvailableWidth: CGFloat,
+        layoutMode: WorkspaceLayoutMode
+    ) -> some View {
         HeaderView(
             model: catalog.selectedModel,
             readiness: optimizer.deploymentReadiness,
@@ -737,6 +743,8 @@ struct ContentView: View {
             availability: selectedValidation.availability,
             isGenerating: inference.isGenerating,
             isSimulated: inference.lastResultWasSimulated,
+            capsuleAvailableWidth: capsuleAvailableWidth,
+            layoutMode: layoutMode,
             themeMode: themeMode,
             toggleTheme: {
                 withAnimation(
@@ -767,12 +775,20 @@ struct ContentView: View {
     private func workspaceChrome(
         themeMode: AppThemeMode,
         selectedValidation: ArtifactValidationResult,
-        layoutPlan: WorkspaceRootLayoutPlan
+        layoutPlan: WorkspaceRootLayoutPlan,
+        rootSize: CGSize
     ) -> some View {
         switch layoutPlan.chrome {
         case .topNavigation:
             VStack(spacing: 0) {
-                headerView(themeMode: themeMode, selectedValidation: selectedValidation)
+                headerView(
+                    themeMode: themeMode,
+                    selectedValidation: selectedValidation,
+                    capsuleAvailableWidth: ModelCapsuleLayoutPolicy.availableWidth(
+                        forChromeWidth: rootSize.width
+                    ),
+                    layoutMode: layoutPlan.mode
+                )
                     .padding(.horizontal, 18)
                     .padding(.top, 8)
 
@@ -800,7 +816,14 @@ struct ContentView: View {
 
         return ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                headerView(themeMode: themeMode, selectedValidation: selectedValidation)
+                headerView(
+                    themeMode: themeMode,
+                    selectedValidation: selectedValidation,
+                    capsuleAvailableWidth: ModelCapsuleLayoutPolicy.availableWidth(
+                        forChromeWidth: sidebarWidth
+                    ),
+                    layoutMode: isDetailed ? .landscapeRegular : .landscapeCompact
+                )
                 sidebarTabPicker(isDetailed: isDetailed)
             }
             .padding(.horizontal, 18)
@@ -2654,6 +2677,8 @@ struct HeaderView: View {
     let availability: ArtifactAvailability
     let isGenerating: Bool
     let isSimulated: Bool
+    let capsuleAvailableWidth: CGFloat
+    let layoutMode: WorkspaceLayoutMode
     let themeMode: AppThemeMode
     let toggleTheme: () -> Void
     let showModels: () -> Void
@@ -2728,9 +2753,76 @@ struct HeaderView: View {
                 backend: backend,
                 availability: availability,
                 isGenerating: isGenerating,
-                isSimulated: isSimulated
+                isSimulated: isSimulated,
+                availableWidth: capsuleAvailableWidth,
+                layoutMode: layoutMode
             )
         }
+    }
+}
+
+enum ModelCapsuleHeaderPresentation: Equatable {
+    case horizontal
+    case stacked
+}
+
+struct ModelCapsuleLayoutPlan: Equatable {
+    let headerPresentation: ModelCapsuleHeaderPresentation
+    let metricColumnCount: Int
+}
+
+enum ModelCapsuleLayoutPolicy {
+    static let chromeHorizontalPadding: CGFloat = 18
+    static let capsuleHorizontalPadding: CGFloat = 12
+    static let metricSpacing: CGFloat = 8
+    static let minimumMetricWidth: CGFloat = 108
+    static let minimumThreeColumnMetricWidth: CGFloat = 132
+    static let readinessDiameter: CGFloat = 54
+
+    static var twoColumnMinimumWidth: CGFloat {
+        capsuleHorizontalPadding * 2 + minimumMetricWidth * 2 + metricSpacing
+    }
+
+    static var threeColumnMinimumWidth: CGFloat {
+        capsuleHorizontalPadding * 2 + minimumThreeColumnMetricWidth * 3 + metricSpacing * 2
+    }
+
+    static func availableWidth(forChromeWidth chromeWidth: CGFloat) -> CGFloat {
+        guard chromeWidth.isFinite, chromeWidth > 0 else {
+            return 0
+        }
+
+        return max(chromeWidth - chromeHorizontalPadding * 2, 0)
+    }
+
+    static func resolve(
+        availableWidth: CGFloat,
+        layoutMode: WorkspaceLayoutMode,
+        usesExpandedTextLayout: Bool
+    ) -> ModelCapsuleLayoutPlan {
+        guard availableWidth.isFinite, availableWidth > 0, usesExpandedTextLayout == false else {
+            return ModelCapsuleLayoutPlan(
+                headerPresentation: .stacked,
+                metricColumnCount: 1
+            )
+        }
+
+        let maximumColumnCount = layoutMode == .portrait ? 3 : 2
+        let fittedColumnCount: Int
+        if availableWidth >= threeColumnMinimumWidth {
+            fittedColumnCount = 3
+        } else if availableWidth >= twoColumnMinimumWidth {
+            fittedColumnCount = 2
+        } else {
+            fittedColumnCount = 1
+        }
+
+        return ModelCapsuleLayoutPlan(
+            headerPresentation: layoutMode == .portrait && availableWidth >= threeColumnMinimumWidth
+                ? .horizontal
+                : .stacked,
+            metricColumnCount: min(fittedColumnCount, maximumColumnCount)
+        )
     }
 }
 
@@ -2751,6 +2843,7 @@ enum ModelCapsuleTextLayoutPolicy {
 
 struct ModelCapsule: View {
     @Environment(\.appTheme) private var theme
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     let model: LocalModel
     let readiness: Double
@@ -2760,55 +2853,19 @@ struct ModelCapsule: View {
     let availability: ArtifactAvailability
     let isGenerating: Bool
     let isSimulated: Bool
+    let availableWidth: CGFloat
+    let layoutMode: WorkspaceLayoutMode
 
     var body: some View {
+        let layoutPlan = ModelCapsuleLayoutPolicy.resolve(
+            availableWidth: availableWidth,
+            layoutMode: layoutMode,
+            usesExpandedTextLayout: dynamicTypeSize >= .xxxLarge
+        )
+
         VStack(alignment: .leading, spacing: ModelCapsuleTextLayoutPolicy.verticalSpacing) {
-            HStack(spacing: 12) {
-                ZStack {
-                    Circle()
-                        .fill(theme.accent.opacity(0.18))
-                    Image(systemName: "bolt.horizontal.circle.fill")
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundStyle(theme.accent)
-                }
-                .frame(width: 42, height: 42)
-
-                VStack(alignment: .leading, spacing: ModelCapsuleTextLayoutPolicy.titleStatusSpacing) {
-                    HStack(spacing: 6) {
-                        Text(model.name)
-                            .font(.subheadline.weight(.bold))
-                            .foregroundStyle(theme.primaryText)
-                            .lineLimit(ModelCapsuleTextLayoutPolicy.nameLineLimit)
-                            .fixedSize(horizontal: false, vertical: true)
-
-                        StatusBadge(state: model.installState)
-
-                        Text(isSimulated ? "SIM" : "REAL")
-                            .font(.system(size: 9, weight: .black))
-                            .foregroundStyle(isSimulated ? theme.accent : theme.success)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 3)
-                            .background((isSimulated ? theme.accent : theme.success).opacity(0.13), in: Capsule())
-                    }
-
-                    Text(statusText)
-                        .font(.footnote.weight(.medium))
-                        .foregroundStyle(theme.secondaryText)
-                        .lineLimit(ModelCapsuleTextLayoutPolicy.statusLineLimit)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                Spacer(minLength: 0)
-
-                ReadinessRing(progress: readiness)
-                    .frame(width: 54, height: 54)
-            }
-
-            HStack(spacing: 8) {
-                HeaderMetricChip(title: "速度", value: String(format: "%.1f tok/s", tokensPerSecond), icon: "speedometer", tint: theme.accent)
-                HeaderMetricChip(title: "内存", value: compactMemoryValue, icon: "memorychip.fill", tint: theme.success)
-                HeaderMetricChip(title: backend.shortTitle, value: availabilityMetricValue, icon: availabilityIcon, tint: statusTint)
-            }
+            capsuleHeader(layoutPlan)
+            metricGrid(columnCount: layoutPlan.metricColumnCount)
         }
         .padding(12)
         .frame(maxWidth: .infinity)
@@ -2834,6 +2891,145 @@ struct ModelCapsule: View {
         .accessibilityHint(ModelCapsuleAccessibilityMetadata.hint)
         .accessibilityInputLabels(ModelCapsuleAccessibilityMetadata.inputLabels(model: model))
         .accessibilityIdentifier(ModelCapsuleAccessibilityMetadata.identifier)
+    }
+
+    @ViewBuilder
+    private func capsuleHeader(_ layoutPlan: ModelCapsuleLayoutPlan) -> some View {
+        switch layoutPlan.headerPresentation {
+        case .horizontal:
+            HStack(spacing: 12) {
+                modelIcon
+                VStack(alignment: .leading, spacing: ModelCapsuleTextLayoutPolicy.titleStatusSpacing) {
+                    HStack(spacing: 6) {
+                        modelName
+                        modelBadges
+                    }
+                    modelStatus
+                }
+                Spacer(minLength: 0)
+                readinessRing
+            }
+        case .stacked:
+            VStack(alignment: .leading, spacing: ModelCapsuleTextLayoutPolicy.titleStatusSpacing) {
+                HStack(spacing: 12) {
+                    modelIcon
+                    modelName
+                    Spacer(minLength: 0)
+                }
+                HStack(spacing: 8) {
+                    modelBadges
+                    Spacer(minLength: 0)
+                    readinessRing
+                }
+                modelStatus
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func metricGrid(columnCount: Int) -> some View {
+        switch columnCount {
+        case 3:
+            HStack(spacing: ModelCapsuleLayoutPolicy.metricSpacing) {
+                speedMetric
+                memoryMetric
+                availabilityMetric
+            }
+        case 2:
+            Grid(
+                horizontalSpacing: ModelCapsuleLayoutPolicy.metricSpacing,
+                verticalSpacing: ModelCapsuleLayoutPolicy.metricSpacing
+            ) {
+                GridRow {
+                    speedMetric
+                    memoryMetric
+                }
+                GridRow {
+                    availabilityMetric
+                        .gridCellColumns(2)
+                }
+            }
+        default:
+            VStack(spacing: ModelCapsuleLayoutPolicy.metricSpacing) {
+                speedMetric
+                memoryMetric
+                availabilityMetric
+            }
+        }
+    }
+
+    private var modelIcon: some View {
+        ZStack {
+            Circle()
+                .fill(theme.accent.opacity(0.18))
+            Image(systemName: "bolt.horizontal.circle.fill")
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundStyle(theme.accent)
+        }
+        .frame(width: 42, height: 42)
+        .accessibilityHidden(true)
+    }
+
+    private var modelName: some View {
+        Text(model.name)
+            .font(.subheadline.weight(.bold))
+            .foregroundStyle(theme.primaryText)
+            .lineLimit(ModelCapsuleTextLayoutPolicy.nameLineLimit)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var modelBadges: some View {
+        HStack(spacing: 6) {
+            StatusBadge(state: model.installState)
+            Text(isSimulated ? "SIM" : "REAL")
+                .font(.system(size: 9, weight: .black))
+                .foregroundStyle(isSimulated ? theme.accent : theme.success)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 3)
+                .background((isSimulated ? theme.accent : theme.success).opacity(0.13), in: Capsule())
+        }
+    }
+
+    private var modelStatus: some View {
+        Text(statusText)
+            .font(.footnote.weight(.medium))
+            .foregroundStyle(theme.secondaryText)
+            .lineLimit(ModelCapsuleTextLayoutPolicy.statusLineLimit)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var readinessRing: some View {
+        ReadinessRing(
+            progress: readiness,
+            diameter: ModelCapsuleLayoutPolicy.readinessDiameter
+        )
+    }
+
+    private var speedMetric: some View {
+        HeaderMetricChip(
+            title: "速度",
+            value: String(format: "%.1f tok/s", tokensPerSecond),
+            icon: "speedometer",
+            tint: theme.accent
+        )
+    }
+
+    private var memoryMetric: some View {
+        HeaderMetricChip(
+            title: "内存",
+            value: compactMemoryValue,
+            icon: "memorychip.fill",
+            tint: theme.success
+        )
+    }
+
+    private var availabilityMetric: some View {
+        HeaderMetricChip(
+            title: backend.shortTitle,
+            value: availabilityMetricValue,
+            icon: availabilityIcon,
+            tint: statusTint
+        )
     }
 
     private var compactMemoryValue: String {
@@ -2974,13 +3170,16 @@ struct ReadinessRing: View {
     @Environment(\.appTheme) private var theme
 
     let progress: Double
+    let diameter: CGFloat
     let accessibilityIdentifier: String
 
     init(
         progress: Double,
+        diameter: CGFloat = 66,
         accessibilityIdentifier: String = ChipReadinessAccessibilityMetadata.headerRingIdentifier
     ) {
         self.progress = progress
+        self.diameter = diameter
         self.accessibilityIdentifier = accessibilityIdentifier
     }
 
@@ -3008,7 +3207,7 @@ struct ReadinessRing: View {
                     .foregroundStyle(theme.secondaryText)
             }
         }
-        .frame(width: 66, height: 66)
+        .frame(width: diameter, height: diameter)
         .accessibilityLabel(ChipReadinessAccessibilityMetadata.ringLabel)
         .accessibilityValue(ChipReadinessAccessibilityMetadata.ringValue(progress: progress))
         .accessibilityHint(ChipReadinessAccessibilityMetadata.ringHint)
