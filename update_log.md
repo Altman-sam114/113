@@ -3473,6 +3473,14 @@
 - 两路并发只读复核发现 focused route 的条件 modifier 会改变子树结构，以及策略测试缺少非法尺寸/精确 clamp；已改为结构恒定的 `SessionCommandFocusedRoute` + `SessionCommandFocusModifier` 并扩展现有两个测试。Mac 触控板分页与更完整 `ContentView`/VoiceOver/presentation 集成验证作为已知残余风险保留。
 - GitHub Actions 与 Agent C 对完整 106 项 XCTest 的 artifact 验收尚待本轮提交后补充，未伪装为已通过。
 
+验证补充（Agent C）：
+
+- GitHub Actions run `30189070114` 对 `origin/main` commit `7dae7ab62e43d8e61896a6f5ef0f118528d1dfe1` 通过；artifact `localgemma-ci-v2.62-main-7dae7ab-run30189070114-attempt1` 已下载到 `/private/tmp/localgemma-c-review-30189070114-1hHqvl/`，GitHub API、artifact 目录、manifest 和 `artifact-name.txt` 四方一致。
+- manifest 的 repository/branch/commitSha/runId/runAttempt/version 与最新 run 一致，static、logic、iOS build、XCTest、Mac Catalyst build 和 run-script contract outcomes 全部 success；JUnit 含 7 个 CI testcase、0 failure，只有 `codexRunEnvironment` 按 `not-added-in-v1.0-cli-entrypoint-only` 原因跳过。
+- `xcresulttool get test-results tests` 从 `LocalGemma-tests.xcresult` 解析出 106 个 XCTest，106 passed、0 failed、0 skipped，包含 `testWorkspaceRootLayoutPolicyResolvesChromeAndAxisAtBoundaries`、`testWorkspaceRootShellPreservesStatefulContentAcrossLayoutPlans` 和 focused route 回归测试；三份 `.xcresult/Info.plist` 均通过 `plutil -lint`。
+- `logic-smoke.log` 包含 `Logic smoke passed`，iOS 与 Mac Catalyst build-for-testing 日志均包含 `TEST BUILD SUCCEEDED`，XCTest 日志包含 `TEST EXECUTE SUCCEEDED`，Mac Catalyst run script 文件存在、可执行且 `bash -n` 通过；结果包未发现 failure、error、fatal、crash 或 abort。Mac 链接器的 Metal toolchain search-path warning 未导致构建失败，不影响本轮验收。
+- Agent C 首轮验收通过，可以提交本记录并触发最终 GitHub Actions 重验证。
+
 遗留事项：
 
 - page-style `TabView` 在 Mac Catalyst 上可能响应横向触控板工作区分页；本轮未执行对应人工手势验证，也不使用私有 API、透明手势层或全局 `.scrollDisabled` 规避。host 身份 probe 不证明真实触控板、完整 VoiceOver、系统 presentation 或窗口拖拽体验。
