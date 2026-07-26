@@ -3347,6 +3347,13 @@
 - Swift UI 源码 typecheck、app module emit 和 XCTest 源码 typecheck 均退出码 0；`./script/build_and_run.sh --build-only` 的 Mac Catalyst 构建输出 `BUILD SUCCEEDED`。
 - 构建后的 Mac Catalyst App 已成功启动，前台窗口为 1024x768；系统因当前进程缺少屏幕录制权限拒绝 `screencapture`，本轮未取得可核对截图。完整 iOS/Mac Catalyst XCTest 由 push 后 GitHub Actions 与 Agent C 结果包验收。
 
+验证补充（Agent C）：
+
+- GitHub Actions run `30184905612` 对最新 `origin/main` commit `8e1b77504334125376e929455e102e246ec62519` 通过；artifact `localgemma-ci-v2.59-main-8e1b775-run30184905612-attempt1` 已下载到 `/private/tmp/localgemma-c-review-30184905612/`。
+- manifest 的 repository/branch/commitSha/runId/runAttempt/version 与最新 run 一致；`artifact-name.txt`、outcomes、failure summary 和 JUnit（7 个 CI testcase、0 failure、1 个有原因的可选 skip）已核对，required checks 全部 success。
+- `xcresulttool` 从 `LocalGemma-tests.xcresult` 解析出 102 个 XCTest 且全部 `Passed`，包含 `testWorkbenchVisualStylePolicyDefinesNavigationAndPanelHierarchy`；iOS build、Mac Catalyst build 和测试三份 `.xcresult/Info.plist` 均通过 `plutil -lint`。
+- `logic-smoke.log` 包含 `Logic smoke passed`，iOS 与 Mac Catalyst build-for-testing 日志均包含 `TEST BUILD SUCCEEDED`，Mac Catalyst run script contract 为 success；Agent C 验收通过，可以继续 v2.60。
+
 遗留事项：
 
 - v2.60 计划审计并收敛工作区 sidebar 与会话 sidebar 同时出现时的宽度策略；UI Test target、真实 runtime 和原生 macOS target 仍属后续。
