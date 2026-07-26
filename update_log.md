@@ -3429,6 +3429,13 @@
 - 两路并发只读审查完成；SwiftUI 审查未发现行为问题，文档审查提出的精确动画相等断言、环境值读取责任和验证记录三项问题均已修正。
 - 本机未运行完整 iOS Simulator XCTest，也未声称完成 Reduce Motion 手工视觉测试；完整 104 项 XCTest 与 Mac Catalyst 云端重验证以本轮 push 后 GitHub Actions 和 Agent C 下载结果包为准。
 
+验证补充（Agent C）：
+
+- GitHub Actions run `30187608777` 对最新 `origin/main` commit `559b94e01cf6860d35332a7f5a4ffb58da50fa65` 通过；artifact `localgemma-ci-v2.61-main-559b94e-run30187608777-attempt1` 已下载到 `/private/tmp/localgemma-c-review-30187608777-qKhZhi/`。
+- manifest 的 repository/branch/commitSha/runId/runAttempt/version 与最新 run 一致；`artifact-name.txt`、outcomes、failure summary 和 JUnit（7 个 CI testcase、0 failure、1 个有原因的可选 skip）已核对，required checks 全部 success。
+- `xcresulttool` 从 `LocalGemma-tests.xcresult` 解析出 104 个 XCTest，104 passed、0 failed、0 skipped，包含 `testAppMotionAccessibilityPolicyRespectsReduceMotion`；iOS build、Mac Catalyst build 和测试三份 `.xcresult/Info.plist` 均通过 `plutil -lint`。
+- `logic-smoke.log` 包含 `Logic smoke passed`，iOS 与 Mac Catalyst build-for-testing 日志均包含 `TEST BUILD SUCCEEDED`，Mac Catalyst run script contract 为 success；Agent C 首轮验收通过。
+
 遗留事项：
 
 - 审计另发现根窗口跨越约 700pt 时，portrait/landscape 分支会创建两棵独立 `ChatWorkspace` 结构并重建工作区身份；该问题需要单独结构重构和更强 UI 验证，留作 v2.62 候选，不与 Reduce Motion 变更混合。
