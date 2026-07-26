@@ -3629,7 +3629,14 @@
 验证结果：
 
 - 按人工要求，本轮不运行本地 Xcode、Simulator、Mac Catalyst build 或截图；仅执行 Git/diff/结构检查，完整 iOS build、Mac Catalyst build、LogicSmoke 和 111 项 XCTest 将由 GitHub Actions 云端执行。
-- GitHub Actions 与 Agent C artifact 验收仍待本轮实现提交后补充，未伪装为已通过。
+
+验证补充（Agent C）：
+
+- GitHub Actions run `30194732838` attempt `1` 对 `origin/main` commit `5552a08ae0d6fff54a1665d80638ab9afbc0fd6c` 通过；artifact `localgemma-ci-v2.66-main-5552a08-run30194732838-attempt1` 已下载到 `.build/ci-artifacts/v266-run30194732838/`，GitHub API、manifest、artifact 名称和目录身份一致。
+- manifest 的 `version=v2.66`、branch、commitSha、runId 和 runAttempt 精确匹配；static、LogicSmoke、iOS build、111 项 XCTest、Mac Catalyst build 和 run-script contract outcomes 全部 success。
+- 源码声明与云端日志归一化后均为 111 个唯一 XCTest、0 failed，新增 `testChatTranscriptTrackLayoutPolicyCentersWideConversations` 明确通过且只出现一次，测试日志包含 `TEST EXECUTE SUCCEEDED`。
+- JUnit XML 合法，含 7 个 CI 阶段、0 failure，仅可选 Codex Run environment 为预期 skipped；iOS 与 Mac Catalyst 日志均包含 `TEST BUILD SUCCEEDED`，LogicSmoke、静态检查和脚本契约通过。
+- 三份 xcresult 均为 3.58，`Info.plist` 合法，root 引用存在，Data/refs 数量匹配且无空文件。Agent C 未运行本地构建、未编辑仓库，独立验收结论为 PASS。
 
 遗留事项：
 
