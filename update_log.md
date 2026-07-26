@@ -3751,6 +3751,14 @@
 
 - 按人工要求，本轮不运行本地 Xcode、Simulator、XCTest、Mac Catalyst build/run 或截图；仅执行 `git diff --check`、`plutil -lint`、workflow YAML 解析、114 个测试函数统计和 `xcrun swiftc -parse` 语法快检，完整 iOS build、Mac Catalyst build、LogicSmoke 和 114 项 XCTest 由 GitHub Actions 云端执行，最终以本轮 push 后的最新 run 和 Agent C 下载结果包验收为准。
 
+验证补充（Agent C）：
+
+- GitHub Actions run `30203118117` attempt `1` 对 `origin/main` commit `cd0c26e9061db5305ac2c97ac18f762f12b72810` 一次性通过；artifact `localgemma-ci-v2.69-main-cd0c26e-run30203118117-attempt1` 已下载到 `.build/ci-artifacts/v269-run30203118117/`，GitHub API、artifact、manifest、SHA、branch、version、run 和 attempt 一致。
+- required static、LogicSmoke、iOS build、114 项 XCTest、Mac Catalyst build 和 run-script contract outcomes 全部 success；codex-run-environment、mac-designed 两个可选检查按既有设计 skipped。
+- 源码声明与云端日志归一化后均为 114 个唯一 XCTest、0 failed，集合级交叉核对完全一致；新增 `testGenerationIndicatorStylePolicyPulsesOnlyWithoutReduceMotion` 明确通过且只出现一次。本轮 `testWorkspaceLayoutModeConstrainsSidebarWidth` 输出被诊断日志拆行，前后片段与完整源码集合交叉确认通过。
+- JUnit XML 合法，含 7 个 CI 阶段、0 failure、1 个预期 skipped；iOS 与 Mac Catalyst 日志均包含 `TEST BUILD SUCCEEDED`，XCTest 包含 `TEST EXECUTE SUCCEEDED`，LogicSmoke 与脚本契约通过。
+- 三份 xcresult 均为 3.58，plist 合法，root 对象存在且无空文件。实现 diff 复核确认 `AppMotionEffect` 保持 5 个 case、辅助语义字符串未改动、新测试无像素/私有层级断言。Agent C 未运行本地构建、未编辑 Swift 源码，独立验收结论为 PASS。
+
 遗留事项：
 
 - 完整 VoiceOver 人工走查和真实 Mac 窗口拖拽继续作为后续独立候选。
