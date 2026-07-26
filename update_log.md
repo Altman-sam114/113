@@ -3551,6 +3551,13 @@
 - 最终 436pt 阈值源码的完整 iPad Pro 13-inch (M5) XCTest 结果为 109 passed、0 failed、0 skipped，输出 `TEST EXECUTE SUCCEEDED`；结果位于 `.build/v264-final-tests.xcresult`。
 - 阈值审查前的 `./script/build_and_run.sh --build-only` 输出 `BUILD SUCCEEDED` 并生成 Mac Catalyst App，`--verify` 再次构建成功且确认 App 进程启动；按人工最新要求不再执行本地构建，最终 436pt 阈值源码的 Mac Catalyst 与完整重验证改由 GitHub Actions 执行。并发审查已完成，GitHub Actions 和 Agent C artifact 验收仍待执行，未伪装为已通过。
 
+验证补充（Agent C）：
+
+- GitHub Actions run `30192558553` attempt `1` 对 `origin/main` commit `c197c04afc4758a85ca64c05c93d72d26dced5fd` 通过；唯一未过期 artifact `localgemma-ci-v2.64-main-c197c04-run30192558553-attempt1` 已下载，GitHub API、artifact 目录、manifest 和 `artifact-name.txt` 一致。
+- manifest 的 `version=v2.64`、repository、branch、commitSha、runId 和 runAttempt 与指定最新 run 精确匹配；static、LogicSmoke、iOS build、XCTest、Mac Catalyst build 和 run-script contract outcomes 全部 success。
+- `test.log` 包含 109 个唯一 XCTest passed、0 failed、0 skipped，并包含新增 `testModelCapsuleLayoutPolicyAdaptsToNarrowChrome` 通过；JUnit 含 7 个 CI 阶段、0 failure、0 error，仅可选 Codex Run environment 按既有原因 skipped。
+- iOS 与 Mac Catalyst 日志均包含 `TEST BUILD SUCCEEDED`，XCTest 日志包含 `TEST EXECUTE SUCCEEDED`，`logic-smoke.log` 包含 `Logic smoke passed`；三份 xcresult 的 `Info.plist` 均有效且 root 引用存在。Agent C 未运行本地 Xcode、Simulator、Mac 构建或截图，验收结论为 PASS。
+
 遗留事项：
 
 - 本轮解决 v2.63 记录的窄侧栏模型胶囊截断；聊天阅读轨道、高频文本 Dynamic Type、显式生成状态、完整 VoiceOver 与真实 Mac 窗口拖拽仍是后续候选。
