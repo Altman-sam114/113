@@ -3710,6 +3710,15 @@
 - 按人工要求，本轮不运行本地 Xcode、Simulator、XCTest、Mac Catalyst build/run 或截图；仅执行 Git/diff/结构检查，完整 iOS build、Mac Catalyst build、LogicSmoke 和 113 项 XCTest 由 GitHub Actions 云端执行。
 - 首次 GitHub Actions run `30197265713` 的 static、LogicSmoke、iOS build、Mac Catalyst build 和 run-script contract 均成功，但新增测试中依赖渲染透明背景和 SwiftUI 私有宿主层级的像素/UIScrollView 断言失败；artifact `localgemma-ci-v2.68-main-3a2b099-run30197265713-attempt1` 的 manifest 精确匹配 SHA/run/attempt。修复提交移除这些不稳定实现细节假设，保留纯策略契约和生产渲染矩阵，云端重验证与 Agent C 最终验收待补充。
 
+验证补充（Agent C）：
+
+- 完整链路：实现 commit `3a2b099` 的首次 run `30197265713` 仅 XCTest 阶段 failure（Evaluate CI result 报 `Failed checks: test.`，新增测试中依赖渲染透明背景和 SwiftUI 私有宿主层级的像素/UIScrollView 断言不稳定）；修复 commit `f192f05` 移除这些实现细节假设后，run `30197762986` 全部通过。
+- GitHub Actions run `30197762986` attempt `1` 对 `origin/main` commit `f192f05b5163b5250eb22d2ba9c5e1d367c9a859` 通过；artifact `localgemma-ci-v2.68-main-f192f05-run30197762986-attempt1` 已下载到 `.build/ci-artifacts/v268-run30197762986/`，GitHub API、artifact、manifest、SHA、branch、version、run 和 attempt 一致。
+- required static、LogicSmoke、iOS build、113 项 XCTest、Mac Catalyst build 和 run-script contract outcomes 全部 success；两个可选检查按既有设计 skipped。
+- 源码声明与云端日志归一化后均为 113 个唯一 XCTest、0 failed，新增 `testChatTranscriptVerticalLayoutPolicyAnchorsShortConversations` 明确通过且只出现一次；一条桌面窗口布局测试输出被诊断日志拆行，前后片段与完整源码集合交叉确认通过。
+- JUnit XML 合法，含 7 个 CI 阶段、0 failure、1 个预期 skipped；iOS 与 Mac Catalyst 日志均包含 `TEST BUILD SUCCEEDED`，XCTest 包含 `TEST EXECUTE SUCCEEDED`，LogicSmoke 与脚本契约通过。
+- 三份 xcresult 均为 3.58，plist 合法，root 对象存在，Data/refs 集合一致且无空文件。Agent C 未运行本地构建、未编辑 Swift 源码，独立验收结论为 PASS。
+
 遗留事项：
 
 - 显式生成状态、完整 VoiceOver 和真实 Mac 窗口拖拽继续作为后续独立候选。
