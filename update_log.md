@@ -3506,6 +3506,13 @@
 - 最终包含生产 composer focus probe 的完整 108 项 iPad XCTest 输出 `TEST SUCCEEDED`，最终结果位于 `.build/DerivedData-v263-pages/Logs/Test/Test-LocalGemma-2026.07.26_14-10-19-+0800.xcresult`；iPad Pro 13-inch (M5) 当前构建截图 `.build/v263-ipad-final.png` 为 2064x2752，页面非空且工作区未被隐藏页覆盖；最终源码的 `--build-only` / `--verify` 也均成功。
 - 三路并发只读复核发现隐藏页数值/逐页序列断言可加强，以及隐藏 composer 可能保留焦点；已补充精确策略值、逐页 selection/`isEnabled` 序列、聊天活动态 focus gate，并用生产 `ComposerBar` 的 first-responder host probe 锁住聚焦、request 消费后保持、隐藏释放和重新聚焦生命周期。GitHub Actions 与 Agent C artifact 验收尚待执行，未伪装为已通过。
 
+验证补充（Agent C）：
+
+- GitHub Actions run `30190705555` 对最新 `origin/main` commit `453421173714cb58f202ae1306bb16abf6a8e56b` 通过；artifact `localgemma-ci-v2.63-main-4534211-run30190705555-attempt1` 已下载到 `/private/tmp/localgemma-c-review-30190705555-4va9I3/`，GitHub API、manifest 和 `artifact-name.txt` 一致。
+- manifest 中 static、LogicSmoke、iOS build、XCTest、Mac Catalyst build 和 run-script contract outcomes 全部 success；JUnit 含 7 个 CI testcase、0 failure，只有 Codex Run environment 按既有原因可选跳过。
+- `xcresulttool` 从测试结果解析出 108 个 XCTest，108 passed、0 failed、0 skipped，包含 `testWorkspacePagesInteractionPolicyExposesOnlySelectedPage`、`testWorkspacePagesShellPreservesEveryPageAcrossExplicitNavigation` 和 `testComposerInputMetadataAndFocusPolicyDescribeEntryPoints`；三份 `.xcresult/Info.plist` 均通过 `plutil -lint`。
+- 日志包含 `Logic smoke passed`、iOS/Mac Catalyst `TEST BUILD SUCCEEDED` 和 XCTest `TEST EXECUTE SUCCEEDED`，未发现 fatal、error、crash 或 abort；Mac Catalyst 的 Metal toolchain search-path 与 AppIntents metadata warning 均为非阻塞 warning。Agent C 验收通过，可以提交本记录并触发最终 GitHub Actions 重验证。
+
 遗留事项：
 
 - 本轮没有执行真实 Mac 触控板、完整 VoiceOver、系统 presentation 或窗口拖拽人工验证；窄侧栏模型胶囊截断、聊天阅读轨道与高频文本 Dynamic Type、显式生成状态作为后续独立视觉/交互候选。
