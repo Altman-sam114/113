@@ -107,6 +107,7 @@ v2.64 的顶部模型胶囊还会按真实 chrome 可用宽度切换堆叠/横�
 - `SessionChipActionLayoutPolicy` 为推理页单个会话 chip 的选择和删除动作定义 44pt 最小触控目标；它只影响选择/删除入口命中尺寸，不改变会话选择、删除禁用原因、会话删除状态流、composer 聚焦、模型 artifact、辅助语义或 verified 门禁。
 - `ChatMessageAccessibilityMetadata` 为推理页聊天消息气泡生成整体 label/value/hint/input labels/identifier；value 合并用户、本地模型或系统状态角色、正文或正在生成状态、token 数和本地会话边界，hint 说明消息气泡只展示本地会话内容，不下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁。
 - `ChatBubbleLayoutPolicy` 为推理页聊天消息气泡定义共享宽屏宽度策略；`ChatTranscript` 通过容器宽度计算消息列表内容宽度并传给 `ChatBubble`，用户消息在 iPad/Mac 宽区域从旧 310pt 上限增长但封顶，本地模型和系统消息限制最大阅读宽度，避免 Mac 宽窗口文本行无限变长。
+- `ChatBubbleTextLayoutPolicy` 为聊天气泡角色、正文和 token 元数据定义 Dynamic Type 语义字体与多行策略；普通字号保留既有角色比例、40/24pt reserve 和 8pt 相邻间距，Accessibility Dynamic Type 下将三者移除并使用真实可用宽度，同时继续遵守用户/本地模型/系统消息 520/680/600pt 最大阅读宽度。它不改变消息文案、辅助语义、自动滚动、会话、composer、runtime 或 verified 门禁。
 - `ComposerBarLayoutPolicy` 为推理页底部 composer 定义共享宽屏输入宽度策略；`ChatWorkspace.chatSurface` 保留 `ComposerBar` 内部输入、发送/停止、焦点和辅助语义，只在外层让 composer 在 iPad/Mac 宽区域居中并限制最大输入行宽，iPhone 和窄 split view 继续使用可用宽度。
 - `ComposerInputActionLayoutPolicy` 为推理页 composer 发送/停止按钮定义 44pt 最小触控目标；`ComposerBar` 只复用按钮尺寸常量，不改变发送/停止闭包、空输入禁用、`Command+Return`、输入焦点、`ComposerInputMetadata` 辅助语义或模型/runtime 状态。
 - `SectionHeaderTextLayoutPolicy` 为提示词页、模型页、设置页和优化区共享 `SectionHeader` 定义 Dynamic Type 文本策略；eyebrow 使用语义 caption 并保持单行，title 使用语义 title2 且允许两行，subtitle 使用语义 subheadline 且允许多行，避免 Mac/iPad 窄 split view 和较大文字设置下标题被压缩或截断。
@@ -291,6 +292,7 @@ Agent X 不能跳过 Agent C artifact 验收；失败时不能继续下一轮并
 - `SessionChipActionLayoutPolicy`：推理页单个会话 chip 选择和删除动作的 44pt 最小触控目标策略。
 - `ChatMessageAccessibilityMetadata`：推理页聊天消息气泡的整体辅助技术文案、生成中状态、token 摘要、Voice Control 输入标签和稳定 identifier。
 - `ChatBubbleLayoutPolicy`：推理页聊天消息气泡的内容宽度、角色比例、最小/最大阅读宽度和宽屏 clamp 策略。
+- `ChatBubbleTextLayoutPolicy`：推理页聊天气泡角色、正文和 token 元数据的 Dynamic Type、多行与 Accessibility 宽度策略。
 - `ComposerBarLayoutPolicy`：推理页 composer 的横向 padding、底部 padding、最小可读宽度、最大内容宽度和宽屏居中策略。
 - `ComposerInputActionLayoutPolicy`：推理页 composer 发送/停止按钮的 44pt 最小触控目标策略。
 - `SectionHeaderTextLayoutPolicy`：提示词页、模型页、设置页和优化区共享小节标题的 Dynamic Type 字体、行数、间距和多行标题策略。

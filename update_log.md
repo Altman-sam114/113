@@ -3562,3 +3562,36 @@
 
 - 本轮解决 v2.63 记录的窄侧栏模型胶囊截断；聊天阅读轨道、高频文本 Dynamic Type、显式生成状态、完整 VoiceOver 与真实 Mac 窗口拖拽仍是后续候选。
 - UI Test target、真实 runtime 和原生 macOS target 仍属后续；本轮不下载模型权重、不接入云端推理、不绕过 verified 门禁。
+
+### v2.65 / 聊天气泡文本 Dynamic Type 与 Accessibility 宽度
+
+日期：2026-07-26
+
+核心变更：
+
+- Agent X 在 v2.64 最终 run `30192901617` 与 Agent C 验收通过后继续三路并发只读审计；审计确认 `ChatBubble` 的角色、正文和 token 元数据仍使用固定 9/10/15pt 字号，Accessibility Dynamic Type 下既有 40/24pt reserve 与角色比例还会继续压缩正文，归档 `md/prompt/v2（Mac体验审计）/v2.65（聊天气泡文本动态排版）.md`。
+- 新增纯值 `ChatBubbleTextLayoutPlan` 与 `ChatBubbleTextLayoutPolicy`，角色标签改用语义 caption、正文改用语义 body、token 图标与元数据改用语义 caption；角色和元数据允许两行，正文完整垂直增长，不再依赖固定小字号。
+- 普通 Dynamic Type 保留既有用户/本地模型/系统消息比例、40/24pt reserve、8pt 相邻间距、左右对齐和 520/680/600pt 最大阅读宽度；`.accessibility1...5` 使用零 reserve、零相邻间距和真实可用宽度，同时继续封顶最大阅读宽度并对 NaN、Infinity、负值回退。
+- `ChatMessageAccessibilityMetadata`、`ChatTranscriptAccessibilityMetadata`、消息文案、流式生成、自动滚动、会话、composer focus、导出、runtime 和 verified 门禁保持不变；统一聊天阅读轨道保留为后续独立版本。
+- 新增 `testChatBubbleTextLayoutPolicySupportsAccessibleReading`，覆盖文本计划、普通/Accessibility width policy、三种角色、非法宽度和生产 `ImageRenderer` 的 320/620pt 多字号渲染；测试函数数从 109 增加到 110。
+
+关键文件：
+
+- `LocalGemma/ContentView.swift`
+- `LocalGemmaTests/LocalGemmaTests.swift`
+- `AGENTS.md`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v2（Mac体验审计）/v2.65（聊天气泡文本动态排版）.md`
+
+验证结果：
+
+- 按人工要求，本轮不运行本地 Xcode、Simulator、Mac Catalyst build 或截图；实现只做 Git/diff/结构检查，完整 iOS build、Mac Catalyst build、LogicSmoke 和 110 项 XCTest 全部由 GitHub Actions 云端执行，Agent C 下载最新 artifact 验收。
+- GitHub Actions 与 Agent C artifact 验收仍待本轮实现提交后补充，未伪装为已通过。
+
+遗留事项：
+
+- Mac 超宽窗口的聊天消息统一阅读轨道、短会话纵向定位和显式生成状态继续作为后续独立候选。
+- UI Test target、真实 runtime 和原生 macOS target 仍属后续；本轮不下载模型权重、不接入云端推理、不绕过 verified 门禁。

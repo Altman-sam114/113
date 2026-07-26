@@ -1390,6 +1390,132 @@ final class LocalGemmaTests: XCTestCase {
         )
     }
 
+    func testChatBubbleTextLayoutPolicySupportsAccessibleReading() {
+        let regularPlan = ChatBubbleTextLayoutPolicy.resolve(dynamicTypeSize: .large)
+        let accessibilityPlan = ChatBubbleTextLayoutPolicy.resolve(dynamicTypeSize: .accessibility1)
+
+        XCTAssertEqual(ChatBubbleTextLayoutPolicy.roleLineLimit, 2)
+        XCTAssertEqual(ChatBubbleTextLayoutPolicy.metadataLineLimit, 2)
+        XCTAssertEqual(ChatBubbleTextLayoutPolicy.bodyLineSpacing, 4)
+        XCTAssertEqual(ChatBubbleTextLayoutPolicy.regularHorizontalSpacing, 8)
+        XCTAssertEqual(
+            regularPlan,
+            ChatBubbleTextLayoutPlan(
+                usesExpandedWidth: false,
+                horizontalSpacing: 8,
+                roleLineLimit: 2,
+                metadataLineLimit: 2
+            )
+        )
+        XCTAssertEqual(
+            accessibilityPlan,
+            ChatBubbleTextLayoutPlan(
+                usesExpandedWidth: true,
+                horizontalSpacing: 0,
+                roleLineLimit: 2,
+                metadataLineLimit: 2
+            )
+        )
+        XCTAssertFalse(ChatBubbleTextLayoutPolicy.resolve(dynamicTypeSize: .xxxLarge).usesExpandedWidth)
+        XCTAssertTrue(ChatBubbleTextLayoutPolicy.resolve(dynamicTypeSize: .accessibility5).usesExpandedWidth)
+
+        XCTAssertEqual(ChatBubbleLayoutPolicy.userHorizontalReserve, 40)
+        XCTAssertEqual(ChatBubbleLayoutPolicy.assistantHorizontalReserve, 24)
+        XCTAssertEqual(
+            ChatBubbleLayoutPolicy.horizontalReserve(for: .user, usesExpandedTextLayout: false),
+            40
+        )
+        XCTAssertEqual(
+            ChatBubbleLayoutPolicy.horizontalReserve(for: .assistant, usesExpandedTextLayout: false),
+            24
+        )
+        for role in [ChatMessage.Role.user, .assistant, .system] {
+            XCTAssertEqual(
+                ChatBubbleLayoutPolicy.horizontalReserve(for: role, usesExpandedTextLayout: true),
+                0
+            )
+        }
+
+        XCTAssertEqual(
+            ChatBubbleLayoutPolicy.maxWidth(
+                for: .user,
+                availableWidth: 620,
+                usesExpandedTextLayout: true
+            ),
+            ChatBubbleLayoutPolicy.maximumUserWidth
+        )
+        XCTAssertEqual(
+            ChatBubbleLayoutPolicy.maxWidth(
+                for: .assistant,
+                availableWidth: 620,
+                usesExpandedTextLayout: true
+            ),
+            620
+        )
+        XCTAssertEqual(
+            ChatBubbleLayoutPolicy.maxWidth(
+                for: .system,
+                availableWidth: 620,
+                usesExpandedTextLayout: true
+            ),
+            ChatBubbleLayoutPolicy.maximumSystemWidth
+        )
+        for invalidWidth in [CGFloat.nan, .infinity, -1, 0] {
+            XCTAssertEqual(
+                ChatBubbleLayoutPolicy.maxWidth(
+                    for: .assistant,
+                    availableWidth: invalidWidth,
+                    usesExpandedTextLayout: true
+                ),
+                ChatBubbleLayoutPolicy.minimumReadableWidth
+            )
+        }
+
+        let longText = "这是用于验证 iPad split view 与 Mac Catalyst 窄窗口的长回复。正文必须跟随 Dynamic Type 完整增长，不通过固定小字号、单行截断或缩放压缩来争取空间。"
+        let renderCases: [(ChatMessage, CGFloat, DynamicTypeSize)] = [
+            (ChatMessage(role: .user, text: longText, tokens: 12_345), 320, .large),
+            (ChatMessage(role: .assistant, text: longText, tokens: 12_345), 320, .xxxLarge),
+            (ChatMessage(role: .assistant, text: longText, tokens: 12_345), 320, .accessibility3),
+            (ChatMessage(role: .system, text: longText, tokens: 12_345), 620, .large),
+            (ChatMessage(role: .system, text: longText, tokens: 12_345), 620, .accessibility5),
+            (ChatMessage(role: .assistant, text: "", tokens: 0), 320, .accessibility3)
+        ]
+        for (message, width, dynamicTypeSize) in renderCases {
+            let renderer = ImageRenderer(
+                content: ChatBubble(message: message, availableWidth: width)
+                    .environment(\.appTheme, AppThemePalette(mode: .dark))
+                    .environment(\.dynamicTypeSize, dynamicTypeSize)
+                    .frame(width: width)
+            )
+            renderer.scale = 1
+            let image = renderer.uiImage
+
+            XCTAssertNotNil(image)
+            XCTAssertEqual(image?.size.width ?? 0, width, accuracy: 1)
+            XCTAssertGreaterThan(image?.size.height ?? 0, 0)
+            XCTAssertLessThan(image?.size.height ?? .infinity, 3_000)
+        }
+
+        func renderedHeight(dynamicTypeSize: DynamicTypeSize) -> CGFloat {
+            let renderer = ImageRenderer(
+                content: ChatBubble(
+                    message: ChatMessage(role: .assistant, text: longText, tokens: 12_345),
+                    availableWidth: 320
+                )
+                .environment(\.appTheme, AppThemePalette(mode: .dark))
+                .environment(\.dynamicTypeSize, dynamicTypeSize)
+                .frame(width: 320)
+            )
+            renderer.scale = 1
+            return renderer.uiImage?.size.height ?? 0
+        }
+
+        let regularHeight = renderedHeight(dynamicTypeSize: .large)
+        let accessibilityHeight = renderedHeight(dynamicTypeSize: .accessibility3)
+        XCTAssertGreaterThan(regularHeight, 0)
+        XCTAssertGreaterThan(accessibilityHeight, regularHeight)
+    }
+
     func testComposerBarLayoutPolicyConstrainsWideComposerInput() {
         XCTAssertEqual(ComposerBarLayoutPolicy.horizontalPadding, 18)
         XCTAssertEqual(ComposerBarLayoutPolicy.bottomPadding, 12)

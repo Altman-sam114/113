@@ -4130,32 +4130,45 @@ struct ExportSessionView: View {
 
 struct ChatBubble: View {
     @Environment(\.appTheme) private var theme
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let message: ChatMessage
     let availableWidth: CGFloat
 
     var body: some View {
-        HStack(alignment: .bottom, spacing: 8) {
+        let textLayoutPlan = ChatBubbleTextLayoutPolicy.resolve(dynamicTypeSize: dynamicTypeSize)
+
+        HStack(alignment: .bottom, spacing: textLayoutPlan.horizontalSpacing) {
             if message.role == .user {
-                Spacer(minLength: 40)
+                Spacer(
+                    minLength: ChatBubbleLayoutPolicy.horizontalReserve(
+                        for: message.role,
+                        usesExpandedTextLayout: textLayoutPlan.usesExpandedWidth
+                    )
+                )
             }
 
             VStack(alignment: bubbleAlignment, spacing: 6) {
                 Text(roleTitle)
-                    .font(.system(size: 10, weight: .black))
+                    .font(.caption.weight(.black))
                     .foregroundStyle(roleTint.opacity(0.82))
+                    .lineLimit(textLayoutPlan.roleLineLimit)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(message.text.isEmpty ? "正在生成..." : message.text)
-                    .font(.system(size: 15, weight: .medium))
-                    .lineSpacing(4)
+                    .font(.body.weight(.medium))
+                    .lineSpacing(ChatBubbleTextLayoutPolicy.bodyLineSpacing)
                     .foregroundStyle(message.role == .system ? theme.secondaryText : theme.primaryText)
+                    .fixedSize(horizontal: false, vertical: true)
                     .textSelection(.enabled)
 
                 HStack(spacing: 4) {
                     Image(systemName: "number")
-                        .font(.system(size: 9, weight: .bold))
-                Text("\(message.tokens) tokens")
-                    .font(.system(size: 10, weight: .semibold))
-            }
+                        .font(.caption.weight(.bold))
+                    Text("\(message.tokens) tokens")
+                        .font(.caption.weight(.semibold))
+                        .lineLimit(textLayoutPlan.metadataLineLimit)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 .foregroundStyle(theme.tertiaryText)
             }
             .padding(.horizontal, 14)
@@ -4168,13 +4181,19 @@ struct ChatBubble: View {
             .frame(
                 maxWidth: ChatBubbleLayoutPolicy.maxWidth(
                     for: message.role,
-                    availableWidth: availableWidth
+                    availableWidth: availableWidth,
+                    usesExpandedTextLayout: textLayoutPlan.usesExpandedWidth
                 ),
                 alignment: message.role == .user ? .trailing : .leading
             )
 
             if message.role != .user {
-                Spacer(minLength: 24)
+                Spacer(
+                    minLength: ChatBubbleLayoutPolicy.horizontalReserve(
+                        for: message.role,
+                        usesExpandedTextLayout: textLayoutPlan.usesExpandedWidth
+                    )
+                )
             }
         }
         .accessibilityElement(children: .ignore)
@@ -4223,6 +4242,30 @@ struct ChatBubble: View {
     }
 }
 
+struct ChatBubbleTextLayoutPlan: Equatable {
+    let usesExpandedWidth: Bool
+    let horizontalSpacing: CGFloat
+    let roleLineLimit: Int
+    let metadataLineLimit: Int
+}
+
+enum ChatBubbleTextLayoutPolicy {
+    static let regularHorizontalSpacing: CGFloat = 8
+    static let roleLineLimit = 2
+    static let metadataLineLimit = 2
+    static let bodyLineSpacing: CGFloat = 4
+
+    static func resolve(dynamicTypeSize: DynamicTypeSize) -> ChatBubbleTextLayoutPlan {
+        let usesExpandedWidth = dynamicTypeSize >= .accessibility1
+        return ChatBubbleTextLayoutPlan(
+            usesExpandedWidth: usesExpandedWidth,
+            horizontalSpacing: usesExpandedWidth ? 0 : regularHorizontalSpacing,
+            roleLineLimit: roleLineLimit,
+            metadataLineLimit: metadataLineLimit
+        )
+    }
+}
+
 enum ChatBubbleLayoutPolicy {
     static let transcriptHorizontalPadding: CGFloat = 36
     static let minimumReadableWidth: CGFloat = 280
@@ -4234,25 +4277,45 @@ enum ChatBubbleLayoutPolicy {
     static let assistantWidthRatio: CGFloat = 0.76
     static let systemWidthRatio: CGFloat = 0.72
 
-    private static let userHorizontalReserve: CGFloat = 40
-    private static let assistantHorizontalReserve: CGFloat = 24
+    static let userHorizontalReserve: CGFloat = 40
+    static let assistantHorizontalReserve: CGFloat = 24
 
     static func contentWidth(forTranscriptWidth transcriptWidth: CGFloat) -> CGFloat {
         max(minimumReadableWidth, transcriptWidth - transcriptHorizontalPadding)
     }
 
-    static func maxWidth(for role: ChatMessage.Role, availableWidth: CGFloat) -> CGFloat {
-        let reserve = horizontalReserve(for: role)
-        let effectiveAvailableWidth = max(availableWidth, minimumReadableWidth + reserve)
+    static func maxWidth(
+        for role: ChatMessage.Role,
+        availableWidth: CGFloat,
+        usesExpandedTextLayout: Bool = false
+    ) -> CGFloat {
+        let reserve = horizontalReserve(
+            for: role,
+            usesExpandedTextLayout: usesExpandedTextLayout
+        )
+        let validAvailableWidth = availableWidth.isFinite && availableWidth > 0
+            ? availableWidth
+            : minimumReadableWidth + reserve
+        let effectiveAvailableWidth = max(validAvailableWidth, minimumReadableWidth + reserve)
         let usableWidth = max(minimumReadableWidth, effectiveAvailableWidth - reserve)
-        let preferredWidth = max(minimumReadableWidth, effectiveAvailableWidth * widthRatio(for: role))
-        let unclampedWidth = max(compactUserWidth, preferredWidth)
+        let preferredWidth = usesExpandedTextLayout
+            ? usableWidth
+            : max(minimumReadableWidth, effectiveAvailableWidth * widthRatio(for: role))
+        let unclampedWidth = usesExpandedTextLayout
+            ? preferredWidth
+            : max(compactUserWidth, preferredWidth)
 
         return min(usableWidth, min(maximumWidth(for: role), unclampedWidth))
     }
 
-    private static func horizontalReserve(for role: ChatMessage.Role) -> CGFloat {
-        role == .user ? userHorizontalReserve : assistantHorizontalReserve
+    static func horizontalReserve(
+        for role: ChatMessage.Role,
+        usesExpandedTextLayout: Bool
+    ) -> CGFloat {
+        guard usesExpandedTextLayout == false else {
+            return 0
+        }
+        return role == .user ? userHorizontalReserve : assistantHorizontalReserve
     }
 
     private static func maximumWidth(for role: ChatMessage.Role) -> CGFloat {

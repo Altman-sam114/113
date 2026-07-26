@@ -109,6 +109,7 @@ git remote -v
 - `SessionChipActionLayoutPolicy` 控制推理页单个会话 chip 选择和删除动作的最小触控目标；选择与删除入口必须保持至少 44pt，且不得改变会话选择、删除禁用原因、会话删除状态流、composer 聚焦、模型 artifact、辅助语义或 verified 门禁。
 - `ChatMessageAccessibilityMetadata` 控制推理页聊天消息气泡整体辅助语义；它必须区分用户消息、本地模型消息和系统状态消息，合并正文或生成中状态、token 数、本地会话边界、Voice Control 输入标签和稳定 identifier，并明确不下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁。
 - `ChatBubbleLayoutPolicy` 控制推理页聊天消息气泡宽屏宽度策略；iPhone 和窄 split view 必须保持紧凑可读，iPad/Mac 宽区域的用户气泡允许从旧 310pt 上限增长，本地模型和系统气泡必须限制最大阅读宽度，容器 padding、角色比例、最小/最大宽度和无效宽度 clamp 要有测试锁住。
+- `ChatBubbleTextLayoutPolicy` 控制推理页聊天气泡角色、正文和 token 元数据的 Dynamic Type 文本策略；三类文本必须使用语义字体并允许垂直增长，Accessibility Dynamic Type 下移除角色比例、左右保留空间和相邻间距但继续遵守 520/680/600pt 最大阅读宽度，普通字号布局、消息文案、辅助语义、自动滚动、会话状态、composer、runtime 和 verified 门禁不得改变。
 - `ComposerBarLayoutPolicy` 控制推理页 composer 宽屏输入宽度策略；iPhone 和窄 split view 保持原有可用宽度，iPad/Mac 宽区域必须居中并限制最大输入行宽，padding、底部间距、最小/最大宽度和无效宽度 clamp 要有测试锁住，且不得改变 `ComposerBar` 内部焦点、`Command+Return`、发送/停止或辅助语义。
 - `ComposerInputActionLayoutPolicy` 控制推理页 composer 发送/停止按钮的最小触控目标；发送和停止两种动作必须保持至少 44pt，且不得改变 `ComposerBar` 内部焦点、`Command+Return`、空输入禁用、发送/停止闭包、`ComposerInputMetadata` 辅助语义、模型文件或 runtime 状态。
 - `SectionHeaderTextLayoutPolicy` 控制提示词页、模型页、设置页和优化区共享小节标题的 Dynamic Type 文本策略；eyebrow 使用语义字体并保持单行，title 必须允许两行，subtitle 必须允许多行，且不得改变工作区状态流、宽屏内容宽度、触控目标、辅助语义、模型文件或 runtime 状态。
