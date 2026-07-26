@@ -3589,7 +3589,14 @@
 验证结果：
 
 - 按人工要求，本轮不运行本地 Xcode、Simulator、Mac Catalyst build 或截图；实现只做 Git/diff/结构检查，完整 iOS build、Mac Catalyst build、LogicSmoke 和 110 项 XCTest 全部由 GitHub Actions 云端执行，Agent C 下载最新 artifact 验收。
-- GitHub Actions 与 Agent C artifact 验收仍待本轮实现提交后补充，未伪装为已通过。
+
+验证补充（Agent C）：
+
+- GitHub Actions run `30193918056` attempt `1` 对 `origin/main` commit `7752268daf139cc26e4961a6977e7f99d5f0013d` 通过；唯一 artifact `localgemma-ci-v2.65-main-7752268-run30193918056-attempt1` 已下载到 `.build/ci-artifacts/v265-run30193918056/`，GitHub API、manifest 和 `artifact-name.txt` 一致。
+- manifest 的 `version=v2.65`、repository、branch、commitSha、runId 和 runAttempt 与指定 run 精确匹配；static、LogicSmoke、iOS build、XCTest、Mac Catalyst build 和 run-script contract outcomes 全部 success，仅可选 Codex Run environment 按既有原因 skipped。
+- 云端日志归一化后包含 110 个唯一 XCTest passed、0 failed，并明确包含新增 `testChatBubbleTextLayoutPolicySupportsAccessibleReading` 通过；其中 `testWorkspaceNavigationActionLayoutPolicyMaintainsTouchTargets` 的输出被 `xcodebuild` 尾部状态行拆开，但前后片段、110 个源码测试声明集合和 `TEST EXECUTE SUCCEEDED` 交叉确认其通过。
+- JUnit XML 合法，含 7 个 CI 阶段、0 failure，仅可选 Codex Run environment 为预期 skipped；iOS 与 Mac Catalyst 日志均包含 `TEST BUILD SUCCEEDED`，`logic-smoke.log` 包含 `Logic smoke passed`。
+- 三份 `.xcresult/Info.plist` 均通过结构校验，版本为 3.58，root 引用存在，Data 与 refs 数量一致且无空文件；本机没有可调用的 `xcresulttool`，因此未声称执行该工具，也未运行任何本地 Xcode、Simulator、Mac 构建或截图。Agent C 独立验收结论为 PASS。
 
 遗留事项：
 
