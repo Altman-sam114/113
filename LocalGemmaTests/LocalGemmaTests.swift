@@ -2528,6 +2528,73 @@ final class LocalGemmaTests: XCTestCase {
         )
     }
 
+    func testWorkbenchPanelDepthStylePolicyAddsThemeAwareElevation() {
+        XCTAssertEqual(WorkbenchVisualStylePolicy.panelCornerRadius, 8)
+        XCTAssertEqual(WorkbenchVisualStylePolicy.panelPadding, 14)
+        XCTAssertEqual(WorkbenchVisualStylePolicy.hairlineWidth, 1)
+        XCTAssertEqual(WorkbenchVisualStylePolicy.panelInnerHighlightWidth, 0.5)
+        XCTAssertEqual(WorkbenchVisualStylePolicy.panelContactShadowRadius, 1.5)
+        XCTAssertEqual(WorkbenchVisualStylePolicy.panelContactShadowY, 1)
+        XCTAssertEqual(WorkbenchVisualStylePolicy.panelAmbientShadowRadius, 8)
+        XCTAssertEqual(WorkbenchVisualStylePolicy.panelAmbientShadowY, 3)
+
+        let lightHighlight = WorkbenchVisualStylePolicy.panelInnerHighlightOpacity(isDark: false)
+        let darkHighlight = WorkbenchVisualStylePolicy.panelInnerHighlightOpacity(isDark: true)
+        let lightContact = WorkbenchVisualStylePolicy.panelContactShadowOpacity(isDark: false)
+        let darkContact = WorkbenchVisualStylePolicy.panelContactShadowOpacity(isDark: true)
+        let lightAmbient = WorkbenchVisualStylePolicy.panelAmbientShadowOpacity(isDark: false)
+        let darkAmbient = WorkbenchVisualStylePolicy.panelAmbientShadowOpacity(isDark: true)
+
+        XCTAssertEqual(lightHighlight, 0.48)
+        XCTAssertEqual(darkHighlight, 0.18)
+        XCTAssertEqual(lightContact, 0.10)
+        XCTAssertEqual(darkContact, 0.28)
+        XCTAssertEqual(lightAmbient, 0.08)
+        XCTAssertEqual(darkAmbient, 0.20)
+        XCTAssertTrue(
+            [lightHighlight, darkHighlight, lightContact, darkContact, lightAmbient, darkAmbient]
+                .allSatisfy { (0..<1).contains($0) }
+        )
+        XCTAssertGreaterThan(lightContact, lightAmbient)
+        XCTAssertGreaterThan(darkContact, darkAmbient)
+        XCTAssertGreaterThan(darkContact, lightContact)
+        XCTAssertGreaterThan(darkAmbient, lightAmbient)
+        XCTAssertGreaterThan(lightHighlight, darkHighlight)
+        XCTAssertGreaterThan(
+            WorkbenchVisualStylePolicy.panelAmbientShadowRadius,
+            WorkbenchVisualStylePolicy.panelContactShadowRadius
+        )
+        XCTAssertGreaterThan(
+            WorkbenchVisualStylePolicy.panelAmbientShadowY,
+            WorkbenchVisualStylePolicy.panelContactShadowY
+        )
+
+        for width in [CGFloat(360), 920] {
+            for themeMode in [AppThemeMode.light, .dark] {
+                let renderer = ImageRenderer(
+                    content: VStack(alignment: .leading, spacing: 8) {
+                        Text("本地模型工作台")
+                            .font(.headline)
+                        Text("共享 panel 深度渲染验证")
+                            .font(.subheadline)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .panelStyle()
+                    .environment(\.appTheme, AppThemePalette(mode: themeMode))
+                    .environment(\.colorScheme, themeMode.colorScheme)
+                    .frame(width: width)
+                )
+                renderer.scale = 1
+                let image = renderer.uiImage
+
+                XCTAssertNotNil(image)
+                XCTAssertEqual(image?.size.width ?? 0, width, accuracy: 1)
+                XCTAssertGreaterThan(image?.size.height ?? 0, 0)
+                XCTAssertLessThan(image?.size.height ?? .infinity, 240)
+            }
+        }
+    }
+
     func testWorkspaceNavigationActionLayoutPolicyMaintainsTouchTargets() {
         XCTAssertEqual(WorkspaceNavigationActionLayoutPolicy.minimumTouchTarget, 44)
         XCTAssertEqual(

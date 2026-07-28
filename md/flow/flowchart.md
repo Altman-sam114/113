@@ -102,7 +102,7 @@ flowchart TD
     E -- compact sidebar --> P[紧凑侧栏<br/>标题 + 选中语义<br/>模型胶囊堆叠 + 最多 2 列指标]
     O --> X[工作区导航辅助语义<br/>44pt 触控目标<br/>hint + Voice Control 输入标签<br/>用途说明 + Command 快捷键]
     P --> X
-    X --> V[WorkbenchVisualStylePolicy<br/>导航托盘/轨道 + 主题感知 panel<br/>8pt 圆角 + hairline 描边]
+    X --> V[WorkbenchVisualStylePolicy<br/>导航托盘/轨道 + 主题感知 panel<br/>8pt 圆角 + hairline 描边<br/>内高光 + contact/ambient 分层阴影]
     V --> R[AppMotionAccessibilityPolicy<br/>10 个显式动画入口<br/>空间位移在 Reduce Motion 下立即更新<br/>主题/复制反馈 0.12 秒 ease-out]
     R --> T[同一个 WorkspacePagesShell<br/>四个页面固定同序存在<br/>无横向分页手势]
     N --> X

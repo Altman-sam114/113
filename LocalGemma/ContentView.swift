@@ -91,6 +91,11 @@ enum WorkbenchVisualStylePolicy {
     static let compactSelectionIndicatorHeight: CGFloat = 2
     static let hairlineWidth: CGFloat = 1
     static let panelPadding: CGFloat = 14
+    static let panelInnerHighlightWidth: CGFloat = 0.5
+    static let panelContactShadowRadius: CGFloat = 1.5
+    static let panelContactShadowY: CGFloat = 1
+    static let panelAmbientShadowRadius: CGFloat = 8
+    static let panelAmbientShadowY: CGFloat = 3
     static let selectedBorderOpacity = 0.34
     static let unselectedIconSurfaceOpacity = 0.06
 
@@ -100,6 +105,18 @@ enum WorkbenchVisualStylePolicy {
 
     static func panelTintOpacity(isDark: Bool) -> Double {
         isDark ? 0.36 : 0.58
+    }
+
+    static func panelInnerHighlightOpacity(isDark: Bool) -> Double {
+        isDark ? 0.18 : 0.48
+    }
+
+    static func panelContactShadowOpacity(isDark: Bool) -> Double {
+        isDark ? 0.28 : 0.10
+    }
+
+    static func panelAmbientShadowOpacity(isDark: Bool) -> Double {
+        isDark ? 0.20 : 0.08
     }
 
     static func sidebarTintOpacity(isDark: Bool) -> Double {
@@ -7135,6 +7152,46 @@ private struct WorkbenchPanelModifier: ViewModifier {
                         )
                     )
                 }
+                .shadow(
+                    color: Color.black.opacity(
+                        WorkbenchVisualStylePolicy.panelContactShadowOpacity(isDark: theme.isDark)
+                    ),
+                    radius: WorkbenchVisualStylePolicy.panelContactShadowRadius,
+                    y: WorkbenchVisualStylePolicy.panelContactShadowY
+                )
+                .shadow(
+                    color: Color.black.opacity(
+                        WorkbenchVisualStylePolicy.panelAmbientShadowOpacity(isDark: theme.isDark)
+                    ),
+                    radius: WorkbenchVisualStylePolicy.panelAmbientShadowRadius,
+                    y: WorkbenchVisualStylePolicy.panelAmbientShadowY
+                )
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+            }
+            .overlay {
+                RoundedRectangle(
+                    cornerRadius: WorkbenchVisualStylePolicy.panelCornerRadius,
+                    style: .continuous
+                )
+                .inset(by: WorkbenchVisualStylePolicy.hairlineWidth)
+                .stroke(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(
+                                WorkbenchVisualStylePolicy.panelInnerHighlightOpacity(
+                                    isDark: theme.isDark
+                                )
+                            ),
+                            .clear
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: WorkbenchVisualStylePolicy.panelInnerHighlightWidth
+                )
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
             }
             .overlay {
                 RoundedRectangle(
@@ -7145,6 +7202,8 @@ private struct WorkbenchPanelModifier: ViewModifier {
                     border ?? theme.border,
                     lineWidth: WorkbenchVisualStylePolicy.hairlineWidth
                 )
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
             }
     }
 }

@@ -16,7 +16,7 @@
 - 平台：SwiftUI iOS App，Swift 6.0，iOS deployment target 17.0，当前 app/test target 支持 iPhone、iPad 和 Mac Catalyst build-for-testing，并提供项目内 Mac Catalyst 本地 build/run 脚本入口；尚未创建原生 macOS target。
 - 当前默认模型：`Gemma 1.5B Local`
 - 当前推理：本地模拟 runtime，不下载模型权重，不执行真实模型推理。
-- 当前核心测试：`LocalGemmaTests.swift` 中 115 个 XCTest 方法。
+- 当前核心测试：`LocalGemmaTests.swift` 中 116 个 XCTest 方法。
 - 当前核心文档入口：`AGENTS.md`、`md/flow/flow.md`、`md/flow/flowchart.md`、`md/test/test.md`、`md/prompt/README.md`、`README.md`。
 - 当前协作验证：默认 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载未加密 CI 结果包验收；本地仓库当前已配置 `origin` remote，最终验收仍以最新 `origin/main` 对应的 GitHub Actions run 和结果包为准；文档已预留未来 `agentx:` 主控 Agent A -> Agent B -> Agent C 多轮循环的规则。
 
@@ -3805,4 +3805,36 @@
 遗留事项：
 
 - 完整 VoiceOver 人工走查和真实 Mac 窗口拖拽继续作为后续独立候选。
+- UI Test target、真实 runtime 和原生 macOS target 仍属后续；本轮不下载模型权重、不接入云端推理、不绕过 verified 门禁。
+
+### v2.71 / 共享 panel 内高光与分层阴影
+
+日期：2026-07-28
+
+核心变更：
+
+- 基于 v2.70 实现 run `30204032714` 与独立 Agent C artifact 验收 PASS 继续提升 iPad/Mac Catalyst 宽屏工作台层次；本轮只增强共享 `panelStyle` 的静态背景装饰。
+- `WorkbenchVisualStylePolicy` 新增 0.5pt 内高光、1.5pt radius/1pt y 的 contact 阴影和 8pt radius/3pt y 的 ambient 阴影；亮暗主题分别使用内高光 0.48/0.18、contact 0.10/0.28、ambient 0.08/0.20 opacity。
+- `WorkbenchPanelModifier` 把两层阴影只挂到 material + theme surface 背景容器，避免文字和控件投影；inset 内高光先于既有 outer border 绘制，全部装饰层禁用命中并从辅助树隐藏。
+- 9 个既有 `panelStyle` 调用统一获得新层次，不增加第 10 个调用或 panel 内嵌套卡片；8pt 圆角、14pt padding、1pt hairline、`panelStyle(border:)` API、布局、动画、辅助语义、触控目标、业务状态、runtime 与 verified 门禁保持不变。
+- 新增 `testWorkbenchPanelDepthStylePolicyAddsThemeAwareElevation`，精确锁住几何、主题 opacity 与层级关系，并经公开 `panelStyle` 用生产 `ImageRenderer` 覆盖 360/920pt × 亮/暗主题；测试函数数从 115 增加到 116。
+
+关键文件：
+
+- `LocalGemma/ContentView.swift`
+- `LocalGemmaTests/LocalGemmaTests.swift`
+- `AGENTS.md`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v2（Mac体验审计）/v2.71（共享面板层次增强）.md`
+
+验证结果：
+
+- 按人工要求，本轮不运行本地 Xcode、Simulator、XCTest、Mac Catalyst build/run 或截图；只执行 Git/diff、文档结构、测试数量、工程 plist 和 workflow YAML 等轻量检查。完整 iOS build、Mac Catalyst build、LogicSmoke 和 116 项 XCTest 由 push 后的 GitHub Actions 云端执行，最终以 Agent C 下载对应 artifact 验收为准。
+
+遗留事项：
+
+- 单条消息复制动作、Mac/iPad 宽屏模型导航列、会话侧栏信息密度和桌面 hover/focus 反馈继续作为后续独立候选。
 - UI Test target、真实 runtime 和原生 macOS target 仍属后续；本轮不下载模型权重、不接入云端推理、不绕过 verified 门禁。
