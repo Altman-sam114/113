@@ -3791,6 +3791,17 @@
 
 - 按人工要求，本轮不运行本地 Xcode、Simulator、XCTest、Mac Catalyst build/run 或截图；仅执行 `git diff --check`、`plutil -lint`、workflow YAML 解析、115 个测试函数统计和 `xcrun swiftc -parse` 语法快检，完整 iOS build、Mac Catalyst build、LogicSmoke 和 115 项 XCTest 由 GitHub Actions 云端执行，最终以本轮 push 后的最新 run 和 Agent C 下载结果包验收为准。
 
+验证补充（Agent C）：
+
+- GitHub Actions run `30204032714` attempt `1` 已完成且 conclusion 为 `success`；branch 为 `main`，HEAD、`origin/main`、GitHub API 与 manifest 均精确指向 commit `e6893d50e89ffa0886eb75f9f1e43461ab7e642f`。
+- 唯一 artifact 为 `localgemma-ci-v2.70-main-e6893d5-run30204032714-attempt1`（artifact ID `8632573432`，size `78173574` bytes，digest `sha256:f414367f54210ea6373e919fd53b9d4e95eaf0906146d3bfedb5b29c9faf5f23`）；API、`artifact-name.txt` 与 manifest 的 repository、branch、version、SHA、run ID、attempt 和 workflow identity 完全一致。
+- required static、LogicSmoke、iOS build、XCTest、Mac Catalyst build 和 run-script contract outcomes 全部为 `success`；`codex-run-environment` 与 `mac-designed` 两项可选检查按既有设计为 `skipped`。
+- 云端日志与 xcresult 独立统计均为 115 个 XCTest passed、0 failed、0 duplicate；115 个测试节点名称全部唯一。新增 `testComposerFocusGlowStylePolicyHighlightsKeyboardFocus` 为 `Passed`，在日志和 xcresult 中均恰好出现一次。
+- JUnit XML 合法，包含 7 个 CI 阶段、0 failure、0 error 和 1 个预期 skipped。iOS 与 Mac Catalyst 日志各包含一次 `TEST BUILD SUCCEEDED`，XCTest 日志包含一次 `TEST EXECUTE SUCCEEDED`；`logic-smoke.log` 包含 `Logic smoke passed`，脚本入口存在、可执行且通过 `bash -n` contract。
+- 三份 xcresult 均为 3.58，plist 合法、root 对象存在且可由 `xcresulttool` 读取；iOS build、Mac Catalyst build、XCTest bundle 的 Data/refs 分别为 3/3、3/3、985/985，集合完全匹配。测试 bundle 内一个零字节 data 节点具有合法 `0x00` refs 配对，不影响结构有效性；测试 summary 为 `Passed`、115 passed、0 failed、0 skipped。
+- 日志存在非阻塞的 Metal toolchain search-path、AppIntents metadata warning，以及 XCTest 成功标记后的 Simulator clone `NSMachErrorDomain Code=-308` 启动诊断；GitHub step、测试日志和 xcresult 均确认测试成功，无测试失败。
+- Agent C 未运行本地 `xcodebuild`、XCTest、Simulator 或 Mac Catalyst 构建，未编辑任何仓库文件；artifact 下载到唯一 `/tmp` 目录后已使用 `trash` 清理。工作区仍仅保留既存 `LocalGemma.xcodeproj/project.pbxproj` 修改。独立验收结论为 PASS。
+
 遗留事项：
 
 - 完整 VoiceOver 人工走查和真实 Mac 窗口拖拽继续作为后续独立候选。
