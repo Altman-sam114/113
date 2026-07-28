@@ -84,6 +84,9 @@ flowchart TD
     H --> I[GemmaSimulationProvider 生成模拟文本]
     I --> J[按 chunk 流式写回 assistant 消息]
     J --> K[同步 active session<br/>聊天记录容器辅助语义<br/>聊天消息气泡整体辅助语义]
+    K --> M{用户复制单条消息}
+    M -- 正文非空 --> N[原始正文写入本机剪贴板<br/>44pt 动作 + 持久 checkmark<br/>不发送云端]
+    M -- 空白或生成中 --> O[复制禁用<br/>保留生成指示与摘要语义]
     K --> L[更新速度、内存、后端、SIM/REAL 标记<br/>顶部模型胶囊整体辅助语义<br/>ModelCapsuleLayoutPolicy<br/>窄侧栏堆叠 + 指标 1/2/3 列]
 ```
 

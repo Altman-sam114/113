@@ -1338,6 +1338,156 @@ final class LocalGemmaTests: XCTestCase {
         )
     }
 
+    func testChatMessageCopyActionPolicyPreservesLocalPayloadAndAccessibility() {
+        let userMessage = ChatMessage(
+            id: UUID(uuidString: "12345678-1234-5678-9ABC-123456789ABC")!,
+            role: .user,
+            text: "\n  第一行\n第二行  \n",
+            tokens: 8
+        )
+        let assistantMessage = ChatMessage(
+            id: UUID(uuidString: "ABCDEF12-1234-5678-9ABC-123456789ABC")!,
+            role: .assistant,
+            text: "本地模拟输出",
+            tokens: 16
+        )
+        let systemMessage = ChatMessage(
+            id: UUID(uuidString: "FACEB00C-1234-5678-9ABC-123456789ABC")!,
+            role: .system,
+            text: "当前为模拟运行",
+            tokens: 0
+        )
+        let emptyMessage = ChatMessage(role: .assistant, text: "", tokens: 0)
+        let whitespaceMessages = [
+            ChatMessage(role: .assistant, text: " ", tokens: 0),
+            ChatMessage(role: .assistant, text: "\t", tokens: 0),
+            ChatMessage(role: .assistant, text: "\n", tokens: 0),
+            ChatMessage(role: .assistant, text: "  \n\t", tokens: 0)
+        ]
+
+        XCTAssertEqual(ChatMessageCopyActionPolicy.minimumTouchTarget, 44)
+        XCTAssertEqual(ChatMessageCopyActionPolicy.actionButtonSize, 44)
+        XCTAssertGreaterThanOrEqual(
+            ChatMessageCopyActionPolicy.actionButtonSize,
+            ChatMessageCopyActionPolicy.minimumTouchTarget
+        )
+
+        for message in [userMessage, assistantMessage, systemMessage] {
+            XCTAssertTrue(ChatMessageCopyActionPolicy.canCopy(message, isGenerating: false))
+            XCTAssertEqual(
+                ChatMessageCopyActionPolicy.payload(for: message, isGenerating: false),
+                message.text
+            )
+            XCTAssertEqual(
+                ChatMessageCopyActionAccessibilityMetadata.value(
+                    for: message,
+                    isGenerating: false,
+                    didCopy: false
+                ),
+                "可复制"
+            )
+            XCTAssertEqual(
+                ChatMessageCopyActionAccessibilityMetadata.value(
+                    for: message,
+                    isGenerating: false,
+                    didCopy: true
+                ),
+                "已复制到系统剪贴板"
+            )
+        }
+        XCTAssertEqual(
+            ChatMessageCopyActionPolicy.payload(for: userMessage, isGenerating: false),
+            "\n  第一行\n第二行  \n"
+        )
+        XCTAssertNil(ChatMessageCopyActionPolicy.payload(for: emptyMessage, isGenerating: false))
+        XCTAssertNil(ChatMessageCopyActionPolicy.payload(for: assistantMessage, isGenerating: true))
+        XCTAssertFalse(ChatMessageCopyActionPolicy.canCopy(emptyMessage, isGenerating: false))
+        XCTAssertFalse(ChatMessageCopyActionPolicy.canCopy(assistantMessage, isGenerating: true))
+        for whitespaceMessage in whitespaceMessages {
+            XCTAssertNil(
+                ChatMessageCopyActionPolicy.payload(
+                    for: whitespaceMessage,
+                    isGenerating: false
+                )
+            )
+            XCTAssertFalse(
+                ChatMessageCopyActionPolicy.canCopy(
+                    whitespaceMessage,
+                    isGenerating: false
+                )
+            )
+        }
+
+        XCTAssertEqual(ChatMessageCopyActionAccessibilityMetadata.label, "复制消息")
+        XCTAssertEqual(
+            ChatMessageCopyActionAccessibilityMetadata.value(
+                for: emptyMessage,
+                isGenerating: true,
+                didCopy: false
+            ),
+            "生成中，不可复制"
+        )
+        XCTAssertEqual(
+            ChatMessageCopyActionAccessibilityMetadata.value(
+                for: whitespaceMessages.last!,
+                isGenerating: false,
+                didCopy: true
+            ),
+            "消息正文为空，不可复制"
+        )
+        XCTAssertTrue(ChatMessageCopyActionAccessibilityMetadata.hint.contains("系统剪贴板"))
+        XCTAssertTrue(ChatMessageCopyActionAccessibilityMetadata.hint.contains("不会发送到云端服务"))
+        XCTAssertTrue(ChatMessageCopyActionAccessibilityMetadata.hint.contains("不会下载模型权重"))
+        XCTAssertTrue(ChatMessageCopyActionAccessibilityMetadata.hint.contains("不会启动真实 runtime"))
+        XCTAssertTrue(ChatMessageCopyActionAccessibilityMetadata.hint.contains("verified 门禁"))
+        XCTAssertEqual(
+            ChatMessageCopyActionAccessibilityMetadata.inputLabels(for: userMessage),
+            ["复制消息", "拷贝消息", "复制消息 12345678"]
+        )
+        XCTAssertEqual(
+            ChatMessageCopyActionAccessibilityMetadata.identifier(for: userMessage),
+            "chat-message-copy-12345678"
+        )
+        XCTAssertEqual(
+            ChatMessageCopyActionAccessibilityMetadata.identifier(for: assistantMessage),
+            "chat-message-copy-abcdef12"
+        )
+        XCTAssertNotEqual(
+            ChatMessageCopyActionAccessibilityMetadata.identifier(for: userMessage),
+            ChatMessageAccessibilityMetadata.identifier(for: userMessage)
+        )
+        XCTAssertEqual(AppMotionEffect.allCases.count, 5)
+        XCTAssertTrue(AppMotionEffect.allCases.contains(.copyConfirmation))
+
+        let renderMessages = [assistantMessage, emptyMessage]
+        for width in [CGFloat(280), 680] {
+            for themeMode in [AppThemeMode.light, .dark] {
+                for dynamicTypeSize in [DynamicTypeSize.large, .xxxLarge, .accessibility3] {
+                    for message in renderMessages {
+                        let renderer = ImageRenderer(
+                            content: ChatBubble(
+                                message: message,
+                                availableWidth: width,
+                                isGenerating: message.text.isEmpty
+                            )
+                                .environment(\.appTheme, AppThemePalette(mode: themeMode))
+                                .environment(\.colorScheme, themeMode.colorScheme)
+                                .environment(\.dynamicTypeSize, dynamicTypeSize)
+                                .frame(width: width)
+                        )
+                        renderer.scale = 1
+                        let image = renderer.uiImage
+
+                        XCTAssertNotNil(image)
+                        XCTAssertEqual(image?.size.width ?? 0, width, accuracy: 1)
+                        XCTAssertGreaterThan(image?.size.height ?? 0, 0)
+                        XCTAssertLessThan(image?.size.height ?? .infinity, 3_000)
+                    }
+                }
+            }
+        }
+    }
+
     func testChatBubbleLayoutPolicyAdaptsToWideChatTranscripts() {
         let phoneContentWidth = ChatBubbleLayoutPolicy.contentWidth(forTranscriptWidth: 390)
         let padContentWidth = ChatBubbleLayoutPolicy.contentWidth(forTranscriptWidth: 834)
@@ -1445,7 +1595,7 @@ final class LocalGemmaTests: XCTestCase {
         ]
         for width in [CGFloat(620), 956, 1_220] {
             let renderer = ImageRenderer(
-                content: ChatTranscript(messages: messages)
+                content: ChatTranscript(messages: messages, isGenerating: false)
                     .environment(\.appTheme, AppThemePalette(mode: .dark))
                     .frame(width: width, height: 500)
             )
@@ -1515,7 +1665,7 @@ final class LocalGemmaTests: XCTestCase {
         ]
         for (size, messages, themeMode, dynamicTypeSize) in renderCases {
             let renderer = ImageRenderer(
-                content: ChatTranscript(messages: messages)
+                content: ChatTranscript(messages: messages, isGenerating: false)
                     .environment(\.appTheme, AppThemePalette(mode: themeMode))
                     .environment(\.dynamicTypeSize, dynamicTypeSize)
                     .frame(width: size.width, height: size.height)
@@ -1621,7 +1771,11 @@ final class LocalGemmaTests: XCTestCase {
         ]
         for (message, width, dynamicTypeSize) in renderCases {
             let renderer = ImageRenderer(
-                content: ChatBubble(message: message, availableWidth: width)
+                content: ChatBubble(
+                    message: message,
+                    availableWidth: width,
+                    isGenerating: message.text.isEmpty
+                )
                     .environment(\.appTheme, AppThemePalette(mode: .dark))
                     .environment(\.dynamicTypeSize, dynamicTypeSize)
                     .frame(width: width)
@@ -1639,7 +1793,8 @@ final class LocalGemmaTests: XCTestCase {
             let renderer = ImageRenderer(
                 content: ChatBubble(
                     message: ChatMessage(role: .assistant, text: longText, tokens: 12_345),
-                    availableWidth: 320
+                    availableWidth: 320,
+                    isGenerating: false
                 )
                 .environment(\.appTheme, AppThemePalette(mode: .dark))
                 .environment(\.dynamicTypeSize, dynamicTypeSize)
@@ -1696,7 +1851,11 @@ final class LocalGemmaTests: XCTestCase {
         ]
         for (width, themeMode, dynamicTypeSize) in renderCases {
             let renderer = ImageRenderer(
-                content: ChatBubble(message: generatingMessage, availableWidth: width)
+                content: ChatBubble(
+                    message: generatingMessage,
+                    availableWidth: width,
+                    isGenerating: true
+                )
                     .environment(\.appTheme, AppThemePalette(mode: themeMode))
                     .environment(\.dynamicTypeSize, dynamicTypeSize)
                     .frame(width: width)

@@ -1,6 +1,6 @@
 # 项目核心流程文档
 
-一句话总览：本项目是一个 SwiftUI iOS 原型，通过本地模拟 runtime 和严格 artifact 校验流程，验证 iPhone、iPad 与 Mac Catalyst build/run 基线下端侧部署 Gemma 1.5B 的 UI、状态管理、文件导入、模型卸载确认弹层辅助语义、会话导出、导出弹层分享/复制辅助语义、导出弹层分享/复制 44pt 触控目标、导出弹层整体宽屏内容宽度策略、顶部模型胶囊整体辅助语义、模型概要面板与详情右栏/行级辅助语义、模型页整体宽屏内容宽度策略、模型详情右栏最大阅读宽度策略、模型文件工作流面板辅助语义、模型部署控件 44pt 触控目标、模型状态徽章辅助语义、全局 Header 图标动作 44pt 触控目标、Header 标题动态排版策略、设置页整体宽屏内容宽度策略、设置页图标动作 44pt 触控目标、会话栏操作 44pt 触控目标、会话 chip 动作语义、聊天消息气泡与聊天记录容器辅助语义、生成中状态脉冲指示、聊天记录居中阅读轨道、聊天气泡与 composer 宽屏输入宽度策略、composer 发送/停止 44pt 触控目标、工作区导航辅助语义、工作区导航 44pt 触控目标、头部主题与模型库入口辅助语义、运行策略开关辅助语义、运行策略开关宽屏网格、运行策略开关行 44pt 触控目标、芯片准备度辅助语义、优化指标卡辅助语义、优化指标卡文本动态排版策略、优化指标网格宽度策略、共享 SectionHeader 动态排版策略、提示词页整体宽屏内容宽度策略、提示词模板宽屏布局策略、提示词模板文本动态排版策略、提示词分类筛选换行布局策略、提示词分类文本动态排版策略、提示词模板动作辅助语义与 44pt 触控目标、壁纸控件辅助语义、大屏布局和 Apple Silicon 运行计划；协作流程默认采用 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载结果包验收。
+一句话总览：本项目是一个 SwiftUI iOS 原型，通过本地模拟 runtime 和严格 artifact 校验流程，验证 iPhone、iPad 与 Mac Catalyst build/run 基线下端侧部署 Gemma 1.5B 的 UI、状态管理、文件导入、模型卸载确认弹层辅助语义、会话导出、导出弹层分享/复制辅助语义、导出弹层分享/复制 44pt 触控目标、导出弹层整体宽屏内容宽度策略、顶部模型胶囊整体辅助语义、模型概要面板与详情右栏/行级辅助语义、模型页整体宽屏内容宽度策略、模型详情右栏最大阅读宽度策略、模型文件工作流面板辅助语义、模型部署控件 44pt 触控目标、模型状态徽章辅助语义、全局 Header 图标动作 44pt 触控目标、Header 标题动态排版策略、设置页整体宽屏内容宽度策略、设置页图标动作 44pt 触控目标、会话栏操作 44pt 触控目标、会话 chip 动作语义、聊天消息气泡与聊天记录容器辅助语义、单条消息复制与本地反馈、生成中状态脉冲指示、聊天记录居中阅读轨道、聊天气泡与 composer 宽屏输入宽度策略、composer 发送/停止 44pt 触控目标、工作区导航辅助语义、工作区导航 44pt 触控目标、头部主题与模型库入口辅助语义、运行策略开关辅助语义、运行策略开关宽屏网格、运行策略开关行 44pt 触控目标、芯片准备度辅助语义、优化指标卡辅助语义、优化指标卡文本动态排版策略、优化指标网格宽度策略、共享 SectionHeader 动态排版策略、提示词页整体宽屏内容宽度策略、提示词模板宽屏布局策略、提示词模板文本动态排版策略、提示词分类筛选换行布局策略、提示词分类文本动态排版策略、提示词模板动作辅助语义与 44pt 触控目标、壁纸控件辅助语义、大屏布局和 Apple Silicon 运行计划；协作流程默认采用 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载结果包验收。
 
 v2.64 的顶部模型胶囊还会按真实 chrome 可用宽度切换堆叠/横向概要与 1/2/3 列指标，避免 iPhone、iPad 和 Mac Catalyst 窄侧栏截断。
 
@@ -107,6 +107,7 @@ v2.64 的顶部模型胶囊还会按真实 chrome 可用宽度切换堆叠/横�
 - `SessionChipVisualStylePolicy` 为 iPad/Mac 分栏中的竖向会话行定义低噪声工作台层级；选中行复用 8pt 圆角、主题感知低饱和表面、主文字色、hairline 描边和 3pt 左侧指示条，未选中行使用轻表面，横向 chip 继续保持既有高识别胶囊样式。
 - `SessionChipActionLayoutPolicy` 为推理页单个会话 chip 的选择和删除动作定义 44pt 最小触控目标；它只影响选择/删除入口命中尺寸，不改变会话选择、删除禁用原因、会话删除状态流、composer 聚焦、模型 artifact、辅助语义或 verified 门禁。
 - `ChatMessageAccessibilityMetadata` 为推理页聊天消息气泡生成整体 label/value/hint/input labels/identifier；value 合并用户、本地模型或系统状态角色、正文或正在生成状态、token 数和本地会话边界，hint 说明消息气泡只展示本地会话内容，不下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁。
+- `ChatMessageCopyActionPolicy` 对单条消息 trim 判空但原样返回 payload；`ChatWorkspace` 把实时生成状态传给 `ChatTranscript`，仅最新 assistant 气泡在整个流式生成期间禁用复制。完成后 `ChatBubble` 把可复制正文写入本机 `UIPasteboard`，以 44pt `doc.on.doc` / `checkmark` 动作和既有 `.copyConfirmation` 提供持续本地反馈。消息摘要继续复用原 metadata，复制按钮作为同级元素使用独立 metadata；该路径不修改消息、会话、推理或 runtime，不发送云端，也不绕过 verified 门禁。
 - `ChatBubbleLayoutPolicy` 为推理页聊天消息气泡定义共享宽屏宽度策略；`ChatTranscript` 通过容器宽度计算消息列表内容宽度并传给 `ChatBubble`，用户消息在 iPad/Mac 宽区域从旧 310pt 上限增长但封顶，本地模型和系统消息限制最大阅读宽度，避免 Mac 宽窗口文本行无限变长。
 - `ChatTranscriptTrackLayoutPolicy` 为聊天记录定义统一居中阅读轨道；`ScrollView` 保持全宽命中区域，内部消息栈在窄屏保留 18pt 单侧边距，在 iPad/Mac 超宽窗口封顶 920pt 并居中，`ChatBubbleLayoutPolicy.contentWidth` 转发到该策略以避免两套宽度计算。
 - `ChatBubbleTextLayoutPolicy` 为聊天气泡角色、正文和 token 元数据定义 Dynamic Type 语义字体与多行策略；普通字号保留既有角色比例、40/24pt reserve 和 8pt 相邻间距，Accessibility Dynamic Type 下将三者移除并使用真实可用宽度，同时继续遵守用户/本地模型/系统消息 520/680/600pt 最大阅读宽度。它不改变消息文案、辅助语义、自动滚动、会话、composer、runtime 或 verified 门禁。
@@ -296,6 +297,7 @@ Agent X 不能跳过 Agent C artifact 验收；失败时不能继续下一轮并
 - `SessionChipVisualStylePolicy`：推理页竖向会话行的圆角、低饱和选中表面、前景色、描边和左侧指示条策略。
 - `SessionChipActionLayoutPolicy`：推理页单个会话 chip 选择和删除动作的 44pt 最小触控目标策略。
 - `ChatMessageAccessibilityMetadata`：推理页聊天消息气泡的整体辅助技术文案、生成中状态、token 摘要、Voice Control 输入标签和稳定 identifier。
+- `ChatMessageCopyActionPolicy` / `ChatMessageCopyActionAccessibilityMetadata`：单条消息复制的 trim eligibility、原始 payload、44pt 动作、剪贴板边界、复制状态和稳定辅助技术标识。
 - `ChatBubbleLayoutPolicy`：推理页聊天消息气泡的内容宽度、角色比例、最小/最大阅读宽度和宽屏 clamp 策略。
 - `ChatTranscriptTrackLayoutPolicy`：推理页聊天记录的 18pt 单侧边距、280pt 最小宽度、920pt 最大阅读轨道和宽屏居中策略。
 - `ChatTranscriptVerticalLayoutPolicy`：根据聊天视口高度减去 10pt 上下 padding 生成消息栈最小高度；空记录顶部对齐，任何非空短记录底部对齐，长记录自然溢出滚动，不使用消息数阈值或第二套自动滚动状态。
@@ -339,7 +341,7 @@ Agent X 不能跳过 Agent C artifact 验收；失败时不能继续下一轮并
 
 ## 用户入口
 
-- 推理页：顶部模型胶囊汇总当前模型、artifact、SIM/REAL、后端、速度、内存和准备度并暴露整体辅助语义；会话列表、消息流、输入框、发送/停止、导出；composer 发送/停止按钮保持 44pt 触控目标；单个会话 chip 的选择/删除动作向辅助技术说明本地会话切换、删除范围和默认空白当前会话不可删除原因；聊天记录容器向辅助技术合并消息总数、最新消息和生成中状态，聊天消息气泡向辅助技术合并角色、正文或生成中状态、token 数和本地边界；空文本 assistant 占位显示「正在生成」加 3 个 accent 圆点脉冲指示，Reduce Motion 开启时改为静态梯度；空聊天记录保持顶部对齐，非空短记录在高 iPad/Mac 窗口中靠近 composer，长记录自然滚动；Mac/iPad 可通过 `会话` command menu 或会话栏可见按钮新建或导出当前会话，会话栏操作按钮保持 44pt 触控目标，导出弹层分享/复制动作同时暴露稳定语义并保持 44pt 触控目标，导出弹层整体内容在宽 sheet 中居中并限制最大阅读宽度。
+- 推理页：顶部模型胶囊汇总当前模型、artifact、SIM/REAL、后端、速度、内存和准备度并暴露整体辅助语义；会话列表、消息流、输入框、发送/停止、导出；composer 发送/停止按钮保持 44pt 触控目标；单个会话 chip 的选择/删除动作向辅助技术说明本地会话切换、删除范围和默认空白当前会话不可删除原因；聊天记录容器向辅助技术合并消息总数、最新消息和生成中状态，聊天消息气泡向辅助技术合并角色、正文或生成中状态、token 数和本地边界，并提供 44pt 单条消息本地复制动作；空文本 assistant 占位显示「正在生成」加 3 个 accent 圆点脉冲指示，Reduce Motion 开启时改为静态梯度且复制禁用；空聊天记录保持顶部对齐，非空短记录在高 iPad/Mac 窗口中靠近 composer，长记录自然滚动；Mac/iPad 可通过 `会话` command menu 或会话栏可见按钮新建或导出当前会话，会话栏操作按钮保持 44pt 触控目标，导出弹层分享/复制动作同时暴露稳定语义并保持 44pt 触控目标，导出弹层整体内容在宽 sheet 中居中并限制最大阅读宽度。
 - 模型页：选择模型、启动/关闭部署、模拟下载、导入文件、扫描本地、卸载；卸载会先显示确认弹层，取消不删除文件且不停止部署，确认后只删除 App 托管 artifact/tokenizer 并停止部署；整体内容按 `ModelLibraryWorkspaceLayoutPolicy` 在超宽 iPad/Mac 窗口中居中并限制最大宽度，足够宽时内部双栏展示部署控制和模型详情，右侧详情列按 `ModelDetailColumnLayoutPolicy` 限制最大阅读宽度，窄屏按顺序展示同一详情段；模型选择器和部署电源按钮按 `ModelDeploymentControlLayoutPolicy` 保持 44pt 触控目标；模型选择器、安装状态徽章、artifact 状态徽章、部署状态徽章、部署电源、模型文件操作按钮、模型卸载确认弹层、模型文件工作流面板、模型概要面板、模型详情摘要和参数/性能/建议行级内容向辅助技术暴露稳定语义，并保留切换不下载权重、模拟下载、扫描/导入只读本地文件、本地概要/详情摘要和 verified 门禁边界。
 - 提示词页：按分类筛选模板、填入输入框、直接发送；共享 `SectionHeader` 标题使用 Dynamic Type 语义字体并允许标题/副标题多行；页面整体内容在 iPad/Mac 超宽窗口中居中并限制最大宽度；模板网格在窄屏保持单列，在 iPad/Mac 宽区域用多列和卡片伸展提升宽屏利用率；模板卡片文本通过 Dynamic Type 语义字体、多行标题/副标题/正文和最小高度策略提升可读性；分类筛选 chip 通过 Dynamic Type 语义字体和两行文本策略提升可读性；分类筛选 chip 和模板填入/发送动作暴露稳定辅助语义和 Voice Control 输入标签，填入不发送 prompt，发送走本地模拟 runtime 且不发送到云端服务。
 - 设置页：主题切换、相册壁纸选择/恢复控件、Apple Silicon 优化开关；主题切换、相册壁纸选择和恢复系统背景图标动作共享 44pt 触控目标；芯片准备度卡片随离线隐私保护开关动态显示开启/关闭并暴露中文辅助语义，优化指标网格和运行策略开关网格在窄屏单列、iPad/Mac 宽区域双列之间自适应，优化指标卡暴露状态、进度和本地边界，指标卡 label/value/detail 使用 Dynamic Type 语义字体和多行策略提升较大文字设置下的可读性，运行策略开关向辅助技术暴露开启/关闭状态、本地策略边界和 Voice Control 输入标签，单个运行策略开关行保持 44pt 触控目标。

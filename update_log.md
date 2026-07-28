@@ -16,7 +16,7 @@
 - 平台：SwiftUI iOS App，Swift 6.0，iOS deployment target 17.0，当前 app/test target 支持 iPhone、iPad 和 Mac Catalyst build-for-testing，并提供项目内 Mac Catalyst 本地 build/run 脚本入口；尚未创建原生 macOS target。
 - 当前默认模型：`Gemma 1.5B Local`
 - 当前推理：本地模拟 runtime，不下载模型权重，不执行真实模型推理。
-- 当前核心测试：`LocalGemmaTests.swift` 中 116 个 XCTest 方法。
+- 当前核心测试：`LocalGemmaTests.swift` 中 117 个 XCTest 方法。
 - 当前核心文档入口：`AGENTS.md`、`md/flow/flow.md`、`md/flow/flowchart.md`、`md/test/test.md`、`md/prompt/README.md`、`README.md`。
 - 当前协作验证：默认 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载未加密 CI 结果包验收；本地仓库当前已配置 `origin` remote，最终验收仍以最新 `origin/main` 对应的 GitHub Actions run 和结果包为准；文档已预留未来 `agentx:` 主控 Agent A -> Agent B -> Agent C 多轮循环的规则。
 
@@ -3848,4 +3848,37 @@
 遗留事项：
 
 - 单条消息复制动作、Mac/iPad 宽屏模型导航列、会话侧栏信息密度和桌面 hover/focus 反馈继续作为后续独立候选。
+- UI Test target、真实 runtime 和原生 macOS target 仍属后续；本轮不下载模型权重、不接入云端推理、不绕过 verified 门禁。
+
+### v2.72 / 单条消息复制与本地反馈
+
+日期：2026-07-28
+
+核心变更：
+
+- 基于 v2.71 实现 run `30322522109`、Agent C artifact 验收和记录提交最终 run `30323152573` PASS，继续提升 iPhone、iPad 与 Mac Catalyst 高频聊天操作；本轮只增加单条消息复制，不显示时间。
+- 新增纯值 `ChatMessageCopyActionPolicy`：44pt 最小触控目标和动作尺寸，正文 trim 后非空且消息未生成时才可复制，但 payload 原样保留首尾空白与换行；policy 不访问系统剪贴板。
+- 新增 `ChatMessageCopyActionAccessibilityMetadata`：可复制、已复制、生成中/空正文不可复制状态，本地剪贴板与隐私边界、稳定 Voice Control 输入标签及基于消息 UUID 前缀的独立 identifier。
+- `ChatWorkspace` 将实时生成状态传入 `ChatTranscript`，仅最新 assistant 气泡在整个流式生成期间禁用复制；`ChatBubble` 使用本地 `didCopy` 状态和 SF Symbols `doc.on.doc` / `checkmark`，生产 action 才写入 `UIPasteboard`，反馈复用既有 `.copyConfirmation` 并持续到气泡身份消失，不增加 Timer、task 或 motion case。
+- 消息摘要继续复用原 `ChatMessageAccessibilityMetadata` 与 identifier，复制按钮作为同级可达元素；空白与生成中消息禁用复制，正文、token、气泡宽度、角色对齐、生成指示、聊天轨道、自动滚动、会话、runtime 与 verified 门禁保持不变。
+- 新增 `testChatMessageCopyActionPolicyPreservesLocalPayloadAndAccessibility`，覆盖三类角色、分开的空格/Tab/换行与流式生成判定、保留首尾换行的原始 payload、摘要/动作独立 identifier、44pt、复制 metadata、5 个 motion case 和 280/680pt × 亮暗主题 × `.large`/`.xxxLarge`/`.accessibility3` × 可复制/生成占位生产渲染；测试函数数从 116 增加到 117。
+
+关键文件：
+
+- `LocalGemma/ContentView.swift`
+- `LocalGemmaTests/LocalGemmaTests.swift`
+- `AGENTS.md`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v2（Mac体验审计）/v2.72（单条消息复制动作）.md`
+
+验证结果：
+
+- 按人工要求，本轮不运行本地 Xcode、Simulator、XCTest、Mac Catalyst build/run、系统剪贴板断言或截图；只执行 Git/diff、文档结构、测试数量、工程 plist 和 workflow YAML 等轻量检查。完整 iOS build、Mac Catalyst build、LogicSmoke 和 117 项 XCTest 由 push 后的 GitHub Actions 云端执行，最终以 Agent C 下载对应 artifact 验收为准。
+
+遗留事项：
+
+- Mac/iPad 宽屏模型导航列、会话侧栏信息密度、桌面 hover/focus 反馈与消息时间语义继续作为后续独立候选。
 - UI Test target、真实 runtime 和原生 macOS target 仍属后续；本轮不下载模型权重、不接入云端推理、不绕过 verified 门禁。

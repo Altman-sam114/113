@@ -1992,6 +1992,49 @@ enum ChatMessageAccessibilityMetadata {
     }
 }
 
+enum ChatMessageCopyActionPolicy {
+    static let minimumTouchTarget: CGFloat = 44
+    static let actionButtonSize: CGFloat = 44
+
+    static func payload(for message: ChatMessage, isGenerating: Bool) -> String? {
+        guard !isGenerating else {
+            return nil
+        }
+        guard !message.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return nil
+        }
+        return message.text
+    }
+
+    static func canCopy(_ message: ChatMessage, isGenerating: Bool) -> Bool {
+        payload(for: message, isGenerating: isGenerating) != nil
+    }
+}
+
+enum ChatMessageCopyActionAccessibilityMetadata {
+    static let label = "复制消息"
+    static let hint = "将原始消息正文写入系统剪贴板；不会发送到云端服务，不会下载模型权重，不会启动真实 runtime，也不会绕过 artifact verified 门禁。"
+
+    static func value(for message: ChatMessage, isGenerating: Bool, didCopy: Bool) -> String {
+        guard ChatMessageCopyActionPolicy.canCopy(message, isGenerating: isGenerating) else {
+            return isGenerating ? "生成中，不可复制" : "消息正文为空，不可复制"
+        }
+        return didCopy ? "已复制到系统剪贴板" : "可复制"
+    }
+
+    static func inputLabels(for message: ChatMessage) -> [String] {
+        ["复制消息", "拷贝消息", "复制消息 \(identifierPrefix(for: message))"]
+    }
+
+    static func identifier(for message: ChatMessage) -> String {
+        "chat-message-copy-\(identifierPrefix(for: message))"
+    }
+
+    private static func identifierPrefix(for message: ChatMessage) -> String {
+        String(message.id.uuidString.prefix(8)).lowercased()
+    }
+}
+
 enum ChatTranscriptAccessibilityMetadata {
     static let label = "聊天记录"
     static let hint = "浏览当前本地会话的消息列表；只展示本地消息，不会发送 prompt，不会下载模型权重，不会启动真实 runtime，不会发送到云端服务，也不会绕过 artifact verified 门禁。"
@@ -3335,7 +3378,10 @@ struct ChatWorkspace: View {
         let selectedValidation = catalog.validation(for: catalog.selectedModel)
 
         return VStack(spacing: 10) {
-            ChatTranscript(messages: inference.messages)
+            ChatTranscript(
+                messages: inference.messages,
+                isGenerating: inference.isGenerating
+            )
 
             ComposerBar(
                 text: $inference.inputText,
@@ -3896,6 +3942,7 @@ struct ChatTranscript: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     let messages: [ChatMessage]
+    let isGenerating: Bool
 
     var body: some View {
         GeometryReader { geometry in
@@ -3913,7 +3960,10 @@ struct ChatTranscript: View {
                         ForEach(messages) { message in
                             ChatBubble(
                                 message: message,
-                                availableWidth: trackWidth
+                                availableWidth: trackWidth,
+                                isGenerating: isGenerating
+                                    && message.id == messages.last?.id
+                                    && message.role == .assistant
                             )
                             .id(message.id)
                         }
@@ -4257,8 +4307,10 @@ struct ChatBubble: View {
     @Environment(\.appTheme) private var theme
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var didCopy = false
     let message: ChatMessage
     let availableWidth: CGFloat
+    let isGenerating: Bool
 
     var body: some View {
         let textLayoutPlan = ChatBubbleTextLayoutPolicy.resolve(dynamicTypeSize: dynamicTypeSize)
@@ -4274,32 +4326,94 @@ struct ChatBubble: View {
             }
 
             VStack(alignment: bubbleAlignment, spacing: 6) {
-                Text(roleTitle)
-                    .font(.caption.weight(.black))
-                    .foregroundStyle(roleTint.opacity(0.82))
-                    .lineLimit(textLayoutPlan.roleLineLimit)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                if message.text.isEmpty {
-                    GenerationIndicatorView(reduceMotion: reduceMotion)
-                } else {
-                    Text(message.text)
-                        .font(.body.weight(.medium))
-                        .lineSpacing(ChatBubbleTextLayoutPolicy.bodyLineSpacing)
-                        .foregroundStyle(message.role == .system ? theme.secondaryText : theme.primaryText)
+                VStack(alignment: bubbleAlignment, spacing: 6) {
+                    Text(roleTitle)
+                        .font(.caption.weight(.black))
+                        .foregroundStyle(roleTint.opacity(0.82))
+                        .lineLimit(textLayoutPlan.roleLineLimit)
                         .fixedSize(horizontal: false, vertical: true)
-                        .textSelection(.enabled)
+
+                    if message.text.isEmpty {
+                        GenerationIndicatorView(reduceMotion: reduceMotion)
+                    } else {
+                        Text(message.text)
+                            .font(.body.weight(.medium))
+                            .lineSpacing(ChatBubbleTextLayoutPolicy.bodyLineSpacing)
+                            .foregroundStyle(message.role == .system ? theme.secondaryText : theme.primaryText)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .textSelection(.enabled)
+                    }
                 }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(ChatMessageAccessibilityMetadata.label(for: message))
+                .accessibilityValue(ChatMessageAccessibilityMetadata.value(for: message))
+                .accessibilityHint(ChatMessageAccessibilityMetadata.hint)
+                .accessibilityInputLabels(ChatMessageAccessibilityMetadata.inputLabels(for: message))
+                .accessibilityIdentifier(ChatMessageAccessibilityMetadata.identifier(for: message))
 
                 HStack(spacing: 4) {
-                    Image(systemName: "number")
-                        .font(.caption.weight(.bold))
-                    Text("\(message.tokens) tokens")
-                        .font(.caption.weight(.semibold))
-                        .lineLimit(textLayoutPlan.metadataLineLimit)
-                        .fixedSize(horizontal: false, vertical: true)
+                    HStack(spacing: 4) {
+                        Image(systemName: "number")
+                            .font(.caption.weight(.bold))
+                        Text("\(message.tokens) tokens")
+                            .font(.caption.weight(.semibold))
+                            .lineLimit(textLayoutPlan.metadataLineLimit)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .foregroundStyle(theme.tertiaryText)
+                    .accessibilityHidden(true)
+
+                    Button {
+                        guard let payload = ChatMessageCopyActionPolicy.payload(
+                            for: message,
+                            isGenerating: isGenerating
+                        ) else {
+                            return
+                        }
+                        UIPasteboard.general.string = payload
+                        withAnimation(
+                            AppMotionAccessibilityPolicy.animation(
+                                .spring(response: 0.26, dampingFraction: 0.82),
+                                for: .copyConfirmation,
+                                reduceMotion: reduceMotion
+                            )
+                        ) {
+                            didCopy = true
+                        }
+                    } label: {
+                        Image(systemName: didCopy ? "checkmark" : "doc.on.doc")
+                            .font(.body.weight(.semibold))
+                            .frame(
+                                width: ChatMessageCopyActionPolicy.actionButtonSize,
+                                height: ChatMessageCopyActionPolicy.actionButtonSize
+                            )
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(didCopy ? theme.success : theme.secondaryText)
+                    .disabled(
+                        !ChatMessageCopyActionPolicy.canCopy(
+                            message,
+                            isGenerating: isGenerating
+                        )
+                    )
+                    .help("复制消息")
+                    .accessibilityLabel(ChatMessageCopyActionAccessibilityMetadata.label)
+                    .accessibilityValue(
+                        ChatMessageCopyActionAccessibilityMetadata.value(
+                            for: message,
+                            isGenerating: isGenerating,
+                            didCopy: didCopy
+                        )
+                    )
+                    .accessibilityHint(ChatMessageCopyActionAccessibilityMetadata.hint)
+                    .accessibilityInputLabels(
+                        ChatMessageCopyActionAccessibilityMetadata.inputLabels(for: message)
+                    )
+                    .accessibilityIdentifier(
+                        ChatMessageCopyActionAccessibilityMetadata.identifier(for: message)
+                    )
                 }
-                .foregroundStyle(theme.tertiaryText)
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 12)
@@ -4326,12 +4440,7 @@ struct ChatBubble: View {
                 )
             }
         }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(ChatMessageAccessibilityMetadata.label(for: message))
-        .accessibilityValue(ChatMessageAccessibilityMetadata.value(for: message))
-        .accessibilityHint(ChatMessageAccessibilityMetadata.hint)
-        .accessibilityInputLabels(ChatMessageAccessibilityMetadata.inputLabels(for: message))
-        .accessibilityIdentifier(ChatMessageAccessibilityMetadata.identifier(for: message))
+        .accessibilityElement(children: .contain)
     }
 
     private var roleTitle: String {
