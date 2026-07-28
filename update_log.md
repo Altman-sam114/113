@@ -3834,6 +3834,17 @@
 
 - 按人工要求，本轮不运行本地 Xcode、Simulator、XCTest、Mac Catalyst build/run 或截图；只执行 Git/diff、文档结构、测试数量、工程 plist 和 workflow YAML 等轻量检查。完整 iOS build、Mac Catalyst build、LogicSmoke 和 116 项 XCTest 由 push 后的 GitHub Actions 云端执行，最终以 Agent C 下载对应 artifact 验收为准。
 
+验证补充（Agent C）：
+
+- GitHub Actions run `30322522109` attempt `1` 对 `main` commit `3c6b1c306cabe4573de2212379dce47c7edd56db` 成功完成；GitHub API、`HEAD` 与 `origin/main` 的 SHA 完全一致，全部 workflow steps 为 success。
+- API 仅返回一个 artifact：`localgemma-ci-v2.71-main-3c6b1c3-run30322522109-attempt1`（artifact ID `8674640466`，size `73102904` bytes，digest `sha256:b487d95e3e2681cc6e2ba0c5d337aae34221e21b36843b2d665d0bcb93424fff`）。API、manifest、`artifact-name.txt` 的 repository、branch、version、SHA、run ID、attempt 和 workflow identity 完全一致。
+- required static、LogicSmoke、iOS build、XCTest、Mac Catalyst build 和 run-script contract outcomes 全部为 success；`codex-run-environment` 与 `mac-designed` 两项可选检查按既有设计 skipped。
+- 云端日志归一化后包含 116 个唯一 XCTest 标识、0 failed、0 duplicate，并与 commit 中 116 个唯一测试声明集合完全一致。`testWorkspaceCommandMenuCoversWorkspaceTabs` 的名称与 `passed` 被 `xcodebuild` 诊断插行拆开，前后片段明确组成一次通过记录；新增 `testWorkbenchPanelDepthStylePolicyAddsThemeAwareElevation` 明确 passed 且恰好出现一次。
+- JUnit XML 合法，包含 7 个 CI 阶段、0 failure、0 error 和 1 个预期 skipped。iOS 与 Mac Catalyst 日志各包含一次 `TEST BUILD SUCCEEDED`，XCTest 日志包含一次 `TEST EXECUTE SUCCEEDED`；`logic-smoke.log` 包含 `Logic smoke passed`，Mac Catalyst 脚本入口存在、可执行且通过 `bash -n` contract。
+- 三份 xcresult 均为 3.58，`Info.plist` 合法且 root data/refs 对象存在；iOS build、Mac Catalyst build、XCTest bundle 的 Data/refs 分别为 3/3、3/3、876/876，集合差异均为 0。测试 bundle 的单个零字节 data 节点具有合法 `0x00` refs 配对，不影响结构有效性。
+- Catalyst 日志仅包含非阻塞 Metal toolchain search-path 与 AppIntents metadata warnings；workflow 另有 actions Node.js 20 弃用提示，均未影响本轮结果。测试日志未发现 failed、Simulator launch error 或 NSMachError。
+- Agent C 未调用本地 Xcode、XCTest、Simulator 或 Catalyst，未编辑仓库。artifact 下载到唯一 `/tmp` 目录后已使用 `trash` 清理；工作区前后均仅保留既存 `LocalGemma.xcodeproj/project.pbxproj` 修改。独立验收结论为 PASS。
+
 遗留事项：
 
 - 单条消息复制动作、Mac/iPad 宽屏模型导航列、会话侧栏信息密度和桌面 hover/focus 反馈继续作为后续独立候选。
