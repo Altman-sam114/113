@@ -3916,9 +3916,16 @@
 验证结果：
 
 - 本轮按要求只运行本地轻量检查，均退出码 0：`git status --short --branch` 为 `main...origin/main`，并显示用户保留的 `LocalGemma.xcodeproj/project.pbxproj`、本轮 Swift/文档改动和未跟踪 v2.73 prompt；`git diff --check` 无输出；`find md -maxdepth 4 -type f | sort` 列出并确认 v2.73 prompt；AGENTS 角色/文档 `grep -n` 命中；`grep -c "func test" LocalGemmaTests/LocalGemmaTests.swift` 输出 `118`；v2.73 policy/test `rg` 命中实现、测试和 `SessionBarLayout`；`plutil -lint LocalGemma.xcodeproj/project.pbxproj` 输出 `OK`；Ruby YAML parse 输出 `yaml ok`（仅有 PATH world-writable warning）；`test -f script/build_and_run.sh`、`test -x script/build_and_run.sh`、`bash -n script/build_and_run.sh` 均成功；额外 `xcrun swiftc -parse LocalGemma/ContentView.swift` 与 `LocalGemmaTests/LocalGemmaTests.swift` 均成功，只代表语法可解析，不代表 build/test。
-- 未运行本机 `xcodebuild`、XCTest、Simulator、Mac Catalyst build/run、ImageRenderer 截图或视觉验证；完整 iOS/Catalyst build、LogicSmoke、118 项 XCTest 和 CI 结果包待本轮 push 后由 GitHub Actions 执行，再由 Agent C 只验收本轮最终 commit 对应的最新 run/artifact，当前不能写成通过。
+- 未运行本机 `xcodebuild`、XCTest、Simulator、Mac Catalyst build/run、ImageRenderer 截图或视觉验证；本机仅下载并解析 GitHub Actions 结果包，不把本地解析当作构建或测试。
+
+验证补充（云端结果包与结构化 xcresult 独立核对）：
+
+- GitHub Actions run `31292379905` attempt `1` 对 `main` commit `0a8dbce4396a9ebc4c66eeaca6a69839dfb63419` 成功完成；job `93191653333` 的 static、LogicSmoke、iOS build、XCTest、Mac Catalyst build 和 run-script contract steps 全部 success，可选 `codex-run-environment` 与 `mac-designed-for-iPad` 按既有设计 skipped。
+- 唯一 artifact 为 `localgemma-ci-v2.73-main-0a8dbce-run31292379905-attempt1`，GitHub API artifact ID `9031924837`、size `74714942` bytes、digest `sha256:42200c554df4d9cbf5d4bd62432f3daeabe57ef63e9708df3a530470fde32cf3`；API、`artifact-name.txt` 和 manifest 的 repository、branch、version、commit SHA、run ID、attempt、artifact name 完全一致。
+- 使用 `/Applications/Xcode.app/Contents/Developer/usr/bin/xcresulttool get test-results tests` 读取云端 `LocalGemma-tests.xcresult`：结构化结果恰好包含 118 个 `Test Case`，118 个为 `Passed`、0 failed、0 duplicate；`testSessionChipSidebarMetadataPolicyKeepsVerticalRowsScannable()` 节点恰好 1 个且为 `Passed`。新增测试在 `test.log` 中也恰好通过 1 次；日志包含一次 `TEST EXECUTE SUCCEEDED`。
+- iOS build 与 Mac Catalyst build 的 `.xcresult` 均可读取且 status 为 `succeeded`、error count 为 `0`；iOS/Catalyst 日志各包含一次 `TEST BUILD SUCCEEDED`，`logic-smoke.log` 包含 `Logic smoke passed`，脚本契约通过。JUnit XML 为 7 个 CI 阶段、0 failure、1 个预期 skipped；本轮没有模型权重下载或云端推理。
 
 遗留事项：
 
-- 等待本轮 `main` push 后 GitHub Actions 产生 v2.73 最新 run 和结果包，并由 Agent C 核对 118 个唯一 XCTest、required checks、manifest、JUnit、日志与 xcresult；云端失败时只追加最小修复 commit，不回滚历史。
+- 下一轮候选为 Mac Catalyst/iPad 竖向会话侧栏未选中行的 hover 纯视觉反馈；保持亮色低透明度、暗色略增强，不引入 focus、动画、会话状态或辅助语义变化。实现前继续由独立子 agent 做只读审计，完成后必须重新走 main push、云端 build/test、结果包独立验收闭环。
 - UI Test target、真实 runtime 和原生 macOS target 仍属后续；本轮不下载模型权重、不接入云端推理、不绕过 verified 门禁。
