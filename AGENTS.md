@@ -12,6 +12,8 @@ v2.74 起，Mac Catalyst/iPad pointer 下的竖向会话侧栏未选中行还包
 
 v2.75 起，设置页与优化 dashboard 共用 `ChipReadinessLayoutMode` / `ChipReadinessLayoutPolicy`：panel 内真实内容宽度达到 `354pt` 才允许横排，Accessibility Dynamic Type 和非法宽度始终 stacked；`ReadinessRing` 保留 `86pt` slot 与 `66pt` diameter，语义字体正文可垂直增长，布局通过同一 `AnyLayout` 切换，不改变 `DeviceOptimizer`、隐私摘要、辅助语义、Reduce Motion、runtime 或 verified 门禁。
 
+v2.76 起，设置页与优化 dashboard 共用 `OptimizationToggleTextLayoutPolicy`：运行策略小节标题、行标题和副标题使用 Dynamic Type 语义字体，标题/副标题最多两行并允许垂直增长；保留 44pt 行最小高度、250pt 最小卡片宽度和 510pt 两列边界，不改变 `DeviceOptimizer`、辅助语义、Reduce Motion、runtime 或 verified 门禁。
+
 ## 2. 必读文件顺序
 
 每轮工作开始前按顺序阅读：
@@ -99,6 +101,7 @@ git remote -v
 - `OptimizationToggleAccessibilityMetadata` 控制设置页和优化 dashboard 的运行策略开关辅助语义；开关本身只切换本地运行策略，不下载模型权重、不启动真实 runtime、不发送云端服务，VoiceOver/Voice Control label/value/hint/input labels/identifier 要有测试锁住。
 - `OptimizationToggleGridLayoutPolicy` 控制设置页和优化 dashboard 的运行策略开关网格宽度策略；窄屏和窄 split view 必须回退单列，iPad/Mac 宽区域允许双列，列数阈值、最小卡片宽度和共享网格入口要有测试锁住。
 - `OptimizationToggleRowLayoutPolicy` 控制设置页和优化 dashboard 单个运行策略开关行的最小触控目标；每个开关行必须保持至少 44pt 命中高度，且不得改变 `DeviceOptimizer` 开关状态流、运行策略顺序、辅助语义、网格列数、准备度摘要、模型文件或 runtime 状态。
+- `OptimizationToggleTextLayoutPolicy` 控制设置页和优化 dashboard 共用运行策略小节标题、行标题和副标题的 Dynamic Type 语义字体、两行上限、行内间距和垂直增长；它只影响文字排版，必须保留 `OptimizationToggleRowLayoutPolicy` 的 44pt 行高、`OptimizationToggleGridLayoutPolicy` 的 250/510pt 网格契约以及本地状态、辅助语义、Reduce Motion、runtime 和 verified 门禁。
 - `ChipReadinessAccessibilityMetadata` 控制设置页和优化 dashboard 的芯片准备度卡片与圆环辅助语义；准备度摘要必须随 `Offline privacy guard` 开关动态显示开启/关闭，并明确本地芯片准备度、不下载模型权重、不启动真实 runtime、不发送云端服务。
 - `ChipReadinessLayoutMode`、`ChipReadinessLayoutPlan` 与 `ChipReadinessLayoutPolicy` 控制设置页和优化 dashboard 共享卡片的真实 panel 内容宽度布局；`354pt` 及以上普通字号横排，Accessibility Dynamic Type 或 NaN/Infinity/非正宽度 stacked，ring 固定 `86pt` slot / `66pt` diameter，`AnyLayout` 保持同一 ring/正文子树，不写入状态层。
 - `OptimizerMetricAccessibilityMetadata` 控制设置页和优化 dashboard 的 Apple Silicon 指标卡辅助语义；指标卡只展示本地优化摘要，不下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁，VoiceOver/Voice Control label/value/hint/input labels/identifier 要有测试锁住。

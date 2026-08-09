@@ -804,6 +804,100 @@ final class LocalGemmaTests: XCTestCase {
         )
     }
 
+    func testOptimizationToggleTextLayoutPolicySupportsDynamicTypeRows() {
+        XCTAssertEqual(OptimizationToggleTextLayoutPolicy.gridTitleLineLimit, 2)
+        XCTAssertEqual(OptimizationToggleTextLayoutPolicy.rowTitleLineLimit, 2)
+        XCTAssertEqual(OptimizationToggleTextLayoutPolicy.subtitleLineLimit, 2)
+        XCTAssertEqual(OptimizationToggleTextLayoutPolicy.rowVerticalSpacing, 3)
+        XCTAssertEqual(OptimizationToggleTextLayoutPolicy.subtitleLineSpacing, 2)
+        XCTAssertTrue(OptimizationToggleTextLayoutPolicy.allowsMultilineGridTitle)
+        XCTAssertTrue(OptimizationToggleTextLayoutPolicy.allowsMultilineRowTitle)
+        XCTAssertTrue(OptimizationToggleTextLayoutPolicy.allowsMultilineSubtitle)
+        XCTAssertGreaterThan(OptimizationToggleTextLayoutPolicy.gridTitleLineLimit, 1)
+        XCTAssertGreaterThan(OptimizationToggleTextLayoutPolicy.rowTitleLineLimit, 1)
+        XCTAssertGreaterThan(OptimizationToggleTextLayoutPolicy.subtitleLineLimit, 1)
+
+        XCTAssertEqual(OptimizationToggleRowLayoutPolicy.minimumTouchTarget, 44)
+        XCTAssertGreaterThanOrEqual(
+            OptimizationToggleRowLayoutPolicy.rowMinHeight,
+            OptimizationToggleRowLayoutPolicy.minimumTouchTarget
+        )
+        XCTAssertEqual(OptimizationToggleGridLayoutPolicy.minimumCardWidth, 250)
+        XCTAssertEqual(OptimizationToggleGridLayoutPolicy.twoColumnThreshold, 510)
+        XCTAssertEqual(OptimizationToggleGridLayoutPolicy.columnCount(for: 509.5), 1)
+        XCTAssertEqual(OptimizationToggleGridLayoutPolicy.columnCount(for: 510), 2)
+
+        let optimizer = DeviceOptimizer()
+        let initialSwitches = optimizer.switches
+        let initialReadiness = optimizer.deploymentReadiness
+        let initialPrivacyGuard = optimizer.isOfflinePrivacyGuardEnabled
+        let item = initialSwitches[0]
+        var disabledItem = item
+        disabledItem.isEnabled = false
+
+        let renderItems = [item, disabledItem]
+        for width in [CGFloat(250), 510] {
+            for themeMode in [AppThemeMode.light, .dark] {
+                for dynamicTypeSize in [DynamicTypeSize.large, .xxxLarge, .accessibility3] {
+                    for renderItem in renderItems {
+                        let renderer = ImageRenderer(
+                            content: OptimizationToggleRow(item: renderItem, toggle: {})
+                                .environment(\.appTheme, AppThemePalette(mode: themeMode))
+                                .environment(\.colorScheme, themeMode.colorScheme)
+                                .environment(\.dynamicTypeSize, dynamicTypeSize)
+                                .frame(width: width)
+                        )
+                        renderer.scale = 1
+                        let image = renderer.uiImage
+
+                        XCTAssertNotNil(image)
+                        XCTAssertEqual(image?.size.width ?? 0, width, accuracy: 1)
+                        XCTAssertGreaterThan(image?.size.height ?? 0, 0)
+                        XCTAssertLessThan(image?.size.height ?? .infinity, 600)
+                    }
+                }
+            }
+        }
+
+        func renderedRowHeight(dynamicTypeSize: DynamicTypeSize) -> CGFloat {
+            let renderer = ImageRenderer(
+                content: OptimizationToggleRow(item: item, toggle: {})
+                    .environment(\.appTheme, AppThemePalette(mode: .dark))
+                    .environment(\.colorScheme, .dark)
+                    .environment(\.dynamicTypeSize, dynamicTypeSize)
+                    .frame(width: 250)
+            )
+            renderer.scale = 1
+            return renderer.uiImage?.size.height ?? 0
+        }
+
+        let regularHeight = renderedRowHeight(dynamicTypeSize: .large)
+        let accessibilityHeight = renderedRowHeight(dynamicTypeSize: .accessibility3)
+        XCTAssertGreaterThan(regularHeight, 0)
+        XCTAssertGreaterThanOrEqual(accessibilityHeight, regularHeight)
+
+        for width in [CGFloat(250), OptimizationToggleGridLayoutPolicy.twoColumnThreshold + 28] {
+            let renderer = ImageRenderer(
+                content: OptimizationToggleGrid(items: initialSwitches, toggle: { _ in })
+                    .environment(\.appTheme, AppThemePalette(mode: .light))
+                    .environment(\.colorScheme, .light)
+                    .environment(\.dynamicTypeSize, .large)
+                    .frame(width: width)
+            )
+            renderer.scale = 1
+            let image = renderer.uiImage
+
+            XCTAssertNotNil(image)
+            XCTAssertEqual(image?.size.width ?? 0, width, accuracy: 1)
+            XCTAssertGreaterThan(image?.size.height ?? 0, 0)
+            XCTAssertLessThan(image?.size.height ?? .infinity, 1_000)
+        }
+
+        XCTAssertEqual(optimizer.switches, initialSwitches)
+        XCTAssertEqual(optimizer.deploymentReadiness, initialReadiness)
+        XCTAssertEqual(optimizer.isOfflinePrivacyGuardEnabled, initialPrivacyGuard)
+    }
+
     func testOptimizerMetricCardsExposeAccessibilityMetadata() {
         let optimizer = DeviceOptimizer()
         let metrics = optimizer.metrics

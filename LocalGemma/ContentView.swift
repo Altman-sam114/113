@@ -7295,6 +7295,26 @@ enum OptimizationToggleAccessibilityMetadata {
     }
 }
 
+enum OptimizationToggleTextLayoutPolicy {
+    static let gridTitleLineLimit = 2
+    static let rowTitleLineLimit = 2
+    static let subtitleLineLimit = 2
+    static let rowVerticalSpacing: CGFloat = 3
+    static let subtitleLineSpacing: CGFloat = 2
+
+    static var allowsMultilineGridTitle: Bool {
+        gridTitleLineLimit > 1
+    }
+
+    static var allowsMultilineRowTitle: Bool {
+        rowTitleLineLimit > 1
+    }
+
+    static var allowsMultilineSubtitle: Bool {
+        subtitleLineLimit > 1
+    }
+}
+
 struct OptimizationToggleGrid: View {
     @Environment(\.appTheme) private var theme
 
@@ -7306,8 +7326,10 @@ struct OptimizationToggleGrid: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("运行策略")
-                .font(.system(size: 15, weight: .black))
+                .font(.headline.weight(.black))
                 .foregroundStyle(titleColor ?? theme.primaryText)
+                .lineLimit(OptimizationToggleTextLayoutPolicy.gridTitleLineLimit)
+                .fixedSize(horizontal: false, vertical: true)
 
             ViewThatFits(in: .horizontal) {
                 toggleGrid(columnCount: OptimizationToggleGridLayoutPolicy.maxColumnCount)
@@ -7387,14 +7409,21 @@ struct OptimizationToggleRow: View {
                     .font(.system(size: 20, weight: .bold))
                     .foregroundStyle(item.isEnabled ? theme.success : theme.tertiaryText)
 
-                VStack(alignment: .leading, spacing: 3) {
+                VStack(
+                    alignment: .leading,
+                    spacing: OptimizationToggleTextLayoutPolicy.rowVerticalSpacing
+                ) {
                     Text(item.title)
-                        .font(.system(size: 13, weight: .bold))
+                        .font(.subheadline.weight(.bold))
                         .foregroundStyle(theme.primaryText)
+                        .lineLimit(OptimizationToggleTextLayoutPolicy.rowTitleLineLimit)
+                        .fixedSize(horizontal: false, vertical: true)
                     Text(item.subtitle)
-                        .font(.system(size: 11, weight: .medium))
+                        .font(.caption.weight(.medium))
                         .foregroundStyle(theme.secondaryText)
-                        .lineLimit(2)
+                        .lineLimit(OptimizationToggleTextLayoutPolicy.subtitleLineLimit)
+                        .lineSpacing(OptimizationToggleTextLayoutPolicy.subtitleLineSpacing)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
 
                 Spacer()

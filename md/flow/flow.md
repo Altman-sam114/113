@@ -25,6 +25,7 @@ v2.64 的顶部模型胶囊还会按真实 chrome 可用宽度切换堆叠/横�
 11. 用户可导出当前会话，生成 Markdown 文本和临时 `.md` 文件。
 12. 分享视图优先分享真实存在的 Markdown 文件；文件不存在时分享文本，导出弹层分享/复制动作向辅助技术说明本地文件、文本兜底和剪贴板边界，并通过独立动作布局策略保持 44pt 触控目标；导出弹层会话摘要、Markdown 预览和底部动作通过 `ExportSessionLayoutPolicy` 在 iPad/Mac 宽 sheet 中居中并限制最大内容宽度。
 13. `SettingsWorkspace` 与 `OptimizerDashboard` 都复用 `ChipReadinessCard`；卡片在 `.panelStyle` 内侧用 `GeometryReader` 读取真实 panel 内容宽度，交给 `ChipReadinessLayoutPolicy`，再由同一 `AnyLayout` 在 `HStackLayout` / `VStackLayout` 间切换。普通字号在 `354pt` 内容宽度边界横排，Accessibility Dynamic Type 或非法宽度 stacked；状态、隐私摘要、ReadinessRing 和辅助语义仍来自既有本地状态。
+14. `SettingsWorkspace` 与 `OptimizerDashboard` 都把 `optimizer.switches` 传给同一个 `OptimizationToggleGrid`；网格继续由 `OptimizationToggleGridLayoutPolicy` 在 `250pt` 最小卡片宽度和 `510pt` 两列边界间选择列数，并为每个元素构造同一个 `OptimizationToggleRow`。`OptimizationToggleGrid` 的小节标题和 `OptimizationToggleRow` 的标题/副标题共同复用无状态 `OptimizationToggleTextLayoutPolicy`，使用语义字体、两行上限、policy 间距和 `fixedSize(horizontal: false, vertical: true)` 允许垂直增长。policy 只影响文字排版，开关点击仍由 `DeviceOptimizer` 管理，辅助语义、44pt 行高、Reduce Motion、runtime 和 verified 门禁不变。
 
 ## 当前核心执行流
 
@@ -286,6 +287,7 @@ Agent X 不能跳过 Agent C artifact 验收；失败时不能继续下一轮并
 - `ModelStatusBadgeAccessibilityMetadata`：模型页安装状态、artifact 状态和部署状态徽章的辅助技术文案、Voice Control 输入标签和稳定 identifier。
 - `OptimizationToggleAccessibilityMetadata`：设置页和优化 dashboard 运行策略开关的辅助技术文案、Voice Control 输入标签和稳定 identifier。
 - `OptimizationToggleRowLayoutPolicy`：设置页和优化 dashboard 运行策略开关行的 44pt 最小触控目标策略。
+- `OptimizationToggleTextLayoutPolicy`：设置页和优化 dashboard 共用运行策略小节标题、行标题和副标题的 Dynamic Type 语义字体、两行上限、行距和垂直增长策略。
 - `ChipReadinessAccessibilityMetadata`：设置页和优化 dashboard 芯片准备度卡片/圆环的辅助技术文案、隐私保护状态摘要和稳定 identifier。
 - `ChipReadinessLayoutMode` / `ChipReadinessLayoutPlan` / `ChipReadinessLayoutPolicy`：芯片准备度卡片真实 panel 内容宽度、354pt 横排阈值、Accessibility/非法输入 stacked 回退和 86pt/66pt ring 尺寸计划。
 - `OptimizerMetricAccessibilityMetadata`：设置页和优化 dashboard Apple Silicon 指标卡的辅助技术文案、进度百分比、Voice Control 输入标签和稳定 identifier。

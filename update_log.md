@@ -16,7 +16,7 @@
 - 平台：SwiftUI iOS App，Swift 6.0，iOS deployment target 17.0，当前 app/test target 支持 iPhone、iPad 和 Mac Catalyst build-for-testing，并提供项目内 Mac Catalyst 本地 build/run 脚本入口；尚未创建原生 macOS target。
 - 当前默认模型：`Gemma 1.5B Local`
 - 当前推理：本地模拟 runtime，不下载模型权重，不执行真实模型推理。
-- 当前核心测试：`LocalGemmaTests.swift` 中 120 个 XCTest 方法。
+- 当前核心测试：`LocalGemmaTests.swift` 中 121 个 XCTest 方法。
 - 当前核心文档入口：`AGENTS.md`、`md/flow/flow.md`、`md/flow/flowchart.md`、`md/test/test.md`、`md/prompt/README.md`、`README.md`。
 - 当前协作验证：默认 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载未加密 CI 结果包验收；本地仓库当前已配置 `origin` remote，最终验收仍以最新 `origin/main` 对应的 GitHub Actions run 和结果包为准；文档已预留未来 `agentx:` 主控 Agent A -> Agent B -> Agent C 多轮循环的规则。
 
@@ -4011,3 +4011,36 @@
 - 云端 `test.log` 有恰好 120 条 `Test case` 记录、120 个 `passed` 标记、0 个 `failed` 标记和一次 `** TEST EXECUTE SUCCEEDED **`；120 条记录对应源码 120 个唯一测试函数，新增 `testChipReadinessLayoutPolicyAdaptsToCardWidthAndAccessibilityDynamicType` 恰好一次。该日志有一处 xcodebuild diagnostic 与 `testWallpaperPreferenceControlsExposeAccessibilityMetadata` 记录交错，导致该单行名称被截断；没有失败或重复记录，计数以完整 case 记录、passed 总数、源码集合和 XCTest success marker 交叉核对。
 - 三份 `.xcresult` 的 `Info.plist` 均 `plutil -lint` 通过，版本均为 3.58 且 rootId 存在；`LocalGemma-build.xcresult`、`LocalGemma-maccatalyst-build.xcresult`、`LocalGemma-tests.xcresult` 的 Data/refs 分别为 `3/3`、`3/3`、`879/879`，hash 集合完全配对。tests bundle 的唯一零字节 data 节点有对应 refs，不影响 bundle 结构；build、Catalyst build 和 tests 三个结果包均存在。
 - 本轮未运行本地 `xcodebuild`、XCTest、Simulator、Mac Catalyst build/run、`xcresulttool` 或 ImageRenderer；仅使用 GitHub CLI/API 下载和读取云端结果包，并使用轻量文件/manifest/日志/Info.plist 结构核对。未下载模型权重、未执行真实模型推理、未调用云端推理。用户既有 `LocalGemma.xcodeproj/project.pbxproj` 修改保持未编辑、未暂存、未提交。
+
+### v2.76 / 运行策略开关文本动态排版
+
+日期：2026-08-09
+
+核心变更：
+
+- 基于远端最新 `origin/main` docs commit `dbe3cbb` 实现 `OptimizationToggleTextLayoutPolicy`；`SettingsWorkspace` 与 `OptimizerDashboard` 继续共用 `OptimizationToggleGrid` / `OptimizationToggleRow`，小节标题、行标题和副标题改用 Dynamic Type 语义字体，标题/副标题最多两行并允许垂直增长。
+- 保留 `OptimizationToggleRowLayoutPolicy` 的 44pt 行最小高度、`OptimizationToggleGridLayoutPolicy` 的 250pt 最小卡片宽度与 510pt 两列边界、开关顺序/状态、`OptimizationToggleAccessibilityMetadata`、Reduce Motion、runtime 和 verified 门禁。
+- 新增 `testOptimizationToggleTextLayoutPolicySupportsDynamicTypeRows`，测试函数数从 120 增至 121；覆盖纯值 line-limit/spacing、44pt 回归、250/510pt 网格边界、DeviceOptimizer 状态不变和真实 `OptimizationToggleRow` / `OptimizationToggleGrid` 的公开 `ImageRenderer` 非空/尺寸矩阵。
+
+关键文件：
+
+- `LocalGemma/ContentView.swift`
+- `LocalGemmaTests/LocalGemmaTests.swift`
+- `AGENTS.md`
+- `README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/v2（Mac体验审计）/v2.76（运行策略开关文本动态排版）.md`
+
+验证结果：
+
+- `git diff --check`：无输出，退出码 0；`grep -c "func test" LocalGemmaTests/LocalGemmaTests.swift`：`121`。
+- `find md -maxdepth 4 -type f | sort`、Agent A/B/C/测试规范入口 grep、v2.76 关键词结构检查均执行；`plutil -lint LocalGemma.xcodeproj/project.pbxproj` 输出 `OK`；Ruby YAML 解析输出 `yaml ok`，仅有既有 PATH world-writable warning。
+- `test -f script/build_and_run.sh`、`test -x script/build_and_run.sh` 和 `bash -n script/build_and_run.sh` 均成功；`xcrun swiftc -parse LocalGemma/ContentView.swift` 与 `LocalGemmaTests/LocalGemmaTests.swift` 均输出 parse 成功。
+- 未运行本地 `xcodebuild`、XCTest、Simulator、Mac Catalyst build/run 或 ImageRenderer 视觉验收；未下载模型权重、未执行真实推理、未调用云端推理。用户保留的 `LocalGemma.xcodeproj/project.pbxproj` 未编辑、未暂存、未提交。
+- 云端 `main` run、run id、outcomes、artifact 和 Agent C 结果包验收待本轮 commit push 后产生，当前不预写结论。
+
+遗留事项：
+
+- 等待本轮 `origin/main` push 后用 `gh` 守望 v2.76 最新 `main` run，并以实际 outcomes 为准。
