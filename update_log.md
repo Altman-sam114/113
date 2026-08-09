@@ -3956,3 +3956,15 @@
 
 - 本轮只允许本地轻量检查，未运行本地 `xcodebuild`、XCTest、Simulator、Mac Catalyst build/run 或 ImageRenderer 视觉验证；完整 build/test 必须由 GitHub Actions 对本轮 push 执行。
 - 本轮未下载模型权重、未调用云端推理；用户保留的 `LocalGemma.xcodeproj/project.pbxproj` 未编辑、未暂存、未提交。
+
+验证补充（云端结果包与结构化 xcresult 独立核对）：
+
+- GitHub Actions run `31294199800` attempt `1` 对 `main` commit `4334567b59dbf88e70dfa73117479fe85d99a17e` 成功完成；job `93196482015` 的 static、LogicSmoke、iOS build、XCTest、Mac Catalyst build 和 run-script contract steps 全部 success，可选 `codex-run-environment` 与 `mac-designed-for-iPad` 按既有设计 skipped。
+- 唯一最终 artifact 为 `localgemma-ci-v2.74-main-4334567-run31294199800-attempt1`，GitHub artifact digest 为 `sha256:0c38f5bc1fc727c4b7fde20b9dd588f083f22636942c42c8e56a01b06854805f`; `artifact-name.txt`、manifest 的 repository、branch、version、commit SHA、run ID、attempt、artifact name 和 workflow identity 一致。
+- 使用 `/Applications/Xcode.app/Contents/Developer/usr/bin/xcresulttool get test-results tests` 读取云端 `LocalGemma-tests.xcresult`：结构化结果恰好包含 119 个唯一 `Test Case`，119 个为 `Passed`、0 failed、0 duplicate；`testSessionChipHoverStylePolicyRestrictsPointerFeedback()` 节点恰好 1 个且为 `Passed`。新增测试在 `test.log` 中也恰好通过 1 次；日志包含一次 `TEST EXECUTE SUCCEEDED`。
+- iOS build 与 Mac Catalyst build 的 `.xcresult` 均可读取且 status 为 `succeeded`、error count 为 `0`；iOS/Catalyst 日志各包含一次 `TEST BUILD SUCCEEDED`，`logic-smoke.log` 包含 `Logic smoke passed`，Mac Catalyst 脚本契约通过。JUnit XML 为 7 个 CI 阶段、0 failure、1 个预期 skipped；本轮没有模型权重下载或云端推理。
+
+遗留事项：
+
+- 下一轮候选为 v2.75 芯片准备度卡片窄宽/辅助字号自适应：在窄 iPad split view 或 Accessibility Dynamic Type 下从横向切换为纵向堆叠，复用设置页与优化 dashboard，保持圆环、进度、隐私摘要、辅助语义和状态流不变。实现前继续由独立子 agent 审计，完成后重新走 main push、云端 build/test、结果包独立验收闭环。
+- 真实 Mac Catalyst/iPad pointer enter/exit 仍属于手工验证边界；UI Test target、真实 runtime 和原生 macOS target 仍属后续。本轮不下载模型权重、不接入云端推理、不绕过 verified 门禁。
