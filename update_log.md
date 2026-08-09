@@ -4039,8 +4039,21 @@
 - `find md -maxdepth 4 -type f | sort`、Agent A/B/C/测试规范入口 grep、v2.76 关键词结构检查均执行；`plutil -lint LocalGemma.xcodeproj/project.pbxproj` 输出 `OK`；Ruby YAML 解析输出 `yaml ok`，仅有既有 PATH world-writable warning。
 - `test -f script/build_and_run.sh`、`test -x script/build_and_run.sh` 和 `bash -n script/build_and_run.sh` 均成功；`xcrun swiftc -parse LocalGemma/ContentView.swift` 与 `LocalGemmaTests/LocalGemmaTests.swift` 均输出 parse 成功。
 - 未运行本地 `xcodebuild`、XCTest、Simulator、Mac Catalyst build/run 或 ImageRenderer 视觉验收；未下载模型权重、未执行真实推理、未调用云端推理。用户保留的 `LocalGemma.xcodeproj/project.pbxproj` 未编辑、未暂存、未提交。
-- 云端 `main` run、run id、outcomes、artifact 和 Agent C 结果包验收待本轮 commit push 后产生，当前不预写结论。
+- 云端 `main` run、run id、outcomes、artifact 和 Agent C 结果包验收见下方 v2.76 Agent C 云端验收记录。
 
 遗留事项：
 
-- 等待本轮 `origin/main` push 后用 `gh` 守望 v2.76 最新 `main` run，并以实际 outcomes 为准。
+- 真实模型 runtime 仍为占位；后续接入仍须遵守手动导入、concrete SHA-256 verified 和本地推理边界。
+
+### v2.76 Agent C 云端验收记录
+
+日期：2026-08-09
+
+- 最新 `origin/main` 为 `275f8fa07eb0a9e31cb08d7541c98fc7778e480a`，主题仍为 `v2.76: 运行策略开关文本动态排版`；该修正提交只把测试基线从 120 更新为 121。唯一验收 run 为 [31297437805](https://github.com/Altman-sam114/113/actions/runs/31297437805)，`branch=main`、`attempt=1`、workflow 为 `Local Gemma CI Results`，GitHub conclusion 为 `success`。
+- GitHub API 只返回一个未过期 artifact：`localgemma-ci-v2.76-main-275f8fa-run31297437805-attempt1`，声明大小 `68,733,563` bytes，API digest 为 `sha256:a182542cd8bd197a83f9fd60831214e5cc7b4e9b4678f60b1dd18b5e32131e70`；下载 zip 同为 `68,733,563` bytes，SHA-256 完全一致，ZIP integrity 检查无错误。
+- manifest、`artifact-name.txt`、failure summary、environment、JUnit、iOS build log、Mac Catalyst build log、XCTest log、Logic smoke log、run-script log 和三个 `.xcresult` 均来自该 artifact，manifest 的 repository、branch、commit、subject、run、attempt、workflow 和路径全部与上述 identity 对齐。
+- required outcomes `static=success`、`logic=success`、`build=success`、`test=success`、`macCatalyst=success`、`macRunScript=success`；`macDesigned=skipped` 是非原生 macOS target 的设计结果，`codexRunEnvironment=skipped` 且原因是 `not-added-in-v1.0-cli-entrypoint-only`。failure summary 明确记录 `All required checks passed`。iOS 与 Catalyst build log 均包含 `TEST BUILD SUCCEEDED`，XCTest log 包含 `** TEST EXECUTE SUCCEEDED **`，Logic smoke 包含 `Logic smoke passed`。
+- JUnit XML 可解析，CI stage 为 `tests=7`、`failures=0`、`skipped=1`，唯一 skipped 为上述 optional Codex Run environment；测试用例数量以结构化 XCTest result 为准。iOS build、Catalyst build、tests 三个 xcresult 的 `Info.plist` 均可读取，版本均为 `3.58`、backend 均为 `fileBacked2`，root data/ref 均存在且 Data/refs 数量分别为 `3/3`、`3/3`、`852/852`，hash 配对完整。iOS build root 的 build status 为 `succeeded` 且无 Error；Catalyst root 仅含已在 build log 中体现的 warning summary，无 Error/failed 记录。
+- 对 `LocalGemma-tests.xcresult` 解压后的结构化 `ActionTestSummary` 对象逐条读取：恰好 `121` 个唯一 Test Case，duplicate `0`，状态 `Success=121`，failed/unknown `0`。`testOptimizationToggleTextLayoutPolicySupportsDynamicTypeRows()` 在结构化 xcresult 中恰好一次且为 `Success`；在 `test.log` 的完整 `Test case ... passed` 行中也恰好一次。云端 xcodebuild diagnostic 与相邻测试输出有一处交错，导致另一个旧测试名跨行显示；不影响上述结构化 xcresult 的 121/121 结果或新测试的精确一次记录。
+- `mac-baseline-notes.md` 说明这是既有 iOS app target 的 Mac Catalyst build-for-testing 基线，不是原生 macOS target；run-script contract 验证 `script/build_and_run.sh` 存在、可执行且 `bash -n` 通过。artifact 内没有 Gemma 权重、tokenizer 或模型包路径；云端 baseline 明确不下载模型权重、不调用外部 inference service，测试覆盖默认 Simulation、verified 门禁和真实 runtime placeholder 边界。
+- 本轮 Agent C 未运行本地 `xcodebuild`、XCTest、Simulator、Mac Catalyst build/run 或 ImageRenderer，仅通过 GitHub CLI/API 守望并下载云端结果包后读取证据。用户既有 `LocalGemma.xcodeproj/project.pbxproj` 修改和未跟踪的下一轮 prompt 均未编辑、未暂存、未提交。
