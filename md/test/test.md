@@ -58,7 +58,7 @@ xcrun simctl list devices available
 
 当前测试基线：
 
-- `LocalGemmaTests.swift` 当前包含 117 个 `test...` 方法。
+- `LocalGemmaTests.swift` 当前包含 118 个 `test...` 方法。
 - v2.60 新增 `testChatWorkspacePaneLayoutPolicyCoordinatesGlobalAndSessionSidebars`，以真实根窗口先扣除 `WorkspaceLayoutMode` 全局侧栏，再验证聊天 pane：860pt 以下堆叠，分栏时会话栏保持 240...310pt、聊天面至少 620pt，并覆盖无效宽度、阈值和宽度守恒。
 - v2.61 新增 `testAppMotionAccessibilityPolicyRespectsReduceMotion`，锁住五类 motion effect 的完整覆盖与互斥分类：普通模式全部保留动画，Reduce Motion 下工作区导航、聊天记录自动滚动和模型切换返回 `nil`，主题切换与复制确认保留 0.12 秒局部反馈。
 - v2.62 新增 `testWorkspaceRootLayoutPolicyResolvesChromeAndAxisAtBoundaries`，锁住 699.99/700/979.99/980pt、iPad 尺寸、负值、NaN、Infinity 下的根布局 mode、axis、chrome 与精确侧栏 clamp；`testWorkspaceRootShellPreservesStatefulContentAcrossLayoutPlans` 将生产 `WorkspaceRootShell` 和稳定 `SessionCommandFocusModifier` 挂入 `UIHostingController`/`UIWindow`，在断点及聊天 active/inactive 往返时验证同一 `@State` UUID 持续存在、仅 appear 一次且中途不 disappear。现有 command/focus 测试同时锁住只有活动聊天页的 focused route 包装包含会话 actions。
@@ -72,6 +72,7 @@ xcrun simctl list devices available
 - v2.70 新增 `testComposerFocusGlowStylePolicyHighlightsKeyboardFocus`，锁住 `ComposerFocusGlowStylePolicy` 全部纯值契约：聚焦描边 accent 0.55 透明度、1.5/1pt 线宽、10pt 聚焦光环半径、8pt 发送光环半径、`glowOpacity` 四值表（聚焦暗 0.35 / 聚焦亮 0.20 / 未聚焦一律 0）、`sendGlowOpacity` 四值表（可用暗 0.45 / 可用亮 0.28 / 禁用一律 0）、发送渐变端点 1.0/0.78、停止渐变端点 0.9/0.7、`usesAccentBorder` 布尔分支与单调性；生产 `ImageRenderer` 渲染真实 `ComposerBar` 只覆盖未聚焦外观（360/680pt 宽度 × 亮/暗主题 × 发送/停止态，`isChatActive: false`、`focusRequest: .initial`），因为 `@FocusState` 无法从外部注入且 `ImageRenderer` 无 window，聚焦态样式契约由纯值断言锁住；只断言图像非 nil、宽度 accuracy 1、高度大于 0 且小于 3000pt。继续禁止像素透明度/颜色采样和 `UIScrollView`/SwiftUI 私有宿主层级探查断言（v2.68 首次 run `30197265713` 教训）。测试函数数从 114 增至 115，以本轮 push 后的最新 run 和 Agent C 结果包验收为准。
 - v2.71 新增 `testWorkbenchPanelDepthStylePolicyAddsThemeAwareElevation`，锁住共享 panel 的 0.5pt 内高光、contact 阴影 1.5pt radius/1pt y、ambient 阴影 8pt radius/3pt y，以及亮暗主题 opacity、contact 大于 ambient、暗色阴影强于亮色和亮色内高光强于暗色；继续锁住 8pt 圆角、14pt padding 与 1pt hairline。生产 `ImageRenderer` 经公开 `panelStyle` 渲染真实共享 modifier，覆盖 360/920pt × 亮/暗主题，只断言非 nil、宽度和合理高度；禁止像素颜色/透明度采样与私有层级探查。测试函数数从 115 增至 116，以本轮 push 后的最新 run 和 Agent C 结果包验收为准。
 - v2.72 新增 `testChatMessageCopyActionPolicyPreservesLocalPayloadAndAccessibility`，锁住 user/assistant/system 非空且非生成正文可复制，空、空格、Tab、换行与混合空白不可复制，非空 assistant 在显式流式生成期间仍不可复制，trim 只判空而 payload 保留首尾空白和首尾换行、44pt 动作、可复制/已复制/生成中状态、剪贴板本地边界、稳定 Voice Control 输入标签，以及消息摘要与复制动作 identifier 相互独立；确认 `AppMotionEffect` 仍为 5 个并复用 `.copyConfirmation`。生产 `ImageRenderer` 覆盖 280/680pt × 亮/暗主题 × `.large`/`.xxxLarge`/`.accessibility3` × 可复制/生成占位，只断言非 nil、宽度和合理高度；禁止直接读写系统剪贴板、像素采样和私有层级探查。测试函数数从 116 增至 117。GitHub Actions run `30324632725` attempt `2` 对 commit `c9228d7` 的 117 项 XCTest、0 failed 已由 Agent C 下载结果包验收为 PASS；attempt `1` 的既有 composer 焦点时序失败不作为最终证据。
+- v2.73 新增 `testSessionChipSidebarMetadataPolicyKeepsVerticalRowsScannable`，锁住空消息/空白尾消息的消息数回退、多行和连续 whitespace/Tab/换行归一化、按数组顺序而非 timestamp 选择尾部向前最后一条非空正文、完整 `ChatSession`/messages 不变性、vertical 可见与 horizontal hidden plan、40 Character 截断和 `SessionChip` title-only 横向分支。生产 `ImageRenderer` 使用真实 `SessionChip` 覆盖 240/310pt × 亮/暗主题 × `.large`/`.accessibility3` × selected/unselected，竖向 session 含多行摘要，且只断言 image 非 nil、宽度误差不超过 1pt、高度大于 0 和合理上限；禁止像素、颜色/alpha、私有层级、截图快照、剪贴板或时间排序断言。测试函数数从 117 增至 118；完整 iOS/Catalyst build、LogicSmoke、118 项 XCTest 和结果包待本轮 push 后 GitHub Actions 执行并由 Agent C 验收。
 - 业务核心覆盖 artifact、模型状态、runtime plan、模拟/真实占位 runtime、提示词、会话、导出、composer 聚焦光环与发送按钮渐变、生成中状态脉冲指示、iPhone/iPad/Mac Catalyst 桌面窗口布局断点、工作台导航与共享 panel 视觉层级策略、模型页整体宽屏内容宽度策略、模型页内部宽屏布局策略、模型详情右栏最大阅读宽度策略、顶部模型胶囊整体辅助语义、模型概要面板辅助语义、模型详情右栏与行级辅助语义、模型文件工作流面板辅助语义、模型文件操作 44pt 触控目标、模型部署控件 44pt 触控目标、模型卸载确认弹层状态流与辅助语义、模型状态徽章辅助语义、会话 chip 动作语义、会话 chip 选择/删除 44pt 触控目标、聊天消息气泡与聊天记录容器辅助语义、聊天气泡宽屏宽度策略、composer 宽屏输入宽度策略、composer 发送/停止 44pt 触控目标、模型选择器辅助语义、模型部署控件辅助语义、运行策略开关辅助语义、运行策略开关宽屏网格、运行策略开关行 44pt 触控目标、芯片准备度辅助语义与隐私状态动态摘要、优化指标卡辅助语义、优化指标卡文本动态排版策略、优化指标网格宽度策略、全局 Header 图标动作 44pt 触控目标、Header 标题动态排版策略、设置页整体宽屏内容宽度策略、共享 SectionHeader 动态排版策略、提示词页整体宽屏内容宽度策略、提示词模板宽屏布局策略、提示词模板文本动态排版策略、提示词分类筛选换行布局策略、提示词分类文本动态排版策略、提示词模板动作 44pt 触控目标、工作区导航辅助语义、工作区导航 44pt 触控目标、头部主题与模型工作区入口辅助语义、设置页图标动作 44pt 触控目标、会话栏操作辅助语义、会话栏操作 44pt 触控目标、导出弹层分享/复制辅助语义、导出弹层分享/复制 44pt 触控目标、导出弹层整体宽屏内容宽度策略、壁纸控件辅助语义、会话侧栏宽度策略、工作区快捷键映射、工作区 command menu 映射、会话 command menu focused route、regular 侧栏说明、选择语义、composer 输入焦点、控件标识与辅助语义、提示词分类筛选辅助语义、提示词模板动作辅助语义、壁纸处理和分享兜底。
 
 统计测试数量：
@@ -97,6 +98,8 @@ grep -n "func test" LocalGemmaTests/LocalGemmaTests.swift
 git diff --check
 find md -maxdepth 4 -type f | sort
 grep -n "Agent A\\|Agent B\\|Agent C\\|README\\|测试规范" AGENTS.md
+grep -c "func test" LocalGemmaTests/LocalGemmaTests.swift
+rg -n "SessionChipSidebarMetadataPolicy|SessionChipSidebarMetadata|timestamp|sorted|SessionBarLayout|testSessionChipSidebarMetadataPolicyKeepsVerticalRowsScannable" LocalGemma/ContentView.swift LocalGemmaTests/LocalGemmaTests.swift
 plutil -lint LocalGemma.xcodeproj/project.pbxproj
 ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'
 test -f script/build_and_run.sh
@@ -409,7 +412,7 @@ xcodebuild -project LocalGemma.xcodeproj \
 当前基线：
 
 - 期望结果：`TEST EXECUTE SUCCEEDED`。
-- 当前测试函数数：108。
+- 当前测试函数数：118。
 
 ### Full
 

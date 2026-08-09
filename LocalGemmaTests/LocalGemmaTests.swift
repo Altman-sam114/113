@@ -2528,6 +2528,205 @@ final class LocalGemmaTests: XCTestCase {
         }
     }
 
+    func testSessionChipSidebarMetadataPolicyKeepsVerticalRowsScannable() {
+        let emptySession = ChatSession(
+            id: UUID(uuidString: "11111111-2222-3333-4444-555555555555")!,
+            title: "空会话",
+            messages: [],
+            createdAt: Date(timeIntervalSince1970: 10),
+            updatedAt: Date(timeIntervalSince1970: 20)
+        )
+        let emptyPlan = SessionChipSidebarMetadataPolicy.resolve(
+            session: emptySession,
+            layout: .vertical
+        )
+        XCTAssertEqual(
+            emptyPlan,
+            SessionChipSidebarMetadataPlan(
+                presentation: .vertical,
+                messageCount: 0,
+                previewText: nil
+            )
+        )
+        XCTAssertTrue(emptyPlan.isVisible)
+        XCTAssertEqual(emptyPlan.metadataText, "0 条消息")
+        XCTAssertFalse(emptyPlan.metadataText?.isEmpty ?? true)
+
+        let blankSession = ChatSession(
+            title: "空白尾消息",
+            messages: [
+                ChatMessage(role: .user, text: " \t\n \r ")
+            ]
+        )
+        let blankPlan = SessionChipSidebarMetadataPolicy.resolve(
+            session: blankSession,
+            layout: .vertical
+        )
+        XCTAssertEqual(blankPlan.messageCount, 1)
+        XCTAssertNil(blankPlan.previewText)
+        XCTAssertEqual(blankPlan.metadataText, "1 条消息")
+
+        let multilineSession = ChatSession(
+            title: "多行摘要",
+            messages: [
+                ChatMessage(
+                    role: .assistant,
+                    text: "  第一行 \t 第二行\n\n第三行  \r "
+                )
+            ]
+        )
+        let multilinePlan = SessionChipSidebarMetadataPolicy.resolve(
+            session: multilineSession,
+            layout: .vertical
+        )
+        XCTAssertEqual(multilinePlan.messageCount, 1)
+        XCTAssertEqual(multilinePlan.previewText, "第一行 第二行 第三行")
+        XCTAssertEqual(multilinePlan.metadataText, "1 条消息 · 第一行 第二行 第三行")
+
+        let orderedSession = ChatSession(
+            id: UUID(uuidString: "22222222-3333-4444-5555-666666666666")!,
+            title: "数组顺序会话",
+            messages: [
+                ChatMessage(
+                    role: .user,
+                    text: "时间戳更新但数组较前",
+                    timestamp: Date(timeIntervalSince1970: 300)
+                ),
+                ChatMessage(
+                    role: .assistant,
+                    text: "  第一行 \n\t 第二行   连续 空白  ",
+                    timestamp: Date(timeIntervalSince1970: 100)
+                ),
+                ChatMessage(
+                    role: .system,
+                    text: " \t\n ",
+                    timestamp: Date(timeIntervalSince1970: 500)
+                )
+            ],
+            createdAt: Date(timeIntervalSince1970: 400),
+            updatedAt: Date(timeIntervalSince1970: 50)
+        )
+        let originalSession = orderedSession
+        let originalMessages = orderedSession.messages
+        let orderedPlan = SessionChipSidebarMetadataPolicy.resolve(
+            session: orderedSession,
+            layout: .vertical
+        )
+        XCTAssertEqual(orderedPlan.messageCount, 3)
+        XCTAssertEqual(orderedPlan.previewText, "第一行 第二行 连续 空白")
+        XCTAssertEqual(orderedPlan.metadataText, "3 条消息 · 第一行 第二行 连续 空白")
+        XCTAssertEqual(orderedSession, originalSession)
+        XCTAssertEqual(orderedSession.messages, originalMessages)
+        XCTAssertEqual(orderedSession.messages.map(\.text), originalMessages.map(\.text))
+        XCTAssertEqual(
+            orderedSession.messages.map(\.text),
+            [
+                "时间戳更新但数组较前",
+                "  第一行 \n\t 第二行   连续 空白  ",
+                " \t\n "
+            ]
+        )
+        XCTAssertEqual(
+            orderedPlan,
+            SessionChipSidebarMetadataPolicy.resolve(
+                session: orderedSession,
+                layout: .vertical
+            )
+        )
+
+        let longSession = ChatSession(
+            title: "长摘要",
+            messages: [
+                ChatMessage(role: .assistant, text: String(repeating: "字", count: 45))
+            ]
+        )
+        let longPlan = SessionChipSidebarMetadataPolicy.resolve(
+            session: longSession,
+            layout: .vertical
+        )
+        let truncatedPreview = String(repeating: "字", count: 37) + "..."
+        XCTAssertEqual(longPlan.previewText, truncatedPreview)
+        XCTAssertEqual(longPlan.previewText?.count, SessionChipSidebarMetadataPolicy.maximumPreviewCharacters)
+        XCTAssertEqual(longPlan.metadataText, "1 条消息 · \(truncatedPreview)")
+
+        let horizontalPlan = SessionChipSidebarMetadataPolicy.resolve(
+            session: orderedSession,
+            layout: .horizontal
+        )
+        XCTAssertEqual(
+            horizontalPlan,
+            SessionChipSidebarMetadataPlan(
+                presentation: .hidden,
+                messageCount: 0,
+                previewText: nil
+            )
+        )
+        XCTAssertFalse(horizontalPlan.isVisible)
+        XCTAssertNil(horizontalPlan.metadataText)
+
+        let renderSession = ChatSession(
+            title: "Mac iPad 本地会话",
+            messages: [
+                ChatMessage(
+                    role: .user,
+                    text: "部署 Gemma 的本地策略"
+                ),
+                ChatMessage(
+                    role: .assistant,
+                    text: "  第一段本地摘要内容，包含多个字段。\n第二段继续说明离线策略。\t尾部  "
+                )
+            ]
+        )
+        for width in [CGFloat(240), 310] {
+            for themeMode in [AppThemeMode.light, .dark] {
+                for dynamicTypeSize in [DynamicTypeSize.large, .accessibility3] {
+                    for isActive in [true, false] {
+                        let renderer = ImageRenderer(
+                            content: SessionChip(
+                                session: renderSession,
+                                isActive: isActive,
+                                layout: .vertical,
+                                select: {},
+                                delete: {}
+                            )
+                            .environment(\.appTheme, AppThemePalette(mode: themeMode))
+                            .environment(\.colorScheme, themeMode.colorScheme)
+                            .environment(\.dynamicTypeSize, dynamicTypeSize)
+                            .frame(width: width)
+                        )
+                        renderer.scale = 1
+                        let image = renderer.uiImage
+
+                        XCTAssertNotNil(image)
+                        XCTAssertEqual(image?.size.width ?? 0, width, accuracy: 1)
+                        XCTAssertGreaterThan(image?.size.height ?? 0, 0)
+                        XCTAssertLessThan(image?.size.height ?? .infinity, 500)
+                    }
+                }
+            }
+        }
+
+        let horizontalRenderer = ImageRenderer(
+            content: SessionChip(
+                session: renderSession,
+                isActive: false,
+                layout: .horizontal,
+                select: {},
+                delete: {}
+            )
+            .environment(\.appTheme, AppThemePalette(mode: .dark))
+            .environment(\.colorScheme, ColorScheme.dark)
+            .environment(\.dynamicTypeSize, DynamicTypeSize.large)
+            .frame(width: 240)
+        )
+        horizontalRenderer.scale = 1
+        let horizontalImage = horizontalRenderer.uiImage
+        XCTAssertNotNil(horizontalImage)
+        XCTAssertEqual(horizontalImage?.size.width ?? 0, 240, accuracy: 1)
+        XCTAssertGreaterThan(horizontalImage?.size.height ?? 0, 0)
+        XCTAssertLessThan(horizontalImage?.size.height ?? .infinity, 250)
+    }
+
     func testSessionChipActionLayoutPolicyMaintainsTouchTargets() {
         XCTAssertEqual(SessionChipActionLayoutPolicy.minimumTouchTarget, 44)
         XCTAssertGreaterThanOrEqual(

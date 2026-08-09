@@ -3586,6 +3586,95 @@ enum SessionBarLayout {
     case vertical
 }
 
+struct SessionChipSidebarMetadataPlan: Equatable {
+    enum Presentation: Equatable {
+        case hidden
+        case vertical
+    }
+
+    let presentation: Presentation
+    let messageCount: Int
+    let previewText: String?
+
+    var isVisible: Bool {
+        presentation == .vertical
+    }
+
+    var metadataText: String? {
+        guard isVisible else {
+            return nil
+        }
+
+        let countText = "\(messageCount) 条消息"
+        guard let previewText, !previewText.isEmpty else {
+            return countText
+        }
+        return "\(countText) · \(previewText)"
+    }
+}
+
+enum SessionChipSidebarMetadataPolicy {
+    static let maximumPreviewCharacters = 40
+    private static let truncationSuffix = "..."
+
+    static func resolve(
+        session: ChatSession,
+        layout: SessionBarLayout
+    ) -> SessionChipSidebarMetadataPlan {
+        guard layout == .vertical else {
+            return SessionChipSidebarMetadataPlan(
+                presentation: .hidden,
+                messageCount: 0,
+                previewText: nil
+            )
+        }
+
+        var previewText: String?
+        for message in session.messages.reversed() {
+            guard let normalizedText = normalizedText(from: message.text) else {
+                continue
+            }
+            previewText = truncatedPreview(normalizedText)
+            break
+        }
+
+        return SessionChipSidebarMetadataPlan(
+            presentation: .vertical,
+            messageCount: session.messages.count,
+            previewText: previewText
+        )
+    }
+
+    private static func normalizedText(from text: String) -> String? {
+        var normalized = ""
+        var hasPendingWhitespace = false
+
+        for character in text {
+            if character.isWhitespace {
+                hasPendingWhitespace = !normalized.isEmpty
+                continue
+            }
+
+            if hasPendingWhitespace {
+                normalized.append(" ")
+            }
+            normalized.append(character)
+            hasPendingWhitespace = false
+        }
+
+        return normalized.isEmpty ? nil : normalized
+    }
+
+    private static func truncatedPreview(_ text: String) -> String {
+        guard text.count > maximumPreviewCharacters else {
+            return text
+        }
+
+        return String(text.prefix(maximumPreviewCharacters - truncationSuffix.count))
+            + truncationSuffix
+    }
+}
+
 enum SessionBarActionLayoutPolicy {
     static let minimumTouchTarget: CGFloat = 44
     static let iconButtonSize: CGFloat = minimumTouchTarget
@@ -3772,16 +3861,32 @@ struct SessionChip: View {
             layout: layout,
             isSelected: isActive
         )
+        let metadataPlan = SessionChipSidebarMetadataPolicy.resolve(
+            session: session,
+            layout: layout
+        )
 
         HStack(spacing: 8) {
             Button(action: select) {
-                HStack(spacing: 7) {
+                HStack(alignment: .top, spacing: 7) {
                     Image(systemName: isActive ? "message.fill" : "message")
                         .font(.system(size: 11, weight: .bold))
-                    Text(session.title)
-                        .font(.footnote.weight(.black))
-                        .lineLimit(SessionChipTextLayoutPolicy.titleLineLimit)
-                        .fixedSize(horizontal: false, vertical: true)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(session.title)
+                            .font(.footnote.weight(.black))
+                            .lineLimit(SessionChipTextLayoutPolicy.titleLineLimit)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        if let metadataText = metadataPlan.metadataText {
+                            Text(metadataText)
+                                .font(.caption2)
+                                .lineLimit(2)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .foregroundStyle(theme.secondaryText)
+                        }
+                    }
+
                     if layout == .vertical {
                         Spacer(minLength: 0)
                     }

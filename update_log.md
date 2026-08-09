@@ -16,7 +16,7 @@
 - 平台：SwiftUI iOS App，Swift 6.0，iOS deployment target 17.0，当前 app/test target 支持 iPhone、iPad 和 Mac Catalyst build-for-testing，并提供项目内 Mac Catalyst 本地 build/run 脚本入口；尚未创建原生 macOS target。
 - 当前默认模型：`Gemma 1.5B Local`
 - 当前推理：本地模拟 runtime，不下载模型权重，不执行真实模型推理。
-- 当前核心测试：`LocalGemmaTests.swift` 中 117 个 XCTest 方法。
+- 当前核心测试：`LocalGemmaTests.swift` 中 118 个 XCTest 方法。
 - 当前核心文档入口：`AGENTS.md`、`md/flow/flow.md`、`md/flow/flowchart.md`、`md/test/test.md`、`md/prompt/README.md`、`README.md`。
 - 当前协作验证：默认 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载未加密 CI 结果包验收；本地仓库当前已配置 `origin` remote，最终验收仍以最新 `origin/main` 对应的 GitHub Actions run 和结果包为准；文档已预留未来 `agentx:` 主控 Agent A -> Agent B -> Agent C 多轮循环的规则。
 
@@ -3889,4 +3889,36 @@
 遗留事项：
 
 - Mac/iPad 宽屏模型导航列、会话侧栏信息密度、桌面 hover/focus 反馈与消息时间语义继续作为后续独立候选。
+- UI Test target、真实 runtime 和原生 macOS target 仍属后续；本轮不下载模型权重、不接入云端推理、不绕过 verified 门禁。
+
+### v2.73 / 会话侧栏信息密度
+
+日期：2026-08-09
+
+核心变更：
+
+- 基于 v2.72 云端验收基线 `e6e6d546e13d1fd07b96473cc4454cbbd4b3ee48`，为 Mac/iPad 240...310pt 竖向会话侧栏增加本地信息密度派生，不改变会话排序、状态流或横向会话胶囊。
+- 新增纯值 `SessionChipSidebarMetadataPlan` 与 `SessionChipSidebarMetadataPolicy`；输入只有 `ChatSession` 和 `SessionBarLayout`。竖向消息数取 `session.messages.count`，摘要按数组尾部向前寻找最后一条归一化后非空正文，首尾/内部 whitespace、Tab、回车/换行归一化为单 ASCII 空格，按 `Character` 最多保留 40 个字符，超长取前 37 个加 `...`，空摘要回退为消息数；策略不读取或比较 timestamp/createdAt/updatedAt，不排序、不写回、不持久化、不联网。横向 plan 为 hidden，继续 title-only 160pt 胶囊。
+- `SessionChip` 只消费策略输出；竖向选择按钮内部增加 caption2 Dynamic Type 多行 metadata，保留标题两行、选择/删除动作、独立 44pt 删除目标、既有辅助语义/selected trait、背景、hairline 和左侧指示条，不新增状态或可操作辅助元素。
+- 新增 `testSessionChipSidebarMetadataPolicyKeepsVerticalRowsScannable`，覆盖空消息、空白尾消息、多行/连续 whitespace 归一化、数组顺序而非时间戳、原始 `ChatSession`/messages 不变性、vertical/horizontal plan、40 Character 截断，以及真实 `SessionChip` 的 240/310pt × 亮/暗主题 × `.large`/`.accessibility3` × 选中/未选中渲染，仅断言非 nil、宽度误差和合理高度；测试函数数从 117 增至 118。
+
+关键文件：
+
+- `LocalGemma/ContentView.swift`
+- `LocalGemmaTests/LocalGemmaTests.swift`
+- `AGENTS.md`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v2（Mac体验审计）/v2.73（会话侧栏信息密度）.md`
+
+验证结果：
+
+- 本轮按要求只运行本地轻量检查，均退出码 0：`git status --short --branch` 为 `main...origin/main`，并显示用户保留的 `LocalGemma.xcodeproj/project.pbxproj`、本轮 Swift/文档改动和未跟踪 v2.73 prompt；`git diff --check` 无输出；`find md -maxdepth 4 -type f | sort` 列出并确认 v2.73 prompt；AGENTS 角色/文档 `grep -n` 命中；`grep -c "func test" LocalGemmaTests/LocalGemmaTests.swift` 输出 `118`；v2.73 policy/test `rg` 命中实现、测试和 `SessionBarLayout`；`plutil -lint LocalGemma.xcodeproj/project.pbxproj` 输出 `OK`；Ruby YAML parse 输出 `yaml ok`（仅有 PATH world-writable warning）；`test -f script/build_and_run.sh`、`test -x script/build_and_run.sh`、`bash -n script/build_and_run.sh` 均成功；额外 `xcrun swiftc -parse LocalGemma/ContentView.swift` 与 `LocalGemmaTests/LocalGemmaTests.swift` 均成功，只代表语法可解析，不代表 build/test。
+- 未运行本机 `xcodebuild`、XCTest、Simulator、Mac Catalyst build/run、ImageRenderer 截图或视觉验证；完整 iOS/Catalyst build、LogicSmoke、118 项 XCTest 和 CI 结果包待本轮 push 后由 GitHub Actions 执行，再由 Agent C 只验收本轮最终 commit 对应的最新 run/artifact，当前不能写成通过。
+
+遗留事项：
+
+- 等待本轮 `main` push 后 GitHub Actions 产生 v2.73 最新 run 和结果包，并由 Agent C 核对 118 个唯一 XCTest、required checks、manifest、JUnit、日志与 xcresult；云端失败时只追加最小修复 commit，不回滚历史。
 - UI Test target、真实 runtime 和原生 macOS target 仍属后续；本轮不下载模型权重、不接入云端推理、不绕过 verified 门禁。
