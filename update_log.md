@@ -3856,7 +3856,7 @@
 
 核心变更：
 
-- 基于 v2.71 实现 run `30322522109`、Agent C artifact 验收和记录提交最终 run `30323152573` PASS，继续提升 iPhone、iPad 与 Mac Catalyst 高频聊天操作；本轮只增加单条消息复制，不显示时间。
+- 基于 v2.71 的最终云端验收 commit `c1b1421` 继续提升 iPhone、iPad 与 Mac Catalyst 高频聊天操作；本轮只增加单条消息复制，不显示时间。
 - 新增纯值 `ChatMessageCopyActionPolicy`：44pt 最小触控目标和动作尺寸，正文 trim 后非空且消息未生成时才可复制，但 payload 原样保留首尾空白与换行；policy 不访问系统剪贴板。
 - 新增 `ChatMessageCopyActionAccessibilityMetadata`：可复制、已复制、生成中/空正文不可复制状态，本地剪贴板与隐私边界、稳定 Voice Control 输入标签及基于消息 UUID 前缀的独立 identifier。
 - `ChatWorkspace` 将实时生成状态传入 `ChatTranscript`，仅最新 assistant 气泡在整个流式生成期间禁用复制；`ChatBubble` 使用本地 `didCopy` 状态和 SF Symbols `doc.on.doc` / `checkmark`，生产 action 才写入 `UIPasteboard`，反馈复用既有 `.copyConfirmation` 并持续到气泡身份消失，不增加 Timer、task 或 motion case。
@@ -3877,6 +3877,14 @@
 验证结果：
 
 - 按人工要求，本轮不运行本地 Xcode、Simulator、XCTest、Mac Catalyst build/run、系统剪贴板断言或截图；只执行 Git/diff、文档结构、测试数量、工程 plist 和 workflow YAML 等轻量检查。完整 iOS build、Mac Catalyst build、LogicSmoke 和 117 项 XCTest 由 push 后的 GitHub Actions 云端执行，最终以 Agent C 下载对应 artifact 验收为准。
+
+验证补充（Agent C）：
+
+- GitHub Actions run `30324632725` 对 `main` commit `c9228d707c946edfad66c4e42df8a896b8333115` 的 attempt `1` 完成编译和 XCTest，但既有 `testComposerInputMetadataAndFocusPolicyDescribeEntryPoints` 在云端窗口焦点探针第 2920 行出现一次时序性 `XCTAssertNotNil` 失败；新增 `testChatMessageCopyActionPolicyPreservesLocalPayloadAndAccessibility` 已通过。未改动代码，直接对同一 SHA 重跑失败 job。
+- 同一 run 的 attempt `2` 对同一 commit 全部 required checks success：static、LogicSmoke、iOS build、117 项 XCTest、Mac Catalyst build 和 run-script contract；可选 `codexRunEnvironment` 与 `macDesignedForIPad` 按既有设计 skipped。`ci-failure-summary.md` 明确为 `All required checks passed.`。
+- 唯一最终验收 artifact 为 `localgemma-ci-v2.72-main-c9228d7-run30324632725-attempt2`，GitHub API artifact ID `8675549629`，size `67079652` bytes，digest `sha256:b2c821965f7e1de4f945e2b0556912ad6333c92a067c609ec10f31fa66963b67`；API、`artifact-name.txt`、manifest 的 repository、branch、version、commit SHA、run ID、attempt 和 workflow identity 完全一致。attempt `1` artifact 仅保留为失败诊断，不作为验收证据。
+- attempt `2` 的 test.log 有 117 个唯一 passed XCTest、0 failed；新增复制测试在日志中恰好出现一次并为 passed，测试 xcresult summary 为 117 passed、0 failed、0 skipped、result `Passed`。JUnit 合法，7 个 CI 阶段、0 failure、0 error、1 个预期 skipped；iOS 与 Mac Catalyst 日志各有一次 `TEST BUILD SUCCEEDED`，XCTest 日志有一次 `TEST EXECUTE SUCCEEDED`，LogicSmoke 日志包含 `Logic smoke passed`。
+- 三份 xcresult 的 `Info.plist` 均通过 `plutil -lint`；iOS build、Mac Catalyst build、XCTest bundle 的 Data/refs 分别为 3/3、3/3、897/897，集合完全配对；XCTest bundle 的单个零字节 data 节点有对应 refs，不影响结构有效性。Agent C 未运行本地 Xcode、XCTest、Simulator 或 Catalyst 构建，独立验收结论为 PASS。
 
 遗留事项：
 
