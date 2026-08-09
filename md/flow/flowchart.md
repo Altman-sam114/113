@@ -146,21 +146,23 @@ flowchart TD
 
 ## 7. 会话导出与分享流
 
-读图说明：这张图展示导出时为什么有文件分享和文本分享两条路径。目标是避免分享一个不存在的临时文件，同时让分享与复制动作向辅助技术说明本地 Markdown、文本兜底、剪贴板和不发送云端的边界，并让底部分享/复制与 toolbar 分享入口保持 44pt 触控目标；导出弹层会话摘要、Markdown 预览和底部动作在 iPad/Mac 宽 sheet 中由 `ExportSessionLayoutPolicy` 居中并限制最大内容宽度。
+读图说明：这张图展示导出时为什么有文件分享和文本分享两条路径。目标是避免分享一个不存在的临时文件，同时让分享与复制动作向辅助技术说明本地 Markdown、文本兜底、剪贴板和不发送云端的边界，并让底部分享/复制与 toolbar 分享入口保持 44pt 触控目标；`ExportSessionView` 的完整正文预览使用语义等宽 Dynamic Type 字体、ScrollView 和文本选择，宽度继续由 `ExportSessionLayoutPolicy` 的 320/760pt 轨道控制。
 
 ```mermaid
 flowchart TD
     A[用户点击会话导出] --> B[InferenceEngine 生成 Markdown 文本]
     B --> C[尝试写入临时 .md 文件]
     C --> D[创建 ExportPayload]
-    D --> W[ExportSessionLayoutPolicy<br/>摘要 + Markdown 预览 + 底部动作<br/>窄屏用可用宽度<br/>宽 sheet 居中封顶]
-    W --> E{existingFileURL 是否存在}
+    D --> W[ExportSessionLayoutPolicy<br/>摘要 + Markdown 预览 + 底部动作<br/>窄屏用可用宽度<br/>宽 sheet 居中封顶<br/>320/760pt 宽度轨道]
+    W --> P[ExportSessionView 正文预览<br/>ExportSessionBodyTextLayoutPolicy<br/>语义等宽 Dynamic Type<br/>3pt line spacing + 18pt padding<br/>ScrollView + textSelection<br/>保留完整 Markdown 原文]
+    P --> E{existingFileURL 是否存在}
     E -- 是 --> F[ShareLink 分享 Markdown 文件<br/>分享动作辅助语义<br/>底部/toolbar 44pt 触控目标]
     E -- 否 --> G[ShareLink 分享文本内容<br/>文本兜底辅助语义<br/>底部/toolbar 44pt 触控目标]
     F --> H[系统分享面板]
     G --> H
     D --> I[复制全文按钮<br/>剪贴板动作辅助语义<br/>底部 44pt 触控目标]
     I --> J[写入 UIPasteboard]
+    P -.-> N[只影响正文排版<br/>不新增状态/网络/模型权重/runtime/artifact 流]
 ```
 
 ## 8. main 直推与云端结果包验收流

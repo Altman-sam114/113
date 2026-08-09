@@ -4172,6 +4172,16 @@ enum ExportSessionTitleTextLayoutPolicy {
     static var allowsMultilineMeta: Bool { metaLineLimit > 1 }
 }
 
+enum ExportSessionBodyTextLayoutPolicy {
+    static let contentPadding: CGFloat = 18
+    static let bodyLineSpacing: CGFloat = 3
+    static let preservesFullText = true
+
+    static var usesSemanticMonospacedFont: Bool {
+        true
+    }
+}
+
 struct ExportSessionView: View {
     @Environment(\.appTheme) private var theme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -4190,11 +4200,12 @@ struct ExportSessionView: View {
 
                     ScrollView {
                         Text(payload.text)
-                            .font(.system(size: 13, weight: .medium, design: .monospaced))
+                            .font(.body.monospaced())
                             .foregroundStyle(theme.primaryText)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .textSelection(.enabled)
-                            .padding(18)
+                            .lineSpacing(ExportSessionBodyTextLayoutPolicy.bodyLineSpacing)
+                            .padding(ExportSessionBodyTextLayoutPolicy.contentPadding)
                     }
 
                     exportActions

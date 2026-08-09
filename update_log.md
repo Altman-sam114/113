@@ -16,7 +16,7 @@
 - 平台：SwiftUI iOS App，Swift 6.0，iOS deployment target 17.0，当前 app/test target 支持 iPhone、iPad 和 Mac Catalyst build-for-testing，并提供项目内 Mac Catalyst 本地 build/run 脚本入口；尚未创建原生 macOS target。
 - 当前默认模型：`Gemma 1.5B Local`
 - 当前推理：本地模拟 runtime，不下载模型权重，不执行真实模型推理。
-- 当前核心测试：`LocalGemmaTests.swift` 中 121 个 XCTest 方法。
+- 当前核心测试：`LocalGemmaTests.swift` 中 122 个 XCTest 方法。
 - 当前核心文档入口：`AGENTS.md`、`md/flow/flow.md`、`md/flow/flowchart.md`、`md/test/test.md`、`md/prompt/README.md`、`README.md`。
 - 当前协作验证：默认 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载未加密 CI 结果包验收；本地仓库当前已配置 `origin` remote，最终验收仍以最新 `origin/main` 对应的 GitHub Actions run 和结果包为准；文档已预留未来 `agentx:` 主控 Agent A -> Agent B -> Agent C 多轮循环的规则。
 
@@ -4011,6 +4011,32 @@
 - 云端 `test.log` 有恰好 120 条 `Test case` 记录、120 个 `passed` 标记、0 个 `failed` 标记和一次 `** TEST EXECUTE SUCCEEDED **`；120 条记录对应源码 120 个唯一测试函数，新增 `testChipReadinessLayoutPolicyAdaptsToCardWidthAndAccessibilityDynamicType` 恰好一次。该日志有一处 xcodebuild diagnostic 与 `testWallpaperPreferenceControlsExposeAccessibilityMetadata` 记录交错，导致该单行名称被截断；没有失败或重复记录，计数以完整 case 记录、passed 总数、源码集合和 XCTest success marker 交叉核对。
 - 三份 `.xcresult` 的 `Info.plist` 均 `plutil -lint` 通过，版本均为 3.58 且 rootId 存在；`LocalGemma-build.xcresult`、`LocalGemma-maccatalyst-build.xcresult`、`LocalGemma-tests.xcresult` 的 Data/refs 分别为 `3/3`、`3/3`、`879/879`，hash 集合完全配对。tests bundle 的唯一零字节 data 节点有对应 refs，不影响 bundle 结构；build、Catalyst build 和 tests 三个结果包均存在。
 - 本轮未运行本地 `xcodebuild`、XCTest、Simulator、Mac Catalyst build/run、`xcresulttool` 或 ImageRenderer；仅使用 GitHub CLI/API 下载和读取云端结果包，并使用轻量文件/manifest/日志/Info.plist 结构核对。未下载模型权重、未执行真实模型推理、未调用云端推理。用户既有 `LocalGemma.xcodeproj/project.pbxproj` 修改保持未编辑、未暂存、未提交。
+
+### v2.77 / 导出会话正文动态排版
+
+日期：2026-08-09
+
+核心变更：
+
+- 基于实际最新 `origin/main` docs commit `459afeb` 实现 `ExportSessionBodyTextLayoutPolicy`；`ExportSessionView` 的完整 Markdown 正文改用 `.body.monospaced()` 语义等宽 Dynamic Type 字体，复用 policy 的 18pt content padding 与 3pt line spacing。
+- 保留 `ExportPayload.text` 原文、Markdown 换行、ScrollView、`textSelection(.enabled)`、`ExportSessionLayoutPolicy` 的 320/760pt 宽度、既有标题/动作辅助语义、44pt 动作目标、文件 URL、复制分享、本地隐私边界、runtime 与 verified 门禁；不新增状态、网络或模型文件流。
+- 新增 `testExportSessionBodyTextLayoutPolicySupportsDynamicTypeReading`，源码测试函数数从 121 增至 122；覆盖 policy 重复读取、320/390/834/1200pt 与非法宽度、44pt 回归，以及真实 `ExportSessionView` 的公开 `ImageRenderer` 亮暗主题和 `.large`/`.xxxLarge`/`.accessibility3` 非空/正尺寸矩阵。固定 NavigationStack/GeometryReader 测试 viewport 高度，Dynamic Type/full-text 由纯值契约与生产渲染非空断言锁定。
+
+关键文件：
+
+- `LocalGemma/ContentView.swift`
+- `LocalGemmaTests/LocalGemmaTests.swift`
+- `AGENTS.md`
+- `README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/v2（Mac体验审计）/v2.77（导出会话正文动态排版）.md`
+
+当前验证状态：
+
+- 已确认本地 `main`、`origin/main` 与实际基线为 `459afeb`；用户保留的 `LocalGemma.xcodeproj/project.pbxproj` 修改未编辑、未格式化、未暂存、未提交。
+- 本地仅执行 prompt 要求的轻量 parse/diff/plist/YAML/脚本/Markdown 结构检查；未运行本地 XCTest、xcodebuild、Simulator、Mac Catalyst build/run、截图视觉验收、模型下载或真实推理。云端 run、artifact、xcresult 和 Agent C 验收尚未发生，待 v2.77 最终 commit push 后记录实际结果。
 
 ### v2.76 / 运行策略开关文本动态排版
 

@@ -58,9 +58,10 @@ xcrun simctl list devices available
 
 当前测试基线：
 
-- `LocalGemmaTests.swift` 当前包含 121 个 `test...` 方法。
+- `LocalGemmaTests.swift` 当前包含 122 个 `test...` 方法。
 - v2.75 新增 `testChipReadinessLayoutPolicyAdaptsToCardWidthAndAccessibilityDynamicType`，锁住 `354pt` 真实 panel 内容宽度边界、普通字号横排、Accessibility Dynamic Type 无条件 stacked、NaN/Infinity/非正宽度回退、纯值 plan、`DeviceOptimizer`/隐私状态不变，以及 `86pt` slot / `66pt` diameter；生产 `ChipReadinessCard` 的 `ImageRenderer` 覆盖亮暗主题、`382pt` 外框（扣除两侧 `14pt` panel padding 后为 `354pt` 内容）、窄外框与 Accessibility 字号 stacked，只断言图像非 nil、宽度误差不超过 1pt、高度合理，不做像素/私有层级/截图断言。测试函数数从 119 增至 120；本地只做轻量检查，完整 iOS/Catalyst build、LogicSmoke、120 项 XCTest 和结果包待本轮 push 后 GitHub Actions 执行。
 - v2.76 新增 `testOptimizationToggleTextLayoutPolicySupportsDynamicTypeRows`，锁住共享 `OptimizationToggleTextLayoutPolicy` 的标题/行标题/副标题均为两行、行内 spacing 为 3pt、subtitle lineSpacing 为 2pt、三个多行能力计算属性、44pt 行最小高度、250pt 最小卡片宽度和 510pt 两列边界，并确认重复读取不改变 `DeviceOptimizer` 开关、准备度或隐私摘要。生产 `ImageRenderer` 使用真实 `OptimizationToggleRow` 覆盖 250/510pt、亮暗主题、enabled/disabled 与 `.large`/`.xxxLarge`/`.accessibility3`，比较普通/Accessibility 高度，并用真实 `OptimizationToggleGrid` 覆盖窄单列和宽区域；只断言非 nil、宽度误差不超过 1pt、高度合理，不做像素、私有层级或截图断言。测试函数数从 120 增至 121；本地只做轻量检查，完整 iOS/Catalyst build、LogicSmoke、121 项 XCTest 和结果包待本轮 push 后 GitHub Actions 执行。
+- v2.77 新增 `testExportSessionBodyTextLayoutPolicySupportsDynamicTypeReading`，锁住 `ExportSessionBodyTextLayoutPolicy` 的 18pt content padding、3pt body line spacing、`preservesFullText`、语义等宽 Dynamic Type 契约、重复读取不变性、`ExportSessionLayoutPolicy` 的 320/390/834/1200pt 与负数/NaN 回归及导出动作 44pt 目标。生产公开 `ImageRenderer` 直接渲染真实 `ExportSessionView(payload:)`，覆盖亮暗主题、320/390/834/1200pt 与 `.large`/`.xxxLarge`/`.accessibility3`，只断言非 nil、正尺寸和固定 NavigationStack/GeometryReader 测试 viewport 下的非下降高度，不做像素、颜色、截图或私有层级断言。测试函数数从 121 增至 122；本地不运行 XCTest、xcodebuild、Simulator、Catalyst build/run 或视觉截图验收，完整 iOS/Catalyst build、LogicSmoke、122 项 XCTest 和结果包待本轮 push 后 GitHub Actions 执行。
 - v2.60 新增 `testChatWorkspacePaneLayoutPolicyCoordinatesGlobalAndSessionSidebars`，以真实根窗口先扣除 `WorkspaceLayoutMode` 全局侧栏，再验证聊天 pane：860pt 以下堆叠，分栏时会话栏保持 240...310pt、聊天面至少 620pt，并覆盖无效宽度、阈值和宽度守恒。
 - v2.61 新增 `testAppMotionAccessibilityPolicyRespectsReduceMotion`，锁住五类 motion effect 的完整覆盖与互斥分类：普通模式全部保留动画，Reduce Motion 下工作区导航、聊天记录自动滚动和模型切换返回 `nil`，主题切换与复制确认保留 0.12 秒局部反馈。
 - v2.62 新增 `testWorkspaceRootLayoutPolicyResolvesChromeAndAxisAtBoundaries`，锁住 699.99/700/979.99/980pt、iPad 尺寸、负值、NaN、Infinity 下的根布局 mode、axis、chrome 与精确侧栏 clamp；`testWorkspaceRootShellPreservesStatefulContentAcrossLayoutPlans` 将生产 `WorkspaceRootShell` 和稳定 `SessionCommandFocusModifier` 挂入 `UIHostingController`/`UIWindow`，在断点及聊天 active/inactive 往返时验证同一 `@State` UUID 持续存在、仅 appear 一次且中途不 disappear。现有 command/focus 测试同时锁住只有活动聊天页的 focused route 包装包含会话 actions。
@@ -415,7 +416,7 @@ xcodebuild -project LocalGemma.xcodeproj \
 当前基线：
 
 - 期望结果：`TEST EXECUTE SUCCEEDED`。
-- 当前测试函数数：121。
+- 当前测试函数数：122。
 
 ### Full
 

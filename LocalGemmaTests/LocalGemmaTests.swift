@@ -5584,6 +5584,115 @@ final class LocalGemmaTests: XCTestCase {
         XCTAssertEqual(ExportSessionLayoutPolicy.contentWidth(forContainerWidth: -1), 320)
         XCTAssertEqual(ExportSessionLayoutPolicy.contentWidth(forContainerWidth: .nan), 320)
     }
+
+    func testExportSessionBodyTextLayoutPolicySupportsDynamicTypeReading() {
+        let firstRead = (
+            ExportSessionBodyTextLayoutPolicy.contentPadding,
+            ExportSessionBodyTextLayoutPolicy.bodyLineSpacing,
+            ExportSessionBodyTextLayoutPolicy.preservesFullText,
+            ExportSessionBodyTextLayoutPolicy.usesSemanticMonospacedFont
+        )
+        let secondRead = (
+            ExportSessionBodyTextLayoutPolicy.contentPadding,
+            ExportSessionBodyTextLayoutPolicy.bodyLineSpacing,
+            ExportSessionBodyTextLayoutPolicy.preservesFullText,
+            ExportSessionBodyTextLayoutPolicy.usesSemanticMonospacedFont
+        )
+
+        XCTAssertEqual(firstRead.0, 18)
+        XCTAssertEqual(firstRead.1, 3)
+        XCTAssertTrue(firstRead.2)
+        XCTAssertTrue(firstRead.3)
+        XCTAssertEqual(firstRead.0, secondRead.0)
+        XCTAssertEqual(firstRead.1, secondRead.1)
+        XCTAssertEqual(firstRead.2, secondRead.2)
+        XCTAssertEqual(firstRead.3, secondRead.3)
+
+        XCTAssertEqual(ExportSessionLayoutPolicy.horizontalPadding, 18)
+        XCTAssertEqual(ExportSessionLayoutPolicy.minimumReadableWidth, 320)
+        XCTAssertEqual(ExportSessionLayoutPolicy.maximumContentWidth, 760)
+        XCTAssertEqual(ExportSessionLayoutPolicy.contentWidth(forContainerWidth: 320), 284)
+        XCTAssertEqual(ExportSessionLayoutPolicy.contentWidth(forContainerWidth: 390), 354)
+        XCTAssertEqual(ExportSessionLayoutPolicy.contentWidth(forContainerWidth: 834), 760)
+        XCTAssertEqual(ExportSessionLayoutPolicy.contentWidth(forContainerWidth: 1_200), 760)
+        XCTAssertEqual(ExportSessionLayoutPolicy.contentWidth(forContainerWidth: -1), 320)
+        XCTAssertEqual(ExportSessionLayoutPolicy.contentWidth(forContainerWidth: .nan), 320)
+        XCTAssertGreaterThanOrEqual(
+            ExportSessionActionLayoutPolicy.bottomButtonMinHeight,
+            ExportSessionActionLayoutPolicy.minimumTouchTarget
+        )
+        XCTAssertGreaterThanOrEqual(
+            ExportSessionActionLayoutPolicy.toolbarButtonSize,
+            ExportSessionActionLayoutPolicy.minimumTouchTarget
+        )
+
+        let payload = ExportPayload(
+            title: "动态排版导出会话",
+            messageCount: 4,
+            text: """
+            # 本地会话导出
+
+            模型：Gemma 1.5B Local
+
+            ## 用户
+            这是一段包含中文、English mixed text 和一条 deliberately long Markdown line used to keep the real preview readable across narrow and wide sheets without changing the original payload.
+
+            ## 本地模型
+            （生成中）
+
+            这里保留多行文本、换行和完整 Markdown 原文。
+
+            - `verified` artifact stays local
+            - 文本选择继续可用
+            """,
+            fileURL: nil
+        )
+        let renderCases: [(CGFloat, AppThemeMode, DynamicTypeSize)] = [
+            (320, .light, .large),
+            (390, .dark, .xxxLarge),
+            (834, .light, .accessibility3),
+            (1_200, .dark, .large)
+        ]
+
+        for (width, themeMode, dynamicTypeSize) in renderCases {
+            let renderer = ImageRenderer(
+                content: ExportSessionView(payload: payload)
+                    .environment(\.appTheme, AppThemePalette(mode: themeMode))
+                    .environment(\.colorScheme, themeMode.colorScheme)
+                    .environment(\.dynamicTypeSize, dynamicTypeSize)
+                    .frame(width: width, height: 900)
+            )
+            renderer.scale = 1
+
+            let image = renderer.uiImage
+            XCTAssertNotNil(image)
+            XCTAssertGreaterThan(image?.size.width ?? 0, 0)
+            XCTAssertGreaterThan(image?.size.height ?? 0, 0)
+        }
+
+        // NavigationStack and GeometryReader use the fixed test viewport; the pure policy
+        // contract above carries the Dynamic Type/full-text assertion for this host.
+        let largeImage = ImageRenderer(
+            content: ExportSessionView(payload: payload)
+                .environment(\.appTheme, AppThemePalette(mode: .light))
+                .environment(\.colorScheme, .light)
+                .environment(\.dynamicTypeSize, .large)
+                .frame(width: 390, height: 900)
+        ).uiImage
+        let accessibilityImage = ImageRenderer(
+            content: ExportSessionView(payload: payload)
+                .environment(\.appTheme, AppThemePalette(mode: .light))
+                .environment(\.colorScheme, .light)
+                .environment(\.dynamicTypeSize, .accessibility3)
+                .frame(width: 390, height: 900)
+        ).uiImage
+        XCTAssertGreaterThan(largeImage?.size.height ?? 0, 0)
+        XCTAssertGreaterThan(accessibilityImage?.size.height ?? 0, 0)
+        XCTAssertGreaterThanOrEqual(
+            accessibilityImage?.size.height ?? 0,
+            largeImage?.size.height ?? 0
+        )
+    }
 }
 
 private final class WorkspaceRootPlanStore: ObservableObject {

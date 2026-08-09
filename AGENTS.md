@@ -4,7 +4,7 @@
 
 ## 1. 项目一句话总览
 
-`Local Gemma iOS Prototype` 是一个 SwiftUI iOS 原型 App，用本地模拟 runtime 验证 iPhone、iPad 与 Mac Catalyst build/run 基线下端侧部署 Gemma 1.5B 的产品交互、模型文件管理、artifact 校验、模型卸载确认弹层辅助语义、会话导出、导出弹层分享/复制辅助语义、导出弹层分享/复制 44pt 触控目标、导出弹层整体宽屏内容宽度策略、大屏双栏布局、聊天工作区双侧栏宽度协调、聊天记录居中阅读轨道、短会话靠近 composer 的纵向定位、Mac/iPad 工作区与会话命令菜单、顶部模型胶囊整体辅助语义、模型概要面板与详情右栏/行级辅助语义、模型页整体宽屏内容宽度策略、模型详情右栏最大阅读宽度策略、模型文件工作流面板辅助语义、工作区导航辅助语义、工作区导航 44pt 触控目标、共享 panel 内高光与分层阴影、头部主题与模型库入口辅助语义、全局 Header 图标动作 44pt 触控目标、Header 标题动态排版策略、设置页整体宽屏内容宽度策略、设置页图标动作 44pt 触控目标、会话栏操作辅助语义、会话栏操作 44pt 触控目标、会话 chip 动作语义、会话侧栏视觉层级、会话侧栏信息密度、会话侧栏宽度策略、聊天消息气泡与聊天记录容器辅助语义、单条消息复制与本地反馈、生成中状态脉冲指示、聊天气泡与 composer 宽屏输入宽度策略、composer 聚焦光环与发送按钮渐变、composer 发送/停止 44pt 触控目标、模型选择器、状态徽章与部署控件辅助语义、模型部署控件 44pt 触控目标、运行策略开关辅助语义、运行策略开关宽屏网格、运行策略开关行 44pt 触控目标、芯片准备度辅助语义与隐私状态动态摘要、优化指标卡辅助语义、优化指标卡文本动态排版策略、优化指标网格宽度策略、共享 SectionHeader 动态排版策略、提示词页整体宽屏内容宽度策略、提示词模板宽屏布局策略、提示词模板文本动态排版策略、提示词分类筛选换行布局策略、提示词分类文本动态排版策略、提示词筛选与模板动作辅助语义、提示词模板动作 44pt 触控目标、相册壁纸控件辅助语义和 Apple Silicon 运行计划；当前不下载模型权重，不执行真实模型推理，也没有原生 macOS target。
+`Local Gemma iOS Prototype` 是一个 SwiftUI iOS 原型 App，用本地模拟 runtime 验证 iPhone、iPad 与 Mac Catalyst build/run 基线下端侧部署 Gemma 1.5B 的产品交互、模型文件管理、artifact 校验、模型卸载确认弹层辅助语义、会话导出、导出会话正文动态排版、导出弹层分享/复制辅助语义、导出弹层分享/复制 44pt 触控目标、导出弹层整体宽屏内容宽度策略、大屏双栏布局、聊天工作区双侧栏宽度协调、聊天记录居中阅读轨道、短会话靠近 composer 的纵向定位、Mac/iPad 工作区与会话命令菜单、顶部模型胶囊整体辅助语义、模型概要面板与详情右栏/行级辅助语义、模型页整体宽屏内容宽度策略、模型详情右栏最大阅读宽度策略、模型文件工作流面板辅助语义、工作区导航辅助语义、工作区导航 44pt 触控目标、共享 panel 内高光与分层阴影、头部主题与模型库入口辅助语义、全局 Header 图标动作 44pt 触控目标、Header 标题动态排版策略、设置页整体宽屏内容宽度策略、设置页图标动作 44pt 触控目标、会话栏操作辅助语义、会话栏操作 44pt 触控目标、会话 chip 动作语义、会话侧栏视觉层级、会话侧栏信息密度、会话侧栏宽度策略、聊天消息气泡与聊天记录容器辅助语义、单条消息复制与本地反馈、生成中状态脉冲指示、聊天气泡与 composer 宽屏输入宽度策略、composer 聚焦光环与发送按钮渐变、composer 发送/停止 44pt 触控目标、模型选择器、状态徽章与部署控件辅助语义、模型部署控件 44pt 触控目标、运行策略开关辅助语义、运行策略开关宽屏网格、运行策略开关行 44pt 触控目标、芯片准备度辅助语义与隐私状态动态摘要、优化指标卡辅助语义、优化指标卡文本动态排版策略、优化指标网格宽度策略、共享 SectionHeader 动态排版策略、提示词页整体宽屏内容宽度策略、提示词模板宽屏布局策略、提示词模板文本动态排版策略、提示词分类筛选换行布局策略、提示词分类文本动态排版策略、提示词筛选与模板动作辅助语义、提示词模板动作 44pt 触控目标、相册壁纸控件辅助语义和 Apple Silicon 运行计划；当前不下载模型权重，不执行真实模型推理，也没有原生 macOS target。
 
 v2.64 起，顶部模型胶囊还包含窄侧栏响应式布局策略：sidebar 与窄 top header 使用堆叠概要，指标按可用宽度切换 1/2/3 列，`.xxxLarge` 及以上 Dynamic Type 固定回退单列。
 
@@ -13,6 +13,8 @@ v2.74 起，Mac Catalyst/iPad pointer 下的竖向会话侧栏未选中行还包
 v2.75 起，设置页与优化 dashboard 共用 `ChipReadinessLayoutMode` / `ChipReadinessLayoutPolicy`：panel 内真实内容宽度达到 `354pt` 才允许横排，Accessibility Dynamic Type 和非法宽度始终 stacked；`ReadinessRing` 保留 `86pt` slot 与 `66pt` diameter，语义字体正文可垂直增长，布局通过同一 `AnyLayout` 切换，不改变 `DeviceOptimizer`、隐私摘要、辅助语义、Reduce Motion、runtime 或 verified 门禁。
 
 v2.76 起，设置页与优化 dashboard 共用 `OptimizationToggleTextLayoutPolicy`：运行策略小节标题、行标题和副标题使用 Dynamic Type 语义字体，标题/副标题最多两行并允许垂直增长；保留 44pt 行最小高度、250pt 最小卡片宽度和 510pt 两列边界，不改变 `DeviceOptimizer`、辅助语义、Reduce Motion、runtime 或 verified 门禁。
+
+v2.77 起，`ExportSessionBodyTextLayoutPolicy` 集中定义导出正文 18pt padding、3pt line spacing、完整正文和语义等宽 Dynamic Type 契约；`ExportSessionView` 使用 `.body.monospaced()`，保留原始 Markdown、ScrollView、textSelection、320/760pt `ExportSessionLayoutPolicy` 宽度及既有标题/动作辅助语义和 44pt 目标，不改变本地导出、复制分享、runtime 或 verified 门禁。
 
 ## 2. 必读文件顺序
 
@@ -133,6 +135,7 @@ git remote -v
 - `ExportSessionActionAccessibilityMetadata` 控制导出弹层分享 Markdown、文本兜底和复制全文动作的辅助语义；它必须明确本地 Markdown / 文本分享兜底 / 剪贴板边界，并说明不会发送到云端服务。
 - `ExportSessionActionLayoutPolicy` 控制导出弹层底部分享、底部复制和 toolbar 分享入口的最小触控目标；底部分享/复制必须至少 44pt 高，toolbar 分享必须至少 44x44，且不得改变 ExportPayload、ShareLink 文件优先/文本兜底、剪贴板写入、导出弹层辅助语义或会话状态流。
 - `ExportSessionTitleTextLayoutPolicy` 控制导出弹层会话标题与消息摘要的 Dynamic Type 文本策略；标题与摘要使用语义字体并允许两行，避免 iPad/Mac 宽 sheet 和较大文字设置下通过固定小字号或缩放压缩文字，且不得改变 ExportPayload、ShareLink 文件优先/文本兜底、剪贴板、分享/复制触控目标、导出弹层辅助语义或会话状态流。
+- `ExportSessionBodyTextLayoutPolicy` 控制导出弹层 Markdown 正文的 18pt padding、3pt line spacing、完整正文和语义等宽 Dynamic Type 契约；`ExportSessionView` 继续使用 ScrollView、`textSelection(.enabled)` 与 `ExportSessionLayoutPolicy` 的 320/760pt 宽度，不添加截断或固定正文高度，且不得改变导出文本/文件、复制分享、标题/动作辅助语义、44pt 目标、runtime 或 verified 门禁。
 - `ExportSessionLayoutPolicy` 控制导出弹层整体内容宽度；iPhone 和窄 split view 必须保持原有可用宽度，iPad/Mac 宽 sheet 必须让会话摘要、Markdown 预览和底部分享/复制动作整体居中并限制最大宽度，且不得改变 ExportPayload、ShareLink 文件优先/文本兜底、剪贴板写入、toolbar 分享、导出弹层辅助语义或会话状态流。
 - `WallpaperPreferenceAccessibilityMetadata` 控制设置页壁纸选择和恢复系统背景控件的辅助语义；它必须明确系统相册、本地压缩、`AppStorage` 背景数据、系统背景恢复和不发送到云端服务边界。
 - `PromptTemplatesWorkspaceLayoutPolicy` 控制提示词页整体内容宽度；iPhone 和窄 split view 必须保持原有可用宽度，iPad/Mac 超宽窗口必须让标题、分类筛选和模板网格整体居中并限制最大宽度，最大内容宽度要从模板网格四列最大宽度派生，且不得改变分类筛选、模板填入/发送、生成中禁用、composer 聚焦或辅助语义。
