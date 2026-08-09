@@ -4001,3 +4001,13 @@
 遗留事项：
 
 - 等待本轮 v2.75 `origin/main` push 触发 GitHub Actions，并由 Agent C 只验收最新 commit 对应的 run/artifact；本地不下载模型权重、不执行真实模型推理、不调用云端推理。
+
+验收补充（Agent C 云端独立核对）：
+
+- `gh run watch 31295679596 --exit-status` 完成并返回 success；run 为 `main` push、attempt `1`，唯一 job `93200278629` 的 static checks、Logic smoke、iOS build-for-testing、Mac Catalyst build-for-testing、Mac Catalyst run-script contract、iPhone simulator XCTest、manifest/JUnit/failure summary、result evaluation 和 artifact upload 全部 success。GitHub 仅有 Node.js 20 弃用 annotation，无失败 annotation。
+- GitHub API 核对 run `31295679596` 的 branch=`main`、SHA=`dfa96d77bbc3c066cef7ba4a074f4be0b5c6805c`、conclusion=`success`；commit subject 为 `v2.75: 芯片准备度卡片自适应`。
+- 唯一 v2.75 artifact 为 `localgemma-ci-v2.75-main-dfa96d7-run31295679596-attempt1`，artifact ID `9032959178`，size `81583870` bytes，API digest 为 `sha256:7386339b9171840179ddc66c8221876eb38b94e4e0210ac8f3d58860bb738279`；下载 zip 的本地 SHA-256 与 API digest 完全一致。`artifact-name.txt`、manifest、run identity 和 artifact name 完全一致。
+- manifest 的 version/repository/branch/SHA/short SHA/subject/run ID/attempt/workflow、iOS destination、Catalyst destination、三个结果包路径、JUnit/日志路径和各 required outcome 均与 run 及包内文件一致；mac baseline 为 `mac-catalyst`，可选 `codexRunEnvironment` 与 `macDesignedForIPad` 按既有设计 skipped。JUnit 为 7 个 CI 阶段、0 failures、1 个预期 skipped。
+- 云端 `test.log` 有恰好 120 条 `Test case` 记录、120 个 `passed` 标记、0 个 `failed` 标记和一次 `** TEST EXECUTE SUCCEEDED **`；120 条记录对应源码 120 个唯一测试函数，新增 `testChipReadinessLayoutPolicyAdaptsToCardWidthAndAccessibilityDynamicType` 恰好一次。该日志有一处 xcodebuild diagnostic 与 `testWallpaperPreferenceControlsExposeAccessibilityMetadata` 记录交错，导致该单行名称被截断；没有失败或重复记录，计数以完整 case 记录、passed 总数、源码集合和 XCTest success marker 交叉核对。
+- 三份 `.xcresult` 的 `Info.plist` 均 `plutil -lint` 通过，版本均为 3.58 且 rootId 存在；`LocalGemma-build.xcresult`、`LocalGemma-maccatalyst-build.xcresult`、`LocalGemma-tests.xcresult` 的 Data/refs 分别为 `3/3`、`3/3`、`879/879`，hash 集合完全配对。tests bundle 的唯一零字节 data 节点有对应 refs，不影响 bundle 结构；build、Catalyst build 和 tests 三个结果包均存在。
+- 本轮未运行本地 `xcodebuild`、XCTest、Simulator、Mac Catalyst build/run、`xcresulttool` 或 ImageRenderer；仅使用 GitHub CLI/API 下载和读取云端结果包，并使用轻量文件/manifest/日志/Info.plist 结构核对。未下载模型权重、未执行真实模型推理、未调用云端推理。用户既有 `LocalGemma.xcodeproj/project.pbxproj` 修改保持未编辑、未暂存、未提交。
