@@ -24,6 +24,7 @@ v2.64 的顶部模型胶囊还会按真实 chrome 可用宽度切换堆叠/横�
 10. `InferenceEngine` 分 chunk 流式写回 messages，并同步 active session。
 11. 用户可导出当前会话，生成 Markdown 文本和临时 `.md` 文件。
 12. 分享视图优先分享真实存在的 Markdown 文件；文件不存在时分享文本，导出弹层分享/复制动作向辅助技术说明本地文件、文本兜底和剪贴板边界，并通过独立动作布局策略保持 44pt 触控目标；导出弹层会话摘要、Markdown 预览和底部动作通过 `ExportSessionLayoutPolicy` 在 iPad/Mac 宽 sheet 中居中并限制最大内容宽度。
+13. `SettingsWorkspace` 与 `OptimizerDashboard` 都复用 `ChipReadinessCard`；卡片在 `.panelStyle` 内侧用 `GeometryReader` 读取真实 panel 内容宽度，交给 `ChipReadinessLayoutPolicy`，再由同一 `AnyLayout` 在 `HStackLayout` / `VStackLayout` 间切换。普通字号在 `354pt` 内容宽度边界横排，Accessibility Dynamic Type 或非法宽度 stacked；状态、隐私摘要、ReadinessRing 和辅助语义仍来自既有本地状态。
 
 ## 当前核心执行流
 
@@ -127,6 +128,7 @@ v2.64 的顶部模型胶囊还会按真实 chrome 可用宽度切换堆叠/横�
 - `OptimizationToggleGridLayoutPolicy` 为设置页和优化 dashboard 的运行策略开关定义共享宽度策略；窄屏或窄 split view 使用单列，达到两列阈值的 iPad/Mac 宽区域使用双列，减少 Apple Silicon 设置区的纵向滚动，同时保留每个 `OptimizationToggleRow` 的独立辅助焦点。
 - `OptimizationToggleRowLayoutPolicy` 为设置页和优化 dashboard 的单个运行策略开关行定义 44pt 最小触控目标；`OptimizationToggleRow` 只复用最小高度常量，不改变 `DeviceOptimizer` 开关状态流、运行策略顺序、辅助语义、网格列数、准备度摘要或模型/runtime 状态。
 - `ChipReadinessAccessibilityMetadata` 为设置页和优化 dashboard 的芯片准备度卡片与圆环生成 label/value/hint/input labels/identifier；卡片摘要复用 `DeviceOptimizer.isOfflinePrivacyGuardEnabled`，随 `Offline privacy guard` 开关显示离线隐私保护开启或关闭，并说明本地芯片准备度、不下载模型权重、不启动真实 runtime 和不发送到云端服务边界。
+- `ChipReadinessLayoutMode` / `ChipReadinessLayoutPlan` / `ChipReadinessLayoutPolicy` 为两个调用点共享真实 panel 内容宽度策略；`354pt` 及以上普通字号返回 horizontal，Accessibility Dynamic Type 与 NaN/Infinity/非正宽度返回 stacked，固定 `86pt` ring slot / `66pt` ring diameter，生产卡片用 `AnyLayout` 保持同一内容子树和无状态切换。
 - `OptimizerMetricAccessibilityMetadata` 为设置页和优化 dashboard 的 Apple Silicon 指标卡生成 label/value/hint/input labels/identifier；value 合并指标状态、进度百分比和 detail，hint 说明指标卡只展示本地优化摘要，不下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁。
 - `OptimizerMetricTextLayoutPolicy` 为设置页和优化 dashboard 的 Apple Silicon 指标卡定义 Dynamic Type 文本策略；label、value 和 detail 使用语义字体并允许多行，detail 保留 lineSpacing，卡片最小高度保持可测试常量，避免 iPad/Mac 窄 split view、Mac Catalyst 窄窗口和较大文字设置下通过固定小字号或缩放压缩文字，同时不改变指标数据、进度、tint、网格列数、辅助语义、模型文件或 runtime 状态。
 - `OptimizerMetricGridLayoutPolicy` 为设置页和优化 dashboard 的 Apple Silicon 指标网格定义共享宽度策略；窄屏或窄 split view 使用单列，达到两列阈值的 iPad/Mac 宽区域使用双列，避免固定双列挤压指标卡文本。
@@ -285,6 +287,7 @@ Agent X 不能跳过 Agent C artifact 验收；失败时不能继续下一轮并
 - `OptimizationToggleAccessibilityMetadata`：设置页和优化 dashboard 运行策略开关的辅助技术文案、Voice Control 输入标签和稳定 identifier。
 - `OptimizationToggleRowLayoutPolicy`：设置页和优化 dashboard 运行策略开关行的 44pt 最小触控目标策略。
 - `ChipReadinessAccessibilityMetadata`：设置页和优化 dashboard 芯片准备度卡片/圆环的辅助技术文案、隐私保护状态摘要和稳定 identifier。
+- `ChipReadinessLayoutMode` / `ChipReadinessLayoutPlan` / `ChipReadinessLayoutPolicy`：芯片准备度卡片真实 panel 内容宽度、354pt 横排阈值、Accessibility/非法输入 stacked 回退和 86pt/66pt ring 尺寸计划。
 - `OptimizerMetricAccessibilityMetadata`：设置页和优化 dashboard Apple Silicon 指标卡的辅助技术文案、进度百分比、Voice Control 输入标签和稳定 identifier。
 - `OptimizerMetricTextLayoutPolicy`：设置页和优化 dashboard Apple Silicon 指标卡的 Dynamic Type 字体、label/value/detail 行数、detail lineSpacing 和最小卡片高度策略。
 - `OptimizerMetricGridLayoutPolicy`：设置页和优化 dashboard Apple Silicon 指标网格的最小卡片宽度、间距、列数阈值和窄屏回退策略。

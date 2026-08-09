@@ -6944,38 +6944,67 @@ struct OptimizerDashboard: View {
 
 struct ChipReadinessCard: View {
     @Environment(\.appTheme) private var theme
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     let progress: Double
     let thermalState: String
     let privacyGuardEnabled: Bool
 
     var body: some View {
-        HStack(spacing: 16) {
-            ReadinessRing(
-                progress: progress,
-                accessibilityIdentifier: ChipReadinessAccessibilityMetadata.chipRingIdentifier
+        GeometryReader { proxy in
+            let plan = ChipReadinessLayoutPolicy.resolve(
+                contentWidth: proxy.size.width,
+                usesAccessibilityDynamicType: dynamicTypeSize >= .accessibility1
             )
-                .frame(width: 86, height: 86)
+            let layout = plan.mode == .horizontal
+                ? AnyLayout(HStackLayout(spacing: 16))
+                : AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text("A17 Pro / M 系列准备度")
-                    .font(.system(size: 16, weight: .black, design: .rounded))
-                    .foregroundStyle(theme.primaryText)
-
-                Text(
-                    ChipReadinessAccessibilityMetadata.summary(
-                        thermalState: thermalState,
-                        privacyGuardEnabled: privacyGuardEnabled
-                    )
+            layout {
+                ReadinessRing(
+                    progress: progress,
+                    diameter: ChipReadinessLayoutPolicy.ringDiameter,
+                    accessibilityIdentifier: ChipReadinessAccessibilityMetadata.chipRingIdentifier
                 )
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(theme.secondaryText)
-                    .lineSpacing(2)
+                    .frame(
+                        width: ChipReadinessLayoutPolicy.ringSlot,
+                        height: ChipReadinessLayoutPolicy.ringSlot
+                    )
+                    .layoutPriority(1)
 
-                ProgressView(value: progress)
-                    .tint(.cyan)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("A17 Pro / M 系列准备度")
+                        .font(.headline.weight(.black))
+                        .foregroundStyle(theme.primaryText)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    Text(
+                        ChipReadinessAccessibilityMetadata.summary(
+                            thermalState: thermalState,
+                            privacyGuardEnabled: privacyGuardEnabled
+                        )
+                    )
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(theme.secondaryText)
+                        .lineLimit(4)
+                        .lineSpacing(2)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    ProgressView(value: progress)
+                        .tint(.cyan)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(
+                maxWidth: .infinity,
+                minHeight: ChipReadinessLayoutPolicy.ringSlot,
+                alignment: .leading
+            )
         }
+        .frame(minHeight: ChipReadinessLayoutPolicy.ringSlot)
         .panelStyle(border: theme.accent.opacity(0.3))
         .accessibilityElement(children: .combine)
         .accessibilityLabel(ChipReadinessAccessibilityMetadata.cardLabel)
@@ -6989,6 +7018,39 @@ struct ChipReadinessCard: View {
         .accessibilityHint(ChipReadinessAccessibilityMetadata.cardHint)
         .accessibilityInputLabels(ChipReadinessAccessibilityMetadata.cardInputLabels)
         .accessibilityIdentifier(ChipReadinessAccessibilityMetadata.cardIdentifier)
+    }
+}
+
+enum ChipReadinessLayoutMode: Equatable {
+    case stacked
+    case horizontal
+}
+
+struct ChipReadinessLayoutPlan: Equatable {
+    let mode: ChipReadinessLayoutMode
+    let ringSlot: CGFloat
+    let ringDiameter: CGFloat
+}
+
+enum ChipReadinessLayoutPolicy {
+    static let horizontalContentWidthThreshold: CGFloat = 354
+    static let ringSlot: CGFloat = 86
+    static let ringDiameter: CGFloat = 66
+
+    static func resolve(
+        contentWidth: CGFloat,
+        usesAccessibilityDynamicType: Bool
+    ) -> ChipReadinessLayoutPlan {
+        let isValidWidth = contentWidth.isFinite && contentWidth > 0
+        let canUseHorizontal = isValidWidth
+            && contentWidth >= horizontalContentWidthThreshold
+            && usesAccessibilityDynamicType == false
+
+        return ChipReadinessLayoutPlan(
+            mode: canUseHorizontal ? .horizontal : .stacked,
+            ringSlot: ringSlot,
+            ringDiameter: ringDiameter
+        )
     }
 }
 

@@ -602,6 +602,108 @@ final class LocalGemmaTests: XCTestCase {
         XCTAssertFalse(disabledSummary.contains("离线隐私保护开启"))
     }
 
+    func testChipReadinessLayoutPolicyAdaptsToCardWidthAndAccessibilityDynamicType() {
+        XCTAssertEqual(ChipReadinessLayoutPolicy.horizontalContentWidthThreshold, 354)
+        XCTAssertEqual(ChipReadinessLayoutPolicy.ringSlot, 86)
+        XCTAssertEqual(ChipReadinessLayoutPolicy.ringDiameter, 66)
+        XCTAssertLessThanOrEqual(
+            ChipReadinessLayoutPolicy.ringDiameter,
+            ChipReadinessLayoutPolicy.ringSlot
+        )
+
+        let narrowPlan = ChipReadinessLayoutPolicy.resolve(
+            contentWidth: 353.99,
+            usesAccessibilityDynamicType: false
+        )
+        XCTAssertEqual(narrowPlan.mode, .stacked)
+
+        let boundaryPlan = ChipReadinessLayoutPolicy.resolve(
+            contentWidth: 354,
+            usesAccessibilityDynamicType: false
+        )
+        XCTAssertEqual(boundaryPlan.mode, .horizontal)
+        XCTAssertEqual(
+            ChipReadinessLayoutPolicy.resolve(
+                contentWidth: 500,
+                usesAccessibilityDynamicType: false
+            ).mode,
+            .horizontal
+        )
+
+        for dynamicTypeSize in [
+            DynamicTypeSize.accessibility1,
+            .accessibility3,
+            .accessibility5
+        ] {
+            for width in [CGFloat(354), 500, 1_200] {
+                XCTAssertEqual(
+                    ChipReadinessLayoutPolicy.resolve(
+                        contentWidth: width,
+                        usesAccessibilityDynamicType: true
+                    ).mode,
+                    .stacked,
+                    "Accessibility Dynamic Type \(dynamicTypeSize) must stack at \(width)pt."
+                )
+            }
+        }
+
+        for invalidWidth in [CGFloat.nan, .infinity, -.infinity, 0, -1] {
+            let plan = ChipReadinessLayoutPolicy.resolve(
+                contentWidth: invalidWidth,
+                usesAccessibilityDynamicType: false
+            )
+            XCTAssertEqual(plan.mode, .stacked)
+            XCTAssertEqual(plan.ringSlot, 86)
+            XCTAssertEqual(plan.ringDiameter, 66)
+        }
+
+        let firstPlan = ChipReadinessLayoutPolicy.resolve(
+            contentWidth: 354,
+            usesAccessibilityDynamicType: false
+        )
+        let secondPlan = ChipReadinessLayoutPolicy.resolve(
+            contentWidth: 354,
+            usesAccessibilityDynamicType: false
+        )
+        XCTAssertEqual(firstPlan, secondPlan)
+
+        let optimizer = DeviceOptimizer()
+        let initialReadiness = optimizer.deploymentReadiness
+        let initialPrivacyGuard = optimizer.isOfflinePrivacyGuardEnabled
+        _ = ChipReadinessLayoutPolicy.resolve(
+            contentWidth: 354,
+            usesAccessibilityDynamicType: false
+        )
+        XCTAssertEqual(optimizer.deploymentReadiness, initialReadiness)
+        XCTAssertEqual(optimizer.isOfflinePrivacyGuardEnabled, initialPrivacyGuard)
+
+        let renderCases: [(CGFloat, AppThemeMode, DynamicTypeSize)] = [
+            (382, .light, .large),
+            (381, .dark, .xxxLarge),
+            (600, .light, .accessibility3)
+        ]
+        for (externalWidth, themeMode, dynamicTypeSize) in renderCases {
+            let renderer = ImageRenderer(
+                content: ChipReadinessCard(
+                    progress: optimizer.deploymentReadiness,
+                    thermalState: optimizer.thermalState,
+                    privacyGuardEnabled: optimizer.isOfflinePrivacyGuardEnabled
+                )
+                    .environment(\.appTheme, AppThemePalette(mode: themeMode))
+                    .environment(\.colorScheme, themeMode.colorScheme)
+                    .environment(\.dynamicTypeSize, dynamicTypeSize)
+                    .frame(width: externalWidth)
+            )
+            renderer.scale = 1
+            let image = renderer.uiImage
+
+            XCTAssertNotNil(image)
+            XCTAssertEqual(image?.size.width ?? 0, externalWidth, accuracy: 1)
+            XCTAssertGreaterThan(image?.size.height ?? 0, 0)
+            XCTAssertLessThan(image?.size.height ?? .infinity, 1_000)
+        }
+    }
+
     func testOptimizationToggleRowsExposeAccessibilityMetadata() {
         let optimizer = DeviceOptimizer()
         let switches = optimizer.switches

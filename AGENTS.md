@@ -10,6 +10,8 @@ v2.64 起，顶部模型胶囊还包含窄侧栏响应式布局策略：sidebar 
 
 v2.74 起，Mac Catalyst/iPad pointer 下的竖向会话侧栏未选中行还包含 `SessionChipHoverStylePolicy` 纯视觉反馈：只在 vertical + 未选中 + hover 同时成立时叠加亮色 0.06、暗色 0.10 的 accent 表面；横向胶囊、选中态、辅助语义、44pt 触控目标、Reduce Motion、会话状态、runtime 与 verified 门禁均不变。
 
+v2.75 起，设置页与优化 dashboard 共用 `ChipReadinessLayoutMode` / `ChipReadinessLayoutPolicy`：panel 内真实内容宽度达到 `354pt` 才允许横排，Accessibility Dynamic Type 和非法宽度始终 stacked；`ReadinessRing` 保留 `86pt` slot 与 `66pt` diameter，语义字体正文可垂直增长，布局通过同一 `AnyLayout` 切换，不改变 `DeviceOptimizer`、隐私摘要、辅助语义、Reduce Motion、runtime 或 verified 门禁。
+
 ## 2. 必读文件顺序
 
 每轮工作开始前按顺序阅读：
@@ -98,6 +100,7 @@ git remote -v
 - `OptimizationToggleGridLayoutPolicy` 控制设置页和优化 dashboard 的运行策略开关网格宽度策略；窄屏和窄 split view 必须回退单列，iPad/Mac 宽区域允许双列，列数阈值、最小卡片宽度和共享网格入口要有测试锁住。
 - `OptimizationToggleRowLayoutPolicy` 控制设置页和优化 dashboard 单个运行策略开关行的最小触控目标；每个开关行必须保持至少 44pt 命中高度，且不得改变 `DeviceOptimizer` 开关状态流、运行策略顺序、辅助语义、网格列数、准备度摘要、模型文件或 runtime 状态。
 - `ChipReadinessAccessibilityMetadata` 控制设置页和优化 dashboard 的芯片准备度卡片与圆环辅助语义；准备度摘要必须随 `Offline privacy guard` 开关动态显示开启/关闭，并明确本地芯片准备度、不下载模型权重、不启动真实 runtime、不发送云端服务。
+- `ChipReadinessLayoutMode`、`ChipReadinessLayoutPlan` 与 `ChipReadinessLayoutPolicy` 控制设置页和优化 dashboard 共享卡片的真实 panel 内容宽度布局；`354pt` 及以上普通字号横排，Accessibility Dynamic Type 或 NaN/Infinity/非正宽度 stacked，ring 固定 `86pt` slot / `66pt` diameter，`AnyLayout` 保持同一 ring/正文子树，不写入状态层。
 - `OptimizerMetricAccessibilityMetadata` 控制设置页和优化 dashboard 的 Apple Silicon 指标卡辅助语义；指标卡只展示本地优化摘要，不下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁，VoiceOver/Voice Control label/value/hint/input labels/identifier 要有测试锁住。
 - `OptimizerMetricTextLayoutPolicy` 控制设置页和优化 dashboard 的 Apple Silicon 指标卡文本动态排版；指标 label、value 和 detail 必须使用 Dynamic Type 语义字体并允许多行，避免 iPad/Mac 窄 split view 和较大文字设置下通过固定小字号或缩放压缩文字，且不得改变指标数据、进度、tint、网格列数、辅助语义、模型文件或 runtime 状态。
 - `OptimizerMetricGridLayoutPolicy` 控制设置页和优化 dashboard 的 Apple Silicon 指标网格宽度策略；窄屏和窄 split view 必须回退单列，iPad/Mac 宽区域保持双列，列数阈值和共享网格入口要有测试锁住。

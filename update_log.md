@@ -16,7 +16,7 @@
 - 平台：SwiftUI iOS App，Swift 6.0，iOS deployment target 17.0，当前 app/test target 支持 iPhone、iPad 和 Mac Catalyst build-for-testing，并提供项目内 Mac Catalyst 本地 build/run 脚本入口；尚未创建原生 macOS target。
 - 当前默认模型：`Gemma 1.5B Local`
 - 当前推理：本地模拟 runtime，不下载模型权重，不执行真实模型推理。
-- 当前核心测试：`LocalGemmaTests.swift` 中 118 个 XCTest 方法。
+- 当前核心测试：`LocalGemmaTests.swift` 中 120 个 XCTest 方法。
 - 当前核心文档入口：`AGENTS.md`、`md/flow/flow.md`、`md/flow/flowchart.md`、`md/test/test.md`、`md/prompt/README.md`、`README.md`。
 - 当前协作验证：默认 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载未加密 CI 结果包验收；本地仓库当前已配置 `origin` remote，最终验收仍以最新 `origin/main` 对应的 GitHub Actions run 和结果包为准；文档已预留未来 `agentx:` 主控 Agent A -> Agent B -> Agent C 多轮循环的规则。
 
@@ -3968,3 +3968,36 @@
 
 - 下一轮候选为 v2.75 芯片准备度卡片窄宽/辅助字号自适应：在窄 iPad split view 或 Accessibility Dynamic Type 下从横向切换为纵向堆叠，复用设置页与优化 dashboard，保持圆环、进度、隐私摘要、辅助语义和状态流不变。实现前继续由独立子 agent 审计，完成后重新走 main push、云端 build/test、结果包独立验收闭环。
 - 真实 Mac Catalyst/iPad pointer enter/exit 仍属于手工验证边界；UI Test target、真实 runtime 和原生 macOS target 仍属后续。本轮不下载模型权重、不接入云端推理、不绕过 verified 门禁。
+
+### v2.75 / 芯片准备度卡片自适应
+
+日期：2026-08-09
+
+核心变更：
+
+- 基于最新 `origin/main` 实际 HEAD `4b931cfcfecc77b9e7cb73d942bd968d5055a0d2` 实现 `ChipReadinessLayoutMode`、`ChipReadinessLayoutPlan` 与 `ChipReadinessLayoutPolicy`；普通 Dynamic Type 只有真实 panel 内内容宽度达到 `354pt` 才横排，Accessibility Dynamic Type、NaN/Infinity/零/负宽度始终 stacked。
+- `SettingsWorkspace` 与 `OptimizerDashboard` 继续共享同一 `ChipReadinessCard`；卡片在 `.panelStyle` 内侧读取内容宽度，以 `AnyLayout` 切换 `HStackLayout` / `VStackLayout`，正文改用 Dynamic Type 语义字体并允许垂直增长。
+- 生产 `ReadinessRing` 显式保持 `86pt` slot 与 `66pt` diameter；保留 `DeviceOptimizer`、`Offline privacy guard` 动态摘要、既有 card/ring 辅助语义、Reduce Motion、状态流、runtime 和 verified 门禁。
+- 新增 `testChipReadinessLayoutPolicyAdaptsToCardWidthAndAccessibilityDynamicType`，测试函数数从 119 增至 120；加入本轮 v2.75 prompt 归档。
+
+关键文件：
+
+- `LocalGemma/ContentView.swift`
+- `LocalGemmaTests/LocalGemmaTests.swift`
+- `AGENTS.md`
+- `README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/v2（Mac体验审计）/v2.75（芯片准备度卡片自适应）.md`
+
+验证结果：
+
+- 已执行并通过 `git diff --check`、`grep -c "func test"`（结果 `120`）、`plutil -lint LocalGemma.xcodeproj/project.pbxproj`、workflow YAML 解析、`test -f`/`test -x`、`bash -n script/build_and_run.sh`、`xcrun swiftc -parse LocalGemma/ContentView.swift` 和 `xcrun swiftc -parse LocalGemmaTests/LocalGemmaTests.swift`。
+- 已执行结构搜索、`find md -maxdepth 4 -type f | sort` 和 Agent A/B/C/测试规范文档入口检查；Ruby YAML 检查仅输出环境 PATH 的既有 world-writable warning，解析结果为 `yaml ok`。
+- 按本轮限制未运行本地 `xcodebuild`、XCTest、Simulator、Mac Catalyst build/run、截图或 ImageRenderer 视觉验证；完整 iOS/Catalyst build、LogicSmoke、120 项 XCTest 和结果包只等待本轮 push 后 GitHub Actions，当前尚无云端 run 通过结论。
+- `LocalGemma.xcodeproj/project.pbxproj` 的用户保留修改未编辑、未格式化、未暂存、未回滚、未提交。
+
+遗留事项：
+
+- 等待本轮 v2.75 `origin/main` push 触发 GitHub Actions，并由 Agent C 只验收最新 commit 对应的 run/artifact；本地不下载模型权重、不执行真实模型推理、不调用云端推理。
