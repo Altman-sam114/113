@@ -6420,6 +6420,20 @@ struct ModelAdvicePanel: View {
     }
 }
 
+enum ModelDetailPanelTextLayoutPolicy {
+    static let titleLineLimit = 2
+    static let titleLineSpacing: CGFloat = 1
+    static let titleContentSpacing: CGFloat = 12
+
+    static var allowsMultilineTitle: Bool {
+        titleLineLimit > 1
+    }
+
+    static var usesSemanticTitleFont: Bool {
+        true
+    }
+}
+
 struct DetailPanel<Content: View>: View {
     @Environment(\.appTheme) private var theme
 
@@ -6434,10 +6448,16 @@ struct DetailPanel<Content: View>: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(
+            alignment: .leading,
+            spacing: ModelDetailPanelTextLayoutPolicy.titleContentSpacing
+        ) {
             Label(title, systemImage: icon)
-                .font(.system(size: 14, weight: .black))
+                .font(.subheadline.weight(.black))
                 .foregroundStyle(theme.primaryText)
+                .lineSpacing(ModelDetailPanelTextLayoutPolicy.titleLineSpacing)
+                .lineLimit(ModelDetailPanelTextLayoutPolicy.titleLineLimit)
+                .fixedSize(horizontal: false, vertical: true)
 
             VStack(spacing: 9) {
                 content

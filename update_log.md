@@ -4012,6 +4012,36 @@
 - 三份 `.xcresult` 的 `Info.plist` 均 `plutil -lint` 通过，版本均为 3.58 且 rootId 存在；`LocalGemma-build.xcresult`、`LocalGemma-maccatalyst-build.xcresult`、`LocalGemma-tests.xcresult` 的 Data/refs 分别为 `3/3`、`3/3`、`879/879`，hash 集合完全配对。tests bundle 的唯一零字节 data 节点有对应 refs，不影响 bundle 结构；build、Catalyst build 和 tests 三个结果包均存在。
 - 本轮未运行本地 `xcodebuild`、XCTest、Simulator、Mac Catalyst build/run、`xcresulttool` 或 ImageRenderer；仅使用 GitHub CLI/API 下载和读取云端结果包，并使用轻量文件/manifest/日志/Info.plist 结构核对。未下载模型权重、未执行真实模型推理、未调用云端推理。用户既有 `LocalGemma.xcodeproj/project.pbxproj` 修改保持未编辑、未暂存、未提交。
 
+### v2.78 / 模型详情面板标题动态排版
+
+日期：2026-08-09
+
+核心变更：
+
+- 基于实现前已确认的最新 `origin/main` docs commit `5a98cc4`，在既有 `DetailPanel` 附近新增共享纯值 `ModelDetailPanelTextLayoutPolicy`；参数、性能和建议三个生产面板继续共用同一标题渲染路径。
+- `DetailPanel` 标题改用公开 `.subheadline.weight(.black)` Dynamic Type 语义字体，复用 policy 的 2 行上限、1pt line spacing、12pt 标题/内容间距，并以垂直 fixed size 允许内容自然增长；保留 panel、详情行、整体/行级辅助语义、44pt 动作、模型文件、runtime 和 verified 门禁。
+- 新增 `testModelDetailPanelTextLayoutPolicySupportsDynamicTypeHeadings`，源码测试函数数从 122 增至 123；覆盖纯值重复读取、真实参数/性能/建议面板的公开 `ImageRenderer` 亮暗主题/320/390/834/1200pt/`.large`/`.xxxLarge`/`.accessibility3` 非空正尺寸矩阵、既有辅助语义和 44pt 回归，以及 missing/staged/verified runtime planner 门禁。
+
+关键文件：
+
+- `LocalGemma/ContentView.swift`
+- `LocalGemmaTests/LocalGemmaTests.swift`
+- `AGENTS.md`
+- `README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/v2（Mac体验审计）/v2.78（模型详情面板标题动态排版）.md`
+
+当前验证状态：
+
+- 已确认 `origin/main` 与本地 `main` 均为 `5a98cc4`；用户保留的 `LocalGemma.xcodeproj/project.pbxproj` 修改未编辑、未格式化、未暂存、未提交。
+- 本地仅执行本 prompt 允许的轻量 parse/diff/plist/YAML/脚本/Markdown 结构检查；未运行本地 XCTest、xcodebuild、Simulator、Mac Catalyst build/run、截图视觉验收、模型下载或真实推理。云端 run、artifact、xcresult 和 Agent C 验收尚未发生，待 v2.78 最终 commit push 后记录实际结果。
+
+遗留事项：
+
+- 等待本轮 v2.78 实现 commit push 触发 GitHub Actions，并由 Agent C 只验收最新 commit 对应的 run/artifact；在实际结果产生前不记录 CI、artifact、run id、digest、xcresult 或 PASS 结论。
+
 ### v2.77 / 导出会话正文动态排版
 
 日期：2026-08-09

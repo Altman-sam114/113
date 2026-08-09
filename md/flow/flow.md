@@ -69,6 +69,7 @@ v2.64 的顶部模型胶囊还会按真实 chrome 可用宽度切换堆叠/横�
 - `ModelLibraryLayoutMode` 只控制模型页内部部署控制台的单栏/双栏；足够宽的 iPad/Mac 模型页显示“选择/部署/文件操作”和“模型详情”并列，窄屏继续单栏。
 - `ModelLibraryWorkspaceLayoutPolicy` 控制模型页整体内容宽度；iPhone 和窄 split view 保持原有可用宽度，iPad/Mac 超宽窗口中标题、选择/部署/文件操作和模型详情整体居中并限制最大宽度，最大内容宽度从控制列最大宽度、详情列最大阅读宽度和列间距派生，不改变模型状态流、内部双栏、详情列宽度、辅助语义或 verified 门禁。
 - `ModelDetailColumnLayoutPolicy` 只控制模型页双栏右侧详情列宽度；单栏不启用固定详情列宽，iPad/Mac 宽区域按剩余宽度计算并限制最大阅读宽度，避免概要、参数、性能和建议文本行在超宽窗口无限拉长。
+- `ModelCatalog` / `LocalRuntimePlanner` 生成的模型、validation 和 preparation report 进入 `ModelDetailColumn`；参数、性能和建议面板经共享 `DetailPanel` 使用 `ModelDetailPanelTextLayoutPolicy` 渲染标题。policy 只定义公开 Dynamic Type 语义字体、最多两行、1pt line spacing、12pt 标题/内容间距和自然垂直增长，不写回状态，也不改变 panel、详情行、辅助语义、模型文件、artifact、runtime 或 verified 门禁。
 - `HeaderActionAccessibilityMetadata` 为全局头部主题切换、设置页外观主题按钮和打开模型工作区按钮生成 label/value/hint/input labels/identifier；文案说明当前主题、切换目标、本地 UI 外观边界、模型工作区跳转边界、不下载模型权重、不启动真实 runtime、不发送云端服务和不绕过 verified 门禁。
 - `HeaderActionLayoutPolicy` 为全局 Header 主题切换和打开模型工作区两个图标动作定义共享 44pt 最小触控目标；`HeaderView` 只复用尺寸常量，不改变主题切换、工作区切换、模型胶囊状态、辅助语义、模型文件或 runtime 状态流。
 - `HeaderTitleTextLayoutPolicy` 为顶部 Header eyebrow 和主标题定义 Dynamic Type 文本策略；eyebrow 使用语义字体并保持单行，主标题使用语义标题字体并允许两行，避免 iPad split view、Mac Catalyst 窄窗口和较大文字设置下压缩或截断，同时不改变 Header 图标动作触控目标、主题切换、工作区切换、模型胶囊状态、辅助语义、模型文件或 runtime 状态流。
@@ -278,6 +279,7 @@ Agent X 不能跳过 Agent C artifact 验收；失败时不能继续下一轮并
 - `ModelDetailAccessibilityMetadata`：模型页详情右栏和窄屏详情段整体摘要的辅助技术文案、Voice Control 输入标签和稳定 identifier。
 - `ModelSummaryAccessibilityMetadata`：模型页概要面板的辅助技术文案、能力标签摘要、validation summary、Voice Control 输入标签和稳定 identifier。
 - `ModelDetailRowTextLayoutPolicy`：模型详情参数行、性能行和建议行的 Dynamic Type 字体、行数和最小行高策略。
+- `ModelDetailPanelTextLayoutPolicy`：模型详情三类面板标题的语义 Dynamic Type 字体、最多两行、line spacing、标题/内容间距和垂直增长策略。
 - `ModelDetailRowAccessibilityMetadata`：模型详情参数行、性能行和建议行的行级辅助技术文案、Voice Control 输入标签和稳定 identifier。
 - `ModelDeploymentControlAccessibilityMetadata`：模型选择器、部署电源和 artifact 操作按钮的辅助技术文案、卸载确认入口说明、Voice Control 输入标签和稳定 identifier。
 - `ModelDeploymentControlLayoutPolicy`：模型选择器和部署电源按钮的 44pt 最小触控目标、当前控件高度和 identifier 映射。
