@@ -8,6 +8,8 @@
 
 v2.64 起，顶部模型胶囊还包含窄侧栏响应式布局策略：sidebar 与窄 top header 使用堆叠概要，指标按可用宽度切换 1/2/3 列，`.xxxLarge` 及以上 Dynamic Type 固定回退单列。
 
+v2.74 起，Mac Catalyst/iPad pointer 下的竖向会话侧栏未选中行还包含 `SessionChipHoverStylePolicy` 纯视觉反馈：只在 vertical + 未选中 + hover 同时成立时叠加亮色 0.06、暗色 0.10 的 accent 表面；横向胶囊、选中态、辅助语义、44pt 触控目标、Reduce Motion、会话状态、runtime 与 verified 门禁均不变。
+
 ## 2. 必读文件顺序
 
 每轮工作开始前按顺序阅读：
@@ -108,6 +110,7 @@ git remote -v
 - `SessionChipTextLayoutPolicy` 控制推理页会话 chip 标题的 Dynamic Type 文本策略；标题使用语义字体并允许两行，避免 iPad split view、Mac Catalyst 窄窗口和较大文字设置下通过固定小字号或缩放压缩文字，且不得改变会话选择/删除状态流、44pt 触控目标、composer 聚焦、辅助语义、模型文件或 verified 门禁。
 - `SessionChipVisualStylePolicy` 控制推理页大屏竖向会话行的工作台视觉层级；选中行使用 8pt 圆角、低饱和 accent 表面、主文字色、hairline 描边和 3pt 左侧指示条，横向 chip 保持既有胶囊样式，且不得改变会话选择/删除、44pt 触控目标、Dynamic Type、辅助语义、composer 聚焦或 runtime 状态流。
 - `SessionChipSidebarMetadataPolicy` 与 `SessionChipSidebarMetadataPlan` 控制竖向 240...310pt 会话行的本地信息密度；plan 只由 `ChatSession` 和 `SessionBarLayout` 生成，消息数取 `messages.count`，摘要从数组尾部向前选择最后一条归一化后非空正文，首尾/内部 whitespace、Tab 和换行压成单 ASCII 空格并按 `Character` 最多 40 个字符（超长前 37 个加 `...`），空摘要回退为消息数，横向返回 hidden 并保持 title-only 胶囊。策略不读取或比较 timestamp/createdAt/updatedAt，不排序、不写回、不持久化、不联网；metadata 使用 Dynamic Type 语义字体且不改变选择/删除动作、44pt 目标、辅助语义、composer、runtime 或 verified 门禁。
+- `SessionChipHoverStylePolicy` 控制 Mac Catalyst/iPad pointer 在竖向、未选中会话行上的纯视觉 hover 表面；只由 `SessionBarLayout`、选中态和 `SessionChip` 局部 pointer 状态派生，亮/暗主题使用 0.06/0.10 accent opacity，装饰层禁用命中并隐藏于辅助树，横向胶囊、选中态、44pt 动作、Reduce Motion、会话状态、runtime 与 verified 门禁均不变。
 - `SessionChipActionLayoutPolicy` 控制推理页单个会话 chip 选择和删除动作的最小触控目标；选择与删除入口必须保持至少 44pt，且不得改变会话选择、删除禁用原因、会话删除状态流、composer 聚焦、模型 artifact、辅助语义或 verified 门禁。
 - `ChatMessageAccessibilityMetadata` 控制推理页聊天消息气泡整体辅助语义；它必须区分用户消息、本地模型消息和系统状态消息，合并正文或生成中状态、token 数、本地会话边界、Voice Control 输入标签和稳定 identifier，并明确不下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁。
 - `ChatMessageCopyActionPolicy` 和 `ChatMessageCopyActionAccessibilityMetadata` 控制单条消息复制 eligibility、原始 payload、44pt 动作和独立辅助语义；trim 只用于判空，写入剪贴板的正文必须保持原样，空白/生成中消息不可复制。消息摘要与复制按钮必须为两个同级可达元素，成功 checkmark 复用既有 `.copyConfirmation` 且持续到气泡身份消失，不得增加计时器、时间显示、状态层写入、云端发送、runtime 变化或绕过 verified 门禁。

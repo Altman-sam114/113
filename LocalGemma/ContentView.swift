@@ -3847,14 +3847,49 @@ enum SessionChipVisualStylePolicy {
     }
 }
 
+enum SessionChipHoverStylePolicy {
+    static let lightHoverSurfaceOpacity = 0.06
+    static let darkHoverSurfaceOpacity = 0.10
+
+    static func usesHoverSurface(
+        layout: SessionBarLayout,
+        isSelected: Bool,
+        isHovered: Bool
+    ) -> Bool {
+        layout == .vertical && isSelected == false && isHovered
+    }
+
+    static func hoverSurfaceOpacity(isDark: Bool) -> Double {
+        isDark ? darkHoverSurfaceOpacity : lightHoverSurfaceOpacity
+    }
+}
+
 struct SessionChip: View {
     @Environment(\.appTheme) private var theme
+
+    @State private var isHovered: Bool
 
     let session: ChatSession
     let isActive: Bool
     var layout: SessionBarLayout = .horizontal
     let select: () -> Void
     let delete: () -> Void
+
+    init(
+        session: ChatSession,
+        isActive: Bool,
+        layout: SessionBarLayout = .horizontal,
+        select: @escaping () -> Void,
+        delete: @escaping () -> Void,
+        initialHoverState: Bool = false
+    ) {
+        self.session = session
+        self.isActive = isActive
+        self.layout = layout
+        self.select = select
+        self.delete = delete
+        _isHovered = State(initialValue: initialHoverState)
+    }
 
     var body: some View {
         let visualStyle = SessionChipVisualStylePolicy.resolve(
@@ -3980,6 +4015,8 @@ struct SessionChip: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
         .frame(maxWidth: layout == .vertical ? .infinity : nil, alignment: .leading)
+        .contentShape(Rectangle())
+        .onHover { isHovered = $0 }
         .background {
             if visualStyle.usesSidebarRowShape {
                 RoundedRectangle(
@@ -3997,6 +4034,27 @@ struct SessionChip: View {
                             SessionChipVisualStylePolicy.unselectedSidebarSurfaceOpacity
                         )
                 )
+                .overlay {
+                    if SessionChipHoverStylePolicy.usesHoverSurface(
+                        layout: layout,
+                        isSelected: isActive,
+                        isHovered: isHovered
+                    ) {
+                        RoundedRectangle(
+                            cornerRadius: SessionChipVisualStylePolicy.sidebarCornerRadius,
+                            style: .continuous
+                        )
+                        .fill(
+                            theme.accent.opacity(
+                                SessionChipHoverStylePolicy.hoverSurfaceOpacity(
+                                    isDark: theme.isDark
+                                )
+                            )
+                        )
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
+                    }
+                }
             } else {
                 Capsule()
                     .fill(isActive ? theme.accent : theme.chipSurface)

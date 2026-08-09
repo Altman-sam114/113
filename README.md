@@ -22,6 +22,7 @@
 - v2.71 起，`WorkbenchVisualStylePolicy` 为 9 个共享 panel 增加主题感知 0.5pt 内高光，以及 1.5pt/1pt contact 与 8pt/3pt ambient 两层背景阴影；8pt 圆角、14pt padding、1pt hairline、`panelStyle` API、布局、辅助语义、触控目标和业务状态保持不变，panel 内控件不重复套卡片。
 - v2.72 起，每条非空且已完成生成的聊天消息提供 44pt 本地复制按钮；trim 只用于判空，写入系统剪贴板的 payload 保留原始空白和换行，成功后 checkmark 持续到气泡身份消失。消息摘要与复制动作分别可达，空白消息和流式生成期间的最新 assistant 消息禁用复制，反馈复用既有 Reduce Motion 策略，不发送云端或改变 runtime。
 - v2.73 起，Mac/iPad 竖向 240...310pt 会话侧栏通过 `SessionChipSidebarMetadataPolicy` 只读派生消息数量和数组顺序的最后一条归一化非空消息摘要；连续 whitespace、Tab、换行归一化为单 ASCII 空格，摘要按 `Character` 最多 40 个字符，空摘要回退为消息数，横向会话 chip 返回 hidden plan 并保持 title-only 160pt 胶囊。metadata 使用 Dynamic Type 语义字体自然增长，不改变会话选择/删除、44pt 动作、辅助语义、composer、runtime 或 verified 门禁。
+- v2.74 起，Mac Catalyst/iPad pointer 下的竖向未选中会话行通过 `SessionChipHoverStylePolicy` 提供纯视觉反馈：hover 时叠加亮色 0.06、暗色 0.10 的 accent 表面，横向胶囊与选中态完全不变；装饰层不命中且从辅助树隐藏，不新增动画、focus、会话状态或 runtime 行为。`LocalGemmaTests.swift` 增加到 119 个测试函数，完整 build/test 仍交由本轮 GitHub Actions。
 - v2.48 的优化指标卡按 `OptimizerMetricTextLayoutPolicy` 使用 Dynamic Type 语义字体，label、value 和 detail 允许多行，避免 iPad split view、Mac Catalyst 窄窗口和较大文字设置下缩放压缩，同时保留指标数据、进度、tint、辅助语义和网格列数。
 - v2.49 的设置页外观/壁纸偏好行按 `SettingsPreferenceTextLayoutPolicy` 使用 Dynamic Type 语义字体，标题与状态允许两行，避免 iPad split view、Mac Catalyst 窄窗口和较大文字设置下固定小字号压缩，同时保留图标 44pt 触控目标、主题切换、相册壁纸动作和辅助语义。
 - v2.50 的模型详情参数/建议行按 `ModelDetailRowTextLayoutPolicy` 使用 Dynamic Type 语义字体并允许多行，移除 DetailRow 缩放压缩，改善 iPad/Mac 窄窗口和较大文字设置下的可读性。

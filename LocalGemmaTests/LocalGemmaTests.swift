@@ -2528,6 +2528,96 @@ final class LocalGemmaTests: XCTestCase {
         }
     }
 
+    func testSessionChipHoverStylePolicyRestrictsPointerFeedback() {
+        XCTAssertEqual(SessionChipHoverStylePolicy.lightHoverSurfaceOpacity, 0.06)
+        XCTAssertEqual(SessionChipHoverStylePolicy.darkHoverSurfaceOpacity, 0.10)
+        XCTAssertLessThan(
+            SessionChipHoverStylePolicy.lightHoverSurfaceOpacity,
+            WorkbenchVisualStylePolicy.selectedSurfaceOpacity(isDark: false)
+        )
+        XCTAssertLessThan(
+            SessionChipHoverStylePolicy.darkHoverSurfaceOpacity,
+            WorkbenchVisualStylePolicy.selectedSurfaceOpacity(isDark: true)
+        )
+        XCTAssertEqual(AppMotionEffect.allCases.count, 5)
+
+        for layout in [SessionBarLayout.vertical, .horizontal] {
+            for isSelected in [false, true] {
+                for isHovered in [false, true] {
+                    let expected = layout == .vertical && !isSelected && isHovered
+                    XCTAssertEqual(
+                        SessionChipHoverStylePolicy.usesHoverSurface(
+                            layout: layout,
+                            isSelected: isSelected,
+                            isHovered: isHovered
+                        ),
+                        expected,
+                        "Unexpected hover surface for \(layout), selected=\(isSelected), hovered=\(isHovered)"
+                    )
+                }
+            }
+        }
+
+        let session = ChatSession(
+            title: "Mac iPad hover 会话",
+            messages: [
+                ChatMessage(role: .assistant, text: "本地 hover 反馈")
+            ]
+        )
+        for width in [CGFloat(240), 310] {
+            for themeMode in [AppThemeMode.light, .dark] {
+                for dynamicTypeSize in [DynamicTypeSize.large, .accessibility3] {
+                    for isActive in [false, true] {
+                        for isHovered in [false, true] {
+                            let renderer = ImageRenderer(
+                                content: SessionChip(
+                                    session: session,
+                                    isActive: isActive,
+                                    layout: .vertical,
+                                    select: {},
+                                    delete: {},
+                                    initialHoverState: isHovered
+                                )
+                                .environment(\.appTheme, AppThemePalette(mode: themeMode))
+                                .environment(\.colorScheme, themeMode.colorScheme)
+                                .environment(\.dynamicTypeSize, dynamicTypeSize)
+                                .frame(width: width)
+                            )
+                            renderer.scale = 1
+                            let image = renderer.uiImage
+
+                            XCTAssertNotNil(image)
+                            XCTAssertEqual(image?.size.width ?? 0, width, accuracy: 1)
+                            XCTAssertGreaterThan(image?.size.height ?? 0, 0)
+                            XCTAssertLessThan(image?.size.height ?? .infinity, 500)
+                        }
+                    }
+                }
+            }
+        }
+
+        let horizontalRenderer = ImageRenderer(
+            content: SessionChip(
+                session: session,
+                isActive: false,
+                layout: .horizontal,
+                select: {},
+                delete: {},
+                initialHoverState: true
+            )
+            .environment(\.appTheme, AppThemePalette(mode: .dark))
+            .environment(\.colorScheme, ColorScheme.dark)
+            .environment(\.dynamicTypeSize, DynamicTypeSize.accessibility3)
+            .frame(width: 220)
+        )
+        horizontalRenderer.scale = 1
+        let horizontalImage = horizontalRenderer.uiImage
+        XCTAssertNotNil(horizontalImage)
+        XCTAssertEqual(horizontalImage?.size.width ?? 0, 220, accuracy: 1)
+        XCTAssertGreaterThan(horizontalImage?.size.height ?? 0, 0)
+        XCTAssertLessThan(horizontalImage?.size.height ?? .infinity, 300)
+    }
+
     func testSessionChipSidebarMetadataPolicyKeepsVerticalRowsScannable() {
         let emptySession = ChatSession(
             id: UUID(uuidString: "11111111-2222-3333-4444-555555555555")!,

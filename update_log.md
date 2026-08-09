@@ -3929,3 +3929,30 @@
 
 - 下一轮候选为 Mac Catalyst/iPad 竖向会话侧栏未选中行的 hover 纯视觉反馈；保持亮色低透明度、暗色略增强，不引入 focus、动画、会话状态或辅助语义变化。实现前继续由独立子 agent 做只读审计，完成后必须重新走 main push、云端 build/test、结果包独立验收闭环。
 - UI Test target、真实 runtime 和原生 macOS target 仍属后续；本轮不下载模型权重、不接入云端推理、不绕过 verified 门禁。
+
+### v2.74 / 会话侧栏 hover 反馈
+
+日期：2026-08-09
+
+核心变更：
+
+- 基于最新 `origin/main` commit `db7912d` 和 v2.73 已验收基线，为 Mac Catalyst/iPad pointer 下的竖向 240...310pt 会话侧栏未选中行增加即时、克制的纯视觉 hover 反馈。
+- 新增纯值 `SessionChipHoverStylePolicy`；只有 `vertical && !isSelected && isHovered` 同时成立时显示 accent hover surface，亮色 opacity 为 `0.06`，暗色为 `0.10`，均低于既有选中表面；横向胶囊和选中竖向行始终不显示。
+- `SessionChip` 增加局部 `@State` pointer 状态，在整行 `contentShape(Rectangle())` 上使用 `.onHover`；hover 装饰层 `allowsHitTesting(false)` 且 `accessibilityHidden(true)`，不包住或替换选择/删除 Button，不改变 44pt 目标、辅助语义、Dynamic Type、Reduce Motion、composer、会话状态、模型文件、runtime 或 verified 门禁。
+- 新增 `testSessionChipHoverStylePolicyRestrictsPointerFeedback`，覆盖八种组合、亮暗 opacity、选中表面层级、5 个 motion case，以及 240/310pt 真实竖向渲染和 220pt 横向 hover sentinel；测试函数数从 118 增至 119。
+
+关键文件：
+
+- `LocalGemma/ContentView.swift`
+- `LocalGemmaTests/LocalGemmaTests.swift`
+- `AGENTS.md`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v2（Mac体验审计）/v2.74（会话侧栏hover反馈）.md`
+
+验证结果：
+
+- 本轮只允许本地轻量检查，未运行本地 `xcodebuild`、XCTest、Simulator、Mac Catalyst build/run 或 ImageRenderer 视觉验证；完整 build/test 必须由 GitHub Actions 对本轮 push 执行。
+- 本轮未下载模型权重、未调用云端推理；用户保留的 `LocalGemma.xcodeproj/project.pbxproj` 未编辑、未暂存、未提交。
