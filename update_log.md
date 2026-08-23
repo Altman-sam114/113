@@ -4037,6 +4037,7 @@
 当前验证状态：
 
 - 已保护用户/其他 Agent 的 `LocalGemma.xcodeproj/project.pbxproj` dirty diff、未跟踪 v2.79 prompt 和当前 v2.83 prompt；未编辑、未格式化、未暂存、未提交这些文件。
+- 首轮 v2.83 云端 run `32646242958` attempt `1` 在 iOS/Catalyst build 阶段失败：`LocalGemmaTests.swift:4541` 的 Dynamic Type 数组使用了无明确数组类型的 `.xxxLarge`、`.accessibility3`、`.accessibility5` 成员引用，Swift 无法完成类型推断；该失败是测试源码编译问题，不改变生产行为。已将数组元素改为显式 `DynamicTypeSize.xxxLarge`、`DynamicTypeSize.accessibility3`、`DynamicTypeSize.accessibility5`，修复后的云端结果尚未产生，不能预写通过结论。
 - 当前源码实际测试函数数为 `128`。本地完整 `xcodebuild`、XCTest、Simulator、Mac Catalyst build/run 和截图视觉验收均未运行；轻量检查结果将在本轮提交前如实补充。GitHub Actions run、artifact、JUnit、xcresult 和 Agent C 验收尚未产生，不能预写通过结论。
 - 未下载模型权重、tokenizer 或缓存，未执行真实模型推理，未调用云端 inference；Mac 验证仍是既有 iOS target 的 Mac Catalyst build-for-testing，不是原生 macOS target。
 

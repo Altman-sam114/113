@@ -4538,7 +4538,11 @@ final class LocalGemmaTests: XCTestCase {
             ).mode,
             .horizontal
         )
-        for dynamicTypeSize in [.xxxLarge, .accessibility3, .accessibility5] {
+        for dynamicTypeSize in [
+            DynamicTypeSize.xxxLarge,
+            DynamicTypeSize.accessibility3,
+            DynamicTypeSize.accessibility5
+        ] {
             XCTAssertEqual(
                 ModelStatusBadgeRowLayoutPolicy.resolve(
                     availableWidth: 1_000,
