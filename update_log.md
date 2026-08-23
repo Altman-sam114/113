@@ -4019,9 +4019,9 @@
 核心变更：
 
 - 基于 v2.80 验收后的 `origin/main`，为模型详情 `DetailRow` 新增无状态 `ModelDetailRowLayoutMode`、`ModelDetailRowLayoutPlan` 和 `ModelDetailRowLayoutPolicy`；panel 外框宽度先扣除共享 `WorkbenchVisualStylePolicy.panelPadding` 两侧各 `14pt`，普通字号以 `84pt` 标题列 + `264pt` 数值列 + 既有 `12pt` 间距派生 `360pt` 内容阈值，窄宽回退 stacked，`.xxxLarge` 及以上始终 stacked，非法宽度归一为有限 `0pt`。
-- `ModelLibraryView` 将真实单栏/双栏详情 panel content width 传入 `ModelDetailColumn`，参数/性能面板再传给生产 `DetailRow`；横排保留 first-baseline、12pt 间距和数值尾部对齐，stacked 复用同一标题/数值子树并让数值前导对齐、自然垂直增长。`ModelAdvicePanel` / `AdviceRow` 保留既有 icon/text 顺序和 4 行建议策略。
+- `ModelLibraryView` 将真实单栏/双栏详情 panel content width 传入 `ModelDetailColumn`，参数/性能面板再传给生产 `DetailRow`；横排实际把 policy 的 `84pt` 标题列与 `264pt` 数值列作为最小 frame 宽度，并保留 first-baseline、12pt 间距和数值尾部对齐；stacked 复用同一标题/数值子树并让数值前导对齐、自然垂直增长。`ModelAdvicePanel` / `AdviceRow` 保留既有 icon/text 顺序和 4 行建议策略。
 - 保留 `ModelDetailPanelTextLayoutPolicy`、`ModelDetailRowTextLayoutPolicy`、`ModelDetailAccessibilityMetadata`、`ModelDetailRowAccessibilityMetadata`、模型选择/部署、artifact 文件、missing/staged/verified runtime 门禁、Reduce Motion、会话和 workspace 状态流；不新增动作、网络、异步 layout 状态、真实推理或模型权重。
-- 新增 `testModelDetailRowLayoutPolicyAdaptsNarrowWidths`，锁住纯值阈值/换算/非法宽度/Dynamic Type/重复读取，回归 existing text/metadata/44pt/runtime contract，并通过公开 `ImageRenderer` 覆盖真实 `DetailRow`、参数/性能/建议面板和 `ModelDetailColumn` 的 `256/320/390/834/1200pt × 亮暗 × .large/.xxxLarge/.accessibility3/.accessibility5` 矩阵。
+- 新增 `testModelDetailRowLayoutPolicyAdaptsNarrowWidths`，锁住纯值阈值/换算/非法宽度/Dynamic Type/重复读取，回归实际 title/value 最小 frame、existing text/metadata/44pt/runtime contract，并通过公开 `ImageRenderer` 覆盖真实 `DetailRow`、参数/性能/建议面板、`ModelDetailColumn` 和 `ModelLibraryView` 生产调用链的窄/宽矩阵。
 
 关键文件：
 
@@ -4037,12 +4037,12 @@
 
 当前验证状态：
 
-- 源码测试函数数为 `126`；已通过 `git diff --check`、`plutil -lint LocalGemma.xcodeproj/project.pbxproj`、workflow YAML 解析、`bash -n script/build_and_run.sh` 和两份 Swift `-parse` 语法检查。
-- 本轮未运行本地 `xcodebuild`、XCTest、Simulator、Mac Catalyst build/run 或截图；未下载模型权重、未执行真实模型推理、未调用云端推理。完整 iOS/Catalyst build、LogicSmoke、126 项 XCTest 和 Agent C artifact 验收待本轮 push 后 GitHub Actions 执行。
+- 源码测试函数数为 `126`；在独立审计发现最小列宽只用于 mode 阈值后，已补上 horizontal title/value frame 的实际 `84pt/264pt` 约束，并把 `ModelLibraryView` 生产调用链加入公开 ImageRenderer 回归；修复后的云端验证待触发。
+- 本轮未运行本地 `xcodebuild`、XCTest、Simulator、Mac Catalyst build/run 或截图；未下载模型权重、未执行真实模型推理、未调用云端推理。轻量检查与修复后的完整 iOS/Catalyst build、LogicSmoke、126 项 XCTest 和 Agent C artifact 验收待本轮 push 后 GitHub Actions 执行。
 
 遗留事项：
 
-- 只允许提交 v2.81 源码、测试、六份核心文档和 v2.81 prompt；保护用户的 `LocalGemma.xcodeproj/project.pbxproj` dirty diff 与未跟踪 v2.79 prompt。必须以 v2.81 实现 commit 对应的最新 run/artifact 完成云端验收后再进入下一轮。
+- 只允许提交 v2.81 修复源码、测试和核心文档，保护用户的 `LocalGemma.xcodeproj/project.pbxproj` dirty diff 与未跟踪 v2.79 prompt；必须以修复 commit 对应的最新 run/artifact 完成云端验收后再进入下一轮。
 
 ### v2.80 / 设置偏好行响应式布局
 

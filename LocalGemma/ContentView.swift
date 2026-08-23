@@ -6670,10 +6670,17 @@ struct DetailRow: View {
             )
 
         layout {
-            titleText
+            titleText(
+                minWidth: plan.mode == .horizontal
+                    ? ModelDetailRowLayoutPolicy.minimumTitleColumnWidth
+                    : 0
+            )
             valueText(
                 textAlignment: plan.mode == .horizontal ? .trailing : .leading,
-                frameAlignment: plan.mode == .horizontal ? .trailing : .leading
+                frameAlignment: plan.mode == .horizontal ? .trailing : .leading,
+                minWidth: plan.mode == .horizontal
+                    ? ModelDetailRowLayoutPolicy.minimumValueColumnWidth
+                    : 0
             )
         }
         .frame(maxWidth: .infinity, minHeight: ModelDetailRowTextLayoutPolicy.minimumRowHeight)
@@ -6686,17 +6693,19 @@ struct DetailRow: View {
         .accessibilityIdentifier(ModelDetailRowAccessibilityMetadata.identifier(title: title))
     }
 
-    private var titleText: some View {
+    private func titleText(minWidth: CGFloat) -> some View {
         Text(title)
             .font(.caption.weight(.bold))
             .foregroundStyle(theme.tertiaryText)
             .lineLimit(ModelDetailRowTextLayoutPolicy.titleLineLimit)
             .fixedSize(horizontal: false, vertical: true)
+            .frame(minWidth: minWidth, alignment: .leading)
     }
 
     private func valueText(
         textAlignment: TextAlignment,
-        frameAlignment: Alignment
+        frameAlignment: Alignment,
+        minWidth: CGFloat
     ) -> some View {
         Text(value)
             .font(.subheadline.weight(.black))
@@ -6704,7 +6713,7 @@ struct DetailRow: View {
             .multilineTextAlignment(textAlignment)
             .lineLimit(ModelDetailRowTextLayoutPolicy.valueLineLimit)
             .fixedSize(horizontal: false, vertical: true)
-            .frame(maxWidth: .infinity, alignment: frameAlignment)
+            .frame(minWidth: minWidth, maxWidth: .infinity, alignment: frameAlignment)
     }
 }
 

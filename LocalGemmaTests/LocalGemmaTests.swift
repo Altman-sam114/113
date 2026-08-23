@@ -4597,7 +4597,7 @@ final class LocalGemmaTests: XCTestCase {
                         (
                             AnyView(
                                 DetailRow(
-                                    title: "上下文长度",
+                                    title: "本地模型上下文与运行配置说明",
                                     value: "Core ML compiled package, 1.8 GB unified memory",
                                     panelContentWidth: panelContentWidth
                                 )
@@ -4658,6 +4658,24 @@ final class LocalGemmaTests: XCTestCase {
                     }
                 }
             }
+        }
+
+        let productionCatalog = ModelCatalog(autoScanLocalArtifacts: false)
+        for (width, height) in [(390, 844), (820, 1_180), (1_280, 800)] {
+            let renderer = ImageRenderer(
+                content: ModelLibraryView()
+                    .environmentObject(productionCatalog)
+                    .environment(\.appTheme, AppThemePalette(mode: .light))
+                    .environment(\.colorScheme, .light)
+                    .environment(\.dynamicTypeSize, .large)
+                    .frame(width: CGFloat(width), height: CGFloat(height))
+            )
+            renderer.scale = 1
+            let image = renderer.uiImage
+
+            XCTAssertNotNil(image)
+            XCTAssertEqual(image?.size.width ?? 0, CGFloat(width), accuracy: 1)
+            XCTAssertGreaterThan(image?.size.height ?? 0, 0)
         }
 
         func renderedParametersHeight(dynamicTypeSize: DynamicTypeSize) -> CGFloat {
