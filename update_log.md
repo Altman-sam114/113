@@ -4039,11 +4039,23 @@
 
 - 已确认本地 `main`、`origin/main` 和当前实现基线为 `a474254f4d7252f6138c8c78ba9352bb89331204`；`git fetch origin` 与 `git pull --ff-only origin main` 均无远端新增提交。用户保留的 `LocalGemma.xcodeproj/project.pbxproj` 修改未编辑、未格式化、未暂存、未提交。
 - 已通过 `git diff --check`、`grep -c "func test"`（结果 `124`）、Markdown fence 结构检查、`plutil -lint LocalGemma.xcodeproj/project.pbxproj`、Ruby workflow YAML 解析、`test -f`/`test -x`、`bash -n script/build_and_run.sh`、`xcrun swiftc -parse LocalGemma/ContentView.swift` 和 `LocalGemmaTests/LocalGemmaTests.swift`；Ruby 仅输出 PATH world-writable warning，解析结果为 `yaml ok`。
-- 本地未运行 `xcodebuild`、XCTest、Simulator、Mac Catalyst build/run 或视觉截图/ImageRenderer 验收；未下载模型权重、未执行真实推理、未调用云端推理。v2.79 实现 commit、云端 run、artifact、xcresult 和 Agent C 验收待本轮 push 后发生。
+- 本地未运行 `xcodebuild`、XCTest、Simulator、Mac Catalyst build/run 或视觉截图/ImageRenderer 验收；未下载模型权重、未执行真实推理、未调用云端推理。v2.79 实现 commit、云端 run、artifact、xcresult 和 Agent C 验收见下方最终记录。
 
 遗留事项：
 
-- 等待 v2.79 实现提交触发最新 `main` GitHub Actions；完成后由 Agent C 只验收该 commit 对应的唯一 artifact，核对 124 项 XCTest、新 utility 测试、生产 ImageRenderer 矩阵、辅助语义、44pt、verified/runtime 门禁和三份 `.xcresult` 结构。
+- v2.79 实现 commit 的唯一云端 artifact 已由 Agent C 核验通过；后续版本必须继续以最新 `main` run 和对应结果包闭环，不复用本轮旧 artifact。
+
+#### v2.79 Agent C 云端验收记录
+
+日期：2026-08-23
+
+- GitHub Actions run `32629203461`（attempt `1`）对应 `main` 上的实现 commit `11629b40381b8447113112aa1a86eac7f03f91c6`，subject 为 `v2.79: 模型文件 utility 动态排版`，workflow 为 `Local Gemma CI Results`，run 与 commit identity 完全匹配，结论为 `success`。
+- 唯一 artifact 为 `localgemma-ci-v2.79-main-11629b4-run32629203461-attempt1`，artifact ID `9490725860`，API 与下载 ZIP SHA-256 均为 `sha256:56b12fdeb62214de4d9ec65e58ece8df19d641bd6899bd2459acbc5a05c07091`；`unzip -t`、`artifact-name.txt`、manifest、API artifact name 和完整 identity 均一致。
+- required outcomes `static/logic/build/test/macCatalyst/macRunScript=success`；`codexRunEnvironment=skipped` 的原因是 `not-added-in-v1.0-cli-entrypoint-only`，`macDesigned=skipped` 符合非原生 macOS target 设计。日志各有一次 `Logic smoke passed`、iOS/Catalyst `TEST BUILD SUCCEEDED` 和 XCTest `TEST EXECUTE SUCCEEDED`。
+- JUnit 可解析，7 stages、required failures/errors 为 0，唯一 skipped 是预期 optional Codex Run environment。实现前源码测试数为 `123`，实现后为 `124`；test log 为 `124 passed / 0 failed`，新增 `testModelArtifactUtilityTextLayoutPolicySupportsDynamicTypeLabels` 恰好一次。
+- `LocalGemma-tests.xcresult` root `testsCount=124`，结构化用例为 `124/124 Success`、0 failed/unknown，新增 utility 测试节点恰好一次且为 `Success`。三份 `.xcresult` 的 `Info.plist`、root、Data/refs 均完整且可读，Data/refs 为 `3/3`、`3/3`、`978/978`，无 error/failure summary。
+- Agent C 通过权威源码核对了 policy 的 2 行、1pt line spacing、10pt padding、44pt minimum height、语义字体，以及真实 `ArtifactActionPanel` 的 24 组合矩阵（320/390/834/1200 × 亮暗 × large/xxxLarge/accessibility3）；artifact 无模型权重、缓存、截图或视频，Mac baseline 明确为既有 iOS target 的 Mac Catalyst 而非原生 macOS。
+- Agent C 未运行本地 Xcode/XCTest/Simulator/Catalyst，未下载模型或执行真实推理；验收前后 workspace 仅保留用户的 `project.pbxproj` dirty diff 和未跟踪 v2.79 prompt，临时目录已使用 `trash` 清理。
 
 ### v2.78 / 模型详情面板标题动态排版
 
