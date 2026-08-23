@@ -4037,12 +4037,21 @@
 
 当前验证状态：
 
-- 源码测试函数数为 `126`；在独立审计发现最小列宽只用于 mode 阈值后，已补上 horizontal title/value frame 的实际 `84pt/264pt` 约束，并把 `ModelLibraryView` 生产调用链加入公开 ImageRenderer 回归；修复后的云端验证待触发。
-- 本轮未运行本地 `xcodebuild`、XCTest、Simulator、Mac Catalyst build/run 或截图；未下载模型权重、未执行真实模型推理、未调用云端推理。轻量检查与修复后的完整 iOS/Catalyst build、LogicSmoke、126 项 XCTest 和 Agent C artifact 验收待本轮 push 后 GitHub Actions 执行。
+- 源码测试函数数为 `126`；初始实现 run `32637961806` 虽全绿，但独立审计发现 `84pt/264pt` 只参与 mode 阈值、没有真正应用到横排 title/value frame，因此追加修复 commit `a15303a`，并加入 `ModelLibraryView` 生产调用链 ImageRenderer 回归。修复后已通过 `git diff --check`、`plutil -lint LocalGemma.xcodeproj/project.pbxproj`、workflow YAML 解析、`bash -n script/build_and_run.sh` 和两份 Swift `-parse` 语法检查。
+- 本轮未运行本地 `xcodebuild`、XCTest、Simulator、Mac Catalyst build/run 或截图；未下载模型权重、未执行真实模型推理、未调用云端推理。修复 commit 的完整云端 build/test、LogicSmoke、126 项 XCTest 和 Agent C artifact 验收见下方最终记录。
 
 遗留事项：
 
-- 只允许提交 v2.81 修复源码、测试和核心文档，保护用户的 `LocalGemma.xcodeproj/project.pbxproj` dirty diff 与未跟踪 v2.79 prompt；必须以修复 commit 对应的最新 run/artifact 完成云端验收后再进入下一轮。
+- v2.81 修复 commit 已完成云端验收；下一轮只基于该最终 `origin/main` 继续 UI 审计，保护用户的 `LocalGemma.xcodeproj/project.pbxproj` dirty diff 与未跟踪 v2.79 prompt。
+
+#### v2.81 Agent C 云端验收记录
+
+- 初始实现 commit `8cd8dcae58552295676f8d44b7f89f707463db58` 的 run `32637961806` 全部 required stages 通过，但独立 UI/代码审计指出 `ModelDetailRowLayoutPolicy` 声明的 `84pt/264pt` 最小列宽尚未实际施加到 horizontal `DetailRow` 的两个 frame；该 run 未作为最终 PASS 证据。修复 commit `a15303a87f6654240172dc8460b4a2e470cd8d28` 将同一 policy 的最小宽度传入 title/value，并增加 `ModelLibraryView` 390/820/1280pt 生产调用链渲染回归。
+- GitHub Actions run `32639086179`（attempt `1`）对应 `main` 上的修复 commit `a15303a87f6654240172dc8460b4a2e470cd8d28`，subject 为 `v2.81: 修复详情行最小列宽`，workflow 为 `Local Gemma CI Results`；branch、HEAD、manifest 与 run identity 完全匹配，conclusion 为 `success`。
+- GitHub API 只返回一个未过期 artifact：ID `9493211490`，名称 `localgemma-ci-v2.81-main-a15303a-run32639086179-attempt1`，声明大小 `68,108,660` bytes，API digest 为 `sha256:d00cbb3c864662125df8dfd19a44e397cfc19c0b0567c49f8781746b9d35e25b`；包内 `artifact-name.txt` 与 API name 一致，manifest 的 repository/branch/version/SHA/subject/run/attempt/workflow、iOS 与 Mac Catalyst destination、结果路径和 required outcomes 全部一致。
+- required outcomes `static=success`、`logic=success`、`build=success`、`test=success`、`macCatalyst=success`、`macRunScript=success` 全部通过；`macDesignedForIPad=skipped` 保持当前无原生 macOS target 的设计，`codexRunEnvironment=skipped` 原因仍为 `not-added-in-v1.0-cli-entrypoint-only`。LogicSmoke 日志为 `Logic smoke passed`，failure summary 为 `All required checks passed`，JUnit 为 `tests=7`、`failures=0`、`skipped=1`。
+- 云端 `test.log` 与源码测试名集合核对得到 `126/126` passed markers，failed markers 为 `0`；`testModelDetailRowLayoutPolicyAdaptsNarrowWidths()` 恰好出现一次并 passed（3.537 秒），日志含一次 `** TEST EXECUTE SUCCEEDED **`；本轮新增的 ModelLibraryView 生产调用链渲染也包含在该测试中。三份 `.xcresult` 的 `Info.plist` 均合法、version `3.58`、backend `fileBacked2`、rootId 存在；iOS build、Mac Catalyst build、XCTest bundle 的 Data/refs 分别为 `3/3`、`3/3`、`921/921`，data/ref hash key 集合完全配对。
+- artifact 内无 Gemma/其他模型权重、tokenizer、模型包、缓存、截图或视频扩展；`mac-baseline-notes.md` 明确这是既有 iOS app target 的 Mac Catalyst build-for-testing，不是原生 macOS target，workflow 不下载模型权重、不调用外部 inference service。Agent C 未运行本地 Xcode/XCTest/Simulator/Catalyst 或 ImageRenderer，仅通过 GitHub CLI/API 下载并读取云端结果包；验收临时目录已使用 `trash` 清理，工作区仍仅保留用户既有 `project.pbxproj` dirty diff 与未跟踪 v2.79 prompt。
 
 ### v2.80 / 设置偏好行响应式布局
 
