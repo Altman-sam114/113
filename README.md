@@ -90,6 +90,14 @@
 - `script/build_and_run.sh`：项目内 Mac Catalyst 本地 build/run 入口，支持 `run`、`--build-only`、`--verify`、`--logs`、`--telemetry`、`--debug` 和 `--help`。
 - `.github/workflows/ci-results.yml`：`main` push / 手动触发的 GitHub Actions workflow，生成 Agent C 可下载核对的未加密 CI 结果包。
 
+### v2.83 / 顶部模型胶囊部署状态与徽章可读性
+
+- 顶部 `ModelCapsule` 的 `Running` / `Stopped` 状态由 `ModelCatalog.deploymentState(for:)` 经 `ContentView -> HeaderView -> ModelCapsule` 直接传递；不改变模型选择、单模型部署状态、artifact 校验或 runtime/verified 门禁。
+- 安装、artifact、deployment 三枚 badge 和胶囊内 SIM/REAL 共同读取 `ModelStatusBadgeStylePolicy` 的亮/暗主题纯值契约；stopped 使用主题前景与中性 chip 表面，不依赖白色前景。`ModelStatusBadgeTextLayoutPolicy` 移除受影响范围内固定 9pt，使用语义 Dynamic Type 字体、两行上限和自然垂直增长。
+- badge 子树使用 `ModelStatusBadgeRowLayoutPolicy`：无效/不足 `220pt` 的局部可用宽度或 `.xxxLarge` 及以上 Dynamic Type stacked，普通字号达到 `220pt` 才 horizontal；这不是新的模型胶囊断点。顶部胶囊保持合并整体辅助摘要并隐藏 deployment badge 独立节点，模型 selector 保留三枚 badge 独立可达。
+- 新增聚合 `testModelCapsuleDeploymentStateAndBadgeReadability`，源码测试函数数为 `128`；纯值契约覆盖 deployment catalog 状态流、两种整体 metadata、亮暗主题全部 badge/runtime style、文字和 row layout（`220pt`、invalid、`.xxxLarge`+、普通字号 horizontal），真实 `ModelCapsule` + `ModelSelectorPanel` 公开 `ImageRenderer` 覆盖 `320/390/834/1200pt` × 亮暗主题 × `.large`/`.xxxLarge`/`.accessibility3`/`.accessibility5` × deployment/artifact/install 状态，只断言非空、有限正尺寸、wrapper 宽度和 accessibility 高度不下降，不做像素或私有 accessibility tree 断言。
+- 本轮未运行本地 `xcodebuild`、XCTest、Simulator、Mac Catalyst build/run 或视觉截图；轻量检查完成后由 `main` push 触发 GitHub Actions，当前云端结果和 Agent C artifact 验收待发生，不能将其写成通过。
+
 ## 运行方式
 
 1. 打开 `LocalGemma.xcodeproj`。

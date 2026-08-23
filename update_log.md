@@ -4012,6 +4012,34 @@
 - 三份 `.xcresult` 的 `Info.plist` 均 `plutil -lint` 通过，版本均为 3.58 且 rootId 存在；`LocalGemma-build.xcresult`、`LocalGemma-maccatalyst-build.xcresult`、`LocalGemma-tests.xcresult` 的 Data/refs 分别为 `3/3`、`3/3`、`879/879`，hash 集合完全配对。tests bundle 的唯一零字节 data 节点有对应 refs，不影响 bundle 结构；build、Catalyst build 和 tests 三个结果包均存在。
 - 本轮未运行本地 `xcodebuild`、XCTest、Simulator、Mac Catalyst build/run、`xcresulttool` 或 ImageRenderer；仅使用 GitHub CLI/API 下载和读取云端结果包，并使用轻量文件/manifest/日志/Info.plist 结构核对。未下载模型权重、未执行真实模型推理、未调用云端推理。用户既有 `LocalGemma.xcodeproj/project.pbxproj` 修改保持未编辑、未暂存、未提交。
 
+### v2.83 / 顶部模型胶囊部署状态与徽章可读性
+
+日期：2026-08-23
+
+核心变更：
+
+- 基于实际 `origin/main` `3f17c73` 实现顶部 deployment 只读链路：`ContentView` 直接读取 `catalog.deploymentState(for: catalog.selectedModel)`，经 `HeaderView` 传给 `ModelCapsule`，顶部显示 `Running` / `Stopped`，整体 metadata 同步包含 deployment 文案；不改变 `ModelCatalog` 状态流、artifact validation、runtime planner 或 verified 门禁。
+- 新增 `ModelStatusBadgeStylePolicy`，让 install/artifact/deployment 三枚 badge 与胶囊内 SIM/REAL 共享亮暗主题语义角色。stopped 使用 `primaryText`、`chipSurface`、`border`，移除 raw color 和白色 stopped 前景；`ModelStatusBadgeTextLayoutPolicy` 替换受影响 badge/SIM 的固定 9pt，使用语义 Dynamic Type、两行上限、1pt line spacing 和自然垂直增长。
+- 新增局部 `ModelStatusBadgeRowLayoutPolicy` 和 `AnyLayout` badge 子树：保守的局部内容宽度低于 `220pt` 或 `.xxxLarge` 及以上 Dynamic Type stacked，普通字号达到 `220pt` 才 horizontal，不建立第二套模型胶囊断点。`ModelStatusBadgeAccessibilityPresentationPolicy` 让顶部胶囊维持 `.combine` 整体摘要并隐藏 deployment badge 独立节点，模型 selector 保留三枚 badge 独立可达。
+- 新增聚合 `testModelCapsuleDeploymentStateAndBadgeReadability`，源码测试函数数从 `127` 增至 `128`；覆盖 catalog deployment contract、stopped/running capsule metadata、全 badge/runtime style case 与亮暗主题、Dynamic Type 和 row/accessibility scope 纯值 contract，以及真实 `ModelCapsule` + `ModelSelectorPanel` 生产组合的公开 `ImageRenderer` 矩阵。矩阵覆盖 `320/390/834/1200pt`、亮暗主题、`.large`/`.xxxLarge`/`.accessibility3`/`.accessibility5`、deployment/artifact/install 全部组合，只断言非空有限正尺寸、wrapper 宽度和 `.accessibility5 >= .large` 高度，不做像素或私有 accessibility tree 断言。
+
+关键文件：
+
+- `LocalGemma/ContentView.swift`
+- `LocalGemmaTests/LocalGemmaTests.swift`
+- `AGENTS.md`
+- `README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `update_log.md`
+
+当前验证状态：
+
+- 已保护用户/其他 Agent 的 `LocalGemma.xcodeproj/project.pbxproj` dirty diff、未跟踪 v2.79 prompt 和当前 v2.83 prompt；未编辑、未格式化、未暂存、未提交这些文件。
+- 当前源码实际测试函数数为 `128`。本地完整 `xcodebuild`、XCTest、Simulator、Mac Catalyst build/run 和截图视觉验收均未运行；轻量检查结果将在本轮提交前如实补充。GitHub Actions run、artifact、JUnit、xcresult 和 Agent C 验收尚未产生，不能预写通过结论。
+- 未下载模型权重、tokenizer 或缓存，未执行真实模型推理，未调用云端 inference；Mac 验证仍是既有 iOS target 的 Mac Catalyst build-for-testing，不是原生 macOS target。
+
 ### v2.82 / Composer 输入框 Dynamic Type 动态排版
 
 日期：2026-08-23

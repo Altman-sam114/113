@@ -4291,6 +4291,7 @@ final class LocalGemmaTests: XCTestCase {
                     memoryUsageMB: 1_843,
                     backend: .coreMLANE,
                     availability: .missing,
+                    deploymentState: .stopped,
                     isGenerating: false,
                     isSimulated: true,
                     availableWidth: width,
@@ -4364,6 +4365,7 @@ final class LocalGemmaTests: XCTestCase {
             memoryUsageMB: 512,
             backend: .coreMLANE,
             availability: .missing,
+            deploymentState: .stopped,
             isGenerating: false,
             isSimulated: true
         )
@@ -4387,6 +4389,7 @@ final class LocalGemmaTests: XCTestCase {
             memoryUsageMB: 1800,
             backend: .metalPerformanceShaders,
             availability: .staged,
+            deploymentState: .stopped,
             isGenerating: true,
             isSimulated: true
         )
@@ -4404,14 +4407,267 @@ final class LocalGemmaTests: XCTestCase {
             memoryUsageMB: 2048,
             backend: .coreMLANE,
             availability: .verified,
+            deploymentState: .running,
             isGenerating: false,
             isSimulated: false
         )
         XCTAssertTrue(verifiedRealValue.contains("运行标记 REAL"))
+        XCTAssertTrue(verifiedRealValue.contains("部署状态 Running"))
         XCTAssertTrue(verifiedRealValue.contains("artifact verified"))
         XCTAssertTrue(verifiedRealValue.contains("生成状态 已就绪"))
         XCTAssertTrue(verifiedRealValue.contains("准备度 100%"))
         XCTAssertTrue(verifiedRealValue.contains("需 artifact verified 后才可进入真实运行计划"))
+    }
+
+    func testModelCapsuleDeploymentStateAndBadgeReadability() {
+        let catalog = ModelCatalog()
+        let firstModel = catalog.models[0]
+        let secondModel = catalog.models[1]
+
+        XCTAssertEqual(catalog.deploymentState(for: firstModel), .stopped)
+        catalog.startDeployment(for: firstModel)
+        XCTAssertEqual(catalog.deploymentState(for: firstModel), .running)
+        catalog.startDeployment(for: secondModel)
+        XCTAssertEqual(catalog.deploymentState(for: firstModel), .stopped)
+        XCTAssertEqual(catalog.deploymentState(for: secondModel), .running)
+        catalog.toggleDeployment(for: secondModel)
+        XCTAssertEqual(catalog.deploymentState(for: secondModel), .stopped)
+
+        let model = catalog.models[0]
+        let missingValidation = LocalArtifactValidator.validate(
+            manifest: model.artifactManifest,
+            presentFiles: []
+        )
+        for deploymentState in [ModelDeploymentState.stopped, .running] {
+            let value = ModelCapsuleAccessibilityMetadata.value(
+                model: model,
+                readiness: 0.76,
+                tokensPerSecond: 36,
+                memoryUsageMB: 512,
+                backend: .coreMLANE,
+                availability: missingValidation.availability,
+                deploymentState: deploymentState,
+                isGenerating: false,
+                isSimulated: true
+            )
+
+            XCTAssertTrue(value.contains(deploymentState.title))
+            XCTAssertTrue(value.contains(deploymentState.localizedTitle))
+            XCTAssertEqual(ModelCapsuleAccessibilityMetadata.identifier, "header-model-capsule")
+            XCTAssertTrue(ModelCapsuleAccessibilityMetadata.hint.contains("不会下载模型权重"))
+            XCTAssertTrue(ModelCapsuleAccessibilityMetadata.hint.contains("不会启动真实 runtime"))
+            XCTAssertTrue(ModelCapsuleAccessibilityMetadata.hint.contains("不会发送到云端服务"))
+            XCTAssertTrue(ModelCapsuleAccessibilityMetadata.hint.contains("不会绕过 verified 门禁"))
+        }
+
+        let styleCases: [(ModelStatusBadgeVisualState, ModelStatusBadgeColorRole)] = [
+            (.install(.ready), .success),
+            (.install(.simulated), .accent),
+            (.install(.notDownloaded), .warning),
+            (.artifact(.missing), .warning),
+            (.artifact(.staged), .accent),
+            (.artifact(.verified), .success),
+            (.deployment(.running), .success),
+            (.deployment(.stopped), .primaryText),
+            (.runtime(isSimulated: true), .accent),
+            (.runtime(isSimulated: false), .success)
+        ]
+        for themeMode in AppThemeMode.allCases {
+            for (state, expectedForeground) in styleCases {
+                let style = ModelStatusBadgeStylePolicy.style(for: state, theme: themeMode)
+
+                XCTAssertEqual(style.themeMode, themeMode)
+                XCTAssertEqual(style.foreground, expectedForeground)
+                XCTAssertTrue(style.backgroundOpacity.isFinite)
+                XCTAssertTrue(style.borderOpacity.isFinite)
+                XCTAssertGreaterThanOrEqual(style.backgroundOpacity, 0)
+                XCTAssertLessThanOrEqual(style.backgroundOpacity, 1)
+                XCTAssertGreaterThanOrEqual(style.borderOpacity, 0)
+                XCTAssertLessThanOrEqual(style.borderOpacity, 1)
+            }
+
+            let stoppedStyle = ModelStatusBadgeStylePolicy.style(
+                for: .deployment(.stopped),
+                theme: themeMode
+            )
+            let runningStyle = ModelStatusBadgeStylePolicy.style(
+                for: .deployment(.running),
+                theme: themeMode
+            )
+            XCTAssertEqual(stoppedStyle.foreground, .primaryText)
+            XCTAssertEqual(stoppedStyle.background, .chipSurface)
+            XCTAssertEqual(stoppedStyle.border, .border)
+            XCTAssertNotEqual(stoppedStyle.foreground, runningStyle.foreground)
+            XCTAssertNotEqual(stoppedStyle.background, runningStyle.background)
+        }
+
+        XCTAssertTrue(ModelStatusBadgeTextLayoutPolicy.usesSemanticDynamicTypeFont)
+        XCTAssertTrue(ModelStatusBadgeTextLayoutPolicy.allowsMultiline)
+        XCTAssertEqual(ModelStatusBadgeTextLayoutPolicy.lineLimit, 2)
+        XCTAssertEqual(ModelStatusBadgeTextLayoutPolicy.lineSpacing, 1)
+        XCTAssertEqual(ModelStatusBadgeTextLayoutPolicy.horizontalPadding, 6)
+        XCTAssertEqual(ModelStatusBadgeTextLayoutPolicy.verticalPadding, 3)
+        XCTAssertFalse(
+            ModelStatusBadgeAccessibilityPresentationPolicy.exposesIndependentBadge(
+                for: .modelCapsule
+            )
+        )
+        XCTAssertTrue(
+            ModelStatusBadgeAccessibilityPresentationPolicy.exposesIndependentBadge(
+                for: .modelSelector
+            )
+        )
+        XCTAssertEqual(
+            ModelStatusBadgeRowLayoutPolicy.resolve(
+                availableWidth: .nan,
+                dynamicTypeSize: .large
+            ),
+            ModelStatusBadgeRowLayoutPlan(mode: .stacked)
+        )
+        XCTAssertEqual(
+            ModelStatusBadgeRowLayoutPolicy.resolve(
+                availableWidth: 198,
+                dynamicTypeSize: .large
+            ).mode,
+            .stacked
+        )
+        XCTAssertEqual(
+            ModelStatusBadgeRowLayoutPolicy.resolve(
+                availableWidth: ModelStatusBadgeRowLayoutPolicy.horizontalMinimumWidth,
+                dynamicTypeSize: .large
+            ).mode,
+            .horizontal
+        )
+        for dynamicTypeSize in [.xxxLarge, .accessibility3, .accessibility5] {
+            XCTAssertEqual(
+                ModelStatusBadgeRowLayoutPolicy.resolve(
+                    availableWidth: 1_000,
+                    dynamicTypeSize: dynamicTypeSize
+                ).mode,
+                .stacked
+            )
+        }
+        XCTAssertGreaterThanOrEqual(
+            ModelDeploymentControlLayoutPolicy.modelSelectorMinHeight,
+            ModelDeploymentControlLayoutPolicy.minimumTouchTarget
+        )
+        XCTAssertGreaterThanOrEqual(
+            ModelDeploymentControlLayoutPolicy.powerButtonMinHeight,
+            ModelDeploymentControlLayoutPolicy.minimumTouchTarget
+        )
+
+        let renderManifest = ModelArtifactManifest(
+            modelFileName: "render-gemma.mlmodelc",
+            tokenizerFileName: "render-tokenizer.model",
+            fileFormat: "Core ML compiled package",
+            storageDirectory: "Application Support/LocalModels",
+            expectedSHA256: String(repeating: "a", count: 64),
+            allowsNetworkDownload: false,
+            importInstruction: "仅用于本地 ImageRenderer 测试。"
+        )
+        var renderModel = model
+        renderModel.name = "Gemma 中文 1.5B Local"
+        renderModel.artifactManifest = renderManifest
+
+        func validation(for availability: ArtifactAvailability) -> ArtifactValidationResult {
+            switch availability {
+            case .missing:
+                return LocalArtifactValidator.validate(
+                    manifest: renderManifest,
+                    presentFiles: []
+                )
+            case .staged:
+                return LocalArtifactValidator.validate(
+                    manifest: renderManifest,
+                    presentFiles: Set(renderManifest.requiredFiles)
+                )
+            case .verified:
+                return LocalArtifactValidator.validate(
+                    manifest: renderManifest,
+                    presentFiles: Set(renderManifest.requiredFiles),
+                    observedSHA256: renderManifest.expectedSHA256
+                )
+            }
+        }
+
+        let widths: [CGFloat] = [320, 390, 834, 1_200]
+        let dynamicTypeSizes: [DynamicTypeSize] = [
+            .large,
+            .xxxLarge,
+            .accessibility3,
+            .accessibility5
+        ]
+        var largeHeights: [String: CGFloat] = [:]
+
+        for width in widths {
+            let layoutMode: WorkspaceLayoutMode = width >= 980
+                ? .landscapeRegular
+                : width >= 700 ? .landscapeCompact : .portrait
+
+            for themeMode in AppThemeMode.allCases {
+                for dynamicTypeSize in dynamicTypeSizes {
+                    for deploymentState in [ModelDeploymentState.stopped, .running] {
+                        for availability in [ArtifactAvailability.missing, .staged, .verified] {
+                            for installState in ModelInstallState.allCases {
+                                var stateModel = renderModel
+                                stateModel.installState = installState
+                                let validationResult = validation(for: availability)
+                                let content = VStack(spacing: 16) {
+                                    ModelCapsule(
+                                        model: stateModel,
+                                        readiness: 0.76,
+                                        tokensPerSecond: 36,
+                                        memoryUsageMB: 1_843,
+                                        backend: .coreMLANE,
+                                        availability: availability,
+                                        deploymentState: deploymentState,
+                                        isGenerating: false,
+                                        isSimulated: installState != .ready,
+                                        availableWidth: ModelCapsuleLayoutPolicy.availableWidth(
+                                            forChromeWidth: width
+                                        ),
+                                        layoutMode: layoutMode
+                                    )
+
+                                    ModelSelectorPanel(
+                                        models: [stateModel],
+                                        selectedModelID: .constant(stateModel.id),
+                                        selectedModel: stateModel,
+                                        validation: validationResult,
+                                        deploymentState: deploymentState
+                                    )
+                                }
+                                .environment(\.appTheme, AppThemePalette(mode: themeMode))
+                                .environment(\.colorScheme, themeMode.colorScheme)
+                                .environment(\.dynamicTypeSize, dynamicTypeSize)
+                                .frame(width: width)
+
+                                let renderer = ImageRenderer(content: content)
+                                renderer.scale = 1
+                                guard let image = renderer.uiImage else {
+                                    XCTFail("生产模型胶囊和选择器渲染为空: \(width), \(themeMode), \(dynamicTypeSize), \(deploymentState), \(availability), \(installState)")
+                                    continue
+                                }
+
+                                XCTAssertTrue(image.size.width.isFinite)
+                                XCTAssertTrue(image.size.height.isFinite)
+                                XCTAssertGreaterThan(image.size.width, 0)
+                                XCTAssertGreaterThan(image.size.height, 0)
+                                XCTAssertEqual(image.size.width, width, accuracy: 1)
+
+                                let key = "\(width)-\(themeMode.rawValue)-\(deploymentState.rawValue)-\(availability.rawValue)-\(installState.rawValue)"
+                                if dynamicTypeSize == .large {
+                                    largeHeights[key] = image.size.height
+                                } else if dynamicTypeSize == .accessibility5,
+                                          let largeHeight = largeHeights[key] {
+                                    XCTAssertGreaterThanOrEqual(image.size.height, largeHeight)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     func testModelDetailColumnExposesAccessibilityMetadata() {

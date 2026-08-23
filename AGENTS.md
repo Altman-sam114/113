@@ -377,6 +377,12 @@ README 过期视为 bug。测试数量、命令、功能边界、CI 结果包和
 
 普通 Codex 任务无需冒充 A/B/C/X 身份，但必须说明实际完成范围和未完成的云端环节。
 
+## v2.83 当前边界补充
+
+v2.83 起，顶部 `ModelCapsule` 的 deployment 摘要由 `ContentView` 直接传入 `ModelCatalog.deploymentState(for: catalog.selectedModel)`，只展示 `Running` / `Stopped`，不从 artifact、SIM/REAL、生成状态或 runtime 推导。`StatusBadge`、`AvailabilityBadge`、`DeploymentBadge` 与胶囊内 SIM/REAL 共同读取 `ModelStatusBadgeStylePolicy` 的 theme-aware 纯值契约；stopped 使用主题 `primaryText`、`chipSurface` 和 `border`，不使用白字逃生路径。局部 `ModelStatusBadgeTextLayoutPolicy` 使用语义 Dynamic Type 字体，`ModelStatusBadgeRowLayoutPolicy` 在有限内容宽度低于 `220pt` 或 `.xxxLarge` 及以上回退 stacked，普通字号达到 `220pt` 才 horizontal，不建立第二套模型胶囊断点。
+
+顶部胶囊仍通过 `accessibilityElement(children: .combine)` 暴露稳定整体摘要，deployment value、SIM/REAL、artifact、速度、内存和准备度都在整体 metadata 中；胶囊内 deployment badge 隐藏独立辅助节点。模型页 selector 通过 `ModelStatusBadgeAccessibilityPresentationPolicy` 保留安装、artifact、deployment 三枚 badge 的独立 label/value/hint/input labels/identifier。上述局部布局和可达性策略不改变 44pt 模型控件、Reduce Motion、missing/staged/verified runtime 门禁、默认本地模拟 runtime、模型文件或 cloud/privacy 边界。
+
 ## 13. 禁止项
 
 - 禁止自动下载模型权重。

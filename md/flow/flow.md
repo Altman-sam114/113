@@ -30,6 +30,12 @@ v2.64 的顶部模型胶囊还会按真实 chrome 可用宽度切换堆叠/横�
 15. `ArtifactActionPanel` 读取 `ModelCatalog` 的 artifact validation 后展示下载/卸载与扫描/导入 utility；后两个 utility label 复用无状态 `ModelArtifactUtilityTextLayoutPolicy` 的语义 Dynamic Type 字体、两行上限、1pt line spacing、10pt padding 和垂直增长约束。policy 只影响文字排版，扫描/Files 导入闭包、独立辅助语义、44pt 触控目标、本地 artifact 校验、runtime 和 verified 门禁不变，不联网、不写回状态。
 16. `SettingsWorkspace` 先按 `SettingsWorkspaceLayoutPolicy` 得到设置页真实内容外框宽度，再扣除共享 `WorkbenchVisualStylePolicy.panelPadding` 两侧各 `14pt`，把 `WallpaperPreferencePanel` 的真实 panel content width 传给 `SettingsPreferenceRowLayoutPolicy`；普通字号在 `270pt` 内容阈值横排，窄宽或 `.xxxLarge` 及以上 stacked。壁纸行用同一 `AnyLayout` 复用预览、文案、PhotosPicker/清除动作子树，stacked layout 在 `fixedSize` 外部自然增长，两个动作禁用策略和辅助 metadata 仍由本地值派生。
 
+### v2.83 顶部部署状态与 badge 子树
+
+`ModelCatalog.deploymentState(for: catalog.selectedModel)` 是顶部 deployment 的唯一来源。`ContentView` 将该值传给 `HeaderView` 和 `ModelCapsule`，胶囊整体 metadata 合并 `Running` / `Stopped`；它不读取 artifact、SIM/REAL、生成状态或 runtime 来猜测部署。模型页 `ModelSelectorPanel` 继续读取同一个 `deploymentState`，并与当前 install state、validation availability 一起渲染三枚 badge。
+
+`StatusBadge`、`AvailabilityBadge`、`DeploymentBadge` 和胶囊内 SIM/REAL 共用 `ModelStatusBadgeStylePolicy` 的主题角色；`ModelStatusBadgeTextLayoutPolicy` 提供语义 Dynamic Type，badge row 由局部 `ModelStatusBadgeRowLayoutPolicy` 在 `220pt` 普通字号阈值和 `.xxxLarge`+ stacked 规则下选择 `AnyLayout`。顶部胶囊的 deployment badge 隐藏独立辅助节点，整体仍是一个稳定摘要；selector 通过 `ModelStatusBadgeAccessibilityPresentationPolicy` 保留三枚 badge 的独立辅助入口。该链路只读本地状态，不改变 missing/staged/verified、真实 runtime 计划、44pt、Reduce Motion、模型文件或 cloud/privacy 边界。
+
 ## 当前核心执行流
 
 ### App 启动

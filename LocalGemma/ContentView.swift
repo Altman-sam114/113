@@ -758,6 +758,7 @@ struct ContentView: View {
             memoryUsageMB: inference.memoryUsageMB,
             backend: inference.currentBackend,
             availability: selectedValidation.availability,
+            deploymentState: catalog.deploymentState(for: catalog.selectedModel),
             isGenerating: inference.isGenerating,
             isSimulated: inference.lastResultWasSimulated,
             capsuleAvailableWidth: capsuleAvailableWidth,
@@ -1482,6 +1483,7 @@ enum ModelCapsuleAccessibilityMetadata {
         memoryUsageMB: Int,
         backend: ComputeBackend,
         availability: ArtifactAvailability,
+        deploymentState: ModelDeploymentState,
         isGenerating: Bool,
         isSimulated: Bool
     ) -> String {
@@ -1490,6 +1492,7 @@ enum ModelCapsuleAccessibilityMetadata {
             "安装状态 \(installStateDescription(model.installState))",
             runtimeModeDescription(isSimulated: isSimulated),
             artifactDescription(availability),
+            ModelStatusBadgeAccessibilityMetadata.value(for: deploymentState),
             generationDescription(isGenerating: isGenerating, availability: availability),
             "后端 \(backend.title)",
             "速度 \(speedValue(tokensPerSecond))",
@@ -1556,6 +1559,191 @@ enum ModelCapsuleAccessibilityMetadata {
         case .verified:
             return "生成状态 已就绪"
         }
+    }
+}
+
+enum ModelStatusBadgeColorRole: String, CaseIterable, Equatable {
+    case primaryText
+    case secondaryText
+    case accent
+    case success
+    case warning
+    case chipSurface
+    case border
+}
+
+enum ModelStatusBadgeVisualState: Equatable {
+    case install(ModelInstallState)
+    case artifact(ArtifactAvailability)
+    case deployment(ModelDeploymentState)
+    case runtime(isSimulated: Bool)
+}
+
+enum ModelStatusBadgeAccessibilityScope: Equatable {
+    case modelCapsule
+    case modelSelector
+}
+
+enum ModelStatusBadgeAccessibilityPresentationPolicy {
+    static func exposesIndependentBadge(
+        for scope: ModelStatusBadgeAccessibilityScope
+    ) -> Bool {
+        switch scope {
+        case .modelCapsule:
+            return false
+        case .modelSelector:
+            return true
+        }
+    }
+}
+
+struct ModelStatusBadgeStyle: Equatable {
+    let themeMode: AppThemeMode
+    let foreground: ModelStatusBadgeColorRole
+    let background: ModelStatusBadgeColorRole
+    let border: ModelStatusBadgeColorRole
+    let backgroundOpacity: Double
+    let borderOpacity: Double
+
+    func color(
+        for role: ModelStatusBadgeColorRole,
+        in theme: AppThemePalette
+    ) -> Color {
+        switch role {
+        case .primaryText:
+            return theme.primaryText
+        case .secondaryText:
+            return theme.secondaryText
+        case .accent:
+            return theme.accent
+        case .success:
+            return theme.success
+        case .warning:
+            return theme.warning
+        case .chipSurface:
+            return theme.chipSurface
+        case .border:
+            return theme.border
+        }
+    }
+
+    func foregroundColor(in theme: AppThemePalette) -> Color {
+        color(for: foreground, in: theme)
+    }
+
+    func backgroundColor(in theme: AppThemePalette) -> Color {
+        color(for: background, in: theme).opacity(backgroundOpacity)
+    }
+
+    func borderColor(in theme: AppThemePalette) -> Color {
+        color(for: border, in: theme).opacity(borderOpacity)
+    }
+}
+
+enum ModelStatusBadgeStylePolicy {
+    static func style(
+        for state: ModelStatusBadgeVisualState,
+        theme: AppThemeMode
+    ) -> ModelStatusBadgeStyle {
+        switch state {
+        case .install(.ready), .artifact(.verified), .deployment(.running), .runtime(isSimulated: false):
+            return semanticStyle(theme: theme, role: .success)
+        case .install(.simulated), .artifact(.staged), .runtime(isSimulated: true):
+            return semanticStyle(theme: theme, role: .accent)
+        case .install(.notDownloaded), .artifact(.missing):
+            return semanticStyle(theme: theme, role: .warning)
+        case .deployment(.stopped):
+            return ModelStatusBadgeStyle(
+                themeMode: theme,
+                foreground: .primaryText,
+                background: .chipSurface,
+                border: .border,
+                backgroundOpacity: 1,
+                borderOpacity: 1
+            )
+        }
+    }
+
+    private static func semanticStyle(
+        theme: AppThemeMode,
+        role: ModelStatusBadgeColorRole
+    ) -> ModelStatusBadgeStyle {
+        ModelStatusBadgeStyle(
+            themeMode: theme,
+            foreground: role,
+            background: role,
+            border: role,
+            backgroundOpacity: 0.13,
+            borderOpacity: 0.35
+        )
+    }
+}
+
+enum ModelStatusBadgeTextLayoutPolicy {
+    static let lineLimit = 2
+    static let lineSpacing: CGFloat = 1
+    static let horizontalPadding: CGFloat = 6
+    static let verticalPadding: CGFloat = 3
+
+    static var font: Font {
+        .caption2.weight(.black)
+    }
+
+    static var usesSemanticDynamicTypeFont: Bool { true }
+    static var allowsMultiline: Bool { lineLimit > 1 }
+}
+
+enum ModelStatusBadgeRowLayoutMode: Equatable {
+    case horizontal
+    case stacked
+}
+
+struct ModelStatusBadgeRowLayoutPlan: Equatable {
+    let mode: ModelStatusBadgeRowLayoutMode
+}
+
+enum ModelStatusBadgeRowLayoutPolicy {
+    static let horizontalMinimumWidth: CGFloat = 220
+    static let horizontalSpacing: CGFloat = 6
+    static let stackedSpacing: CGFloat = 4
+
+    static func resolve(
+        availableWidth: CGFloat,
+        dynamicTypeSize: DynamicTypeSize
+    ) -> ModelStatusBadgeRowLayoutPlan {
+        guard availableWidth.isFinite, availableWidth > 0 else {
+            return ModelStatusBadgeRowLayoutPlan(mode: .stacked)
+        }
+
+        guard dynamicTypeSize < .xxxLarge else {
+            return ModelStatusBadgeRowLayoutPlan(mode: .stacked)
+        }
+
+        return ModelStatusBadgeRowLayoutPlan(
+            mode: availableWidth >= horizontalMinimumWidth ? .horizontal : .stacked
+        )
+    }
+}
+
+private struct ModelStatusBadgeAppearanceModifier: ViewModifier {
+    @Environment(\.appTheme) private var theme
+
+    let style: ModelStatusBadgeStyle
+
+    func body(content: Content) -> some View {
+        content
+            .font(ModelStatusBadgeTextLayoutPolicy.font)
+            .textCase(.uppercase)
+            .lineLimit(ModelStatusBadgeTextLayoutPolicy.lineLimit)
+            .lineSpacing(ModelStatusBadgeTextLayoutPolicy.lineSpacing)
+            .fixedSize(horizontal: false, vertical: true)
+            .foregroundStyle(style.foregroundColor(in: theme))
+            .padding(.horizontal, ModelStatusBadgeTextLayoutPolicy.horizontalPadding)
+            .padding(.vertical, ModelStatusBadgeTextLayoutPolicy.verticalPadding)
+            .background(style.backgroundColor(in: theme), in: Capsule())
+            .overlay(
+                Capsule().stroke(style.borderColor(in: theme), lineWidth: 1)
+            )
     }
 }
 
@@ -2750,6 +2938,7 @@ struct HeaderView: View {
     let memoryUsageMB: Int
     let backend: ComputeBackend
     let availability: ArtifactAvailability
+    let deploymentState: ModelDeploymentState
     let isGenerating: Bool
     let isSimulated: Bool
     let capsuleAvailableWidth: CGFloat
@@ -2827,6 +3016,7 @@ struct HeaderView: View {
                 memoryUsageMB: memoryUsageMB,
                 backend: backend,
                 availability: availability,
+                deploymentState: deploymentState,
                 isGenerating: isGenerating,
                 isSimulated: isSimulated,
                 availableWidth: capsuleAvailableWidth,
@@ -2926,6 +3116,7 @@ struct ModelCapsule: View {
     let memoryUsageMB: Int
     let backend: ComputeBackend
     let availability: ArtifactAvailability
+    let deploymentState: ModelDeploymentState
     let isGenerating: Bool
     let isSimulated: Bool
     let availableWidth: CGFloat
@@ -2959,6 +3150,7 @@ struct ModelCapsule: View {
                 memoryUsageMB: memoryUsageMB,
                 backend: backend,
                 availability: availability,
+                deploymentState: deploymentState,
                 isGenerating: isGenerating,
                 isSimulated: isSimulated
             )
@@ -2977,7 +3169,7 @@ struct ModelCapsule: View {
                 VStack(alignment: .leading, spacing: ModelCapsuleTextLayoutPolicy.titleStatusSpacing) {
                     HStack(spacing: 6) {
                         modelName
-                        modelBadges
+                        modelBadges(layoutMode: badgeRowLayoutMode)
                     }
                     modelStatus
                 }
@@ -2992,13 +3184,27 @@ struct ModelCapsule: View {
                     Spacer(minLength: 0)
                 }
                 HStack(spacing: 8) {
-                    modelBadges
+                    modelBadges(layoutMode: badgeRowLayoutMode)
                     Spacer(minLength: 0)
                     readinessRing
                 }
                 modelStatus
             }
         }
+    }
+
+    private var badgeRowLayoutMode: ModelStatusBadgeRowLayoutMode {
+        let badgeContentWidth = max(
+            availableWidth
+                - ModelCapsuleLayoutPolicy.capsuleHorizontalPadding * 2
+                - ModelCapsuleLayoutPolicy.readinessDiameter
+                - 8,
+            0
+        )
+        return ModelStatusBadgeRowLayoutPolicy.resolve(
+            availableWidth: badgeContentWidth,
+            dynamicTypeSize: dynamicTypeSize
+        ).mode
     }
 
     @ViewBuilder
@@ -3053,15 +3259,33 @@ struct ModelCapsule: View {
             .fixedSize(horizontal: false, vertical: true)
     }
 
-    private var modelBadges: some View {
-        HStack(spacing: 6) {
+    @ViewBuilder
+    private func modelBadges(layoutMode: ModelStatusBadgeRowLayoutMode) -> some View {
+        let layout = layoutMode == .horizontal
+            ? AnyLayout(HStackLayout(spacing: ModelStatusBadgeRowLayoutPolicy.horizontalSpacing))
+            : AnyLayout(
+                VStackLayout(
+                    alignment: .leading,
+                    spacing: ModelStatusBadgeRowLayoutPolicy.stackedSpacing
+                )
+            )
+
+        layout {
             StatusBadge(state: model.installState)
+            DeploymentBadge(
+                state: deploymentState,
+                exposesAccessibility: ModelStatusBadgeAccessibilityPresentationPolicy
+                    .exposesIndependentBadge(for: .modelCapsule)
+            )
             Text(isSimulated ? "SIM" : "REAL")
-                .font(.system(size: 9, weight: .black))
-                .foregroundStyle(isSimulated ? theme.accent : theme.success)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 3)
-                .background((isSimulated ? theme.accent : theme.success).opacity(0.13), in: Capsule())
+                .modifier(
+                    ModelStatusBadgeAppearanceModifier(
+                        style: ModelStatusBadgeStylePolicy.style(
+                            for: .runtime(isSimulated: isSimulated),
+                            theme: theme.mode
+                        )
+                    )
+                )
         }
     }
 
@@ -3206,24 +3430,65 @@ struct HeaderMetricChip: View {
 }
 
 struct StatusBadge: View {
+    @Environment(\.appTheme) private var theme
+
     let state: ModelInstallState
     var exposesAccessibility: Bool = false
 
     var body: some View {
         Text(state.title)
-            .font(.system(size: 9, weight: .black))
-            .textCase(.uppercase)
-            .foregroundStyle(state.tint)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 3)
-            .background(state.tint.opacity(0.12), in: Capsule())
-            .overlay(Capsule().stroke(state.tint.opacity(0.35), lineWidth: 1))
+            .modifier(
+                ModelStatusBadgeAppearanceModifier(
+                    style: ModelStatusBadgeStylePolicy.style(
+                        for: .install(state),
+                        theme: theme.mode
+                    )
+                )
+            )
             .modifier(InstallStatusBadgeAccessibilityModifier(state: state, isEnabled: exposesAccessibility))
     }
 }
 
 private struct InstallStatusBadgeAccessibilityModifier: ViewModifier {
     let state: ModelInstallState
+    let isEnabled: Bool
+
+    func body(content: Content) -> some View {
+        if isEnabled {
+            content
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(ModelStatusBadgeAccessibilityMetadata.label(for: state))
+                .accessibilityValue(ModelStatusBadgeAccessibilityMetadata.value(for: state))
+                .accessibilityHint(ModelStatusBadgeAccessibilityMetadata.hint)
+                .accessibilityInputLabels(ModelStatusBadgeAccessibilityMetadata.inputLabels(for: state))
+                .accessibilityIdentifier(ModelStatusBadgeAccessibilityMetadata.identifier(for: state))
+        } else {
+            content.accessibilityHidden(true)
+        }
+    }
+}
+
+private struct ArtifactStatusBadgeAccessibilityModifier: ViewModifier {
+    let availability: ArtifactAvailability
+    let isEnabled: Bool
+
+    func body(content: Content) -> some View {
+        if isEnabled {
+            content
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(ModelStatusBadgeAccessibilityMetadata.label(for: availability))
+                .accessibilityValue(ModelStatusBadgeAccessibilityMetadata.value(for: availability))
+                .accessibilityHint(ModelStatusBadgeAccessibilityMetadata.hint)
+                .accessibilityInputLabels(ModelStatusBadgeAccessibilityMetadata.inputLabels(for: availability))
+                .accessibilityIdentifier(ModelStatusBadgeAccessibilityMetadata.identifier(for: availability))
+        } else {
+            content.accessibilityHidden(true)
+        }
+    }
+}
+
+private struct DeploymentStatusBadgeAccessibilityModifier: ViewModifier {
+    let state: ModelDeploymentState
     let isEnabled: Bool
 
     func body(content: Content) -> some View {
@@ -5918,9 +6183,21 @@ struct ModelSelectorPanel: View {
             .accessibilityIdentifier(ModelDeploymentControlAccessibilityMetadata.modelSelectorIdentifier)
 
             HStack(spacing: 8) {
-                StatusBadge(state: selectedModel.installState, exposesAccessibility: true)
-                AvailabilityBadge(availability: validation.availability)
-                DeploymentBadge(state: deploymentState)
+                StatusBadge(
+                    state: selectedModel.installState,
+                    exposesAccessibility: ModelStatusBadgeAccessibilityPresentationPolicy
+                        .exposesIndependentBadge(for: .modelSelector)
+                )
+                AvailabilityBadge(
+                    availability: validation.availability,
+                    exposesAccessibility: ModelStatusBadgeAccessibilityPresentationPolicy
+                        .exposesIndependentBadge(for: .modelSelector)
+                )
+                DeploymentBadge(
+                    state: deploymentState,
+                    exposesAccessibility: ModelStatusBadgeAccessibilityPresentationPolicy
+                        .exposesIndependentBadge(for: .modelSelector)
+                )
             }
         }
         .panelStyle(border: theme.accent.opacity(0.24))
@@ -5928,55 +6205,52 @@ struct ModelSelectorPanel: View {
 }
 
 struct AvailabilityBadge: View {
+    @Environment(\.appTheme) private var theme
+
     let availability: ArtifactAvailability
+    var exposesAccessibility: Bool = true
 
     var body: some View {
         Text(availability.title)
-            .font(.system(size: 9, weight: .black))
-            .textCase(.uppercase)
-            .foregroundStyle(tint)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 3)
-            .background(tint.opacity(0.12), in: Capsule())
-            .overlay(Capsule().stroke(tint.opacity(0.34), lineWidth: 1))
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(ModelStatusBadgeAccessibilityMetadata.label(for: availability))
-            .accessibilityValue(ModelStatusBadgeAccessibilityMetadata.value(for: availability))
-            .accessibilityHint(ModelStatusBadgeAccessibilityMetadata.hint)
-            .accessibilityInputLabels(ModelStatusBadgeAccessibilityMetadata.inputLabels(for: availability))
-            .accessibilityIdentifier(ModelStatusBadgeAccessibilityMetadata.identifier(for: availability))
-    }
-
-    private var tint: Color {
-        switch availability {
-        case .missing:
-            return .orange
-        case .staged:
-            return .cyan
-        case .verified:
-            return .green
-        }
+            .modifier(
+                ModelStatusBadgeAppearanceModifier(
+                    style: ModelStatusBadgeStylePolicy.style(
+                        for: .artifact(availability),
+                        theme: theme.mode
+                    )
+                )
+            )
+            .modifier(
+                ArtifactStatusBadgeAccessibilityModifier(
+                    availability: availability,
+                    isEnabled: exposesAccessibility
+                )
+            )
     }
 }
 
 struct DeploymentBadge: View {
+    @Environment(\.appTheme) private var theme
+
     let state: ModelDeploymentState
+    var exposesAccessibility: Bool = true
 
     var body: some View {
         Text(state.title)
-            .font(.system(size: 9, weight: .black))
-            .textCase(.uppercase)
-            .foregroundStyle(state == .running ? .green : .white.opacity(0.58))
-            .padding(.horizontal, 6)
-            .padding(.vertical, 3)
-            .background((state == .running ? Color.green : Color.white).opacity(state == .running ? 0.14 : 0.08), in: Capsule())
-            .overlay(Capsule().stroke((state == .running ? Color.green : Color.white).opacity(0.26), lineWidth: 1))
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(ModelStatusBadgeAccessibilityMetadata.label(for: state))
-            .accessibilityValue(ModelStatusBadgeAccessibilityMetadata.value(for: state))
-            .accessibilityHint(ModelStatusBadgeAccessibilityMetadata.hint)
-            .accessibilityInputLabels(ModelStatusBadgeAccessibilityMetadata.inputLabels(for: state))
-            .accessibilityIdentifier(ModelStatusBadgeAccessibilityMetadata.identifier(for: state))
+            .modifier(
+                ModelStatusBadgeAppearanceModifier(
+                    style: ModelStatusBadgeStylePolicy.style(
+                        for: .deployment(state),
+                        theme: theme.mode
+                    )
+                )
+            )
+            .modifier(
+                DeploymentStatusBadgeAccessibilityModifier(
+                    state: state,
+                    isEnabled: exposesAccessibility
+                )
+            )
     }
 }
 

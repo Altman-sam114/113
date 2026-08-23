@@ -173,6 +173,36 @@ flowchart TD
     P -.-> N[只影响正文排版<br/>不新增状态/网络/模型权重/runtime/artifact 流]
 ```
 
+## 7.1 v2.83 顶部模型胶囊与模型 selector badge 流
+
+读图说明：这张图只描述 v2.83 的本地只读 UI 链路。顶部胶囊的 deployment 状态直接来自 `ModelCatalog`，selector 与胶囊使用同一主题感知 badge/style/text 契约；顶部整体摘要和 selector 行级入口的辅助树范围不同。图中没有新增下载、网络或真实推理节点。
+
+```mermaid
+flowchart LR
+    A[ModelCatalog.selectedModel] --> B[deploymentState(for: selectedModel)]
+    C[validation(for: selectedModel)] --> D[artifact availability]
+    B --> E[ContentView.headerView]
+    E --> F[HeaderView]
+    F --> G[ModelCapsule]
+    G --> H[Running / Stopped<br/>overall accessibility summary]
+    D --> G
+    B --> I[ModelSelectorPanel]
+    D --> I
+    I --> J[StatusBadge<br/>install state]
+    I --> K[AvailabilityBadge<br/>missing / staged / verified]
+    I --> L[DeploymentBadge<br/>running / stopped]
+    J --> M[ModelStatusBadgeStylePolicy<br/>light / dark roles]
+    K --> M
+    L --> M
+    G --> M
+    M --> N[ModelStatusBadgeTextLayoutPolicy<br/>Dynamic Type]
+    N --> O[ModelStatusBadgeRowLayoutPolicy<br/>220pt / invalid / xxxLarge stacked]
+    H -. no download / no real runtime .-> P[Local privacy and verified gate]
+    J --> Q[selector independent accessibility]
+    K --> Q
+    L --> Q
+```
+
 ## 8. main 直推与云端结果包验收流
 
 读图说明：这张图展示新的协作闭环。重点是 Agent B 必须在 `main` 上提交并推送，GitHub Actions 生成带自描述 manifest 的未加密结果包，Agent C 只能验收 `origin/main` 最新 commit 对应的 artifact name、run URL、run id 和 run attempt；失败时通过追加修复 commit 回到同一条主线。

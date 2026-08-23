@@ -421,7 +421,17 @@ xcodebuild -project LocalGemma.xcodeproj \
 当前基线：
 
 - 期望结果：`TEST EXECUTE SUCCEEDED`。
-- 当前测试函数数：124。
+- 当前测试函数数：128（v2.83 Agent B implementation baseline；云端待触发）。
+
+### v2.83 / 顶部模型胶囊部署状态与徽章可读性
+
+新增聚合 `testModelCapsuleDeploymentStateAndBadgeReadability`，实现前后测试函数数以源码实际 `grep` 为准，本轮实现后为 `128`。测试不复制部署状态，直接使用 `ModelCatalog` 验证默认 stopped、启动目标 running、启动另一个模型停止前一个、toggle 回 stopped；`ModelCapsuleAccessibilityMetadata` 对 stopped/running 都必须包含明确 deployment 文案，并继续保留本地 privacy/verified hint、稳定整体 identifier 和输入标签。
+
+纯值 contract 覆盖 `ModelStatusBadgeStylePolicy` 的 install/artifact/deployment/runtime 全部语义 case 与 `.light`/`.dark` 主题角色，stopped 必须使用主题 `primaryText`/`chipSurface`/`border`，不依赖白色前景；`ModelStatusBadgeTextLayoutPolicy` 锁住语义 Dynamic Type、两行上限、1pt line spacing、6/3pt padding。`ModelStatusBadgeRowLayoutPolicy` 锁住 `220pt` 普通字号 horizontal 阈值、invalid width stacked、`.xxxLarge`/`.accessibility3`/`.accessibility5` stacked；`ModelStatusBadgeAccessibilityPresentationPolicy` 锁住 capsule=false、selector=true。顶部 `ModelCapsule` 的 `.combine` 整体摘要隐藏 deployment badge 独立节点，模型 selector 继续让三枚 badge 独立可达；既有模型 selector、电源按钮 44pt、Reduce Motion、missing/staged/verified runtime gate 回归保持。
+
+同一聚合测试用公开 `ImageRenderer` 渲染真实生产 `ModelCapsule` 与 `ModelSelectorPanel` 组合，覆盖 `320/390/834/1200pt` × `.light`/`.dark` × `.large`/`.xxxLarge`/`.accessibility3`/`.accessibility5` × deployment `.stopped`/`.running` × artifact `.missing`/`.staged`/`.verified` × install `.ready`/`.simulated`/`.notDownloaded`。每项只检查 image 非空、宽高 finite 且大于 0、wrapper width 误差不超过 1pt；同一组合的 `.accessibility5` 高度严格 `>=` `.large`，不加 rounding 宽限。禁止像素/颜色采样、截图快照、私有 SwiftUI accessibility tree、UIKit first responder 或把 ImageRenderer 当作完整 VoiceOver/pointer 人工验收。
+
+本轮未运行本地完整 `xcodebuild`、XCTest、Simulator、Mac Catalyst build/run 或截图视觉检查；完成 diff/结构/parse 轻量检查后由 `main` push 触发 GitHub Actions，run、artifact 和 Agent C 验收状态待实际产生。
 
 ### Full
 
