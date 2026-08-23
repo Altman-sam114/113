@@ -4,7 +4,7 @@
 
 ## 1. 项目一句话总览
 
-`Local Gemma iOS Prototype` 是一个 SwiftUI iOS 原型 App，用本地模拟 runtime 验证 iPhone、iPad 与 Mac Catalyst build/run 基线下端侧部署 Gemma 1.5B 的产品交互、模型文件管理、artifact 校验、模型卸载确认弹层辅助语义、会话导出、导出会话正文动态排版、导出弹层分享/复制辅助语义、导出弹层分享/复制 44pt 触控目标、导出弹层整体宽屏内容宽度策略、大屏双栏布局、聊天工作区双侧栏宽度协调、聊天记录居中阅读轨道、短会话靠近 composer 的纵向定位、Mac/iPad 工作区与会话命令菜单、顶部模型胶囊整体辅助语义、模型概要面板与详情右栏/行级辅助语义、模型详情面板标题动态排版、模型页整体宽屏内容宽度策略、模型详情右栏最大阅读宽度策略、模型文件工作流面板辅助语义、模型文件 utility 动作动态排版、工作区导航辅助语义、工作区导航 44pt 触控目标、共享 panel 内高光与分层阴影、头部主题与模型库入口辅助语义、全局 Header 图标动作 44pt 触控目标、Header 标题动态排版策略、设置页整体宽屏内容宽度策略、设置页图标动作 44pt 触控目标、设置偏好行响应式布局、会话栏操作辅助语义、会话栏操作 44pt 触控目标、会话 chip 动作语义、会话侧栏视觉层级、会话侧栏信息密度、会话侧栏宽度策略、聊天消息气泡与聊天记录容器辅助语义、单条消息复制与本地反馈、生成中状态脉冲指示、聊天气泡与 composer 宽屏输入宽度策略、composer 聚焦光环与发送按钮渐变、composer 发送/停止 44pt 触控目标、模型选择器、状态徽章与部署控件辅助语义、模型部署控件 44pt 触控目标、运行策略开关辅助语义、运行策略开关宽屏网格、运行策略开关行 44pt 触控目标、芯片准备度辅助语义与隐私状态动态摘要、优化指标卡辅助语义、优化指标卡文本动态排版策略、优化指标网格宽度策略、共享 SectionHeader 动态排版策略、提示词页整体宽屏内容宽度策略、提示词模板宽屏布局策略、提示词模板文本动态排版策略、提示词分类筛选换行布局策略、提示词分类文本动态排版策略、提示词筛选与模板动作辅助语义、提示词模板动作 44pt 触控目标、相册壁纸控件辅助语义和 Apple Silicon 运行计划；当前不下载模型权重，不执行真实模型推理，也没有原生 macOS target。
+`Local Gemma iOS Prototype` 是一个 SwiftUI iOS 原型 App，用本地模拟 runtime 验证 iPhone、iPad 与 Mac Catalyst build/run 基线下端侧部署 Gemma 1.5B 的产品交互、模型文件管理、artifact 校验、模型卸载确认弹层辅助语义、会话导出、导出会话正文动态排版、导出弹层分享/复制辅助语义、导出弹层分享/复制 44pt 触控目标、导出弹层整体宽屏内容宽度策略、大屏双栏布局、聊天工作区双侧栏宽度协调、聊天记录居中阅读轨道、短会话靠近 composer 的纵向定位、Mac/iPad 工作区与会话命令菜单、顶部模型胶囊整体辅助语义、模型概要面板与详情右栏/行级辅助语义、模型概要标签与校验摘要动态排版、模型详情面板标题动态排版、模型页整体宽屏内容宽度策略、模型详情右栏最大阅读宽度策略、模型文件工作流面板辅助语义、模型文件 utility 动作动态排版、工作区导航辅助语义、工作区导航 44pt 触控目标、共享 panel 内高光与分层阴影、头部主题与模型库入口辅助语义、全局 Header 图标动作 44pt 触控目标、Header 标题动态排版策略、设置页整体宽屏内容宽度策略、设置页图标动作 44pt 触控目标、设置偏好行响应式布局、会话栏操作辅助语义、会话栏操作 44pt 触控目标、会话 chip 动作语义、会话侧栏视觉层级、会话侧栏信息密度、会话侧栏宽度策略、聊天消息气泡与聊天记录容器辅助语义、单条消息复制与本地反馈、生成中状态脉冲指示、聊天气泡与 composer 宽屏输入宽度策略、composer 聚焦光环与发送按钮渐变、composer 发送/停止 44pt 触控目标、模型选择器、状态徽章与部署控件辅助语义、模型部署控件 44pt 触控目标、运行策略开关辅助语义、运行策略开关宽屏网格、运行策略开关行 44pt 触控目标、芯片准备度辅助语义与隐私状态动态摘要、优化指标卡辅助语义、优化指标卡文本动态排版策略、优化指标网格宽度策略、共享 SectionHeader 动态排版策略、提示词页整体宽屏内容宽度策略、提示词模板宽屏布局策略、提示词模板文本动态排版策略、提示词分类筛选换行布局策略、提示词分类文本动态排版策略、提示词筛选与模板动作辅助语义、提示词模板动作 44pt 触控目标、相册壁纸控件辅助语义和 Apple Silicon 运行计划；当前不下载模型权重，不执行真实模型推理，也没有原生 macOS target。
 
 v2.64 起，顶部模型胶囊还包含窄侧栏响应式布局策略：sidebar 与窄 top header 使用堆叠概要，指标按可用宽度切换 1/2/3 列，`.xxxLarge` 及以上 Dynamic Type 固定回退单列。
 
@@ -99,7 +99,7 @@ git remote -v
 - `ModelCapsuleLayoutPolicy` 控制顶部模型胶囊在 top header、compact sidebar 和 regular sidebar 的响应式结构；它必须使用调用侧传入的真实 chrome 可用宽度，非法宽度和 `.xxxLarge` 及以上 Dynamic Type 回退 stacked + 1 列，portrait 最多 3 列、sidebar 最多 2 列，并锁住 248pt/436pt 阈值、18pt chrome padding、12pt capsule padding、108pt 两列最小宽度、132pt 三列最小宽度和 54pt readiness ring 实际尺寸。它不得改变模型胶囊整体辅助语义、SIM/REAL、artifact、生成状态、主题、工作区、模型文件、runtime 或 verified 门禁。
 - `ModelCapsuleAccessibilityMetadata` 控制顶部模型胶囊整体辅助语义；它必须合并当前模型、参数、量化、SIM/REAL、artifact 状态、后端、生成状态、速度、内存和准备度，并明确只展示本地状态、不下载权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁。
 - `ModelDetailAccessibilityMetadata` 控制模型页详情右栏和窄屏详情段的整体辅助语义；它必须合并模型规格、artifact 状态、validation summary、性能预算、主/回退后端、KV cache、blocker/next step，并明确只展示本地模型详情、不下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁。
-- `ModelSummaryTextLayoutPolicy` 控制模型页概要面板名称与简介的 Dynamic Type 文本策略；名称使用语义标题字体并允许两行，简介使用语义字体并允许多行，避免 iPad split view、Mac Catalyst 窄窗口和较大文字设置下通过固定小字号或缩放压缩文字，且不得改变概要辅助语义、模型选择/部署、模型文件或 runtime 状态流。
+- `ModelSummaryTextLayoutPolicy` 控制模型页概要面板名称、简介、能力标签和 artifact 校验摘要的纯值文本契约；名称保留 5/2/4/2 的既有 spacing/line-limit/line-spacing，能力标签使用 semantic Dynamic Type、最多两行、1pt line spacing、9/6pt padding 和垂直 fixed size，校验摘要使用 semantic Dynamic Type、最多三行、1pt line spacing 和垂直 fixed size。能力标签直接使用 `theme.chipSurface`、`theme.secondaryText` 与 `theme.subtleBorder`，继续经既有 `FlowLayout` adaptive 72pt/8pt wrap；policy 只影响静态排版，不改变概要整体辅助语义、模型选择/部署、模型文件、44pt 外部动作、Reduce Motion、runtime/verified/cloud 边界。
 - `ModelSummaryAccessibilityMetadata` 控制模型页概要面板辅助语义；它必须合并模型名称、简介、能力标签、artifact availability、validation summary、文件格式和包体大小，并明确只展示本地模型概要、不下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁。
 - `ModelDeploymentControlAccessibilityMetadata` 控制模型选择器、部署电源和 artifact 操作按钮的辅助语义；模型切换不下载权重、不启动真实 runtime、模拟暂存不联网下载，卸载按钮只打开确认弹层、不立即删除，确认后才删除 App 托管 artifact 并停止部署，取消无副作用，verified 门禁和 Mac/iPad VoiceOver/Voice Control 入口要有测试锁住。
 - `ModelDeploymentPowerTextLayoutPolicy` 控制模型部署电源按钮标题与副标题的 Dynamic Type 文本策略；主标题与副标题使用语义字体并允许两行，避免 iPad split view、Mac Catalyst 窄窗口和较大文字设置下通过固定小字号或缩放压缩文字，且不得改变部署启停状态流、电源按钮 44pt 触控目标、辅助语义、模型文件或 verified 门禁。
@@ -382,6 +382,12 @@ README 过期视为 bug。测试数量、命令、功能边界、CI 结果包和
 v2.83 起，顶部 `ModelCapsule` 的 deployment 摘要由 `ContentView` 直接传入 `ModelCatalog.deploymentState(for: catalog.selectedModel)`，只展示 `Running` / `Stopped`，不从 artifact、SIM/REAL、生成状态或 runtime 推导。`StatusBadge`、`AvailabilityBadge`、`DeploymentBadge` 与胶囊内 SIM/REAL 共同读取 `ModelStatusBadgeStylePolicy` 的 theme-aware 纯值契约；stopped 使用主题 `primaryText`、`chipSurface` 和 `border`，不使用白字逃生路径。局部 `ModelStatusBadgeTextLayoutPolicy` 使用语义 Dynamic Type 字体，`ModelStatusBadgeRowLayoutPolicy` 在有限内容宽度低于 `220pt` 或 `.xxxLarge` 及以上回退 stacked，普通字号达到 `220pt` 才 horizontal，不建立第二套模型胶囊断点。
 
 顶部胶囊仍通过 `accessibilityElement(children: .combine)` 暴露稳定整体摘要，deployment value、SIM/REAL、artifact、速度、内存和准备度都在整体 metadata 中；胶囊内 deployment badge 隐藏独立辅助节点。模型页 selector 通过 `ModelStatusBadgeAccessibilityPresentationPolicy` 保留安装、artifact、deployment 三枚 badge 的独立 label/value/hint/input labels/identifier。上述局部布局和可达性策略不改变 44pt 模型控件、Reduce Motion、missing/staged/verified runtime 门禁、默认本地模拟 runtime、模型文件或 cloud/privacy 边界。
+
+## v2.84 当前边界补充
+
+v2.84 起，`ModelSummaryTextLayoutPolicy` 继续由 `ModelSummaryPanel` 的同一生产子树读取：名称/简介保持既有 5/2/4/2 契约，能力标签改用 semantic Dynamic Type 字体、最多 2 行、1pt line spacing、9/6pt padding 和垂直 fixed size；校验摘要改用 semantic Dynamic Type 字体、最多 3 行、1pt line spacing 和垂直 fixed size。能力标签使用 `theme.chipSurface` 背景、`theme.secondaryText` 前景与 `theme.subtleBorder` 描边，`FlowLayout` 仍使用 adaptive minimum 72pt 与 8pt 间距，不新增概要宽度断点、AnyLayout 或动作。
+
+概要仍保留 `.accessibilityElement(children: .ignore)` 和 `ModelSummaryAccessibilityMetadata` 的整体 label/value/hint/input labels/identifier；三态 validation 只展示本地 missing/staged/verified 状态，只有 verified 通过既有 runtime gate。v2.84 不改变外部 44pt action、Reduce Motion、模型文件、默认模拟 runtime、模型权重、网络、云端 inference 或 privacy 边界。
 
 ## 13. 禁止项
 

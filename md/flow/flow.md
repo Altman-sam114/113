@@ -1,6 +1,6 @@
 # 项目核心流程文档
 
-一句话总览：本项目是一个 SwiftUI iOS 原型，通过本地模拟 runtime 和严格 artifact 校验流程，验证 iPhone、iPad 与 Mac Catalyst build/run 基线下端侧部署 Gemma 1.5B 的 UI、状态管理、文件导入、模型卸载确认弹层辅助语义、模型文件 utility 动态排版、会话导出、导出会话正文动态排版、导出弹层分享/复制辅助语义、导出弹层分享/复制 44pt 触控目标、导出弹层整体宽屏内容宽度策略、顶部模型胶囊整体辅助语义、模型概要面板与详情右栏/行级辅助语义、模型详情行窄宽堆叠布局、模型页整体宽屏内容宽度策略、模型详情右栏最大阅读宽度策略、模型文件工作流面板辅助语义、模型部署控件 44pt 触控目标、模型状态徽章辅助语义、全局 Header 图标动作 44pt 触控目标、Header 标题动态排版策略、设置页整体宽屏内容宽度策略、设置页图标动作 44pt 触控目标、设置偏好行响应式布局、会话栏操作 44pt 触控目标、会话 chip 动作语义、会话侧栏视觉层级、会话侧栏信息密度、聊天消息气泡与聊天记录容器辅助语义、单条消息复制与本地反馈、生成中状态脉冲指示、聊天记录居中阅读轨道、聊天气泡与 composer 宽屏输入宽度策略、composer 发送/停止 44pt 触控目标、工作区导航辅助语义、工作区导航 44pt 触控目标、头部主题与模型库入口辅助语义、运行策略开关辅助语义、运行策略开关宽屏网格、运行策略开关行 44pt 触控目标、芯片准备度辅助语义、优化指标卡辅助语义、优化指标卡文本动态排版策略、优化指标网格宽度策略、共享 SectionHeader 动态排版策略、提示词页整体宽屏内容宽度策略、提示词模板宽屏布局策略、提示词模板文本动态排版策略、提示词分类筛选换行布局策略、提示词分类文本动态排版策略、提示词模板动作辅助语义与 44pt 触控目标、壁纸控件辅助语义、大屏布局和 Apple Silicon 运行计划；协作流程默认采用 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载结果包验收。
+一句话总览：本项目是一个 SwiftUI iOS 原型，通过本地模拟 runtime 和严格 artifact 校验流程，验证 iPhone、iPad 与 Mac Catalyst build/run 基线下端侧部署 Gemma 1.5B 的 UI、状态管理、文件导入、模型卸载确认弹层辅助语义、模型文件 utility 动态排版、会话导出、导出会话正文动态排版、导出弹层分享/复制辅助语义、导出弹层分享/复制 44pt 触控目标、导出弹层整体宽屏内容宽度策略、顶部模型胶囊整体辅助语义、模型概要面板与详情右栏/行级辅助语义、模型概要标签与校验摘要动态排版、模型详情行窄宽堆叠布局、模型页整体宽屏内容宽度策略、模型详情右栏最大阅读宽度策略、模型文件工作流面板辅助语义、模型部署控件 44pt 触控目标、模型状态徽章辅助语义、全局 Header 图标动作 44pt 触控目标、Header 标题动态排版策略、设置页整体宽屏内容宽度策略、设置页图标动作 44pt 触控目标、设置偏好行响应式布局、会话栏操作 44pt 触控目标、会话 chip 动作语义、会话侧栏视觉层级、会话侧栏信息密度、聊天消息气泡与聊天记录容器辅助语义、单条消息复制与本地反馈、生成中状态脉冲指示、聊天记录居中阅读轨道、聊天气泡与 composer 宽屏输入宽度策略、composer 发送/停止 44pt 触控目标、工作区导航辅助语义、工作区导航 44pt 触控目标、头部主题与模型库入口辅助语义、运行策略开关辅助语义、运行策略开关宽屏网格、运行策略开关行 44pt 触控目标、芯片准备度辅助语义、优化指标卡辅助语义、优化指标卡文本动态排版策略、优化指标网格宽度策略、共享 SectionHeader 动态排版策略、提示词页整体宽屏内容宽度策略、提示词模板宽屏布局策略、提示词模板文本动态排版策略、提示词分类筛选换行布局策略、提示词分类文本动态排版策略、提示词模板动作辅助语义与 44pt 触控目标、壁纸控件辅助语义、大屏布局和 Apple Silicon 运行计划；协作流程默认采用 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载结果包验收。
 
 v2.64 的顶部模型胶囊还会按真实 chrome 可用宽度切换堆叠/横向概要与 1/2/3 列指标，避免 iPhone、iPad 和 Mac Catalyst 窄侧栏截断。
 
@@ -29,12 +29,19 @@ v2.64 的顶部模型胶囊还会按真实 chrome 可用宽度切换堆叠/横�
 14. `SettingsWorkspace` 与 `OptimizerDashboard` 都把 `optimizer.switches` 传给同一个 `OptimizationToggleGrid`；网格继续由 `OptimizationToggleGridLayoutPolicy` 在 `250pt` 最小卡片宽度和 `510pt` 两列边界间选择列数，并为每个元素构造同一个 `OptimizationToggleRow`。`OptimizationToggleGrid` 的小节标题和 `OptimizationToggleRow` 的标题/副标题共同复用无状态 `OptimizationToggleTextLayoutPolicy`，使用语义字体、两行上限、policy 间距和 `fixedSize(horizontal: false, vertical: true)` 允许垂直增长。policy 只影响文字排版，开关点击仍由 `DeviceOptimizer` 管理，辅助语义、44pt 行高、Reduce Motion、runtime 和 verified 门禁不变。
 15. `ArtifactActionPanel` 读取 `ModelCatalog` 的 artifact validation 后展示下载/卸载与扫描/导入 utility；后两个 utility label 复用无状态 `ModelArtifactUtilityTextLayoutPolicy` 的语义 Dynamic Type 字体、两行上限、1pt line spacing、10pt padding 和垂直增长约束。policy 只影响文字排版，扫描/Files 导入闭包、独立辅助语义、44pt 触控目标、本地 artifact 校验、runtime 和 verified 门禁不变，不联网、不写回状态。
 16. `SettingsWorkspace` 先按 `SettingsWorkspaceLayoutPolicy` 得到设置页真实内容外框宽度，再扣除共享 `WorkbenchVisualStylePolicy.panelPadding` 两侧各 `14pt`，把 `WallpaperPreferencePanel` 的真实 panel content width 传给 `SettingsPreferenceRowLayoutPolicy`；普通字号在 `270pt` 内容阈值横排，窄宽或 `.xxxLarge` 及以上 stacked。壁纸行用同一 `AnyLayout` 复用预览、文案、PhotosPicker/清除动作子树，stacked layout 在 `fixedSize` 外部自然增长，两个动作禁用策略和辅助 metadata 仍由本地值派生。
+17. `ModelCatalog.validation(for:)` 的本地结果经 `ModelLibraryView -> ModelDetailColumn -> ModelSummaryPanel` 传递；概要能力标签继续使用 `FlowLayout` 的 adaptive `72pt` minimum 与 8pt 间距，读取 `ModelSummaryTextLayoutPolicy` 的 semantic Dynamic Type、2 行、1pt line spacing、9/6pt padding 和垂直增长，使用 `AppThemePalette` 的 `chipSurface`、`secondaryText`、`subtleBorder`。`validation.summary` 读取同一 policy 的 semantic Dynamic Type、3 行、1pt line spacing 和垂直增长。该 policy 只影响静态文本排版，不写回状态、不触发文件扫描/删除、网络或 runtime；整体 accessibility metadata、44pt 外部动作、Reduce Motion 和 missing/staged/verified gate 不变。
 
 ### v2.83 顶部部署状态与 badge 子树
 
 `ModelCatalog.deploymentState(for: catalog.selectedModel)` 是顶部 deployment 的唯一来源。`ContentView` 将该值传给 `HeaderView` 和 `ModelCapsule`，胶囊整体 metadata 合并 `Running` / `Stopped`；它不读取 artifact、SIM/REAL、生成状态或 runtime 来猜测部署。模型页 `ModelSelectorPanel` 继续读取同一个 `deploymentState`，并与当前 install state、validation availability 一起渲染三枚 badge。
 
 `StatusBadge`、`AvailabilityBadge`、`DeploymentBadge` 和胶囊内 SIM/REAL 共用 `ModelStatusBadgeStylePolicy` 的主题角色；`ModelStatusBadgeTextLayoutPolicy` 提供语义 Dynamic Type，badge row 由局部 `ModelStatusBadgeRowLayoutPolicy` 在 `220pt` 普通字号阈值和 `.xxxLarge`+ stacked 规则下选择 `AnyLayout`。顶部胶囊的 deployment badge 隐藏独立辅助节点，整体仍是一个稳定摘要；selector 通过 `ModelStatusBadgeAccessibilityPresentationPolicy` 保留三枚 badge 的独立辅助入口。该链路只读本地状态，不改变 missing/staged/verified、真实 runtime 计划、44pt、Reduce Motion、模型文件或 cloud/privacy 边界。
+
+### v2.84 模型概要标签与校验摘要排版子树
+
+`ModelLibraryView` 读取 `ModelCatalog.validation(for:)` 后将同一 `model` 与 `validation` 传给 `ModelDetailColumn`，再由 `ModelSummaryPanel` 展示概要。能力标签和校验摘要仍是外层 panel 的静态子树；前者经 `FlowLayout` adaptive wrap，后者直接展示本地 `validation.summary`。`ModelSummaryTextLayoutPolicy` 只提供无状态的 line-limit、line-spacing、padding、semantic font、theme-role 和 fixed-size 契约，生产 view 直接读取 `AppThemePalette` 的 `chipSurface`、`secondaryText`、`subtleBorder`。
+
+这条链路保留 `ModelSummaryAccessibilityMetadata` 的单一整体 label/value/hint/input labels/identifier。missing、staged、verified 只是本地 validation 展示，只有 verified 继续允许既有 runtime planner gate；本轮没有下载、网络、云端 inference、异步任务、动画或新的动作/状态。
 
 ## 当前核心执行流
 

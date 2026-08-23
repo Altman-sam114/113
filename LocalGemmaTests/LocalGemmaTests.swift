@@ -4876,6 +4876,246 @@ final class LocalGemmaTests: XCTestCase {
         XCTAssertFalse(ModelSummaryAccessibilityMetadata.identifier.contains(model.summary))
     }
 
+    func testModelSummaryPanelTextLayoutPolicySupportsDynamicTypeAndThemeSurface() {
+        let firstRead = (
+            ModelSummaryTextLayoutPolicy.capabilityLineLimit,
+            ModelSummaryTextLayoutPolicy.capabilityLineSpacing,
+            ModelSummaryTextLayoutPolicy.capabilityHorizontalPadding,
+            ModelSummaryTextLayoutPolicy.capabilityVerticalPadding,
+            ModelSummaryTextLayoutPolicy.validationLineLimit,
+            ModelSummaryTextLayoutPolicy.validationLineSpacing,
+            ModelSummaryTextLayoutPolicy.usesSemanticDynamicTypeFont,
+            ModelSummaryTextLayoutPolicy.allowsMultilineCapability,
+            ModelSummaryTextLayoutPolicy.allowsMultilineValidation,
+            ModelSummaryTextLayoutPolicy.capabilityBackgroundRole,
+            ModelSummaryTextLayoutPolicy.capabilityForegroundRole,
+            ModelSummaryTextLayoutPolicy.capabilityBorderRole,
+            ModelSummaryTextLayoutPolicy.validationForegroundRole
+        )
+        let secondRead = (
+            ModelSummaryTextLayoutPolicy.capabilityLineLimit,
+            ModelSummaryTextLayoutPolicy.capabilityLineSpacing,
+            ModelSummaryTextLayoutPolicy.capabilityHorizontalPadding,
+            ModelSummaryTextLayoutPolicy.capabilityVerticalPadding,
+            ModelSummaryTextLayoutPolicy.validationLineLimit,
+            ModelSummaryTextLayoutPolicy.validationLineSpacing,
+            ModelSummaryTextLayoutPolicy.usesSemanticDynamicTypeFont,
+            ModelSummaryTextLayoutPolicy.allowsMultilineCapability,
+            ModelSummaryTextLayoutPolicy.allowsMultilineValidation,
+            ModelSummaryTextLayoutPolicy.capabilityBackgroundRole,
+            ModelSummaryTextLayoutPolicy.capabilityForegroundRole,
+            ModelSummaryTextLayoutPolicy.capabilityBorderRole,
+            ModelSummaryTextLayoutPolicy.validationForegroundRole
+        )
+
+        XCTAssertEqual(firstRead.0, 2)
+        XCTAssertEqual(firstRead.1, 1)
+        XCTAssertEqual(firstRead.2, 9)
+        XCTAssertEqual(firstRead.3, 6)
+        XCTAssertEqual(firstRead.4, 3)
+        XCTAssertEqual(firstRead.5, 1)
+        XCTAssertTrue(firstRead.6)
+        XCTAssertTrue(firstRead.7)
+        XCTAssertTrue(firstRead.8)
+        XCTAssertEqual(firstRead.9, .chipSurface)
+        XCTAssertEqual(firstRead.10, .secondaryText)
+        XCTAssertEqual(firstRead.11, .subtleBorder)
+        XCTAssertEqual(firstRead.12, .secondaryText)
+        XCTAssertEqual(firstRead.0, secondRead.0)
+        XCTAssertEqual(firstRead.1, secondRead.1)
+        XCTAssertEqual(firstRead.2, secondRead.2)
+        XCTAssertEqual(firstRead.3, secondRead.3)
+        XCTAssertEqual(firstRead.4, secondRead.4)
+        XCTAssertEqual(firstRead.5, secondRead.5)
+        XCTAssertEqual(firstRead.6, secondRead.6)
+        XCTAssertEqual(firstRead.7, secondRead.7)
+        XCTAssertEqual(firstRead.8, secondRead.8)
+        XCTAssertEqual(firstRead.9, secondRead.9)
+        XCTAssertEqual(firstRead.10, secondRead.10)
+        XCTAssertEqual(firstRead.11, secondRead.11)
+        XCTAssertEqual(firstRead.12, secondRead.12)
+
+        XCTAssertEqual(ModelSummaryTextLayoutPolicy.titleSummarySpacing, 5)
+        XCTAssertEqual(ModelSummaryTextLayoutPolicy.nameLineLimit, 2)
+        XCTAssertEqual(ModelSummaryTextLayoutPolicy.summaryLineLimit, 4)
+        XCTAssertEqual(ModelSummaryTextLayoutPolicy.summaryLineSpacing, 2)
+        XCTAssertTrue(ModelSummaryTextLayoutPolicy.allowsMultilineName)
+        XCTAssertTrue(ModelSummaryTextLayoutPolicy.allowsMultilineSummary)
+
+        let model = ModelCatalog.defaultModels[0]
+        let renderManifest = ModelArtifactManifest(
+            modelFileName: "gemma-1.5b-it-q4-very-long-local-package-name.mlmodelc",
+            tokenizerFileName: "gemma-1.5b-it-q4-very-long-tokenizer-file-name.model",
+            fileFormat: "Core ML compiled package with a long local manifest description",
+            storageDirectory: "Application Support/LocalModels",
+            expectedSHA256: String(repeating: "a", count: 64),
+            allowsNetworkDownload: false,
+            importInstruction: "仅用于本地概要 ImageRenderer 测试，不下载模型权重。"
+        )
+        var renderModel = model
+        renderModel.name = "Gemma 中文 端侧本地部署 1.5B 长名称"
+        renderModel.summary = "用于 iPhone、iPad 和 Mac Catalyst 的本地模拟模型概要，包含中英混合说明与较长 artifact 校验信息。"
+        renderModel.capabilities = [
+            "端侧本地推理与隐私保护能力",
+            "Core ML + ANE acceleration 长能力标签"
+        ]
+        renderModel.artifactManifest = renderManifest
+
+        func validation(for availability: ArtifactAvailability) -> ArtifactValidationResult {
+            switch availability {
+            case .missing:
+                return LocalArtifactValidator.validate(
+                    manifest: renderManifest,
+                    presentFiles: []
+                )
+            case .staged:
+                return LocalArtifactValidator.validate(
+                    manifest: renderManifest,
+                    presentFiles: Set(renderManifest.requiredFiles)
+                )
+            case .verified:
+                return LocalArtifactValidator.validate(
+                    manifest: renderManifest,
+                    presentFiles: Set(renderManifest.requiredFiles),
+                    observedSHA256: renderManifest.expectedSHA256
+                )
+            }
+        }
+
+        for availability in [ArtifactAvailability.missing, .staged, .verified] {
+            let validationResult = validation(for: availability)
+            let report = LocalRuntimePlanner.preparationReport(
+                for: renderModel,
+                validation: validationResult
+            )
+            XCTAssertEqual(validationResult.availability, availability)
+            XCTAssertTrue(
+                ModelSummaryAccessibilityMetadata.value(
+                    model: renderModel,
+                    validation: validationResult
+                ).contains(validationResult.summary)
+            )
+            XCTAssertEqual(
+                report.canRunRealWeights,
+                availability == .verified
+            )
+            if availability == .verified {
+                XCTAssertTrue(validationResult.canPromoteToRealRuntime)
+            } else {
+                XCTAssertFalse(validationResult.canPromoteToRealRuntime)
+            }
+        }
+
+        var modelWithoutCapabilities = renderModel
+        modelWithoutCapabilities.capabilities = []
+        let emptyCapabilityValue = ModelSummaryAccessibilityMetadata.value(
+            model: modelWithoutCapabilities,
+            validation: validation(for: .missing)
+        )
+        XCTAssertTrue(emptyCapabilityValue.contains("无能力标签"))
+        XCTAssertTrue(emptyCapabilityValue.contains(renderModel.name))
+        XCTAssertTrue(emptyCapabilityValue.contains(renderManifest.fileFormat))
+        XCTAssertTrue(ModelSummaryAccessibilityMetadata.hint.contains("本地模型概要"))
+        XCTAssertTrue(ModelSummaryAccessibilityMetadata.hint.contains("不会下载模型权重"))
+        XCTAssertTrue(ModelSummaryAccessibilityMetadata.hint.contains("不会启动真实 runtime"))
+        XCTAssertTrue(ModelSummaryAccessibilityMetadata.hint.contains("不会发送到云端服务"))
+        XCTAssertTrue(ModelSummaryAccessibilityMetadata.hint.contains("不会绕过 artifact verified 门禁"))
+
+        XCTAssertGreaterThanOrEqual(ModelDeploymentControlLayoutPolicy.minimumTouchTarget, 44)
+        XCTAssertGreaterThanOrEqual(ModelArtifactActionLayoutPolicy.minimumTouchTarget, 44)
+        XCTAssertGreaterThanOrEqual(WorkspaceNavigationActionLayoutPolicy.minimumTouchTarget, 44)
+        XCTAssertGreaterThanOrEqual(HeaderActionLayoutPolicy.minimumTouchTarget, 44)
+        XCTAssertGreaterThanOrEqual(SessionBarActionLayoutPolicy.minimumTouchTarget, 44)
+        XCTAssertGreaterThanOrEqual(SessionChipActionLayoutPolicy.minimumTouchTarget, 44)
+        XCTAssertGreaterThanOrEqual(ComposerInputActionLayoutPolicy.minimumTouchTarget, 44)
+        XCTAssertEqual(AppMotionEffect.allCases.count, 5)
+        let standardAnimation = Animation.spring(response: 0.31, dampingFraction: 0.83)
+        XCTAssertNil(
+            AppMotionAccessibilityPolicy.animation(
+                standardAnimation,
+                for: .modelSelection,
+                reduceMotion: true
+            )
+        )
+        XCTAssertEqual(
+            AppMotionAccessibilityPolicy.animation(
+                standardAnimation,
+                for: .copyConfirmation,
+                reduceMotion: true
+            ),
+            .easeOut(duration: AppMotionAccessibilityPolicy.reducedFeedbackDuration)
+        )
+
+        let widths: [CGFloat] = [320, 390, 834, 1_200]
+        let dynamicTypeSizes: [DynamicTypeSize] = [
+            .large,
+            .xxxLarge,
+            .accessibility3,
+            .accessibility5
+        ]
+        var largeHeights: [String: CGFloat] = [:]
+
+        for width in widths {
+            for themeMode in [AppThemeMode.light, .dark] {
+                for dynamicTypeSize in dynamicTypeSizes {
+                    for availability in [ArtifactAvailability.missing, .staged, .verified] {
+                        let renderer = ImageRenderer(
+                            content: ModelSummaryPanel(
+                                model: renderModel,
+                                validation: validation(for: availability)
+                            )
+                                .environment(\.appTheme, AppThemePalette(mode: themeMode))
+                                .environment(\.colorScheme, themeMode.colorScheme)
+                                .environment(\.dynamicTypeSize, dynamicTypeSize)
+                                .frame(width: width)
+                        )
+                        renderer.scale = 1
+                        let image = renderer.uiImage
+                        XCTAssertNotNil(image)
+                        XCTAssertTrue(image?.size.width.isFinite ?? false)
+                        XCTAssertTrue(image?.size.height.isFinite ?? false)
+                        XCTAssertGreaterThan(image?.size.width ?? 0, 0)
+                        XCTAssertGreaterThan(image?.size.height ?? 0, 0)
+                        XCTAssertEqual(image?.size.width ?? 0, width, accuracy: 1)
+
+                        let key = "\(width)-\(themeMode.rawValue)-\(availability.rawValue)"
+                        if dynamicTypeSize == .large {
+                            largeHeights[key] = image?.size.height
+                        } else if dynamicTypeSize == .accessibility5,
+                                  let largeHeight = largeHeights[key] {
+                            XCTAssertGreaterThanOrEqual(image?.size.height ?? 0, largeHeight)
+                        }
+                    }
+                }
+            }
+        }
+
+        for width in widths {
+            for themeMode in [AppThemeMode.light, .dark] {
+                for dynamicTypeSize in dynamicTypeSizes {
+                    let renderer = ImageRenderer(
+                        content: ModelSummaryPanel(
+                            model: modelWithoutCapabilities,
+                            validation: validation(for: .missing)
+                        )
+                            .environment(\.appTheme, AppThemePalette(mode: themeMode))
+                            .environment(\.colorScheme, themeMode.colorScheme)
+                            .environment(\.dynamicTypeSize, dynamicTypeSize)
+                            .frame(width: width)
+                    )
+                    renderer.scale = 1
+                    let image = renderer.uiImage
+                    XCTAssertNotNil(image)
+                    XCTAssertTrue(image?.size.width.isFinite ?? false)
+                    XCTAssertTrue(image?.size.height.isFinite ?? false)
+                    XCTAssertGreaterThan(image?.size.width ?? 0, 0)
+                    XCTAssertGreaterThan(image?.size.height ?? 0, 0)
+                    XCTAssertEqual(image?.size.width ?? 0, width, accuracy: 1)
+                }
+            }
+        }
+    }
+
 
     func testModelDetailRowTextLayoutPolicySupportsDynamicTypeRows() {
         XCTAssertEqual(ModelDetailRowTextLayoutPolicy.horizontalSpacing, 12)

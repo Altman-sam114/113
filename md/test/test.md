@@ -421,7 +421,7 @@ xcodebuild -project LocalGemma.xcodeproj \
 当前基线：
 
 - 期望结果：`TEST EXECUTE SUCCEEDED`。
-- 当前测试函数数：128（v2.83 Agent B implementation baseline；云端待触发）。
+- 当前测试函数数：129（v2.84 Agent B implementation baseline；云端待触发）。
 
 ### v2.83 / 顶部模型胶囊部署状态与徽章可读性
 
@@ -440,6 +440,16 @@ xcodebuild -project LocalGemma.xcodeproj \
 - test.log 有 `128` 条测试记录且 `128` passed、`0` failed；`LocalGemma-tests.xcresult` 的结构化 tests 结果为 `128` test cases / `128` passed / `0` failed / `0` skipped。新增 `testModelCapsuleDeploymentStateAndBadgeReadability()` 在 test.log 与结构化 tests 树中各恰好一次且为 Passed。生产 ImageRenderer 证据来自真实 `ModelCapsule` + `ModelSelectorPanel`，覆盖 `320/390/834/1200pt`、light/dark、`.large`/`.xxxLarge`/`.accessibility3`/`.accessibility5`、deployment stopped/running、artifact missing/staged/verified 和 install ready/simulated/notDownloaded 全组合；纯值断言覆盖 badge style/text/row/accessibility policy，并回归 44pt、Reduce Motion、runtime/verified 门禁。
 - build、Mac Catalyst build、tests 三份 `.xcresult` 的 Info.plist 均通过 lint、版本均为 `3.58`、rootId 对应 root data/refs；Data/refs hash 集合分别 `3/3`、`3/3`、`954/954` 完全匹配。Mac baseline notes 明确这是既有 iOS target 的 Catalyst build-for-testing，工程提交中没有原生 macOS target；artifact 无模型权重、tokenizer、截图或视频，除 `.xcresult` 外的非结果文件最大为 `202,794` bytes。
 - 日志末尾存在一条非致命 Simulator launch 诊断，但它出现在 `** TEST EXECUTE SUCCEEDED **` 之后，不产生失败测试；Agent C 只读取 GitHub API 和已下载结果包，未运行本地 Xcode/build/test。验收临时目录使用 `trash` 清理。
+
+### v2.84 / 模型概要标签与校验摘要动态排版
+
+新增唯一聚合 `testModelSummaryPanelTextLayoutPolicySupportsDynamicTypeAndThemeSurface`，源码测试函数数从 `128` 增至 `129`。纯值 contract 锁住能力标签 semantic Dynamic Type font、2 行上限、1pt line spacing、9/6pt padding、自然垂直增长，校验摘要 semantic Dynamic Type font、3 行上限、1pt line spacing、自然垂直增长，以及名称/简介既有 5/2/4/2 契约；重复读取稳定，主题角色锁住 `chipSurface`、`secondaryText`、`subtleBorder`，不使用 `.white.opacity(0.08)`。
+
+同一测试直接渲染真实生产 `ModelSummaryPanel(model:validation:)`，不构造脱离生产的替代文本树；公开 `ImageRenderer` 矩阵覆盖 `320/390/834/1200pt` × light/dark × `.large`/`.xxxLarge`/`.accessibility3`/`.accessibility5` × validator 生成的 missing/staged/verified。长中英混合模型名、简介、能力标签和 manifest 文件名覆盖窄宽压力，另覆盖 `capabilities=[]`；每项只断言图像非 nil、宽高 finite 且为正、wrapper 宽度误差不超过 1pt，并比较 `.accessibility5 >= .large` 高度，不做像素/颜色/截图/私有辅助树断言。
+
+聚合测试回归 `ModelSummaryAccessibilityMetadata` 的整体 label/value/hint/input labels/identifier 和空能力值、模型部署/文件 utility/workspace/header/session/composer 44pt policy、`AppMotionEffect`/Reduce Motion，以及 missing/staged/verified 到 `LocalRuntimePlanner` 的真实 runtime gate。能力标签继续走 `FlowLayout` adaptive minimum `72pt`/8pt 间距；未新增宽度断点、AnyLayout、动作、状态、网络或模型文件。
+
+本轮未运行本地完整 `xcodebuild`、XCTest、Simulator、Mac Catalyst build/run 或截图验收；已执行 `git diff --check`、129 个测试函数计数、`rg` 结构检查、`plutil -lint`、Ruby YAML 解析、脚本存在性/可执行性/`bash -n` 和两份 `xcrun swiftc -parse`，均成功（YAML 仅有既有 PATH world-writable warning）。完整 iOS/Catalyst build、LogicSmoke、129 项 XCTest、JUnit、manifest 和三份 `.xcresult` 待本轮 push 后 GitHub Actions，再由 Agent C 下载最新结果包核对。
 
 ### Full
 

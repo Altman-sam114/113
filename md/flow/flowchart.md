@@ -203,6 +203,26 @@ flowchart LR
     L --> Q
 ```
 
+## 7.2 v2.84 模型概要标签与校验摘要动态排版流
+
+读图说明：这张图只描述模型页概要的本地只读排版链路。`validation.summary` 和能力标签来自同一个本地 `model + validation` 输入；policy 只提供静态文字契约，verified 门禁、整体辅助语义和外部动作保持既有边界。
+
+```mermaid
+flowchart LR
+    A[ModelCatalog.validation(for: selectedModel)] --> B[ModelLibraryView]
+    B --> C[ModelDetailColumn]
+    C --> D[ModelSummaryPanel<br/>model + validation]
+    D --> E[FlowLayout<br/>adaptive minimum 72pt<br/>8pt horizontal/vertical spacing]
+    E --> F[能力标签<br/>semantic Dynamic Type<br/>2 lines + 1pt spacing<br/>9/6pt padding + vertical growth<br/>theme.chipSurface<br/>theme.secondaryText<br/>theme.subtleBorder]
+    D --> G[validation.summary<br/>semantic Dynamic Type<br/>3 lines + 1pt spacing<br/>vertical growth]
+    D --> H[ModelSummaryAccessibilityMetadata<br/>single combined element]
+    A --> I{artifact availability}
+    I --> J[missing / staged / verified<br/>local display only]
+    J --> K[LocalRuntimePlanner verified gate<br/>only verified can run real weights]
+    F -. static layout only .-> L[No action / animation / network / weight download]
+    G -. static layout only .-> L
+```
+
 ## 8. main 直推与云端结果包验收流
 
 读图说明：这张图展示新的协作闭环。重点是 Agent B 必须在 `main` 上提交并推送，GitHub Actions 生成带自描述 manifest 的未加密结果包，Agent C 只能验收 `origin/main` 最新 commit 对应的 artifact name、run URL、run id 和 run attempt；失败时通过追加修复 commit 回到同一条主线。

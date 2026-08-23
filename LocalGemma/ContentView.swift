@@ -6626,9 +6626,38 @@ enum ModelSummaryTextLayoutPolicy {
     static let nameLineLimit = 2
     static let summaryLineLimit = 4
     static let summaryLineSpacing: CGFloat = 2
+    static let capabilityLineLimit = 2
+    static let capabilityLineSpacing: CGFloat = 1
+    static let capabilityHorizontalPadding: CGFloat = 9
+    static let capabilityVerticalPadding: CGFloat = 6
+    static let validationLineLimit = 3
+    static let validationLineSpacing: CGFloat = 1
+
+    static var capabilityFont: Font {
+        .caption2.weight(.bold)
+    }
+
+    static var validationFont: Font {
+        .caption2.weight(.bold)
+    }
+
+    static var usesSemanticDynamicTypeFont: Bool { true }
 
     static var allowsMultilineName: Bool { nameLineLimit > 1 }
     static var allowsMultilineSummary: Bool { summaryLineLimit > 1 }
+    static var allowsMultilineCapability: Bool { capabilityLineLimit > 1 }
+    static var allowsMultilineValidation: Bool { validationLineLimit > 1 }
+
+    enum ThemeRole: Equatable {
+        case chipSurface
+        case secondaryText
+        case subtleBorder
+    }
+
+    static let capabilityBackgroundRole = ThemeRole.chipSurface
+    static let capabilityForegroundRole = ThemeRole.secondaryText
+    static let capabilityBorderRole = ThemeRole.subtleBorder
+    static let validationForegroundRole = ThemeRole.secondaryText
 }
 
 struct ModelSummaryPanel: View {
@@ -6668,17 +6697,26 @@ struct ModelSummaryPanel: View {
 
             FlowLayout(items: model.capabilities) { capability in
                 Text(capability)
-                    .font(.system(size: 11, weight: .bold))
+                    .font(ModelSummaryTextLayoutPolicy.capabilityFont)
                     .foregroundStyle(theme.secondaryText)
-                    .padding(.horizontal, 9)
-                    .padding(.vertical, 6)
-                    .background(.white.opacity(0.08), in: Capsule())
+                    .lineSpacing(ModelSummaryTextLayoutPolicy.capabilityLineSpacing)
+                    .lineLimit(ModelSummaryTextLayoutPolicy.capabilityLineLimit)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, ModelSummaryTextLayoutPolicy.capabilityHorizontalPadding)
+                    .padding(.vertical, ModelSummaryTextLayoutPolicy.capabilityVerticalPadding)
+                    .background(theme.chipSurface, in: Capsule())
+                    .overlay {
+                        Capsule()
+                            .stroke(theme.subtleBorder, lineWidth: 1)
+                    }
             }
 
             Text(validation.summary)
-                .font(.system(size: 11, weight: .bold))
+                .font(ModelSummaryTextLayoutPolicy.validationFont)
+                .lineSpacing(ModelSummaryTextLayoutPolicy.validationLineSpacing)
+                .lineLimit(ModelSummaryTextLayoutPolicy.validationLineLimit)
                 .foregroundStyle(theme.secondaryText)
-                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .panelStyle(border: theme.border)
         .accessibilityElement(children: .ignore)

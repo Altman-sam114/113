@@ -103,6 +103,14 @@
 - 三份 `.xcresult` 均为 version `3.58`、`fileBacked2`，Info.plist 有 rootId 且 root data/refs 配对；build、Mac Catalyst build、tests 的 Data/refs hash 集合分别为 `3/3`、`3/3`、`954/954`。生产 ImageRenderer 矩阵证据覆盖 `320/390/834/1200pt` × 亮暗主题 × `.large`/`.xxxLarge`/`.accessibility3`/`.accessibility5` × deployment/artifact/install 全部组合，并由同一测试锁住 badge style/text/row/accessibility policy、44pt 控件、Reduce Motion、runtime 与 verified 回归。
 - `mac-baseline-notes.md` 确认 Mac 结果是既有 iOS app target 的 Mac Catalyst build-for-testing，不是原生 macOS target；解包内容没有模型权重、tokenizer、截图或视频，除预期 `.xcresult` 数据外没有超过 1 MiB 的无关文件。Agent C 未运行本地 Xcode/build/test，验收临时目录完成后使用 `trash` 清理。
 
+### v2.84 / 模型概要标签与校验摘要动态排版
+
+- `ModelSummaryTextLayoutPolicy` 在保留名称/简介既有 `5/2/4/2` spacing、line-limit 和 line-spacing 契约的基础上，为能力标签提供 semantic Dynamic Type 字体、2 行上限、1pt line spacing、9/6pt padding 和自然垂直增长；artifact 校验摘要使用 semantic Dynamic Type 字体、3 行上限、1pt line spacing 和自然垂直增长。
+- `ModelSummaryPanel` 继续使用真实 `FlowLayout(items: model.capabilities)` 的 adaptive minimum `72pt` 与 8pt 间距；能力标签背景改为 `theme.chipSurface`，文字使用 `theme.secondaryText`，描边使用 `theme.subtleBorder`。概要仍是单一整体辅助元素，不新增动作、状态、宽度断点、AnyLayout、网络或模型文件路径。
+- 唯一新增聚合测试为 `testModelSummaryPanelTextLayoutPolicySupportsDynamicTypeAndThemeSurface`，源码测试函数数从 128 增至 129。真实 `ModelSummaryPanel(model:validation:)` 的公开 `ImageRenderer` 覆盖 `320/390/834/1200pt` × light/dark × `.large`/`.xxxLarge`/`.accessibility3`/`.accessibility5` × missing/staged/verified，并覆盖中英混合长模型/简介/能力/manifest 与空 capabilities；断言非空、有限正尺寸和 wrapper 宽度误差不超过 1pt，禁止像素/颜色/私有辅助树断言。
+- 本轮轻量检查已通过：`git diff --check`、129 个测试函数计数、`rg` 结构检查、`plutil -lint`、Ruby workflow YAML 解析、脚本存在性/可执行性/`bash -n` 和两份 `xcrun swiftc -parse`；YAML 仅报告既有 PATH world-writable warning。未运行本地完整 build/test、Simulator、Catalyst 或截图验收。
+- 聚合测试同时回归概要 metadata、外部部署/文件/workspace/header/session/composer 44pt action、Reduce Motion 以及 missing/staged/verified -> `LocalRuntimePlanner` 的 verified gate。当前完整云端 CI 与 Agent C 结果包验收尚未发生，不能预写 run、artifact、JUnit、xcresult 或 PASS。
+
 ## 运行方式
 
 1. 打开 `LocalGemma.xcodeproj`。
