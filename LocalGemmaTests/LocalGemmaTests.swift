@@ -4468,6 +4468,223 @@ final class LocalGemmaTests: XCTestCase {
         )
     }
 
+    func testModelDetailRowLayoutPolicyAdaptsNarrowWidths() {
+        XCTAssertEqual(ModelDetailRowLayoutPolicy.minimumTitleColumnWidth, 84)
+        XCTAssertEqual(ModelDetailRowLayoutPolicy.minimumValueColumnWidth, 264)
+        XCTAssertEqual(
+            ModelDetailRowLayoutPolicy.horizontalSpacing,
+            ModelDetailRowTextLayoutPolicy.horizontalSpacing
+        )
+        XCTAssertEqual(ModelDetailRowLayoutPolicy.horizontalContentWidthThreshold, 360)
+        XCTAssertEqual(
+            ModelDetailRowLayoutPolicy.horizontalContentWidthThreshold,
+            ModelDetailRowLayoutPolicy.minimumTitleColumnWidth
+                + ModelDetailRowLayoutPolicy.minimumValueColumnWidth
+                + ModelDetailRowLayoutPolicy.horizontalSpacing
+        )
+        XCTAssertEqual(
+            ModelDetailRowLayoutPolicy.panelHorizontalPadding,
+            WorkbenchVisualStylePolicy.panelPadding
+        )
+        XCTAssertEqual(
+            ModelDetailRowLayoutPolicy.panelContentWidth(forPanelWidth: 320),
+            292
+        )
+        XCTAssertEqual(
+            ModelDetailRowLayoutPolicy.panelContentWidth(forPanelWidth: 390),
+            362
+        )
+        XCTAssertEqual(
+            ModelDetailRowLayoutPolicy.panelContentWidth(forPanelWidth: CGFloat.nan),
+            0
+        )
+        XCTAssertEqual(
+            ModelDetailRowLayoutPolicy.panelContentWidth(forPanelWidth: -1),
+            0
+        )
+
+        let boundaryPlan = ModelDetailRowLayoutPolicy.resolve(
+            contentWidth: 360,
+            dynamicTypeSize: .large
+        )
+        XCTAssertEqual(boundaryPlan.mode, .horizontal)
+        XCTAssertEqual(
+            boundaryPlan,
+            ModelDetailRowLayoutPolicy.resolve(
+                contentWidth: 360,
+                dynamicTypeSize: .large
+            )
+        )
+        XCTAssertEqual(
+            ModelDetailRowLayoutPolicy.resolve(
+                contentWidth: 359.99,
+                dynamicTypeSize: .large
+            ).mode,
+            .stacked
+        )
+        XCTAssertEqual(
+            ModelDetailRowLayoutPolicy.resolve(
+                contentWidth: 760,
+                dynamicTypeSize: .xxxLarge
+            ).mode,
+            .stacked
+        )
+        for accessibilitySize in [
+            DynamicTypeSize.xxxLarge,
+            .accessibility3,
+            .accessibility5
+        ] {
+            XCTAssertEqual(
+                ModelDetailRowLayoutPolicy.resolve(
+                    contentWidth: 760,
+                    dynamicTypeSize: accessibilitySize
+                ).mode,
+                .stacked
+            )
+        }
+
+        let widthModes: [(CGFloat, ModelDetailRowLayoutMode)] = [
+            (256, .stacked),
+            (320, .stacked),
+            (390, .horizontal),
+            (834, .horizontal),
+            (1_200, .horizontal)
+        ]
+        for (outerWidth, expectedMode) in widthModes {
+            let plan = ModelDetailRowLayoutPolicy.resolve(
+                contentWidth: ModelDetailRowLayoutPolicy.panelContentWidth(
+                    forPanelWidth: outerWidth
+                ),
+                dynamicTypeSize: .large
+            )
+            XCTAssertEqual(plan.mode, expectedMode)
+        }
+
+        for invalidWidth in [CGFloat.nan, CGFloat.infinity, -CGFloat.infinity, 0, -1] {
+            let plan = ModelDetailRowLayoutPolicy.resolve(
+                contentWidth: invalidWidth,
+                dynamicTypeSize: .large
+            )
+            XCTAssertEqual(plan.mode, .stacked)
+            XCTAssertFalse(plan.allowsHorizontal)
+            XCTAssertEqual(plan.contentWidth, 0)
+        }
+
+        let model = ModelCatalog.defaultModels[0]
+        let validation = LocalArtifactValidator.validate(
+            manifest: model.artifactManifest,
+            presentFiles: []
+        )
+        let report = LocalRuntimePlanner.preparationReport(
+            for: model,
+            validation: validation
+        )
+        let outerWidths: [CGFloat] = [256, 320, 390, 834, 1_200]
+        let dynamicTypeSizes: [DynamicTypeSize] = [
+            .large,
+            .xxxLarge,
+            .accessibility3,
+            .accessibility5
+        ]
+
+        for outerWidth in outerWidths {
+            for themeMode in AppThemeMode.allCases {
+                for dynamicTypeSize in dynamicTypeSizes {
+                    let panelContentWidth = ModelDetailRowLayoutPolicy.panelContentWidth(
+                        forPanelWidth: outerWidth
+                    )
+                    let panels: [(view: AnyView, width: CGFloat)] = [
+                        (
+                            AnyView(
+                                DetailRow(
+                                    title: "上下文长度",
+                                    value: "Core ML compiled package, 1.8 GB unified memory",
+                                    panelContentWidth: panelContentWidth
+                                )
+                            ),
+                            panelContentWidth
+                        ),
+                        (
+                            AnyView(
+                                ModelParametersPanel(
+                                    model: model,
+                                    panelContentWidth: panelContentWidth
+                                )
+                            ),
+                            outerWidth
+                        ),
+                        (
+                            AnyView(
+                                ModelPerformancePanel(
+                                    model: model,
+                                    validation: validation,
+                                    report: report,
+                                    panelContentWidth: panelContentWidth
+                                )
+                            ),
+                            outerWidth
+                        ),
+                        (
+                            AnyView(ModelAdvicePanel(model: model, report: report)),
+                            outerWidth
+                        ),
+                        (
+                            AnyView(
+                                ModelDetailColumn(
+                                    model: model,
+                                    validation: validation,
+                                    report: report,
+                                    panelContentWidth: panelContentWidth
+                                )
+                            ),
+                            outerWidth
+                        )
+                    ]
+
+                    for panel in panels {
+                        let renderer = ImageRenderer(
+                            content: panel.view
+                                .environment(\.appTheme, AppThemePalette(mode: themeMode))
+                                .environment(\.colorScheme, themeMode.colorScheme)
+                                .environment(\.dynamicTypeSize, dynamicTypeSize)
+                                .frame(width: panel.width)
+                        )
+                        renderer.scale = 1
+                        let image = renderer.uiImage
+
+                        XCTAssertNotNil(image)
+                        XCTAssertEqual(image?.size.width ?? 0, panel.width, accuracy: 1)
+                        XCTAssertGreaterThan(image?.size.height ?? 0, 0)
+                    }
+                }
+            }
+        }
+
+        func renderedParametersHeight(dynamicTypeSize: DynamicTypeSize) -> CGFloat {
+            let outerWidth: CGFloat = 390
+            let panelContentWidth = ModelDetailRowLayoutPolicy.panelContentWidth(
+                forPanelWidth: outerWidth
+            )
+            let renderer = ImageRenderer(
+                content: ModelParametersPanel(
+                    model: model,
+                    panelContentWidth: panelContentWidth
+                )
+                    .environment(\.appTheme, AppThemePalette(mode: .light))
+                    .environment(\.colorScheme, .light)
+                    .environment(\.dynamicTypeSize, dynamicTypeSize)
+                    .frame(width: outerWidth)
+            )
+            renderer.scale = 1
+            return renderer.uiImage?.size.height ?? 0
+        }
+
+        let regularHeight = renderedParametersHeight(dynamicTypeSize: .large)
+        let accessibilityHeight = renderedParametersHeight(dynamicTypeSize: .accessibility3)
+        XCTAssertGreaterThan(regularHeight, 0)
+        XCTAssertGreaterThanOrEqual(accessibilityHeight, regularHeight)
+    }
+
     func testModelDetailPanelTextLayoutPolicySupportsDynamicTypeHeadings() {
         let firstRead = (
             ModelDetailPanelTextLayoutPolicy.titleLineLimit,
@@ -4542,11 +4759,6 @@ final class LocalGemmaTests: XCTestCase {
         XCTAssertTrue(LocalRuntimePlanner.preparationReport(for: verifiedModel, validation: verifiedValidation).canRunRealWeights)
 
         let report = LocalRuntimePlanner.preparationReport(for: model, validation: missingValidation)
-        let panels: [AnyView] = [
-            AnyView(ModelParametersPanel(model: model)),
-            AnyView(ModelPerformancePanel(model: model, validation: missingValidation, report: report)),
-            AnyView(ModelAdvicePanel(model: model, report: report))
-        ]
         let renderCases: [(CGFloat, AppThemeMode, DynamicTypeSize)] = [
             (320, .light, .large),
             (390, .dark, .xxxLarge),
@@ -4555,6 +4767,27 @@ final class LocalGemmaTests: XCTestCase {
         ]
 
         for (width, themeMode, dynamicTypeSize) in renderCases {
+            let panelContentWidth = ModelDetailRowLayoutPolicy.panelContentWidth(
+                forPanelWidth: width
+            )
+            let panels: [AnyView] = [
+                AnyView(
+                    ModelParametersPanel(
+                        model: model,
+                        panelContentWidth: panelContentWidth
+                    )
+                ),
+                AnyView(
+                    ModelPerformancePanel(
+                        model: model,
+                        validation: missingValidation,
+                        report: report,
+                        panelContentWidth: panelContentWidth
+                    )
+                ),
+                AnyView(ModelAdvicePanel(model: model, report: report))
+            ]
+
             for panel in panels {
                 let renderer = ImageRenderer(
                     content: panel
@@ -4573,14 +4806,24 @@ final class LocalGemmaTests: XCTestCase {
         }
 
         let largeHeight = ImageRenderer(
-            content: panels[0]
+            content: ModelParametersPanel(
+                model: model,
+                panelContentWidth: ModelDetailRowLayoutPolicy.panelContentWidth(
+                    forPanelWidth: 390
+                )
+            )
                 .environment(\.appTheme, AppThemePalette(mode: .light))
                 .environment(\.colorScheme, .light)
                 .environment(\.dynamicTypeSize, .large)
                 .frame(width: 390)
         ).uiImage?.size.height ?? 0
         let accessibilityHeight = ImageRenderer(
-            content: panels[0]
+            content: ModelParametersPanel(
+                model: model,
+                panelContentWidth: ModelDetailRowLayoutPolicy.panelContentWidth(
+                    forPanelWidth: 390
+                )
+            )
                 .environment(\.appTheme, AppThemePalette(mode: .light))
                 .environment(\.colorScheme, .light)
                 .environment(\.dynamicTypeSize, .accessibility3)

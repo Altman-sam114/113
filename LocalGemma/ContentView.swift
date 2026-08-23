@@ -5693,6 +5693,9 @@ struct ModelLibraryView: View {
                     for: size,
                     layoutMode: layoutMode
                 )
+                let detailPanelContentWidth = ModelDetailRowLayoutPolicy.panelContentWidth(
+                    forPanelWidth: detailColumnWidth
+                )
 
                 HStack(alignment: .top, spacing: ModelDetailColumnLayoutPolicy.interColumnSpacing) {
                     VStack(spacing: 14) {
@@ -5724,7 +5727,12 @@ struct ModelLibraryView: View {
                     }
                     .frame(width: controlColumnWidth)
 
-                    ModelDetailColumn(model: model, validation: validation, report: report)
+                    ModelDetailColumn(
+                        model: model,
+                        validation: validation,
+                        report: report,
+                        panelContentWidth: detailPanelContentWidth
+                    )
                         .frame(width: detailColumnWidth, alignment: .topLeading)
 
                     Spacer(minLength: 0)
@@ -5756,7 +5764,14 @@ struct ModelLibraryView: View {
                     }
                 )
 
-                ModelDetailColumn(model: model, validation: validation, report: report)
+                ModelDetailColumn(
+                    model: model,
+                    validation: validation,
+                    report: report,
+                    panelContentWidth: ModelDetailRowLayoutPolicy.panelContentWidth(
+                        forPanelWidth: size.width
+                    )
+                )
             }
         }
     }
@@ -6271,12 +6286,30 @@ struct ModelDetailColumn: View {
     let model: LocalModel
     let validation: ArtifactValidationResult
     let report: RuntimePreparationReport
+    let panelContentWidth: CGFloat?
+
+    init(
+        model: LocalModel,
+        validation: ArtifactValidationResult,
+        report: RuntimePreparationReport,
+        panelContentWidth: CGFloat? = nil
+    ) {
+        self.model = model
+        self.validation = validation
+        self.report = report
+        self.panelContentWidth = panelContentWidth
+    }
 
     var body: some View {
         VStack(spacing: 14) {
             ModelSummaryPanel(model: model, validation: validation)
-            ModelParametersPanel(model: model)
-            ModelPerformancePanel(model: model, validation: validation, report: report)
+            ModelParametersPanel(model: model, panelContentWidth: panelContentWidth)
+            ModelPerformancePanel(
+                model: model,
+                validation: validation,
+                report: report,
+                panelContentWidth: panelContentWidth
+            )
             ModelAdvicePanel(model: model, report: report)
         }
         .accessibilityElement(children: .contain)
@@ -6377,15 +6410,29 @@ struct ModelSummaryPanel: View {
 
 struct ModelParametersPanel: View {
     let model: LocalModel
+    let panelContentWidth: CGFloat?
+
+    init(model: LocalModel, panelContentWidth: CGFloat? = nil) {
+        self.model = model
+        self.panelContentWidth = panelContentWidth
+    }
 
     var body: some View {
         DetailPanel(title: "参数", icon: "number.square.fill") {
-            DetailRow(title: "模型家族", value: model.family)
-            DetailRow(title: "参数规模", value: model.parameterCount)
-            DetailRow(title: "量化格式", value: model.quantization)
-            DetailRow(title: "上下文长度", value: "\(model.contextLength) tokens")
-            DetailRow(title: "文件格式", value: model.artifactManifest.fileFormat)
-            DetailRow(title: "包体大小", value: model.sizeOnDisk)
+            DetailRow(title: "模型家族", value: model.family, panelContentWidth: panelContentWidth)
+            DetailRow(title: "参数规模", value: model.parameterCount, panelContentWidth: panelContentWidth)
+            DetailRow(title: "量化格式", value: model.quantization, panelContentWidth: panelContentWidth)
+            DetailRow(
+                title: "上下文长度",
+                value: "\(model.contextLength) tokens",
+                panelContentWidth: panelContentWidth
+            )
+            DetailRow(
+                title: "文件格式",
+                value: model.artifactManifest.fileFormat,
+                panelContentWidth: panelContentWidth
+            )
+            DetailRow(title: "包体大小", value: model.sizeOnDisk, panelContentWidth: panelContentWidth)
         }
     }
 }
@@ -6394,15 +6441,44 @@ struct ModelPerformancePanel: View {
     let model: LocalModel
     let validation: ArtifactValidationResult
     let report: RuntimePreparationReport
+    let panelContentWidth: CGFloat?
+
+    init(
+        model: LocalModel,
+        validation: ArtifactValidationResult,
+        report: RuntimePreparationReport,
+        panelContentWidth: CGFloat? = nil
+    ) {
+        self.model = model
+        self.validation = validation
+        self.report = report
+        self.panelContentWidth = panelContentWidth
+    }
 
     var body: some View {
         DetailPanel(title: "性能", icon: "speedometer") {
-            DetailRow(title: "预计速度", value: String(format: "%.1f tok/s", model.tokensPerSecond))
-            DetailRow(title: "内存预算", value: model.memoryFootprint)
-            DetailRow(title: "主后端", value: report.activeBackend.title)
-            DetailRow(title: "回退后端", value: report.fallbackBackend.title)
-            DetailRow(title: "KV cache", value: model.deploymentProfile.kvCachePolicy)
-            DetailRow(title: "权重状态", value: validation.availability.title)
+            DetailRow(
+                title: "预计速度",
+                value: String(format: "%.1f tok/s", model.tokensPerSecond),
+                panelContentWidth: panelContentWidth
+            )
+            DetailRow(title: "内存预算", value: model.memoryFootprint, panelContentWidth: panelContentWidth)
+            DetailRow(title: "主后端", value: report.activeBackend.title, panelContentWidth: panelContentWidth)
+            DetailRow(
+                title: "回退后端",
+                value: report.fallbackBackend.title,
+                panelContentWidth: panelContentWidth
+            )
+            DetailRow(
+                title: "KV cache",
+                value: model.deploymentProfile.kvCachePolicy,
+                panelContentWidth: panelContentWidth
+            )
+            DetailRow(
+                title: "权重状态",
+                value: validation.availability.title,
+                panelContentWidth: panelContentWidth
+            )
         }
     }
 }
@@ -6410,6 +6486,14 @@ struct ModelPerformancePanel: View {
 struct ModelAdvicePanel: View {
     let model: LocalModel
     let report: RuntimePreparationReport
+
+    init(
+        model: LocalModel,
+        report: RuntimePreparationReport
+    ) {
+        self.model = model
+        self.report = report
+    }
 
     var body: some View {
         DetailPanel(title: "建议", icon: "lightbulb.fill") {
@@ -6456,6 +6540,52 @@ enum ModelDetailPanelTextLayoutPolicy {
 
     static var usesSemanticTitleFont: Bool {
         true
+    }
+}
+
+enum ModelDetailRowLayoutMode: Equatable {
+    case stacked
+    case horizontal
+}
+
+struct ModelDetailRowLayoutPlan: Equatable {
+    let mode: ModelDetailRowLayoutMode
+    let contentWidth: CGFloat
+    let allowsHorizontal: Bool
+}
+
+enum ModelDetailRowLayoutPolicy {
+    static let minimumTitleColumnWidth: CGFloat = 84
+    static let minimumValueColumnWidth: CGFloat = 264
+    static let horizontalSpacing: CGFloat = ModelDetailRowTextLayoutPolicy.horizontalSpacing
+    static let stackedSpacing: CGFloat = 4
+    static let panelHorizontalPadding: CGFloat = WorkbenchVisualStylePolicy.panelPadding
+
+    static var horizontalContentWidthThreshold: CGFloat {
+        minimumTitleColumnWidth + minimumValueColumnWidth + horizontalSpacing
+    }
+
+    static func panelContentWidth(forPanelWidth panelWidth: CGFloat) -> CGFloat {
+        guard panelWidth.isFinite, panelWidth > 0 else {
+            return 0
+        }
+
+        return max(panelWidth - panelHorizontalPadding * 2, 0)
+    }
+
+    static func resolve(
+        contentWidth: CGFloat,
+        dynamicTypeSize: DynamicTypeSize
+    ) -> ModelDetailRowLayoutPlan {
+        let validWidth = contentWidth.isFinite && contentWidth > 0 ? contentWidth : 0
+        let allowsHorizontal = validWidth >= horizontalContentWidthThreshold
+            && dynamicTypeSize < .xxxLarge
+
+        return ModelDetailRowLayoutPlan(
+            mode: allowsHorizontal ? .horizontal : .stacked,
+            contentWidth: validWidth,
+            allowsHorizontal: allowsHorizontal
+        )
     }
 }
 
@@ -6508,34 +6638,73 @@ enum ModelDetailRowTextLayoutPolicy {
 
 struct DetailRow: View {
     @Environment(\.appTheme) private var theme
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     let title: String
     let value: String
+    let panelContentWidth: CGFloat?
+
+    init(title: String, value: String, panelContentWidth: CGFloat? = nil) {
+        self.title = title
+        self.value = value
+        self.panelContentWidth = panelContentWidth
+    }
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: ModelDetailRowTextLayoutPolicy.horizontalSpacing) {
-            Text(title)
-                .font(.caption.weight(.bold))
-                .foregroundStyle(theme.tertiaryText)
-                .lineLimit(ModelDetailRowTextLayoutPolicy.titleLineLimit)
-                .fixedSize(horizontal: false, vertical: true)
+        let plan = ModelDetailRowLayoutPolicy.resolve(
+            contentWidth: panelContentWidth ?? 0,
+            dynamicTypeSize: dynamicTypeSize
+        )
+        let layout = plan.mode == .horizontal
+            ? AnyLayout(
+                HStackLayout(
+                    alignment: .firstTextBaseline,
+                    spacing: ModelDetailRowLayoutPolicy.horizontalSpacing
+                )
+            )
+            : AnyLayout(
+                VStackLayout(
+                    alignment: .leading,
+                    spacing: ModelDetailRowLayoutPolicy.stackedSpacing
+                )
+            )
 
-            Spacer(minLength: ModelDetailRowTextLayoutPolicy.horizontalSpacing)
-
-            Text(value)
-                .font(.subheadline.weight(.black))
-                .foregroundStyle(theme.primaryText)
-                .multilineTextAlignment(.trailing)
-                .lineLimit(ModelDetailRowTextLayoutPolicy.valueLineLimit)
-                .fixedSize(horizontal: false, vertical: true)
+        layout {
+            titleText
+            valueText(
+                textAlignment: plan.mode == .horizontal ? .trailing : .leading,
+                frameAlignment: plan.mode == .horizontal ? .trailing : .leading
+            )
         }
         .frame(maxWidth: .infinity, minHeight: ModelDetailRowTextLayoutPolicy.minimumRowHeight)
+        .fixedSize(horizontal: false, vertical: true)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(ModelDetailRowAccessibilityMetadata.label(title: title))
         .accessibilityValue(ModelDetailRowAccessibilityMetadata.value(title: title, value: value))
         .accessibilityHint(ModelDetailRowAccessibilityMetadata.hint)
         .accessibilityInputLabels(ModelDetailRowAccessibilityMetadata.inputLabels(title: title))
         .accessibilityIdentifier(ModelDetailRowAccessibilityMetadata.identifier(title: title))
+    }
+
+    private var titleText: some View {
+        Text(title)
+            .font(.caption.weight(.bold))
+            .foregroundStyle(theme.tertiaryText)
+            .lineLimit(ModelDetailRowTextLayoutPolicy.titleLineLimit)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private func valueText(
+        textAlignment: TextAlignment,
+        frameAlignment: Alignment
+    ) -> some View {
+        Text(value)
+            .font(.subheadline.weight(.black))
+            .foregroundStyle(theme.primaryText)
+            .multilineTextAlignment(textAlignment)
+            .lineLimit(ModelDetailRowTextLayoutPolicy.valueLineLimit)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: frameAlignment)
     }
 }
 

@@ -22,6 +22,8 @@ v2.79 起，`ModelArtifactUtilityTextLayoutPolicy` 集中定义模型文件“�
 
 v2.80 起，`SettingsWorkspace` 将真实 panel 外框宽度扣除共享 `14pt` padding 后传给 `SettingsPreferenceRowLayoutPolicy`，由 `DynamicTypeSize` 选择横排或 stacked；普通字号只有达到 `270pt` panel content width 明确阈值才横排，`.xxxLarge` 及以上和 NaN/infinity/非正宽度始终 stacked。`WallpaperPreferencePanel` 的 `AnyLayout` 复用同一预览、文案和 PhotosPicker/清除动作子树，stacked 分支在 layout 外自然垂直增长，预览 slot 为 `58pt`，两个动作各保持至少 `44pt`；保留导入中/清除禁用、主题、壁纸数据、既有辅助语义、相册读取、本地压缩、runtime 和 verified 门禁。
 
+v2.81 起，模型详情参数/性能面板的 `DetailRow` 通过 `ModelDetailRowLayoutPolicy` 读取真实 panel content width 和 `DynamicTypeSize`；panel 外框先扣除两侧共享 `14pt` padding，内容宽度低于 `360pt` 或 `.xxxLarge` 及以上始终 stacked，普通字号达到 `84 + 264 + 12 = 360pt` 才横排。横排保留 12pt 间距和数值尾部对齐，stacked 使用同一标题/数值子树自然垂直增长并让数值前导对齐；无效宽度归一为有限 `0pt`。`ModelDetailColumn`、整体/行级辅助语义、静态 `28pt` 最小行高、外部动作 44pt 目标、模型文件、Reduce Motion、runtime 与 verified 门禁不变。
+
 ## 2. 必读文件顺序
 
 每轮工作开始前按顺序阅读：
@@ -107,6 +109,7 @@ git remote -v
 - `ModelUninstallConfirmationAccessibilityMetadata` 控制模型卸载确认弹层的辅助语义；它必须明确确认后才删除 App 托管 artifact/tokenizer 并停止部署，取消不会删除文件或停止部署，不删除系统 Files 中的原始文件，不下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁。
 - `ModelStatusBadgeAccessibilityMetadata` 控制模型页安装状态、artifact 状态和部署状态徽章辅助语义；它必须为 `StatusBadge`、`AvailabilityBadge` 和 `DeploymentBadge` 暴露 label/value/hint/input labels/identifier，并明确徽章只展示本地模型状态、不下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁。
 - `ModelDetailRowTextLayoutPolicy` 控制模型详情参数行、性能行和建议行的 Dynamic Type 文本策略；标题/数值/建议使用语义字体并允许多行，避免 iPad/Mac 窄 split view 和较大文字设置下通过固定小字号或缩放压缩文字，且不得改变行级辅助语义、模型详情列宽、模型选择/部署、模型文件或 runtime 状态流。
+- `ModelDetailRowLayoutMode`、`ModelDetailRowLayoutPlan` 与 `ModelDetailRowLayoutPolicy` 控制 `DetailRow` 的真实 panel content width 响应式结构；外框扣除两侧共享 `14pt` padding，`84pt` 标题列 + `264pt` 数值列 + 既有 `12pt` 间距派生 `360pt` 阈值，窄宽、`.xxxLarge` 及以上 Dynamic Type、NaN/infinity/非正宽度 stacked，普通字号达到阈值才 horizontal。`ModelDetailColumn` 将有限 content width 传给参数/性能面板，`AnyLayout` 复用标题/数值文本子树；stacked 允许自然垂直增长、数值前导对齐，不改变静态 `28pt` 行、AdviceRow、整体/行级辅助语义、外部 44pt 动作、模型文件、Reduce Motion、runtime 或 verified 门禁。
 - `ModelDetailPanelTextLayoutPolicy` 控制模型详情参数、性能和建议面板标题的公开 Dynamic Type 语义字体、最多两行、1pt line spacing、12pt 标题/内容间距和自然垂直增长；它只影响 `DetailPanel` 静态标题，不改变 panel/详情行结构、整体/行级辅助语义、模型详情列、44pt 动作、模型文件、Reduce Motion、runtime 或 verified 门禁。
 - `ModelDetailRowAccessibilityMetadata` 控制模型详情参数行、性能行和建议行的行级辅助语义；`DetailRow` 和 `AdviceRow` 必须暴露 label/value/hint/input labels/identifier，`ModelDetailColumn` 必须允许行级元素可达，并明确行级内容只展示本地模型详情、不下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁。
 - `OptimizationToggleAccessibilityMetadata` 控制设置页和优化 dashboard 的运行策略开关辅助语义；开关本身只切换本地运行策略，不下载模型权重、不启动真实 runtime、不发送云端服务，VoiceOver/Voice Control label/value/hint/input labels/identifier 要有测试锁住。

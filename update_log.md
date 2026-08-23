@@ -16,7 +16,7 @@
 - 平台：SwiftUI iOS App，Swift 6.0，iOS deployment target 17.0，当前 app/test target 支持 iPhone、iPad 和 Mac Catalyst build-for-testing，并提供项目内 Mac Catalyst 本地 build/run 脚本入口；尚未创建原生 macOS target。
 - 当前默认模型：`Gemma 1.5B Local`
 - 当前推理：本地模拟 runtime，不下载模型权重，不执行真实模型推理。
-- 当前核心测试：`LocalGemmaTests.swift` 中 125 个 XCTest 方法。
+- 当前核心测试：`LocalGemmaTests.swift` 中 126 个 XCTest 方法。
 - 当前核心文档入口：`AGENTS.md`、`md/flow/flow.md`、`md/flow/flowchart.md`、`md/test/test.md`、`md/prompt/README.md`、`README.md`。
 - 当前协作验证：默认 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载未加密 CI 结果包验收；本地仓库当前已配置 `origin` remote，最终验收仍以最新 `origin/main` 对应的 GitHub Actions run 和结果包为准；文档已预留未来 `agentx:` 主控 Agent A -> Agent B -> Agent C 多轮循环的规则。
 
@@ -4011,6 +4011,38 @@
 - 云端 `test.log` 有恰好 120 条 `Test case` 记录、120 个 `passed` 标记、0 个 `failed` 标记和一次 `** TEST EXECUTE SUCCEEDED **`；120 条记录对应源码 120 个唯一测试函数，新增 `testChipReadinessLayoutPolicyAdaptsToCardWidthAndAccessibilityDynamicType` 恰好一次。该日志有一处 xcodebuild diagnostic 与 `testWallpaperPreferenceControlsExposeAccessibilityMetadata` 记录交错，导致该单行名称被截断；没有失败或重复记录，计数以完整 case 记录、passed 总数、源码集合和 XCTest success marker 交叉核对。
 - 三份 `.xcresult` 的 `Info.plist` 均 `plutil -lint` 通过，版本均为 3.58 且 rootId 存在；`LocalGemma-build.xcresult`、`LocalGemma-maccatalyst-build.xcresult`、`LocalGemma-tests.xcresult` 的 Data/refs 分别为 `3/3`、`3/3`、`879/879`，hash 集合完全配对。tests bundle 的唯一零字节 data 节点有对应 refs，不影响 bundle 结构；build、Catalyst build 和 tests 三个结果包均存在。
 - 本轮未运行本地 `xcodebuild`、XCTest、Simulator、Mac Catalyst build/run、`xcresulttool` 或 ImageRenderer；仅使用 GitHub CLI/API 下载和读取云端结果包，并使用轻量文件/manifest/日志/Info.plist 结构核对。未下载模型权重、未执行真实模型推理、未调用云端推理。用户既有 `LocalGemma.xcodeproj/project.pbxproj` 修改保持未编辑、未暂存、未提交。
+
+### v2.81 / 模型详情行窄宽堆叠布局
+
+日期：2026-08-23
+
+核心变更：
+
+- 基于 v2.80 验收后的 `origin/main`，为模型详情 `DetailRow` 新增无状态 `ModelDetailRowLayoutMode`、`ModelDetailRowLayoutPlan` 和 `ModelDetailRowLayoutPolicy`；panel 外框宽度先扣除共享 `WorkbenchVisualStylePolicy.panelPadding` 两侧各 `14pt`，普通字号以 `84pt` 标题列 + `264pt` 数值列 + 既有 `12pt` 间距派生 `360pt` 内容阈值，窄宽回退 stacked，`.xxxLarge` 及以上始终 stacked，非法宽度归一为有限 `0pt`。
+- `ModelLibraryView` 将真实单栏/双栏详情 panel content width 传入 `ModelDetailColumn`，参数/性能面板再传给生产 `DetailRow`；横排保留 first-baseline、12pt 间距和数值尾部对齐，stacked 复用同一标题/数值子树并让数值前导对齐、自然垂直增长。`ModelAdvicePanel` / `AdviceRow` 保留既有 icon/text 顺序和 4 行建议策略。
+- 保留 `ModelDetailPanelTextLayoutPolicy`、`ModelDetailRowTextLayoutPolicy`、`ModelDetailAccessibilityMetadata`、`ModelDetailRowAccessibilityMetadata`、模型选择/部署、artifact 文件、missing/staged/verified runtime 门禁、Reduce Motion、会话和 workspace 状态流；不新增动作、网络、异步 layout 状态、真实推理或模型权重。
+- 新增 `testModelDetailRowLayoutPolicyAdaptsNarrowWidths`，锁住纯值阈值/换算/非法宽度/Dynamic Type/重复读取，回归 existing text/metadata/44pt/runtime contract，并通过公开 `ImageRenderer` 覆盖真实 `DetailRow`、参数/性能/建议面板和 `ModelDetailColumn` 的 `256/320/390/834/1200pt × 亮暗 × .large/.xxxLarge/.accessibility3/.accessibility5` 矩阵。
+
+关键文件：
+
+- `LocalGemma/ContentView.swift`
+- `LocalGemmaTests/LocalGemmaTests.swift`
+- `AGENTS.md`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v2（Mac体验审计）/v2.81（模型详情行窄宽堆叠布局）.md`
+- `update_log.md`
+
+当前验证状态：
+
+- 源码测试函数数为 `126`；已通过 `git diff --check`、`plutil -lint LocalGemma.xcodeproj/project.pbxproj`、workflow YAML 解析、`bash -n script/build_and_run.sh` 和两份 Swift `-parse` 语法检查。
+- 本轮未运行本地 `xcodebuild`、XCTest、Simulator、Mac Catalyst build/run 或截图；未下载模型权重、未执行真实模型推理、未调用云端推理。完整 iOS/Catalyst build、LogicSmoke、126 项 XCTest 和 Agent C artifact 验收待本轮 push 后 GitHub Actions 执行。
+
+遗留事项：
+
+- 只允许提交 v2.81 源码、测试、六份核心文档和 v2.81 prompt；保护用户的 `LocalGemma.xcodeproj/project.pbxproj` dirty diff 与未跟踪 v2.79 prompt。必须以 v2.81 实现 commit 对应的最新 run/artifact 完成云端验收后再进入下一轮。
 
 ### v2.80 / 设置偏好行响应式布局
 
