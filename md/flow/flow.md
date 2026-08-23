@@ -65,7 +65,7 @@ v2.64 的顶部模型胶囊还会按真实 chrome 可用宽度切换堆叠/横�
 - `WorkspaceLayoutMode` 负责按容器尺寸判断 portrait、landscapeCompact、landscapeRegular；case 名称保留历史兼容，但 v0.8 起含义是单栏、compact 双栏和 regular 大屏双栏。
 - `WorkspaceLayoutMode.usesDetailedSidebar` 只在 regular 大屏双栏启用，用于让 Mac/iPad 大画布侧栏显示一行 workspace 用途说明；compact 双栏保持紧凑按钮。
 - `SessionCommandFocusPolicy` 为共享 `ChatWorkspace` 增加活动态 gate；结构恒定的 `SessionCommandFocusedRoute` 始终保留相同 modifier，只有 `selectedTab == .chat` 时包装内提供 `SessionCommandActions`，隐藏聊天页的 actions 为 `nil`，系统会话菜单仍沿用既有新建、导出和 composer focus 状态流。
-- `ComposerBar` 的可取消 focus task 以聊天活动态和 request sequence 作为身份；隐藏聊天页立即清空 `@FocusState`，并取消尚未完成的聚焦任务；聊天页活动但没有新 request 时保持既有焦点，避免消费 request 后重置 sequence 立即撤销刚设置的焦点。
+- `ComposerBar` 通过 `onAppear` 与由聊天活动态、request sequence 组成的 `onChange` 身份同步更新焦点；活动聊天页收到 request 时立即设置 `@FocusState` 并消费 request，隐藏聊天页立即清空待处理 request 与 `@FocusState`。该路径没有延迟异步任务，因此旧 request 不能跨越工作区活动态边界重新抢回焦点；活动聊天页没有新 request 时仍保持既有焦点。
 - `ModelLibraryLayoutMode` 只控制模型页内部部署控制台的单栏/双栏；足够宽的 iPad/Mac 模型页显示“选择/部署/文件操作”和“模型详情”并列，窄屏继续单栏。
 - `ModelLibraryWorkspaceLayoutPolicy` 控制模型页整体内容宽度；iPhone 和窄 split view 保持原有可用宽度，iPad/Mac 超宽窗口中标题、选择/部署/文件操作和模型详情整体居中并限制最大宽度，最大内容宽度从控制列最大宽度、详情列最大阅读宽度和列间距派生，不改变模型状态流、内部双栏、详情列宽度、辅助语义或 verified 门禁。
 - `ModelDetailColumnLayoutPolicy` 只控制模型页双栏右侧详情列宽度；单栏不启用固定详情列宽，iPad/Mac 宽区域按剩余宽度计算并限制最大阅读宽度，避免概要、参数、性能和建议文本行在超宽窗口无限拉长。

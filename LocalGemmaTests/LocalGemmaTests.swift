@@ -3405,9 +3405,11 @@ final class LocalGemmaTests: XCTestCase {
         XCTAssertNotNil(firstResponder(in: controller.view))
 
         focusStore.isChatActive = false
+        focusStore.focusRequest = .initial.next(for: .selectSession)
         controller.view.setNeedsLayout()
         controller.view.layoutIfNeeded()
         drainMainRunLoop()
+        XCTAssertEqual(focusStore.focusRequest, .initial)
         XCTAssertNil(firstResponder(in: controller.view))
 
         focusStore.isChatActive = true

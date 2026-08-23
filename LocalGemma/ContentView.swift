@@ -2570,7 +2570,7 @@ enum ComposerFocusPolicy {
     }
 }
 
-private struct ComposerFocusTaskID: Equatable {
+private struct ComposerFocusLifecycleID: Equatable {
     let isChatActive: Bool
     let requestSequence: Int
 }
@@ -5426,30 +5426,14 @@ struct ComposerBar: View {
             RoundedRectangle(cornerRadius: 22, style: .continuous)
                 .stroke(isGenerating ? theme.success.opacity(0.32) : theme.accent.opacity(0.18), lineWidth: 1)
         }
-        .task(
-            id: ComposerFocusTaskID(
+        .onAppear(perform: updateFocus)
+        .onChange(
+            of: ComposerFocusLifecycleID(
                 isChatActive: isChatActive,
                 requestSequence: focusRequest.sequence
             )
         ) {
-            if ComposerFocusPolicy.shouldReleaseFocus(isChatActive: isChatActive) {
-                focusedField = nil
-                return
-            }
-
-            guard ComposerFocusPolicy.shouldFocus(
-                isChatActive: isChatActive,
-                request: focusRequest
-            ) else {
-                return
-            }
-
-            await Task.yield()
-            guard !Task.isCancelled else {
-                return
-            }
-            focusedField = .input
-            clearFocusRequest()
+            updateFocus()
         }
     }
 
@@ -5463,6 +5447,24 @@ struct ComposerBar: View {
 
     private var isInputFocused: Bool {
         focusedField == .input
+    }
+
+    private func updateFocus() {
+        if ComposerFocusPolicy.shouldReleaseFocus(isChatActive: isChatActive) {
+            focusedField = nil
+            clearFocusRequest()
+            return
+        }
+
+        guard ComposerFocusPolicy.shouldFocus(
+            isChatActive: isChatActive,
+            request: focusRequest
+        ) else {
+            return
+        }
+
+        focusedField = .input
+        clearFocusRequest()
     }
 
     private var inputFieldBorderColor: Color {

@@ -4035,12 +4035,23 @@
 
 当前验证状态：
 
-- 已确认 `origin/main` 与本地 `main` 均为 `5a98cc4`；用户保留的 `LocalGemma.xcodeproj/project.pbxproj` 修改未编辑、未格式化、未暂存、未提交。
-- 本地仅执行本 prompt 允许的轻量 parse/diff/plist/YAML/脚本/Markdown 结构检查；未运行本地 XCTest、xcodebuild、Simulator、Mac Catalyst build/run、截图视觉验收、模型下载或真实推理。云端 run、artifact、xcresult 和 Agent C 验收尚未发生，待 v2.78 最终 commit push 后记录实际结果。
+- v2.78 实现 commit 为 `2d574d986680184671ae97c8bfa9c09458380459`；初始云端 run `31301323743` 的模型详情新增测试已通过，但整体 XCTest 因既有 composer 焦点生命周期失败而未通过，具体证据与修复见下方补充。
+- 用户保留的 `LocalGemma.xcodeproj/project.pbxproj` 修改未编辑、未格式化、未暂存、未提交。本地仅执行轻量 parse/diff/plist/YAML/脚本/Markdown 结构检查；未运行本地 XCTest、xcodebuild、Simulator、Mac Catalyst build/run、截图视觉验收、模型下载或真实推理。
 
 遗留事项：
 
-- 等待本轮 v2.78 实现 commit push 触发 GitHub Actions，并由 Agent C 只验收最新 commit 对应的 run/artifact；在实际结果产生前不记录 CI、artifact、run id、digest、xcresult 或 PASS 结论。
+- 等待 v2.78 composer 焦点修复 commit push 触发新的 GitHub Actions，并由 Agent C 只验收最新 commit 对应的 run/artifact；初始失败 run 不得作为 PASS 证据。
+
+#### v2.78 云端失败与 composer 焦点生命周期修复
+
+日期：2026-08-23
+
+- GitHub Actions run `31301323743` 对实现 commit `2d574d986680184671ae97c8bfa9c09458380459` 完成 static checks、LogicSmoke、iOS build-for-testing、Mac Catalyst build-for-testing、Mac Catalyst run-script contract 和 artifact upload；结果包 manifest/JUnit/outcomes 记录 XCTest failure，因此该 run 不构成 v2.78 验收通过证据。
+- 下载的 `LocalGemma-tests.xcresult` 结构化 summary 为 `123` 个测试、`122` passed、`1` failed；v2.78 新增 `testModelDetailPanelTextLayoutPolicySupportsDynamicTypeHeadings()` 已 Passed。唯一失败为既有 `testComposerInputMetadataAndFocusPolicyDescribeEntryPoints()`：`LocalGemmaTests.swift:3405` 首次 request 后 `XCTAssertNotNil` 失败，`:3411` 离开聊天页后仍有 `SwiftUI.VerticalTextView` first responder。
+- 根因是 `ComposerBar` 原有 `.task(id:)` 在 `Task.yield()` 前后留下活动态时序窗口：断言时 request 尚未建立焦点，旧任务又可能在聊天页隐藏后落下焦点。修复改为 `onAppear` 与聊天活动态/request sequence 的 `onChange` 同步调用单一 `updateFocus()`；活动页立即设置 `@FocusState` 并消费 request，隐藏页立即清空待处理 request 与 `@FocusState`，不新增 UIKit、延时、状态、动画或网络路径。
+- 既有生命周期测试保持严格 first-responder 断言，并增加“隐藏聊天页时存在待处理 request”场景，要求 request 与真实焦点同时清空；测试函数数保持 `123`，不删除、跳过或放宽测试。
+- 本轮只执行轻量 diff、parse、plist、YAML、脚本和文档结构检查；未运行本地 `xcodebuild`、XCTest、Simulator、Mac Catalyst build/run 或视觉截图。修复后的云端 run、artifact、xcresult 和 Agent C PASS 尚未发生，必须由后续 `main` push 的最新唯一结果包证明。
+- 用户保留的 `LocalGemma.xcodeproj/project.pbxproj` 签名差异与未跟踪 v2.79 prompt 均不属于本修复，必须保持未编辑、未暂存、未提交。
 
 ### v2.77 / 导出会话正文动态排版
 
