@@ -5073,6 +5073,153 @@ final class LocalGemmaTests: XCTestCase {
         )
     }
 
+    func testModelArtifactUtilityTextLayoutPolicySupportsDynamicTypeLabels() {
+        let firstRead = (
+            ModelArtifactUtilityTextLayoutPolicy.titleLineLimit,
+            ModelArtifactUtilityTextLayoutPolicy.titleLineSpacing,
+            ModelArtifactUtilityTextLayoutPolicy.verticalPadding,
+            ModelArtifactUtilityTextLayoutPolicy.minimumHeight,
+            ModelArtifactUtilityTextLayoutPolicy.allowsMultilineTitle,
+            ModelArtifactUtilityTextLayoutPolicy.usesSemanticTitleFont
+        )
+        let secondRead = (
+            ModelArtifactUtilityTextLayoutPolicy.titleLineLimit,
+            ModelArtifactUtilityTextLayoutPolicy.titleLineSpacing,
+            ModelArtifactUtilityTextLayoutPolicy.verticalPadding,
+            ModelArtifactUtilityTextLayoutPolicy.minimumHeight,
+            ModelArtifactUtilityTextLayoutPolicy.allowsMultilineTitle,
+            ModelArtifactUtilityTextLayoutPolicy.usesSemanticTitleFont
+        )
+
+        XCTAssertEqual(firstRead.0, 2)
+        XCTAssertEqual(firstRead.1, 1)
+        XCTAssertEqual(firstRead.2, 10)
+        XCTAssertGreaterThanOrEqual(firstRead.3, 44)
+        XCTAssertTrue(firstRead.4)
+        XCTAssertTrue(firstRead.5)
+        XCTAssertEqual(firstRead.0, secondRead.0)
+        XCTAssertEqual(firstRead.1, secondRead.1)
+        XCTAssertEqual(firstRead.2, secondRead.2)
+        XCTAssertEqual(firstRead.3, secondRead.3)
+        XCTAssertEqual(firstRead.4, secondRead.4)
+        XCTAssertEqual(firstRead.5, secondRead.5)
+
+        XCTAssertGreaterThanOrEqual(ModelArtifactActionLayoutPolicy.minimumTouchTarget, 44)
+        XCTAssertEqual(
+            ModelArtifactActionLayoutPolicy.UtilityAction.allCases.map(\.metadataAction),
+            [.scan, .importFiles]
+        )
+        XCTAssertEqual(
+            ModelDeploymentControlAccessibilityMetadata.artifactActionIdentifier(.scan),
+            "model-artifact-action-scan"
+        )
+        XCTAssertEqual(
+            ModelDeploymentControlAccessibilityMetadata.artifactActionIdentifier(.importFiles),
+            "model-artifact-action-import"
+        )
+        XCTAssertTrue(
+            ModelDeploymentControlAccessibilityMetadata.artifactActionInputLabels(.scan)
+                .contains("扫描本地")
+        )
+        XCTAssertTrue(
+            ModelDeploymentControlAccessibilityMetadata.artifactActionInputLabels(.importFiles)
+                .contains("导入文件")
+        )
+        XCTAssertTrue(
+            ModelDeploymentControlAccessibilityMetadata.artifactActionHint(
+                .scan,
+                availability: .missing
+            ).contains("manifest")
+        )
+        XCTAssertTrue(
+            ModelDeploymentControlAccessibilityMetadata.artifactActionHint(
+                .scan,
+                availability: .missing
+            ).contains("SHA-256")
+        )
+        XCTAssertTrue(
+            ModelDeploymentControlAccessibilityMetadata.artifactActionHint(
+                .importFiles,
+                availability: .missing
+            ).contains("不会从网络下载模型")
+        )
+
+        let model = ModelCatalog.defaultModels[0]
+        let missingValidation = LocalArtifactValidator.validate(
+            manifest: model.artifactManifest,
+            presentFiles: []
+        )
+        let stagedValidation = LocalArtifactValidator.validate(
+            manifest: model.artifactManifest,
+            presentFiles: Set(model.artifactManifest.requiredFiles)
+        )
+        let verifiedHash = String(repeating: "a", count: 64)
+        let verifiedManifest = ModelArtifactManifest(
+            modelFileName: "verified-gemma.mlmodelc",
+            tokenizerFileName: "verified-tokenizer.model",
+            fileFormat: model.artifactManifest.fileFormat,
+            storageDirectory: model.artifactManifest.storageDirectory,
+            expectedSHA256: verifiedHash,
+            allowsNetworkDownload: false,
+            importInstruction: model.artifactManifest.importInstruction
+        )
+        var verifiedModel = model
+        verifiedModel.artifactManifest = verifiedManifest
+        let verifiedValidation = LocalArtifactValidator.validate(
+            manifest: verifiedManifest,
+            presentFiles: Set(verifiedManifest.requiredFiles),
+            observedSHA256: verifiedHash
+        )
+
+        XCTAssertEqual(missingValidation.availability, .missing)
+        XCTAssertEqual(stagedValidation.availability, .staged)
+        XCTAssertEqual(verifiedValidation.availability, .verified)
+        XCTAssertFalse(
+            LocalRuntimePlanner.preparationReport(
+                for: model,
+                validation: missingValidation
+            ).canRunRealWeights
+        )
+        XCTAssertFalse(
+            LocalRuntimePlanner.preparationReport(
+                for: model,
+                validation: stagedValidation
+            ).canRunRealWeights
+        )
+        XCTAssertTrue(
+            LocalRuntimePlanner.preparationReport(
+                for: verifiedModel,
+                validation: verifiedValidation
+            ).canRunRealWeights
+        )
+
+        for width in [CGFloat(320), 390, 834, 1_200] {
+            for themeMode in [AppThemeMode.light, .dark] {
+                for dynamicTypeSize in [DynamicTypeSize.large, .xxxLarge, .accessibility3] {
+                    let renderer = ImageRenderer(
+                        content: ArtifactActionPanel(
+                            validation: missingValidation,
+                            download: {},
+                            uninstall: {},
+                            scan: {},
+                            importFiles: {}
+                        )
+                            .environment(\.appTheme, AppThemePalette(mode: themeMode))
+                            .environment(\.colorScheme, themeMode.colorScheme)
+                            .environment(\.dynamicTypeSize, dynamicTypeSize)
+                            .frame(width: width)
+                    )
+                    renderer.scale = 1
+                    let image = renderer.uiImage
+
+                    XCTAssertNotNil(image)
+                    XCTAssertGreaterThan(image?.size.width ?? 0, 0)
+                    XCTAssertGreaterThan(image?.size.height ?? 0, 0)
+                }
+            }
+        }
+    }
+
 
     func testModelDeploymentPowerTextLayoutPolicySupportsDynamicTypeRows() {
         XCTAssertEqual(ModelDeploymentPowerTextLayoutPolicy.verticalSpacing, 5)

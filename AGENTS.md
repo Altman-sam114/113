@@ -4,7 +4,7 @@
 
 ## 1. 项目一句话总览
 
-`Local Gemma iOS Prototype` 是一个 SwiftUI iOS 原型 App，用本地模拟 runtime 验证 iPhone、iPad 与 Mac Catalyst build/run 基线下端侧部署 Gemma 1.5B 的产品交互、模型文件管理、artifact 校验、模型卸载确认弹层辅助语义、会话导出、导出会话正文动态排版、导出弹层分享/复制辅助语义、导出弹层分享/复制 44pt 触控目标、导出弹层整体宽屏内容宽度策略、大屏双栏布局、聊天工作区双侧栏宽度协调、聊天记录居中阅读轨道、短会话靠近 composer 的纵向定位、Mac/iPad 工作区与会话命令菜单、顶部模型胶囊整体辅助语义、模型概要面板与详情右栏/行级辅助语义、模型详情面板标题动态排版、模型页整体宽屏内容宽度策略、模型详情右栏最大阅读宽度策略、模型文件工作流面板辅助语义、工作区导航辅助语义、工作区导航 44pt 触控目标、共享 panel 内高光与分层阴影、头部主题与模型库入口辅助语义、全局 Header 图标动作 44pt 触控目标、Header 标题动态排版策略、设置页整体宽屏内容宽度策略、设置页图标动作 44pt 触控目标、会话栏操作辅助语义、会话栏操作 44pt 触控目标、会话 chip 动作语义、会话侧栏视觉层级、会话侧栏信息密度、会话侧栏宽度策略、聊天消息气泡与聊天记录容器辅助语义、单条消息复制与本地反馈、生成中状态脉冲指示、聊天气泡与 composer 宽屏输入宽度策略、composer 聚焦光环与发送按钮渐变、composer 发送/停止 44pt 触控目标、模型选择器、状态徽章与部署控件辅助语义、模型部署控件 44pt 触控目标、运行策略开关辅助语义、运行策略开关宽屏网格、运行策略开关行 44pt 触控目标、芯片准备度辅助语义与隐私状态动态摘要、优化指标卡辅助语义、优化指标卡文本动态排版策略、优化指标网格宽度策略、共享 SectionHeader 动态排版策略、提示词页整体宽屏内容宽度策略、提示词模板宽屏布局策略、提示词模板文本动态排版策略、提示词分类筛选换行布局策略、提示词分类文本动态排版策略、提示词筛选与模板动作辅助语义、提示词模板动作 44pt 触控目标、相册壁纸控件辅助语义和 Apple Silicon 运行计划；当前不下载模型权重，不执行真实模型推理，也没有原生 macOS target。
+`Local Gemma iOS Prototype` 是一个 SwiftUI iOS 原型 App，用本地模拟 runtime 验证 iPhone、iPad 与 Mac Catalyst build/run 基线下端侧部署 Gemma 1.5B 的产品交互、模型文件管理、artifact 校验、模型卸载确认弹层辅助语义、会话导出、导出会话正文动态排版、导出弹层分享/复制辅助语义、导出弹层分享/复制 44pt 触控目标、导出弹层整体宽屏内容宽度策略、大屏双栏布局、聊天工作区双侧栏宽度协调、聊天记录居中阅读轨道、短会话靠近 composer 的纵向定位、Mac/iPad 工作区与会话命令菜单、顶部模型胶囊整体辅助语义、模型概要面板与详情右栏/行级辅助语义、模型详情面板标题动态排版、模型页整体宽屏内容宽度策略、模型详情右栏最大阅读宽度策略、模型文件工作流面板辅助语义、模型文件 utility 动作动态排版、工作区导航辅助语义、工作区导航 44pt 触控目标、共享 panel 内高光与分层阴影、头部主题与模型库入口辅助语义、全局 Header 图标动作 44pt 触控目标、Header 标题动态排版策略、设置页整体宽屏内容宽度策略、设置页图标动作 44pt 触控目标、会话栏操作辅助语义、会话栏操作 44pt 触控目标、会话 chip 动作语义、会话侧栏视觉层级、会话侧栏信息密度、会话侧栏宽度策略、聊天消息气泡与聊天记录容器辅助语义、单条消息复制与本地反馈、生成中状态脉冲指示、聊天气泡与 composer 宽屏输入宽度策略、composer 聚焦光环与发送按钮渐变、composer 发送/停止 44pt 触控目标、模型选择器、状态徽章与部署控件辅助语义、模型部署控件 44pt 触控目标、运行策略开关辅助语义、运行策略开关宽屏网格、运行策略开关行 44pt 触控目标、芯片准备度辅助语义与隐私状态动态摘要、优化指标卡辅助语义、优化指标卡文本动态排版策略、优化指标网格宽度策略、共享 SectionHeader 动态排版策略、提示词页整体宽屏内容宽度策略、提示词模板宽屏布局策略、提示词模板文本动态排版策略、提示词分类筛选换行布局策略、提示词分类文本动态排版策略、提示词筛选与模板动作辅助语义、提示词模板动作 44pt 触控目标、相册壁纸控件辅助语义和 Apple Silicon 运行计划；当前不下载模型权重，不执行真实模型推理，也没有原生 macOS target。
 
 v2.64 起，顶部模型胶囊还包含窄侧栏响应式布局策略：sidebar 与窄 top header 使用堆叠概要，指标按可用宽度切换 1/2/3 列，`.xxxLarge` 及以上 Dynamic Type 固定回退单列。
 
@@ -17,6 +17,8 @@ v2.76 起，设置页与优化 dashboard 共用 `OptimizationToggleTextLayoutPol
 v2.77 起，`ExportSessionBodyTextLayoutPolicy` 集中定义导出正文 18pt padding、3pt line spacing、完整正文和语义等宽 Dynamic Type 契约；`ExportSessionView` 使用 `.body.monospaced()`，保留原始 Markdown、ScrollView、textSelection、320/760pt `ExportSessionLayoutPolicy` 宽度及既有标题/动作辅助语义和 44pt 目标，不改变本地导出、复制分享、runtime 或 verified 门禁。
 
 v2.78 起，`ModelDetailPanelTextLayoutPolicy` 集中定义模型详情参数、性能和建议面板标题的 2 行上限、1pt line spacing、12pt 标题/内容间距和语义 Dynamic Type 字体；`DetailPanel` 允许标题垂直增长，保留 panel、详情行、整体/行级辅助语义、44pt 动作、模型文件、runtime 与 verified 门禁。
+
+v2.79 起，`ModelArtifactUtilityTextLayoutPolicy` 集中定义模型文件“扫描本地”和“导入文件”utility label 的语义 Dynamic Type 字体、最多两行、1pt line spacing、10pt 垂直 padding、自然垂直增长和不低于 44pt 的最小高度；保留 HStack、panel、动作闭包、独立辅助语义、本地 Files/扫描边界、Reduce Motion、runtime 与 verified 门禁。
 
 ## 2. 必读文件顺序
 
@@ -98,6 +100,7 @@ git remote -v
 - `ModelArtifactPanelAccessibilityMetadata` 控制模型页文件工作流面板整体辅助语义；它必须合并 artifact availability、validation summary、模拟暂存、卸载需确认、扫描本地和 Files 手动导入入口，并明确只管理本地模型文件工作流、不联网下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁，同时保留面板内各操作按钮可达。
 - `ModelArtifactActionTextLayoutPolicy` 控制模型文件动作按钮标题与副标题的 Dynamic Type 文本策略；标题与副标题使用语义字体并允许两行，避免 iPad split view、Mac Catalyst 窄窗口和较大文字设置下通过固定小字号或缩放压缩文字，且不得改变模拟暂存、卸载确认、扫描/导入、artifact 校验、辅助语义或 verified 门禁。
 - `ModelArtifactActionLayoutPolicy` 控制模型页文件工作流面板扫描本地和导入文件两个 utility 动作的最小触控目标；这些 iPhone、iPad 和 Mac Catalyst 模型文件入口必须保持至少 44pt，且不得改变模拟暂存、卸载确认、扫描本地、Files 手动导入、artifact 校验、辅助语义或 verified 门禁。
+- `ModelArtifactUtilityTextLayoutPolicy` 控制模型文件扫描/导入 utility label 的纯值 Dynamic Type 排版契约；语义字体、最多两行、1pt line spacing、10pt vertical padding、fixed-size 垂直增长和 minimum height 由生产 `ArtifactActionPanel` 与测试共同读取，不读取状态或环境，也不得改变 utility 动作、44pt 命中高度、辅助语义、本地文件、Reduce Motion、runtime 或 verified 门禁。
 - `ModelUninstallConfirmationAccessibilityMetadata` 控制模型卸载确认弹层的辅助语义；它必须明确确认后才删除 App 托管 artifact/tokenizer 并停止部署，取消不会删除文件或停止部署，不删除系统 Files 中的原始文件，不下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁。
 - `ModelStatusBadgeAccessibilityMetadata` 控制模型页安装状态、artifact 状态和部署状态徽章辅助语义；它必须为 `StatusBadge`、`AvailabilityBadge` 和 `DeploymentBadge` 暴露 label/value/hint/input labels/identifier，并明确徽章只展示本地模型状态、不下载模型权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁。
 - `ModelDetailRowTextLayoutPolicy` 控制模型详情参数行、性能行和建议行的 Dynamic Type 文本策略；标题/数值/建议使用语义字体并允许多行，避免 iPad/Mac 窄 split view 和较大文字设置下通过固定小字号或缩放压缩文字，且不得改变行级辅助语义、模型详情列宽、模型选择/部署、模型文件或 runtime 状态流。

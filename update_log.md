@@ -4012,6 +4012,39 @@
 - 三份 `.xcresult` 的 `Info.plist` 均 `plutil -lint` 通过，版本均为 3.58 且 rootId 存在；`LocalGemma-build.xcresult`、`LocalGemma-maccatalyst-build.xcresult`、`LocalGemma-tests.xcresult` 的 Data/refs 分别为 `3/3`、`3/3`、`879/879`，hash 集合完全配对。tests bundle 的唯一零字节 data 节点有对应 refs，不影响 bundle 结构；build、Catalyst build 和 tests 三个结果包均存在。
 - 本轮未运行本地 `xcodebuild`、XCTest、Simulator、Mac Catalyst build/run、`xcresulttool` 或 ImageRenderer；仅使用 GitHub CLI/API 下载和读取云端结果包，并使用轻量文件/manifest/日志/Info.plist 结构核对。未下载模型权重、未执行真实模型推理、未调用云端推理。用户既有 `LocalGemma.xcodeproj/project.pbxproj` 修改保持未编辑、未暂存、未提交。
 
+### v2.79 / 模型文件 utility 动态排版
+
+日期：2026-08-23
+
+核心变更：
+
+- 基于已完成 v2.78 验收记录 commit `a474254f4d7252f6138c8c78ba9352bb89331204`，在 `ArtifactActionPanel` 附近新增无状态 `ModelArtifactUtilityTextLayoutPolicy`；它定义 utility label 的 2 行上限、1pt line spacing、10pt vertical padding、至少 44pt minimum height、多行能力和语义字体契约。
+- “扫描本地”和“导入文件”两个生产 `Label` 改用公开 `.footnote.weight(.bold)` 语义 Dynamic Type 字体，读取 policy 的 line limit、line spacing、fixed-size 垂直增长和 minimum height；`compactUtilityStyle()` 保留原有颜色、背景、描边、padding 和 plain button 行为，但移除固定 12pt 字体覆盖。
+- 保留 `ArtifactActionPanel`、两列 HStack、动作闭包、panel、独立 VoiceOver/Voice Control label/value/hint/input labels/identifier、扫描/Files 本地文件边界、44pt 触控目标、artifact validation、Reduce Motion、runtime 和 verified 门禁；不改 `AppState.swift`、文件导入、扫描、模型删除或状态层。
+- 新增 `testModelArtifactUtilityTextLayoutPolicySupportsDynamicTypeLabels`，真实测试函数数从 123 增至 124；测试锁住 policy 重复读取、scan/import 映射、辅助语义、missing/staged/verified runtime planner 门禁，并以真实 `ArtifactActionPanel` 的公开 `ImageRenderer` 覆盖 320/390/834/1200pt、亮暗主题和 `.large`/`.xxxLarge`/`.accessibility3`，只断言非空/正尺寸。
+
+关键文件：
+
+- `LocalGemma/ContentView.swift`
+- `LocalGemmaTests/LocalGemmaTests.swift`
+- `AGENTS.md`
+- `README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `update_log.md`
+- `md/prompt/v2（Mac体验审计）/v2.79（模型文件utility动作动态排版）.md`（保持未跟踪、未提交）
+
+当前验证状态：
+
+- 已确认本地 `main`、`origin/main` 和当前实现基线为 `a474254f4d7252f6138c8c78ba9352bb89331204`；`git fetch origin` 与 `git pull --ff-only origin main` 均无远端新增提交。用户保留的 `LocalGemma.xcodeproj/project.pbxproj` 修改未编辑、未格式化、未暂存、未提交。
+- 已通过 `git diff --check`、`grep -c "func test"`（结果 `124`）、Markdown fence 结构检查、`plutil -lint LocalGemma.xcodeproj/project.pbxproj`、Ruby workflow YAML 解析、`test -f`/`test -x`、`bash -n script/build_and_run.sh`、`xcrun swiftc -parse LocalGemma/ContentView.swift` 和 `LocalGemmaTests/LocalGemmaTests.swift`；Ruby 仅输出 PATH world-writable warning，解析结果为 `yaml ok`。
+- 本地未运行 `xcodebuild`、XCTest、Simulator、Mac Catalyst build/run 或视觉截图/ImageRenderer 验收；未下载模型权重、未执行真实推理、未调用云端推理。v2.79 实现 commit、云端 run、artifact、xcresult 和 Agent C 验收待本轮 push 后发生。
+
+遗留事项：
+
+- 等待 v2.79 实现提交触发最新 `main` GitHub Actions；完成后由 Agent C 只验收该 commit 对应的唯一 artifact，核对 124 项 XCTest、新 utility 测试、生产 ImageRenderer 矩阵、辅助语义、44pt、verified/runtime 门禁和三份 `.xcresult` 结构。
+
 ### v2.78 / 模型详情面板标题动态排版
 
 日期：2026-08-09

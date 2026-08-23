@@ -6097,10 +6097,14 @@ struct ArtifactActionPanel: View {
             HStack(spacing: 10) {
                 Button(action: scan) {
                     Label("扫描本地", systemImage: "folder.badge.gearshape")
+                        .font(.footnote.weight(.bold))
+                        .lineLimit(ModelArtifactUtilityTextLayoutPolicy.titleLineLimit)
+                        .lineSpacing(ModelArtifactUtilityTextLayoutPolicy.titleLineSpacing)
+                        .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity)
                 }
                 .compactUtilityStyle()
-                .frame(minHeight: ModelArtifactActionLayoutPolicy.utilityButtonMinHeight)
+                .frame(minHeight: ModelArtifactUtilityTextLayoutPolicy.minimumHeight)
                 .contentShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
                 .accessibilityLabel(
                     ModelDeploymentControlAccessibilityMetadata.artifactActionLabel(.scan)
@@ -6126,10 +6130,14 @@ struct ArtifactActionPanel: View {
 
                 Button(action: importFiles) {
                     Label("导入文件", systemImage: "square.and.arrow.down.fill")
+                        .font(.footnote.weight(.bold))
+                        .lineLimit(ModelArtifactUtilityTextLayoutPolicy.titleLineLimit)
+                        .lineSpacing(ModelArtifactUtilityTextLayoutPolicy.titleLineSpacing)
+                        .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity)
                 }
                 .compactUtilityStyle()
-                .frame(minHeight: ModelArtifactActionLayoutPolicy.utilityButtonMinHeight)
+                .frame(minHeight: ModelArtifactUtilityTextLayoutPolicy.minimumHeight)
                 .contentShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
                 .accessibilityLabel(
                     ModelDeploymentControlAccessibilityMetadata.artifactActionLabel(.importFiles)
@@ -6174,6 +6182,21 @@ enum ModelArtifactActionTextLayoutPolicy {
 
     static var allowsMultilineTitle: Bool { titleLineLimit > 1 }
     static var allowsMultilineSubtitle: Bool { subtitleLineLimit > 1 }
+}
+
+enum ModelArtifactUtilityTextLayoutPolicy {
+    static let titleLineLimit = 2
+    static let titleLineSpacing: CGFloat = 1
+    static let verticalPadding: CGFloat = 10
+    static let minimumHeight: CGFloat = ModelArtifactActionLayoutPolicy.utilityButtonMinHeight
+
+    static var allowsMultilineTitle: Bool {
+        titleLineLimit > 1
+    }
+
+    static var usesSemanticTitleFont: Bool {
+        true
+    }
 }
 
 struct ArtifactActionButton: View {
@@ -7637,9 +7660,8 @@ extension View {
 
     func compactUtilityStyle() -> some View {
         self
-            .font(.system(size: 12, weight: .bold))
             .foregroundStyle(Color.primary.opacity(0.86))
-            .padding(.vertical, 10)
+            .padding(.vertical, ModelArtifactUtilityTextLayoutPolicy.verticalPadding)
             .background(Color.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 11, style: .continuous)
