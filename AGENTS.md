@@ -4,7 +4,7 @@
 
 ## 1. 项目一句话总览
 
-`Local Gemma iOS Prototype` 是一个 SwiftUI iOS 原型 App，用本地模拟 runtime 验证 iPhone、iPad 与 Mac Catalyst build/run 基线下端侧部署 Gemma 1.5B 的产品交互、模型文件管理、artifact 校验、模型卸载确认弹层辅助语义、会话导出、导出会话正文动态排版、导出弹层分享/复制辅助语义、导出弹层分享/复制 44pt 触控目标、导出弹层整体宽屏内容宽度策略、大屏双栏布局、聊天工作区双侧栏宽度协调、聊天记录居中阅读轨道、短会话靠近 composer 的纵向定位、Mac/iPad 工作区与会话命令菜单、顶部模型胶囊整体辅助语义、模型概要面板与详情右栏/行级辅助语义、模型概要标签与校验摘要动态排版、模型详情面板标题动态排版、模型页整体宽屏内容宽度策略、模型详情右栏最大阅读宽度策略、模型文件工作流面板辅助语义、模型文件 utility 动作动态排版、工作区导航辅助语义、工作区导航 44pt 触控目标、共享 panel 内高光与分层阴影、头部主题与模型库入口辅助语义、全局 Header 图标动作 44pt 触控目标、Header 标题动态排版策略、设置页整体宽屏内容宽度策略、设置页图标动作 44pt 触控目标、设置偏好行响应式布局、会话栏操作辅助语义、会话栏操作 44pt 触控目标、会话 chip 动作语义、会话侧栏视觉层级、会话侧栏信息密度、会话侧栏宽度策略、聊天消息气泡与聊天记录容器辅助语义、单条消息复制与本地反馈、生成中状态脉冲指示、聊天气泡与 composer 宽屏输入宽度策略、composer 聚焦光环与发送按钮渐变、composer 发送/停止 44pt 触控目标、模型选择器、状态徽章与部署控件辅助语义、模型部署控件 44pt 触控目标、运行策略开关辅助语义、运行策略开关宽屏网格、运行策略开关行 44pt 触控目标、芯片准备度辅助语义与隐私状态动态摘要、优化指标卡辅助语义、优化指标卡文本动态排版策略、优化指标网格宽度策略、共享 SectionHeader 动态排版策略、提示词页整体宽屏内容宽度策略、提示词模板宽屏布局策略、提示词模板文本动态排版策略、提示词分类筛选换行布局策略、提示词分类文本动态排版策略、提示词筛选与模板动作辅助语义、提示词模板动作 44pt 触控目标、相册壁纸控件辅助语义和 Apple Silicon 运行计划；当前不下载模型权重，不执行真实模型推理，也没有原生 macOS target。
+`Local Gemma iOS Prototype` 是一个 SwiftUI iOS 原型 App，用本地模拟 runtime 验证 iPhone、iPad 与 Mac Catalyst build/run 基线下端侧部署 Gemma 1.5B 的产品交互、模型文件管理、artifact 校验、模型卸载确认弹层辅助语义、会话导出、导出会话正文动态排版、导出弹层分享/复制辅助语义、导出弹层分享/复制 44pt 触控目标、导出弹层整体宽屏内容宽度策略、大屏双栏布局、聊天工作区双侧栏宽度协调、聊天记录居中阅读轨道、短会话靠近 composer 的纵向定位、Mac/iPad 工作区与会话命令菜单、顶部模型胶囊整体辅助语义、模型概要面板与详情右栏/行级辅助语义、模型概要标签与校验摘要动态排版、取消生成占位生命周期、模型详情面板标题动态排版、模型页整体宽屏内容宽度策略、模型详情右栏最大阅读宽度策略、模型文件工作流面板辅助语义、模型文件 utility 动作动态排版、工作区导航辅助语义、工作区导航 44pt 触控目标、共享 panel 内高光与分层阴影、头部主题与模型库入口辅助语义、全局 Header 图标动作 44pt 触控目标、Header 标题动态排版策略、设置页整体宽屏内容宽度策略、设置页图标动作 44pt 触控目标、设置偏好行响应式布局、会话栏操作辅助语义、会话栏操作 44pt 触控目标、会话 chip 动作语义、会话侧栏视觉层级、会话侧栏信息密度、会话侧栏宽度策略、聊天消息气泡与聊天记录容器辅助语义、单条消息复制与本地反馈、生成中状态脉冲指示、聊天气泡与 composer 宽屏输入宽度策略、composer 聚焦光环与发送按钮渐变、composer 发送/停止 44pt 触控目标、模型选择器、状态徽章与部署控件辅助语义、模型部署控件 44pt 触控目标、运行策略开关辅助语义、运行策略开关宽屏网格、运行策略开关行 44pt 触控目标、芯片准备度辅助语义与隐私状态动态摘要、优化指标卡辅助语义、优化指标卡文本动态排版策略、优化指标网格宽度策略、共享 SectionHeader 动态排版策略、提示词页整体宽屏内容宽度策略、提示词模板宽屏布局策略、提示词模板文本动态排版策略、提示词分类筛选换行布局策略、提示词分类文本动态排版策略、提示词筛选与模板动作辅助语义、提示词模板动作 44pt 触控目标、相册壁纸控件辅助语义和 Apple Silicon 运行计划；当前不下载模型权重，不执行真实模型推理，也没有原生 macOS target。
 
 v2.64 起，顶部模型胶囊还包含窄侧栏响应式布局策略：sidebar 与窄 top header 使用堆叠概要，指标按可用宽度切换 1/2/3 列，`.xxxLarge` 及以上 Dynamic Type 固定回退单列。
 
@@ -388,6 +388,12 @@ v2.83 起，顶部 `ModelCapsule` 的 deployment 摘要由 `ContentView` 直接�
 v2.84 起，`ModelSummaryTextLayoutPolicy` 继续由 `ModelSummaryPanel` 的同一生产子树读取：名称/简介保持既有 5/2/4/2 契约，能力标签改用 semantic Dynamic Type 字体、最多 2 行、1pt line spacing、9/6pt padding 和垂直 fixed size；校验摘要改用 semantic Dynamic Type 字体、最多 3 行、1pt line spacing 和垂直 fixed size。能力标签使用 `theme.chipSurface` 背景、`theme.secondaryText` 前景与 `theme.subtleBorder` 描边，`FlowLayout` 仍使用 adaptive minimum 72pt 与 8pt 间距，不新增概要宽度断点、AnyLayout 或动作。
 
 概要仍保留 `.accessibilityElement(children: .ignore)` 和 `ModelSummaryAccessibilityMetadata` 的整体 label/value/hint/input labels/identifier；三态 validation 只展示本地 missing/staged/verified 状态，只有 verified 通过既有 runtime gate。v2.84 不改变外部 44pt action、Reduce Motion、模型文件、默认模拟 runtime、模型权重、网络、云端 inference 或 privacy 边界。
+
+## v2.85 当前边界补充
+
+v2.85 起，`ChatGenerationPlaceholderPresentationPolicy` 只根据 `ChatMessage`、`isGenerating` 和当前消息身份推导 `active`、`completed` 或 `cancelled`：只有当前最新的空 assistant 在生成中时显示既有 `GenerationIndicatorView` 并朗读“正在生成”；stop 后保留同一空 assistant 的 message ID、数组位置、session ID/title 和消息顺序，但呈现为静态 cancelled，不再显示圆点或 stale 生成辅助文案。非空 assistant、用户消息和系统消息不显示 generation indicator，复制 44pt、ChatMessage/ChatTranscript 稳定辅助语义、Reduce Motion、composer focus、streaming cadence、local runtime、artifact verified gate 和 privacy/cloud 边界均不变。
+
+`ChatBubble` 与 `ChatMessageAccessibilityMetadata`、`ChatTranscriptAccessibilityMetadata` 读取同一 policy 结果；`InferenceEngine.stop()` 无需新增状态字段或修改，因为既有 task cancellation + `isGenerating = false` 已提供足够的纯值输入，且不会删除/重建 placeholder。v2.85 只新增一个聚合 XCTest，源码函数基线由 129 增至 130；完整 build/test、Catalyst 和 ImageRenderer 仍只在 GitHub Actions 云端运行。
 
 ## 13. 禁止项
 

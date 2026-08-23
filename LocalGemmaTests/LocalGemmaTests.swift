@@ -2066,6 +2066,312 @@ final class LocalGemmaTests: XCTestCase {
         }
     }
 
+    func testStoppingInferenceDoesNotPresentStaleGenerationPlaceholder() {
+        let model = ModelCatalog.defaultModels[0]
+        let engine = InferenceEngine()
+        let initialSessionID = engine.activeSessionID
+        let initialMessageCount = engine.messages.count
+
+        engine.inputText = "验证停止后的空 assistant 占位"
+        engine.send(using: model, availability: .missing)
+
+        XCTAssertTrue(engine.isGenerating)
+        XCTAssertEqual(engine.messages.count, initialMessageCount + 2)
+        let beforeStopSessionTitle = engine.activeSessionTitle
+        let beforeStopMessages = engine.messages
+        let beforeStopIDs = beforeStopMessages.map(\.id)
+        let beforeStopRoles = beforeStopMessages.map(\.role)
+        let beforeStopSessionMessages = engine.activeSession?.messages ?? []
+        guard let placeholderBeforeStop = beforeStopMessages.last,
+              placeholderBeforeStop.role == .assistant else {
+            return XCTFail("send should append an assistant placeholder")
+        }
+
+        let placeholderID = placeholderBeforeStop.id
+        engine.stop()
+
+        XCTAssertFalse(engine.isGenerating)
+        XCTAssertEqual(engine.messages.count, beforeStopMessages.count)
+        XCTAssertEqual(engine.messages.map(\.id), beforeStopIDs)
+        XCTAssertEqual(engine.messages.map(\.role), beforeStopRoles)
+        guard let stoppedPlaceholder = engine.messages.last else {
+            return XCTFail("stop should preserve the assistant placeholder")
+        }
+        XCTAssertEqual(stoppedPlaceholder.id, placeholderID)
+        XCTAssertEqual(stoppedPlaceholder.text, "")
+        XCTAssertEqual(engine.activeSessionID, initialSessionID)
+        XCTAssertEqual(engine.activeSessionTitle, beforeStopSessionTitle)
+        XCTAssertEqual(engine.activeSession?.messages ?? [], beforeStopSessionMessages)
+
+        let stoppedPresentation = ChatGenerationPlaceholderPresentationPolicy.resolve(
+            message: stoppedPlaceholder,
+            isGenerating: engine.isGenerating,
+            isLatestMessage: true
+        )
+        XCTAssertEqual(stoppedPresentation, .cancelled)
+        XCTAssertFalse(
+            ChatGenerationPlaceholderPresentationPolicy.showsIndicator(
+                for: stoppedPresentation
+            )
+        )
+
+        let stoppedValue = ChatMessageAccessibilityMetadata.value(
+            for: stoppedPlaceholder,
+            placeholderPresentation: stoppedPresentation
+        )
+        XCTAssertTrue(stoppedValue.contains("已停止生成，未产生消息正文"))
+        XCTAssertFalse(stoppedValue.contains("正在生成，本地模型正在写入模拟输出"))
+        XCTAssertFalse(
+            ChatTranscriptAccessibilityMetadata.value(
+                for: engine.messages,
+                isGenerating: false
+            ).contains("正在生成，本地模型正在写入模拟输出")
+        )
+
+        let activeMessage = ChatMessage(
+            role: .assistant,
+            text: "",
+            tokens: 0
+        )
+        let activePresentation = ChatGenerationPlaceholderPresentationPolicy.resolve(
+            message: activeMessage,
+            isGenerating: true,
+            isLatestMessage: true
+        )
+        XCTAssertEqual(activePresentation, .active)
+        XCTAssertTrue(
+            ChatGenerationPlaceholderPresentationPolicy.showsIndicator(
+                for: activePresentation
+            )
+        )
+        let activeValue = ChatMessageAccessibilityMetadata.value(
+            for: activeMessage,
+            placeholderPresentation: activePresentation
+        )
+        XCTAssertTrue(activeValue.contains("正在生成，本地模型正在写入模拟输出"))
+
+        let completedMessage = ChatMessage(
+            role: .assistant,
+            text: "保留已经生成的正文",
+            tokens: 8
+        )
+        let completedPresentation = ChatGenerationPlaceholderPresentationPolicy.resolve(
+            message: completedMessage,
+            isGenerating: false,
+            isLatestMessage: true
+        )
+        XCTAssertEqual(completedPresentation, .completed)
+        XCTAssertFalse(
+            ChatGenerationPlaceholderPresentationPolicy.showsIndicator(
+                for: completedPresentation
+            )
+        )
+        XCTAssertEqual(
+            ChatMessageAccessibilityMetadata.spokenText(
+                for: completedMessage,
+                placeholderPresentation: completedPresentation
+            ),
+            completedMessage.text
+        )
+        XCTAssertTrue(ChatMessageCopyActionPolicy.canCopy(completedMessage, isGenerating: false))
+
+        let emptyUser = ChatMessage(role: .user, text: "", tokens: 0)
+        let emptySystem = ChatMessage(role: .system, text: "\n", tokens: 0)
+        for message in [emptyUser, emptySystem] {
+            let presentation = ChatGenerationPlaceholderPresentationPolicy.resolve(
+                message: message,
+                isGenerating: true,
+                isLatestMessage: true
+            )
+            XCTAssertEqual(presentation, .completed)
+            XCTAssertFalse(
+                ChatGenerationPlaceholderPresentationPolicy.showsIndicator(for: presentation)
+            )
+            XCTAssertFalse(
+                ChatMessageAccessibilityMetadata.spokenText(
+                    for: message,
+                    placeholderPresentation: presentation
+                ).contains("正在生成")
+            )
+        }
+
+        XCTAssertEqual(
+            ChatGenerationPlaceholderPresentationPolicy.resolve(
+                message: activeMessage,
+                isGenerating: true,
+                isLatestMessage: false
+            ),
+            .cancelled
+        )
+        XCTAssertEqual(
+            ChatGenerationPlaceholderPresentationPolicy.resolve(
+                message: activeMessage,
+                isGenerating: true,
+                isLatestMessage: true
+            ),
+            ChatGenerationPlaceholderPresentationPolicy.resolve(
+                message: activeMessage,
+                isGenerating: true,
+                isLatestMessage: true
+            )
+        )
+        XCTAssertEqual(
+            ChatMessageAccessibilityMetadata.label(for: activeMessage),
+            "本地模型消息"
+        )
+        XCTAssertEqual(
+            ChatMessageAccessibilityMetadata.hint,
+            "只展示本地会话内容；不会下载模型权重，不会启动真实 runtime，不会发送到云端服务，也不会绕过 artifact verified 门禁。"
+        )
+        let placeholderIDPrefix = String(placeholderBeforeStop.id.uuidString.prefix(8)).lowercased()
+        XCTAssertEqual(
+            ChatMessageAccessibilityMetadata.inputLabels(for: placeholderBeforeStop),
+            ["本地模型消息", "查看本地模型消息", "消息 \(placeholderIDPrefix)"]
+        )
+        XCTAssertEqual(
+            ChatMessageAccessibilityMetadata.identifier(for: placeholderBeforeStop),
+            "chat-message-assistant-\(placeholderIDPrefix)"
+        )
+        XCTAssertEqual(ChatMessageCopyActionPolicy.actionButtonSize, 44)
+        XCTAssertFalse(ChatMessageCopyActionPolicy.canCopy(placeholderBeforeStop, isGenerating: false))
+
+        engine.stop()
+        engine.stop()
+        XCTAssertEqual(engine.messages.map(\.id), beforeStopIDs)
+
+        engine.inputText = "验证下一轮发送隔离旧占位"
+        engine.send(using: model, availability: .missing)
+        guard let nextPlaceholder = engine.messages.last,
+              nextPlaceholder.role == .assistant else {
+            return XCTFail("a new send should append a new assistant placeholder")
+        }
+        XCTAssertNotEqual(nextPlaceholder.id, placeholderID)
+        guard engine.messages.indices.contains(beforeStopMessages.count - 1) else {
+            return XCTFail("the first assistant placeholder position should remain addressable")
+        }
+        XCTAssertEqual(engine.messages[beforeStopMessages.count - 1].id, placeholderID)
+        XCTAssertEqual(engine.messages[beforeStopMessages.count - 1].role, .assistant)
+        XCTAssertEqual(engine.messages.count, beforeStopMessages.count + 2)
+        XCTAssertTrue(engine.isGenerating)
+        XCTAssertEqual(
+            ChatGenerationPlaceholderPresentationPolicy.resolve(
+                message: nextPlaceholder,
+                isGenerating: true,
+                isLatestMessage: true
+            ),
+            .active
+        )
+        engine.stop()
+        engine.resetConversation()
+        XCTAssertEqual(engine.messages.count, 2)
+        XCTAssertFalse(engine.isGenerating)
+        engine.resetConversation()
+        XCTAssertEqual(engine.messages.count, 2)
+        XCTAssertFalse(engine.isGenerating)
+
+        XCTAssertEqual(
+            ChatMessageAccessibilityMetadata.hint,
+            "只展示本地会话内容；不会下载模型权重，不会启动真实 runtime，不会发送到云端服务，也不会绕过 artifact verified 门禁。"
+        )
+        XCTAssertEqual(AppMotionEffect.allCases.count, 5)
+        XCTAssertEqual(GenerationIndicatorStylePolicy.dotCount, 3)
+        XCTAssertEqual(GenerationIndicatorStylePolicy.dotDiameter, 5)
+        XCTAssertEqual(GenerationIndicatorStylePolicy.dotSpacing, 4)
+        XCTAssertEqual(GenerationIndicatorStylePolicy.minOpacity, 0.35)
+        XCTAssertEqual(GenerationIndicatorStylePolicy.maxOpacity, 1.0)
+        XCTAssertEqual(GenerationIndicatorStylePolicy.pulseDuration, 0.9)
+        XCTAssertEqual(GenerationIndicatorStylePolicy.phaseDelay, 0.15)
+        XCTAssertFalse(GenerationIndicatorStylePolicy.isAnimated(reduceMotion: true))
+        XCTAssertEqual(GenerationIndicatorStylePolicy.staticOpacity(forDotIndex: 0), 0.35)
+        XCTAssertEqual(GenerationIndicatorStylePolicy.staticOpacity(forDotIndex: 1), 0.65)
+        XCTAssertEqual(GenerationIndicatorStylePolicy.staticOpacity(forDotIndex: 2), 1.0)
+
+        XCTAssertEqual(ChatTranscriptTrackLayoutPolicy.contentWidth(forContainerWidth: 390), 354)
+        XCTAssertEqual(ChatTranscriptTrackLayoutPolicy.contentWidth(forContainerWidth: 1_200), 920)
+        XCTAssertFalse(
+            ChatTranscriptVerticalLayoutPolicy.resolve(
+                viewportHeight: 600,
+                messageCount: 0
+            ).anchorsContentToBottom
+        )
+        XCTAssertTrue(
+            ChatTranscriptVerticalLayoutPolicy.resolve(
+                viewportHeight: 600,
+                messageCount: 1
+            ).anchorsContentToBottom
+        )
+        XCTAssertEqual(
+            ChatWorkspacePaneLayoutPolicy.resolve(for: CGSize(width: 859, height: 700)).mode,
+            .stacked
+        )
+        XCTAssertEqual(
+            ChatWorkspacePaneLayoutPolicy.resolve(for: CGSize(width: 860, height: 700)).mode,
+            .split
+        )
+        XCTAssertEqual(SessionSidebarLayoutPolicy.minimumWidth, 240)
+        XCTAssertEqual(SessionSidebarLayoutPolicy.maximumWidth, 310)
+        XCTAssertEqual(ComposerBarLayoutPolicy.minimumReadableWidth, 320)
+        XCTAssertEqual(ComposerBarLayoutPolicy.maximumContentWidth, 760)
+        XCTAssertEqual(ChatBubbleLayoutPolicy.minimumReadableWidth, 280)
+        XCTAssertEqual(ChatBubbleLayoutPolicy.maximumUserWidth, 520)
+        XCTAssertEqual(ChatBubbleLayoutPolicy.maximumAssistantWidth, 680)
+        XCTAssertEqual(ChatBubbleLayoutPolicy.maximumSystemWidth, 600)
+
+        let focusRequest = ComposerFocusRequest.initial.next(for: .selectSession)
+        XCTAssertTrue(ComposerFocusPolicy.shouldFocus(isChatActive: true, request: focusRequest))
+        XCTAssertFalse(ComposerFocusPolicy.shouldFocus(isChatActive: false, request: focusRequest))
+
+        for availability in [ArtifactAvailability.missing, .staged, .verified] {
+            let report = LocalRuntimePlanner.preparationReport(
+                for: model,
+                availability: availability
+            )
+            XCTAssertEqual(report.canRunRealWeights, availability == .verified)
+            XCTAssertFalse(report.networkDownloadAllowed)
+        }
+
+        let renderCases: [(message: ChatMessage, isGenerating: Bool)] = [
+            (activeMessage, true),
+            (stoppedPlaceholder, false),
+            (completedMessage, false),
+            (emptyUser, false),
+            (emptySystem, false)
+        ]
+        for width in [CGFloat(320), 390, 834, 1_200] {
+            for themeMode in AppThemeMode.allCases {
+                for dynamicTypeSize in [
+                    DynamicTypeSize.large,
+                    .xxxLarge,
+                    .accessibility3,
+                    .accessibility5
+                ] {
+                    for renderCase in renderCases {
+                        let renderer = ImageRenderer(
+                            content: ChatBubble(
+                                message: renderCase.message,
+                                availableWidth: width,
+                                isGenerating: renderCase.isGenerating
+                            )
+                            .environment(\.appTheme, AppThemePalette(mode: themeMode))
+                            .environment(\.colorScheme, themeMode.colorScheme)
+                            .environment(\.dynamicTypeSize, dynamicTypeSize)
+                            .frame(width: width)
+                        )
+                        renderer.scale = 1
+
+                        let image = renderer.uiImage
+                        XCTAssertNotNil(image)
+                        XCTAssertTrue(image?.size.width.isFinite ?? false)
+                        XCTAssertTrue(image?.size.height.isFinite ?? false)
+                        XCTAssertEqual(image?.size.width ?? 0, width, accuracy: 1)
+                        XCTAssertGreaterThan(image?.size.width ?? 0, 0)
+                        XCTAssertGreaterThan(image?.size.height ?? 0, 0)
+                    }
+                }
+            }
+        }
+    }
+
     func testComposerBarLayoutPolicyConstrainsWideComposerInput() {
         XCTAssertEqual(ComposerBarLayoutPolicy.horizontalPadding, 18)
         XCTAssertEqual(ComposerBarLayoutPolicy.bottomPadding, 12)

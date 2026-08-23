@@ -421,7 +421,17 @@ xcodebuild -project LocalGemma.xcodeproj \
 当前基线：
 
 - 期望结果：`TEST EXECUTE SUCCEEDED`。
-- 当前测试函数数：129（v2.84 Agent B implementation baseline；run `32649219866` 已由 Agent C 验收通过）。
+- 当前测试函数数：130（v2.85 Agent B implementation baseline；以 `grep -c '^[[:space:]]*func test' LocalGemmaTests/LocalGemmaTests.swift` 为准，本轮云端结果待 push 后由 Agent C 验收）。
+
+### v2.85 / 取消生成占位生命周期
+
+唯一新增聚合测试为 `testStoppingInferenceDoesNotPresentStaleGenerationPlaceholder`，源码函数数从 129 增至 130。测试先通过公开 `InferenceEngine.send(using:availability:)` 建立真实 assistant placeholder，再立即 stop；断言 stop 前后消息 ID、数组位置、角色顺序、active session ID/title 和 session messages 保持不变，placeholder 仍为空且 `isGenerating == false`，重复 stop 不增加消息，下一轮 send 使用新的 assistant ID 并保留旧 placeholder 位置。测试不等待流式 cadence、不依赖时间/随机值、不添加测试钩子。
+
+同一测试锁住无状态 `ChatGenerationPlaceholderPresentationPolicy`：最新空 assistant + active generation 为 `active`、显示 `GenerationIndicatorView` 且辅助 value 含既有“正在生成”文案；stop 后为 `cancelled`、无指示器且 metadata/`ChatTranscriptAccessibilityMetadata` 不含 stale 生成文案；非空 assistant 为 `completed`，用户/系统空消息不显示 generation indicator，历史空 assistant 不能 active。它同时回归 `ChatMessageAccessibilityMetadata` 的稳定 label/hint/input labels/identifier、本地隐私与 verified 文案、空正文复制门禁和 44pt copy target、`GenerationIndicatorStylePolicy`/Reduce Motion、5 个 `AppMotionEffect`、transcript/bubble/composer/layout 常量以及 missing/staged/verified runtime gate。
+
+测试还直接渲染真实生产 `ChatBubble(message:availableWidth:isGenerating:)`，公开 `ImageRenderer` 覆盖 `320/390/834/1200pt`、light/dark、`.large`/`.xxxLarge`/`.accessibility3`/`.accessibility5` 和 active/cancelled/completed/user/system 五类输入；每项只断言图像非空、尺寸 finite/positive 和 wrapper 宽度误差不超过 1pt，不使用私有 SwiftUI tree、UIKit accessibility tree、像素/颜色采样或截图快照。完整 iOS build-for-testing、XCTest、Mac Catalyst build-for-testing、LogicSmoke、run-script contract 和结果包仍只由 GitHub Actions 执行；本地只允许轻量 diff/parse/plist/YAML/脚本检查。
+
+本轮未修改 `InferenceEngine.stop()`、工程文件、workflow、模型文件或历史 prompt；无模型下载、无云端 inference。云端 run、JUnit、三份 `.xcresult`、manifest/artifact identity 和 Agent C 独立结果包验收在 push 后补录，未在本轮实现前置写入。
 
 ### v2.83 / 顶部模型胶囊部署状态与徽章可读性
 

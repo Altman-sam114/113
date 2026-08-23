@@ -1,6 +1,6 @@
 # Local Gemma iOS Prototype
 
-一个 SwiftUI iOS 原型 App，主打 iPhone、iPad 与 Mac Catalyst 构建/本地运行基线下部署 Gemma 1.5B 的产品形态。当前版本不下载模型权重，使用本地模拟推理引擎验证 UI、模型管理、流式输出、停止生成和苹果芯片部署优化面板。
+一个 SwiftUI iOS 原型 App，主打 iPhone、iPad 与 Mac Catalyst 构建/本地运行基线下部署 Gemma 1.5B 的产品形态。当前版本不下载模型权重，使用本地模拟推理引擎验证 UI、模型管理、流式输出、停止生成占位生命周期和苹果芯片部署优化面板。
 
 ## 当前范围
 
@@ -113,6 +113,12 @@
 - 唯一 artifact 为 `localgemma-ci-v2.84-main-aa68e1c-run32649219866-attempt1`（ID `9495868226`，size `79,490,132` bytes），GitHub API digest 为 `sha256:4b52870abac765cd0ab07c9e94d69cccd57bc2be28d03cf1a5ffbd351851c284`；artifact name 与 `artifact-name.txt`、manifest 完全一致。static、LogicSmoke、iOS build-for-testing、XCTest、Mac Catalyst build-for-testing、Mac Catalyst run-script contract 全部 success；JUnit 为 `tests=7`、`failures=0`、`errors=0`、`skipped=1`，唯一 skip 是可选 `codexRunEnvironment`，原因为 `not-added-in-v1.0-cli-entrypoint-only`。
 - 云端 `test.log` 有 `129` 条 passed、`0` 条 failed，并出现一次 `** TEST EXECUTE SUCCEEDED **`；新增 `testModelSummaryPanelTextLayoutPolicySupportsDynamicTypeAndThemeSurface()` 恰一次且 Passed。结构化 `LocalGemma-tests.xcresult` 为 `129/129`，无 duplicate、Failure 或 Unknown；iOS build、Mac Catalyst build、XCTest 三份 `.xcresult` 的 Data/refs 分别为 `3/3`、`3/3`、`922/922`，rootId 均在对应 Data 和 refs 中，root action status 均 succeeded。
 - Mac 结果是既有 iOS target 的 Mac Catalyst build-for-testing，不是原生 macOS target；artifact 未发现模型权重、tokenizer、GGUF、Core ML 模型、截图或视频。Agent C 未运行本地 Xcode、build 或 XCTest；本地也未执行完整构建/测试。
+
+### v2.85 / 取消生成占位生命周期
+
+- 新增无状态 `ChatGenerationPlaceholderPresentationPolicy`，只有最新的空 assistant 且 `isGenerating == true` 时呈现既有生成指示器；stop 后同一空 assistant 保留原始 message ID、数组位置、session ID/title 和消息顺序，但进入静态 cancelled presentation，不再显示圆点或向辅助技术朗读 stale “正在生成”文案。非空 assistant、用户消息和系统状态消息保持既有正文、角色、复制和辅助语义。
+- `ChatBubble`、`ChatMessageAccessibilityMetadata` 与 `ChatTranscriptAccessibilityMetadata` 共用同一 presentation 结果；未改 `InferenceEngine.stop()`，因为既有 task cancellation 和 `isGenerating = false` 已足以推导 cancelled，避免增加状态字段、异步竞态或改变 streaming cadence。复制 44pt、Reduce Motion、composer focus、local runtime、verified gate 和 cloud/privacy 边界保持不变。
+- 唯一新增聚合测试为 `testStoppingInferenceDoesNotPresentStaleGenerationPlaceholder`，源码测试函数数从 129 增至 130；测试包含 stop 前后 ID/order/session/title、空文本竞态、新一轮 placeholder 隔离、纯值 metadata/copy/motion/layout/runtime gate 回归，以及真实 `ChatBubble` 的公开 `ImageRenderer` 矩阵。当前仅完成轻量检查，未运行本地完整 build/test、Simulator、Catalyst 或 ImageRenderer；本轮 GitHub Actions 云端结果待 push 后确认。
 
 ## 运行方式
 

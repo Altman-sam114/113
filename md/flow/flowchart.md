@@ -203,7 +203,30 @@ flowchart LR
     L --> Q
 ```
 
-## 7.2 v2.84 模型概要标签与校验摘要动态排版流
+## 7.2 v2.85 取消生成占位生命周期流
+
+读图说明：这张图只描述本地模拟生成的空 assistant placeholder 在 active 与 stop 后 cancelled 两个呈现状态之间的差异。stop 不删除消息、不替换 UUID、不重排 session；视觉 indicator 与 VoiceOver value 必须由同一无状态 policy 决定。
+
+```mermaid
+flowchart LR
+    A[InferenceEngine.send] --> B[追加 user + 空 assistant placeholder]
+    B --> C[syncActiveSession<br/>保留 session ID/title 与消息顺序]
+    C --> D[ChatWorkspace<br/>messages + isGenerating]
+    D --> E[ChatTranscript<br/>latest assistant + isGenerating]
+    E --> F{ChatGenerationPlaceholderPresentationPolicy}
+    F -->|active| G[空 assistant<br/>GenerationIndicatorView<br/>VoiceOver 正在生成]
+    F -->|completed| H[非空 assistant<br/>正文/原有 copy metadata]
+    F -->|cancelled| I[stop 后空 assistant<br/>隐藏 indicator<br/>VoiceOver 已停止/无正文]
+    J[InferenceEngine.stop<br/>cancel task + isGenerating=false] --> F
+    G --> K[ChatMessageAccessibilityMetadata]
+    I --> K
+    H --> K
+    K --> L[稳定 role/hint/input labels/identifier<br/>本地 privacy + verified gate]
+    I -. 保留同一 message ID/order .-> C
+    L -. 不改变 copy 44pt / Reduce Motion / composer focus .-> M[既有 UI 状态边界]
+```
+
+## 7.3 v2.84 模型概要标签与校验摘要动态排版流
 
 读图说明：这张图只描述模型页概要的本地只读排版链路。`validation.summary` 和能力标签来自同一个本地 `model + validation` 输入；policy 只提供静态文字契约，verified 门禁、整体辅助语义和外部动作保持既有边界。
 

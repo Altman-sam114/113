@@ -4012,6 +4012,33 @@
 - 三份 `.xcresult` 的 `Info.plist` 均 `plutil -lint` 通过，版本均为 3.58 且 rootId 存在；`LocalGemma-build.xcresult`、`LocalGemma-maccatalyst-build.xcresult`、`LocalGemma-tests.xcresult` 的 Data/refs 分别为 `3/3`、`3/3`、`879/879`，hash 集合完全配对。tests bundle 的唯一零字节 data 节点有对应 refs，不影响 bundle 结构；build、Catalyst build 和 tests 三个结果包均存在。
 - 本轮未运行本地 `xcodebuild`、XCTest、Simulator、Mac Catalyst build/run、`xcresulttool` 或 ImageRenderer；仅使用 GitHub CLI/API 下载和读取云端结果包，并使用轻量文件/manifest/日志/Info.plist 结构核对。未下载模型权重、未执行真实模型推理、未调用云端推理。用户既有 `LocalGemma.xcodeproj/project.pbxproj` 修改保持未编辑、未暂存、未提交。
 
+### v2.85 / 取消生成占位生命周期
+
+日期：2026-08-24
+
+核心变更：
+
+- 基于重新核对的 `main`/`origin/main` `1f7b41a` 实现空 assistant placeholder 生命周期修复。新增无状态 `ChatGenerationPlaceholderPresentationPolicy`，只有最新空 assistant 且 `isGenerating == true` 时为 `active`；非空 assistant 为 `completed`；stop 后或非最新空 assistant 为 `cancelled`。`ChatBubble` 只在 active 时渲染既有 `GenerationIndicatorView`，cancelled 空正文隐藏指示器。
+- `ChatMessageAccessibilityMetadata` 与 `ChatTranscriptAccessibilityMetadata` 读取同一 presentation：active 保留既有“正在生成，本地模型正在写入模拟输出”，cancelled 返回“已停止生成，未产生消息正文”，非空/用户/系统消息保持原有语义。未改 `InferenceEngine.stop()`，因为既有 task cancellation + `isGenerating = false` 已是足够的纯值输入。
+- stop 后保留 placeholder 原始 message ID、数组位置、角色顺序、active session ID/title 和 session messages；不改变 streaming cadence、正常完成路径、复制 44pt、Reduce Motion、composer focus、runtime、verified gate 或隐私/cloud 边界。新增唯一聚合 `testStoppingInferenceDoesNotPresentStaleGenerationPlaceholder`，源码测试函数从 129 增至 130；测试包含首轮 stop 后空文本竞态、发送后标题保持、旧 placeholder 按原位置保留和新一轮 assistant UUID 隔离。
+
+关键文件：
+
+- `LocalGemma/ContentView.swift`
+- `LocalGemmaTests/LocalGemmaTests.swift`
+- `AGENTS.md`
+- `README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `update_log.md`
+
+当前验证状态：
+
+- 已执行 `git fetch origin`、`git switch main`、`git pull --ff-only origin main`；当前 `main` 与 `origin/main` 均为 `1f7b41a`。用户 dirty `LocalGemma.xcodeproj/project.pbxproj` 与未跟踪 v2.79/v2.83/v2.84/v2.85 prompt 均未编辑、未暂存、未提交。
+- 轻量检查均通过：`git diff --check`；`grep -c '^[[:space:]]*func test' LocalGemmaTests/LocalGemmaTests.swift` 输出 `130`；`rg` 确认 policy、ChatBubble、ChatTranscript 和 metadata 共享调用链；`plutil -lint LocalGemma.xcodeproj/project.pbxproj` 输出 `OK`；Ruby workflow YAML 输出 `yaml ok`（仅有既有 PATH world-writable warning）；脚本存在、可执行且 `bash -n` 通过；`xcrun swiftc -parse LocalGemma/ContentView.swift` 与 `LocalGemmaTests/LocalGemmaTests.swift` 均成功。
+- 未运行本地完整 `xcodebuild`、XCTest、Simulator、Mac Catalyst build/run 或 ImageRenderer 视觉验收；未下载模型权重、未执行真实推理、未调用云端 inference。v2.85 GitHub Actions run、artifact、JUnit、三份 `.xcresult` 和 Agent C 独立验收待本轮 push 后记录。
+
 ### v2.84 / 模型概要标签与校验摘要动态排版
 
 日期：2026-08-23

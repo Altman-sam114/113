@@ -2115,6 +2115,38 @@ enum SessionChipActionAccessibilityMetadata {
     }
 }
 
+enum ChatGenerationPlaceholderPresentation: Equatable {
+    case active
+    case completed
+    case cancelled
+}
+
+enum ChatGenerationPlaceholderPresentationPolicy {
+    static func resolve(
+        message: ChatMessage,
+        isGenerating: Bool,
+        isLatestMessage: Bool = true
+    ) -> ChatGenerationPlaceholderPresentation {
+        let isEmpty = message.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+
+        guard message.role == .assistant else {
+            return .completed
+        }
+
+        guard isEmpty else {
+            return .completed
+        }
+
+        return isGenerating && isLatestMessage ? .active : .cancelled
+    }
+
+    static func showsIndicator(
+        for presentation: ChatGenerationPlaceholderPresentation
+    ) -> Bool {
+        presentation == .active
+    }
+}
+
 enum ChatMessageAccessibilityMetadata {
     static let hint = "只展示本地会话内容；不会下载模型权重，不会启动真实 runtime，不会发送到云端服务，也不会绕过 artifact verified 门禁。"
 
@@ -2123,7 +2155,14 @@ enum ChatMessageAccessibilityMetadata {
     }
 
     static func value(for message: ChatMessage) -> String {
-        "\(spokenText(for: message))。\(message.tokens) tokens。本地会话消息。"
+        value(for: message, placeholderPresentation: .active)
+    }
+
+    static func value(
+        for message: ChatMessage,
+        placeholderPresentation: ChatGenerationPlaceholderPresentation
+    ) -> String {
+        "\(spokenText(for: message, placeholderPresentation: placeholderPresentation))。\(message.tokens) tokens。本地会话消息。"
     }
 
     static func inputLabels(for message: ChatMessage) -> [String] {
@@ -2150,11 +2189,25 @@ enum ChatMessageAccessibilityMetadata {
     }
 
     static func spokenText(for message: ChatMessage) -> String {
+        spokenText(for: message, placeholderPresentation: .active)
+    }
+
+    static func spokenText(
+        for message: ChatMessage,
+        placeholderPresentation: ChatGenerationPlaceholderPresentation
+    ) -> String {
         let trimmedText = message.text.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmedText.isEmpty {
             switch message.role {
             case .assistant:
-                return "正在生成，本地模型正在写入模拟输出"
+                switch placeholderPresentation {
+                case .active:
+                    return "正在生成，本地模型正在写入模拟输出"
+                case .completed:
+                    return "没有消息正文"
+                case .cancelled:
+                    return "已停止生成，未产生消息正文"
+                }
             case .user:
                 return "空白用户消息"
             case .system:
@@ -2230,12 +2283,24 @@ enum ChatTranscriptAccessibilityMetadata {
     static let identifier = "chat-transcript"
 
     static func value(for messages: [ChatMessage]) -> String {
+        value(for: messages, isGenerating: true)
+    }
+
+    static func value(for messages: [ChatMessage], isGenerating: Bool) -> String {
         guard let latestMessage = messages.last else {
             return "空聊天记录，当前没有本地会话消息。"
         }
 
         let roleTitle = ChatMessageAccessibilityMetadata.roleTitle(for: latestMessage.role)
-        let spokenText = ChatMessageAccessibilityMetadata.spokenText(for: latestMessage)
+        let placeholderPresentation = ChatGenerationPlaceholderPresentationPolicy.resolve(
+            message: latestMessage,
+            isGenerating: isGenerating,
+            isLatestMessage: true
+        )
+        let spokenText = ChatMessageAccessibilityMetadata.spokenText(
+            for: latestMessage,
+            placeholderPresentation: placeholderPresentation
+        )
         return "聊天记录包含 \(messages.count) 条本地会话消息。最新\(roleTitle)：\(spokenText)。"
     }
 }
@@ -4422,7 +4487,12 @@ struct ChatTranscript: View {
                 .scrollIndicators(.hidden)
                 .accessibilityElement(children: .contain)
                 .accessibilityLabel(ChatTranscriptAccessibilityMetadata.label)
-                .accessibilityValue(ChatTranscriptAccessibilityMetadata.value(for: messages))
+                .accessibilityValue(
+                    ChatTranscriptAccessibilityMetadata.value(
+                        for: messages,
+                        isGenerating: isGenerating
+                    )
+                )
                 .accessibilityHint(ChatTranscriptAccessibilityMetadata.hint)
                 .accessibilityInputLabels(ChatTranscriptAccessibilityMetadata.inputLabels)
                 .accessibilityIdentifier(ChatTranscriptAccessibilityMetadata.identifier)
@@ -4768,6 +4838,10 @@ struct ChatBubble: View {
 
     var body: some View {
         let textLayoutPlan = ChatBubbleTextLayoutPolicy.resolve(dynamicTypeSize: dynamicTypeSize)
+        let placeholderPresentation = ChatGenerationPlaceholderPresentationPolicy.resolve(
+            message: message,
+            isGenerating: isGenerating
+        )
 
         HStack(alignment: .bottom, spacing: textLayoutPlan.horizontalSpacing) {
             if message.role == .user {
@@ -4787,8 +4861,12 @@ struct ChatBubble: View {
                         .lineLimit(textLayoutPlan.roleLineLimit)
                         .fixedSize(horizontal: false, vertical: true)
 
-                    if message.text.isEmpty {
-                        GenerationIndicatorView(reduceMotion: reduceMotion)
+                    if message.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        if ChatGenerationPlaceholderPresentationPolicy.showsIndicator(
+                            for: placeholderPresentation
+                        ) {
+                            GenerationIndicatorView(reduceMotion: reduceMotion)
+                        }
                     } else {
                         Text(message.text)
                             .font(.body.weight(.medium))
@@ -4800,7 +4878,12 @@ struct ChatBubble: View {
                 }
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(ChatMessageAccessibilityMetadata.label(for: message))
-                .accessibilityValue(ChatMessageAccessibilityMetadata.value(for: message))
+                .accessibilityValue(
+                    ChatMessageAccessibilityMetadata.value(
+                        for: message,
+                        placeholderPresentation: placeholderPresentation
+                    )
+                )
                 .accessibilityHint(ChatMessageAccessibilityMetadata.hint)
                 .accessibilityInputLabels(ChatMessageAccessibilityMetadata.inputLabels(for: message))
                 .accessibilityIdentifier(ChatMessageAccessibilityMetadata.identifier(for: message))

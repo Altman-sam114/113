@@ -1,6 +1,6 @@
 # 项目核心流程文档
 
-一句话总览：本项目是一个 SwiftUI iOS 原型，通过本地模拟 runtime 和严格 artifact 校验流程，验证 iPhone、iPad 与 Mac Catalyst build/run 基线下端侧部署 Gemma 1.5B 的 UI、状态管理、文件导入、模型卸载确认弹层辅助语义、模型文件 utility 动态排版、会话导出、导出会话正文动态排版、导出弹层分享/复制辅助语义、导出弹层分享/复制 44pt 触控目标、导出弹层整体宽屏内容宽度策略、顶部模型胶囊整体辅助语义、模型概要面板与详情右栏/行级辅助语义、模型概要标签与校验摘要动态排版、模型详情行窄宽堆叠布局、模型页整体宽屏内容宽度策略、模型详情右栏最大阅读宽度策略、模型文件工作流面板辅助语义、模型部署控件 44pt 触控目标、模型状态徽章辅助语义、全局 Header 图标动作 44pt 触控目标、Header 标题动态排版策略、设置页整体宽屏内容宽度策略、设置页图标动作 44pt 触控目标、设置偏好行响应式布局、会话栏操作 44pt 触控目标、会话 chip 动作语义、会话侧栏视觉层级、会话侧栏信息密度、聊天消息气泡与聊天记录容器辅助语义、单条消息复制与本地反馈、生成中状态脉冲指示、聊天记录居中阅读轨道、聊天气泡与 composer 宽屏输入宽度策略、composer 发送/停止 44pt 触控目标、工作区导航辅助语义、工作区导航 44pt 触控目标、头部主题与模型库入口辅助语义、运行策略开关辅助语义、运行策略开关宽屏网格、运行策略开关行 44pt 触控目标、芯片准备度辅助语义、优化指标卡辅助语义、优化指标卡文本动态排版策略、优化指标网格宽度策略、共享 SectionHeader 动态排版策略、提示词页整体宽屏内容宽度策略、提示词模板宽屏布局策略、提示词模板文本动态排版策略、提示词分类筛选换行布局策略、提示词分类文本动态排版策略、提示词模板动作辅助语义与 44pt 触控目标、壁纸控件辅助语义、大屏布局和 Apple Silicon 运行计划；协作流程默认采用 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载结果包验收。
+一句话总览：本项目是一个 SwiftUI iOS 原型，通过本地模拟 runtime 和严格 artifact 校验流程，验证 iPhone、iPad 与 Mac Catalyst build/run 基线下端侧部署 Gemma 1.5B 的 UI、状态管理、文件导入、模型卸载确认弹层辅助语义、模型文件 utility 动态排版、会话导出、导出会话正文动态排版、导出弹层分享/复制辅助语义、导出弹层分享/复制 44pt 触控目标、导出弹层整体宽屏内容宽度策略、顶部模型胶囊整体辅助语义、模型概要面板与详情右栏/行级辅助语义、模型概要标签与校验摘要动态排版、取消生成占位生命周期、模型详情行窄宽堆叠布局、模型页整体宽屏内容宽度策略、模型详情右栏最大阅读宽度策略、模型文件工作流面板辅助语义、模型部署控件 44pt 触控目标、模型状态徽章辅助语义、全局 Header 图标动作 44pt 触控目标、Header 标题动态排版策略、设置页整体宽屏内容宽度策略、设置页图标动作 44pt 触控目标、设置偏好行响应式布局、会话栏操作 44pt 触控目标、会话 chip 动作语义、会话侧栏视觉层级、会话侧栏信息密度、聊天消息气泡与聊天记录容器辅助语义、单条消息复制与本地反馈、生成中状态脉冲指示、聊天记录居中阅读轨道、聊天气泡与 composer 宽屏输入宽度策略、composer 发送/停止 44pt 触控目标、工作区导航辅助语义、工作区导航 44pt 触控目标、头部主题与模型库入口辅助语义、运行策略开关辅助语义、运行策略开关宽屏网格、运行策略开关行 44pt 触控目标、芯片准备度辅助语义、优化指标卡辅助语义、优化指标卡文本动态排版策略、优化指标网格宽度策略、共享 SectionHeader 动态排版策略、提示词页整体宽屏内容宽度策略、提示词模板宽屏布局策略、提示词模板文本动态排版策略、提示词分类筛选换行布局策略、提示词分类文本动态排版策略、提示词模板动作辅助语义与 44pt 触控目标、壁纸控件辅助语义、大屏布局和 Apple Silicon 运行计划；协作流程默认采用 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载结果包验收。
 
 v2.64 的顶部模型胶囊还会按真实 chrome 可用宽度切换堆叠/横向概要与 1/2/3 列指标，避免 iPhone、iPad 和 Mac Catalyst 窄侧栏截断。
 
@@ -42,6 +42,14 @@ v2.64 的顶部模型胶囊还会按真实 chrome 可用宽度切换堆叠/横�
 `ModelLibraryView` 读取 `ModelCatalog.validation(for:)` 后将同一 `model` 与 `validation` 传给 `ModelDetailColumn`，再由 `ModelSummaryPanel` 展示概要。能力标签和校验摘要仍是外层 panel 的静态子树；前者经 `FlowLayout` adaptive wrap，后者直接展示本地 `validation.summary`。`ModelSummaryTextLayoutPolicy` 只提供无状态的 line-limit、line-spacing、padding、semantic font、theme-role 和 fixed-size 契约，生产 view 直接读取 `AppThemePalette` 的 `chipSurface`、`secondaryText`、`subtleBorder`。
 
 这条链路保留 `ModelSummaryAccessibilityMetadata` 的单一整体 label/value/hint/input labels/identifier。missing、staged、verified 只是本地 validation 展示，只有 verified 继续允许既有 runtime planner gate；本轮没有下载、网络、云端 inference、异步任务、动画或新的动作/状态。
+
+### v2.85 取消生成占位生命周期子树
+
+`InferenceEngine.send(using:availability:)` 仍按既有顺序追加 user message 和空 assistant placeholder，并通过 `syncActiveSession(titlePrompt:)` 保留 session ID/title 与消息顺序；`InferenceEngine.stop()` 仍只取消 generation task、清空 task、设置 `isGenerating = false` 和恢复 CPU 指标，不删除或重建 placeholder。首轮 stop 后空文本与 identity 因此保持可观察。
+
+`ChatWorkspace` 继续只传递 `inference.messages` 与 `inference.isGenerating`；`ChatTranscript` 对每个 bubble 只把“全局正在生成 + 最后一条 + assistant”作为 active 输入，并用同一 `ChatGenerationPlaceholderPresentationPolicy` 生成 `active` / `completed` / `cancelled`。只有 active 的最新空 assistant 显示既有 `GenerationIndicatorView`；cancelled 空 assistant 隐藏状态视觉但保留稳定 role/title/token/copy/整体辅助结构。
+
+`ChatMessageAccessibilityMetadata` 与 `ChatTranscriptAccessibilityMetadata` 读取同一 presentation：active 保留“正在生成，本地模型正在写入模拟输出”，cancelled 改为“已停止生成，未产生消息正文”，非空正文保持原文，用户/系统空消息保持原有语义。该 policy 无状态、无时间/文件/网络访问，不改变 copy 44pt、Reduce Motion、composer focus、transcript auto-scroll、local runtime 或 missing/staged/verified gate。
 
 ## 当前核心执行流
 
