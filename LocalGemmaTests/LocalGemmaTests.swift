@@ -5562,6 +5562,254 @@ final class LocalGemmaTests: XCTestCase {
         )
     }
 
+    func testSettingsPreferenceRowLayoutPolicyAdaptsWallpaperPanelToNarrowWidths() {
+        XCTAssertEqual(SettingsPreferenceRowLayoutPolicy.previewSize, 58)
+        XCTAssertEqual(SettingsPreferenceRowLayoutPolicy.minimumTextWidth, 88)
+        XCTAssertEqual(SettingsPreferenceRowLayoutPolicy.horizontalSpacing, 14)
+        XCTAssertEqual(SettingsPreferenceRowLayoutPolicy.actionSpacing, 8)
+        XCTAssertEqual(SettingsPreferenceRowLayoutPolicy.actionRowMinimumWidth, 96)
+        XCTAssertEqual(SettingsPreferenceRowLayoutPolicy.horizontalContentWidthThreshold, 270)
+        XCTAssertEqual(
+            SettingsPreferenceRowLayoutPolicy.panelContentWidth(forPanelWidth: 320),
+            292
+        )
+        XCTAssertEqual(
+            SettingsPreferenceRowLayoutPolicy.panelContentWidth(forPanelWidth: 0),
+            0
+        )
+        XCTAssertEqual(
+            SettingsPreferenceRowLayoutPolicy.panelContentWidth(forPanelWidth: .nan),
+            0
+        )
+        XCTAssertGreaterThanOrEqual(
+            SettingsPreferenceRowLayoutPolicy.minimumTouchTarget,
+            SettingsIconActionLayoutPolicy.minimumTouchTarget
+        )
+        XCTAssertGreaterThanOrEqual(
+            SettingsPreferenceRowLayoutPolicy.actionRowMinimumWidth,
+            SettingsPreferenceRowLayoutPolicy.minimumTouchTarget * 2
+        )
+
+        let widthModes: [(CGFloat, SettingsPreferenceRowLayoutMode)] = [
+            (256, .stacked),
+            (320, .horizontal),
+            (354, .horizontal),
+            (760, .horizontal)
+        ]
+        for (width, expectedMode) in widthModes {
+            let plan = SettingsPreferenceRowLayoutPolicy.resolve(
+                contentWidth: width,
+                dynamicTypeSize: .large
+            )
+            XCTAssertEqual(plan.mode, expectedMode)
+            XCTAssertEqual(plan.allowsHorizontal, expectedMode == .horizontal)
+            XCTAssertEqual(plan.contentWidth, width)
+        }
+
+        let thresholdBefore = SettingsPreferenceRowLayoutPolicy.resolve(
+            contentWidth: SettingsPreferenceRowLayoutPolicy.horizontalContentWidthThreshold - 0.01,
+            dynamicTypeSize: .large
+        )
+        let thresholdAt = SettingsPreferenceRowLayoutPolicy.resolve(
+            contentWidth: SettingsPreferenceRowLayoutPolicy.horizontalContentWidthThreshold,
+            dynamicTypeSize: .large
+        )
+        XCTAssertEqual(thresholdBefore.mode, .stacked)
+        XCTAssertFalse(thresholdBefore.allowsHorizontal)
+        XCTAssertEqual(thresholdAt.mode, .horizontal)
+        XCTAssertTrue(thresholdAt.allowsHorizontal)
+
+        let renderedWidthModes: [(CGFloat, SettingsPreferenceRowLayoutMode)] = [
+            (256, .stacked),
+            (320, .horizontal),
+            (354, .horizontal),
+            (760, .horizontal)
+        ]
+        for (panelWidth, expectedMode) in renderedWidthModes {
+            let plan = SettingsPreferenceRowLayoutPolicy.resolve(
+                contentWidth: SettingsPreferenceRowLayoutPolicy.panelContentWidth(
+                    forPanelWidth: panelWidth
+                ),
+                dynamicTypeSize: .large
+            )
+            XCTAssertEqual(plan.mode, expectedMode)
+        }
+
+        for dynamicTypeSize in [DynamicTypeSize.xxxLarge, .accessibility3] {
+            let plan = SettingsPreferenceRowLayoutPolicy.resolve(
+                contentWidth: 760,
+                dynamicTypeSize: dynamicTypeSize
+            )
+            XCTAssertEqual(plan.mode, .stacked)
+            XCTAssertFalse(plan.allowsHorizontal)
+        }
+
+        for invalidWidth in [CGFloat(0), -1, .nan, .infinity, -.infinity] {
+            let plan = SettingsPreferenceRowLayoutPolicy.resolve(
+                contentWidth: invalidWidth,
+                dynamicTypeSize: .large
+            )
+            XCTAssertEqual(plan.mode, .stacked)
+            XCTAssertFalse(plan.allowsHorizontal)
+            XCTAssertEqual(plan.contentWidth, 0)
+            XCTAssertTrue(plan.contentWidth.isFinite)
+        }
+
+        XCTAssertEqual(
+            WallpaperPreferenceAccessibilityMetadata.identifier(for: .choosePhoto),
+            "wallpaper-action-choose-photo"
+        )
+        XCTAssertEqual(
+            WallpaperPreferenceAccessibilityMetadata.identifier(for: .clearCustomWallpaper),
+            "wallpaper-action-clear-custom"
+        )
+        XCTAssertTrue(
+            SettingsIconActionLayoutPolicy.usesMinimumTouchTarget(for: .choosePhoto)
+        )
+        XCTAssertTrue(
+            SettingsIconActionLayoutPolicy.usesMinimumTouchTarget(for: .clearCustomWallpaper)
+        )
+
+        let customWallpaperData = UIGraphicsImageRenderer(
+            size: CGSize(width: 4, height: 4)
+        ).pngData { context in
+            context.cgContext.setFillColor(UIColor.systemBlue.cgColor)
+            context.cgContext.fill(CGRect(x: 0, y: 0, width: 4, height: 4))
+        }
+        let wallpaperStates: [(
+            data: Data,
+            isImporting: Bool,
+            chooseDisabled: Bool,
+            clearDisabled: Bool
+        )] = [
+            (Data(), false, false, true),
+            (customWallpaperData, false, false, false),
+            (customWallpaperData, true, true, true),
+            (Data(), true, true, true)
+        ]
+        let baselinePlan = SettingsPreferenceRowLayoutPolicy.resolve(
+            contentWidth: 320,
+            dynamicTypeSize: .large
+        )
+        for _ in wallpaperStates {
+            XCTAssertEqual(
+                SettingsPreferenceRowLayoutPolicy.resolve(
+                    contentWidth: 320,
+                    dynamicTypeSize: .large
+                ),
+                baselinePlan
+            )
+        }
+
+        for state in wallpaperStates {
+            let hasCustomWallpaper = state.data.isEmpty == false
+            XCTAssertEqual(
+                state.chooseDisabled,
+                SettingsPreferenceRowLayoutPolicy.isChooseActionDisabled(
+                    isImporting: state.isImporting
+                )
+            )
+            XCTAssertEqual(
+                state.clearDisabled,
+                SettingsPreferenceRowLayoutPolicy.isClearActionDisabled(
+                    hasCustomWallpaper: hasCustomWallpaper,
+                    isImporting: state.isImporting
+                )
+            )
+            XCTAssertFalse(
+                WallpaperPreferenceAccessibilityMetadata.value(
+                    for: .choosePhoto,
+                    hasCustomWallpaper: hasCustomWallpaper,
+                    isImporting: state.isImporting
+                ).isEmpty
+            )
+            XCTAssertFalse(
+                WallpaperPreferenceAccessibilityMetadata.value(
+                    for: .clearCustomWallpaper,
+                    hasCustomWallpaper: hasCustomWallpaper,
+                    isImporting: state.isImporting
+                ).isEmpty
+            )
+        }
+
+        for width in [CGFloat(256), 320, 354, 760] {
+            for themeMode in AppThemeMode.allCases {
+                for dynamicTypeSize in [DynamicTypeSize.large, .xxxLarge, .accessibility3] {
+                    for state in wallpaperStates {
+                        let renderer = ImageRenderer(
+                            content: WallpaperPreferencePanel(
+                                wallpaperData: state.data,
+                                selectedItem: .constant(nil),
+                                isImporting: state.isImporting,
+                                panelContentWidth: SettingsPreferenceRowLayoutPolicy.panelContentWidth(
+                                    forPanelWidth: width
+                                ),
+                                clearWallpaper: {}
+                            )
+                            .environment(\.appTheme, AppThemePalette(mode: themeMode))
+                            .environment(\.colorScheme, themeMode.colorScheme)
+                            .environment(\.dynamicTypeSize, dynamicTypeSize)
+                            .frame(width: width)
+                        )
+                        renderer.scale = 1
+                        let image = renderer.uiImage
+
+                        XCTAssertNotNil(image)
+                        XCTAssertTrue(image?.size.width.isFinite ?? false)
+                        XCTAssertTrue(image?.size.height.isFinite ?? false)
+                        XCTAssertEqual(image?.size.width ?? 0, width, accuracy: 1)
+                        XCTAssertGreaterThan(image?.size.width ?? 0, 0)
+                        XCTAssertGreaterThan(image?.size.height ?? 0, 0)
+                    }
+                }
+            }
+        }
+
+        let horizontalBaseline = ImageRenderer(
+            content: WallpaperPreferencePanel(
+                wallpaperData: Data(),
+                selectedItem: .constant(nil),
+                isImporting: false,
+                panelContentWidth: SettingsPreferenceRowLayoutPolicy.panelContentWidth(
+                    forPanelWidth: 320
+                ),
+                clearWallpaper: {}
+            )
+            .environment(\.appTheme, AppThemePalette(mode: .light))
+            .environment(\.colorScheme, .light)
+            .environment(\.dynamicTypeSize, .large)
+            .frame(width: 320)
+        ).uiImage
+        let stackedAccessibility = ImageRenderer(
+            content: WallpaperPreferencePanel(
+                wallpaperData: Data(),
+                selectedItem: .constant(nil),
+                isImporting: false,
+                panelContentWidth: SettingsPreferenceRowLayoutPolicy.panelContentWidth(
+                    forPanelWidth: 320
+                ),
+                clearWallpaper: {}
+            )
+            .environment(\.appTheme, AppThemePalette(mode: .light))
+            .environment(\.colorScheme, .light)
+            .environment(\.dynamicTypeSize, .xxxLarge)
+            .frame(width: 320)
+        ).uiImage
+        XCTAssertNotNil(horizontalBaseline)
+        XCTAssertNotNil(stackedAccessibility)
+        if let horizontalHeight = horizontalBaseline?.size.height,
+           let stackedHeight = stackedAccessibility?.size.height {
+            XCTAssertGreaterThan(stackedHeight, horizontalHeight)
+            XCTAssertGreaterThan(
+                stackedHeight,
+                SettingsPreferenceRowLayoutPolicy.previewSize
+                    + WorkbenchVisualStylePolicy.panelPadding * 2
+                    + SettingsPreferenceRowLayoutPolicy.minimumTouchTarget
+            )
+        }
+
+    }
+
     func testSettingsIconActionLayoutPolicyMaintainsTouchTargets() {
         XCTAssertEqual(SettingsIconActionLayoutPolicy.minimumTouchTarget, 44)
         XCTAssertGreaterThanOrEqual(

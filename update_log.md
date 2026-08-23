@@ -16,7 +16,7 @@
 - 平台：SwiftUI iOS App，Swift 6.0，iOS deployment target 17.0，当前 app/test target 支持 iPhone、iPad 和 Mac Catalyst build-for-testing，并提供项目内 Mac Catalyst 本地 build/run 脚本入口；尚未创建原生 macOS target。
 - 当前默认模型：`Gemma 1.5B Local`
 - 当前推理：本地模拟 runtime，不下载模型权重，不执行真实模型推理。
-- 当前核心测试：`LocalGemmaTests.swift` 中 122 个 XCTest 方法。
+- 当前核心测试：`LocalGemmaTests.swift` 中 125 个 XCTest 方法。
 - 当前核心文档入口：`AGENTS.md`、`md/flow/flow.md`、`md/flow/flowchart.md`、`md/test/test.md`、`md/prompt/README.md`、`README.md`。
 - 当前协作验证：默认 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载未加密 CI 结果包验收；本地仓库当前已配置 `origin` remote，最终验收仍以最新 `origin/main` 对应的 GitHub Actions run 和结果包为准；文档已预留未来 `agentx:` 主控 Agent A -> Agent B -> Agent C 多轮循环的规则。
 
@@ -4011,6 +4011,38 @@
 - 云端 `test.log` 有恰好 120 条 `Test case` 记录、120 个 `passed` 标记、0 个 `failed` 标记和一次 `** TEST EXECUTE SUCCEEDED **`；120 条记录对应源码 120 个唯一测试函数，新增 `testChipReadinessLayoutPolicyAdaptsToCardWidthAndAccessibilityDynamicType` 恰好一次。该日志有一处 xcodebuild diagnostic 与 `testWallpaperPreferenceControlsExposeAccessibilityMetadata` 记录交错，导致该单行名称被截断；没有失败或重复记录，计数以完整 case 记录、passed 总数、源码集合和 XCTest success marker 交叉核对。
 - 三份 `.xcresult` 的 `Info.plist` 均 `plutil -lint` 通过，版本均为 3.58 且 rootId 存在；`LocalGemma-build.xcresult`、`LocalGemma-maccatalyst-build.xcresult`、`LocalGemma-tests.xcresult` 的 Data/refs 分别为 `3/3`、`3/3`、`879/879`，hash 集合完全配对。tests bundle 的唯一零字节 data 节点有对应 refs，不影响 bundle 结构；build、Catalyst build 和 tests 三个结果包均存在。
 - 本轮未运行本地 `xcodebuild`、XCTest、Simulator、Mac Catalyst build/run、`xcresulttool` 或 ImageRenderer；仅使用 GitHub CLI/API 下载和读取云端结果包，并使用轻量文件/manifest/日志/Info.plist 结构核对。未下载模型权重、未执行真实模型推理、未调用云端推理。用户既有 `LocalGemma.xcodeproj/project.pbxproj` 修改保持未编辑、未暂存、未提交。
+
+### v2.80 / 设置偏好行响应式布局
+
+日期：2026-08-23
+
+核心变更：
+
+- 在 `SettingsPreferenceRowLayoutPolicy` 中集中定义壁纸偏好行的 `58pt` preview slot、`88pt` 文案最小宽度、两个 `44pt` action、8pt action spacing、14pt horizontal spacing 和 `270pt` panel content width 横排阈值；非法宽度统一回退为有限的 `0` 并选择 stacked，`.xxxLarge` 及以上 Dynamic Type 始终 stacked。
+- `SettingsWorkspace` 复用已经计算出的设置页真实内容外框宽度，扣除共享 `WorkbenchVisualStylePolicy.panelPadding` 两侧各 `14pt` 后传给 `WallpaperPreferencePanel`；壁纸行不再使用会吞掉 stacked intrinsic height 的行内 `GeometryReader`，而是让 `AnyLayout` 在真实 content width 上同步选择 HStack/VStack。
+- `WallpaperPreferencePanel` 保持同一预览、标题/状态文案、PhotosPicker 和清除按钮生产子树；stacked 分支通过 layout 外部的 `fixedSize(horizontal: false, vertical: true)` 自然增长，动作禁用/透明度复用纯值策略，保留导入中、空壁纸、主题、辅助语义、相册读取、本地压缩、runtime 和 verified 门禁。
+- 新增 `testSettingsPreferenceRowLayoutPolicyAdaptsWallpaperPanelToNarrowWidths`，覆盖 raw/content 与 outer/panel 宽度边界、Dynamic Type、NaN/Infinity/非正宽度、44pt 动作、禁用 truth table、辅助 metadata，以及真实 `WallpaperPreferencePanel` 的 256/320/354/760pt × 亮暗主题 × `.large`/`.xxxLarge`/`.accessibility3` × 空/有效壁纸/导入中公开 `ImageRenderer` 矩阵；额外锁定外框宽度和 stacked 高度不低于合理内容下限。
+
+关键文件：
+
+- `LocalGemma/ContentView.swift`
+- `LocalGemmaTests/LocalGemmaTests.swift`
+- `AGENTS.md`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v2（Mac体验审计）/v2.80（设置偏好行响应式布局）.md`
+
+当前验证状态：
+
+- 当前 `main` 与 `origin/main` 仍以 v2.79 commit `48d0bd2` 为基线；v2.80 尚未提交或推送。用户保留的 `LocalGemma.xcodeproj/project.pbxproj` 签名差异、未跟踪的 v2.79 prompt 和 v2.80 prompt 均未编辑、未暂存、未回滚。
+- 本地轻量检查全部通过：`git diff --check` 无输出；`grep -c 'func test' LocalGemmaTests/LocalGemmaTests.swift` 为 `125`；`plutil -lint LocalGemma.xcodeproj/project.pbxproj` 输出 `OK`；Ruby workflow YAML 解析输出 `yaml ok`（仅有既有 PATH world-writable warning）；`bash -n script/build_and_run.sh`、`xcrun swiftc -parse LocalGemma/ContentView.swift` 和测试源码 parse 均通过；Markdown fence 结构检查通过。
+- 按项目约束未运行本地 `xcodebuild`、XCTest、Simulator、Mac Catalyst build/run 或视觉截图/ImageRenderer 验收；未下载模型权重、未执行真实模型推理、未调用云端推理。完整 iOS/Catalyst build、LogicSmoke、125 项 XCTest、JUnit、manifest、三份 `.xcresult` 和 Agent C artifact 复判待本轮 push 后 GitHub Actions 执行。
+
+遗留事项：
+
+- 必须只提交 v2.80 相关源码、测试、核心文档和 v2.80 prompt，保护用户的 `project.pbxproj` dirty diff 与 v2.79 prompt；push 后只验收最新 `origin/main` 对应的 run/artifact，完成云端记录后再继续下一轮 UI 审计。
 
 ### v2.79 / 模型文件 utility 动态排版
 

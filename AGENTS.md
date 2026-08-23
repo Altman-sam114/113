@@ -4,7 +4,7 @@
 
 ## 1. 项目一句话总览
 
-`Local Gemma iOS Prototype` 是一个 SwiftUI iOS 原型 App，用本地模拟 runtime 验证 iPhone、iPad 与 Mac Catalyst build/run 基线下端侧部署 Gemma 1.5B 的产品交互、模型文件管理、artifact 校验、模型卸载确认弹层辅助语义、会话导出、导出会话正文动态排版、导出弹层分享/复制辅助语义、导出弹层分享/复制 44pt 触控目标、导出弹层整体宽屏内容宽度策略、大屏双栏布局、聊天工作区双侧栏宽度协调、聊天记录居中阅读轨道、短会话靠近 composer 的纵向定位、Mac/iPad 工作区与会话命令菜单、顶部模型胶囊整体辅助语义、模型概要面板与详情右栏/行级辅助语义、模型详情面板标题动态排版、模型页整体宽屏内容宽度策略、模型详情右栏最大阅读宽度策略、模型文件工作流面板辅助语义、模型文件 utility 动作动态排版、工作区导航辅助语义、工作区导航 44pt 触控目标、共享 panel 内高光与分层阴影、头部主题与模型库入口辅助语义、全局 Header 图标动作 44pt 触控目标、Header 标题动态排版策略、设置页整体宽屏内容宽度策略、设置页图标动作 44pt 触控目标、会话栏操作辅助语义、会话栏操作 44pt 触控目标、会话 chip 动作语义、会话侧栏视觉层级、会话侧栏信息密度、会话侧栏宽度策略、聊天消息气泡与聊天记录容器辅助语义、单条消息复制与本地反馈、生成中状态脉冲指示、聊天气泡与 composer 宽屏输入宽度策略、composer 聚焦光环与发送按钮渐变、composer 发送/停止 44pt 触控目标、模型选择器、状态徽章与部署控件辅助语义、模型部署控件 44pt 触控目标、运行策略开关辅助语义、运行策略开关宽屏网格、运行策略开关行 44pt 触控目标、芯片准备度辅助语义与隐私状态动态摘要、优化指标卡辅助语义、优化指标卡文本动态排版策略、优化指标网格宽度策略、共享 SectionHeader 动态排版策略、提示词页整体宽屏内容宽度策略、提示词模板宽屏布局策略、提示词模板文本动态排版策略、提示词分类筛选换行布局策略、提示词分类文本动态排版策略、提示词筛选与模板动作辅助语义、提示词模板动作 44pt 触控目标、相册壁纸控件辅助语义和 Apple Silicon 运行计划；当前不下载模型权重，不执行真实模型推理，也没有原生 macOS target。
+`Local Gemma iOS Prototype` 是一个 SwiftUI iOS 原型 App，用本地模拟 runtime 验证 iPhone、iPad 与 Mac Catalyst build/run 基线下端侧部署 Gemma 1.5B 的产品交互、模型文件管理、artifact 校验、模型卸载确认弹层辅助语义、会话导出、导出会话正文动态排版、导出弹层分享/复制辅助语义、导出弹层分享/复制 44pt 触控目标、导出弹层整体宽屏内容宽度策略、大屏双栏布局、聊天工作区双侧栏宽度协调、聊天记录居中阅读轨道、短会话靠近 composer 的纵向定位、Mac/iPad 工作区与会话命令菜单、顶部模型胶囊整体辅助语义、模型概要面板与详情右栏/行级辅助语义、模型详情面板标题动态排版、模型页整体宽屏内容宽度策略、模型详情右栏最大阅读宽度策略、模型文件工作流面板辅助语义、模型文件 utility 动作动态排版、工作区导航辅助语义、工作区导航 44pt 触控目标、共享 panel 内高光与分层阴影、头部主题与模型库入口辅助语义、全局 Header 图标动作 44pt 触控目标、Header 标题动态排版策略、设置页整体宽屏内容宽度策略、设置页图标动作 44pt 触控目标、设置偏好行响应式布局、会话栏操作辅助语义、会话栏操作 44pt 触控目标、会话 chip 动作语义、会话侧栏视觉层级、会话侧栏信息密度、会话侧栏宽度策略、聊天消息气泡与聊天记录容器辅助语义、单条消息复制与本地反馈、生成中状态脉冲指示、聊天气泡与 composer 宽屏输入宽度策略、composer 聚焦光环与发送按钮渐变、composer 发送/停止 44pt 触控目标、模型选择器、状态徽章与部署控件辅助语义、模型部署控件 44pt 触控目标、运行策略开关辅助语义、运行策略开关宽屏网格、运行策略开关行 44pt 触控目标、芯片准备度辅助语义与隐私状态动态摘要、优化指标卡辅助语义、优化指标卡文本动态排版策略、优化指标网格宽度策略、共享 SectionHeader 动态排版策略、提示词页整体宽屏内容宽度策略、提示词模板宽屏布局策略、提示词模板文本动态排版策略、提示词分类筛选换行布局策略、提示词分类文本动态排版策略、提示词筛选与模板动作辅助语义、提示词模板动作 44pt 触控目标、相册壁纸控件辅助语义和 Apple Silicon 运行计划；当前不下载模型权重，不执行真实模型推理，也没有原生 macOS target。
 
 v2.64 起，顶部模型胶囊还包含窄侧栏响应式布局策略：sidebar 与窄 top header 使用堆叠概要，指标按可用宽度切换 1/2/3 列，`.xxxLarge` 及以上 Dynamic Type 固定回退单列。
 
@@ -19,6 +19,8 @@ v2.77 起，`ExportSessionBodyTextLayoutPolicy` 集中定义导出正文 18pt pa
 v2.78 起，`ModelDetailPanelTextLayoutPolicy` 集中定义模型详情参数、性能和建议面板标题的 2 行上限、1pt line spacing、12pt 标题/内容间距和语义 Dynamic Type 字体；`DetailPanel` 允许标题垂直增长，保留 panel、详情行、整体/行级辅助语义、44pt 动作、模型文件、runtime 与 verified 门禁。
 
 v2.79 起，`ModelArtifactUtilityTextLayoutPolicy` 集中定义模型文件“扫描本地”和“导入文件”utility label 的语义 Dynamic Type 字体、最多两行、1pt line spacing、10pt 垂直 padding、自然垂直增长和不低于 44pt 的最小高度；保留 HStack、panel、动作闭包、独立辅助语义、本地 Files/扫描边界、Reduce Motion、runtime 与 verified 门禁。
+
+v2.80 起，`SettingsWorkspace` 将真实 panel 外框宽度扣除共享 `14pt` padding 后传给 `SettingsPreferenceRowLayoutPolicy`，由 `DynamicTypeSize` 选择横排或 stacked；普通字号只有达到 `270pt` panel content width 明确阈值才横排，`.xxxLarge` 及以上和 NaN/infinity/非正宽度始终 stacked。`WallpaperPreferencePanel` 的 `AnyLayout` 复用同一预览、文案和 PhotosPicker/清除动作子树，stacked 分支在 layout 外自然垂直增长，预览 slot 为 `58pt`，两个动作各保持至少 `44pt`；保留导入中/清除禁用、主题、壁纸数据、既有辅助语义、相册读取、本地压缩、runtime 和 verified 门禁。
 
 ## 2. 必读文件顺序
 
@@ -87,6 +89,7 @@ git remote -v
 - `SettingsWorkspaceLayoutPolicy` 控制设置页整体内容宽度；iPhone 和窄 split view 必须保持原有可用宽度，iPad/Mac 超宽窗口必须让标题、外观、壁纸、芯片准备度、优化指标和运行策略开关整体居中并限制最大宽度，且不得改变主题切换、相册读取、本地压缩、恢复系统背景、optimizer toggle、局部网格策略、图标触控目标或辅助语义。
 - `SettingsIconActionLayoutPolicy` 控制设置页外观主题切换、相册壁纸选择和恢复系统背景三个图标动作的最小触控目标；这些 iPhone、iPad split view 和 Mac Catalyst 设置入口必须保持至少 44pt，且不得改变主题切换、相册读取、本地压缩、恢复系统背景、禁用状态或辅助语义。
 - `SettingsPreferenceTextLayoutPolicy` 控制设置页外观模式与壁纸偏好行标题/状态文本的 Dynamic Type 排版；标题与状态使用语义字体并允许两行，避免 iPad split view、Mac Catalyst 窄窗口和较大文字设置下压缩或截断，且不得改变主题切换、相册读取、本地压缩、恢复系统背景、图标 44pt 触控目标、辅助语义、设置页整体宽度、模型文件或 runtime 状态流。
+- `SettingsPreferenceRowLayoutMode`、`SettingsPreferenceRowLayoutPlan` 与 `SettingsPreferenceRowLayoutPolicy` 控制壁纸偏好行的真实 panel content width 响应式布局；调用侧从外框宽度扣除两侧共享 `14pt` panel padding，`270pt` 及以上普通字号横排，窄宽、`.xxxLarge` 及以上 Dynamic Type、NaN/infinity/非正宽度 stacked；`AnyLayout` 保持预览、文案、两个动作的同一生产子树，stacked 内容在 layout 外自然垂直增长，且不得改变 44pt 触控目标、PhotosPicker/清除禁用状态、辅助语义或壁纸状态流。
 - `ModelCapsuleTextLayoutPolicy` 控制顶部模型胶囊与 HeaderMetricChip 的 Dynamic Type 文本策略；模型名、状态摘要和指标 chip 使用语义字体并允许多行，避免 iPad split view、Mac Catalyst 窄窗口和较大文字设置下通过固定小字号或缩放压缩文字，且不得改变模型胶囊辅助语义、主题切换、工作区切换、模型文件或 runtime 状态流。
 - `ModelCapsuleLayoutPolicy` 控制顶部模型胶囊在 top header、compact sidebar 和 regular sidebar 的响应式结构；它必须使用调用侧传入的真实 chrome 可用宽度，非法宽度和 `.xxxLarge` 及以上 Dynamic Type 回退 stacked + 1 列，portrait 最多 3 列、sidebar 最多 2 列，并锁住 248pt/436pt 阈值、18pt chrome padding、12pt capsule padding、108pt 两列最小宽度、132pt 三列最小宽度和 54pt readiness ring 实际尺寸。它不得改变模型胶囊整体辅助语义、SIM/REAL、artifact、生成状态、主题、工作区、模型文件、runtime 或 verified 门禁。
 - `ModelCapsuleAccessibilityMetadata` 控制顶部模型胶囊整体辅助语义；它必须合并当前模型、参数、量化、SIM/REAL、artifact 状态、后端、生成状态、速度、内存和准备度，并明确只展示本地状态、不下载权重、不启动真实 runtime、不发送云端服务、不绕过 verified 门禁。

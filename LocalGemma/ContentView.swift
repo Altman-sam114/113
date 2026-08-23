@@ -6591,6 +6591,10 @@ struct SettingsWorkspace: View {
     var body: some View {
         GeometryReader { proxy in
             ScrollView {
+                let contentWidth = SettingsWorkspaceLayoutPolicy.contentWidth(
+                    forContainerWidth: proxy.size.width
+                )
+
                 VStack(alignment: .leading, spacing: 16) {
                     SectionHeader(
                         eyebrow: "SETTINGS",
@@ -6603,6 +6607,9 @@ struct SettingsWorkspace: View {
                         wallpaperData: wallpaperData,
                         selectedItem: $selectedWallpaperItem,
                         isImporting: isImportingWallpaper,
+                        panelContentWidth: SettingsPreferenceRowLayoutPolicy.panelContentWidth(
+                            forPanelWidth: contentWidth
+                        ),
                         clearWallpaper: clearWallpaper
                     )
 
@@ -6626,12 +6633,7 @@ struct SettingsWorkspace: View {
                         toggle: { optimizer.toggle($0) }
                     )
                 }
-                .frame(
-                    width: SettingsWorkspaceLayoutPolicy.contentWidth(
-                        forContainerWidth: proxy.size.width
-                    ),
-                    alignment: .leading
-                )
+                .frame(width: contentWidth, alignment: .leading)
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.horizontal, SettingsWorkspaceLayoutPolicy.horizontalPadding)
                 .padding(.top, 16)
@@ -6735,6 +6737,72 @@ enum SettingsIconActionLayoutPolicy {
     }
 }
 
+enum SettingsPreferenceRowLayoutMode: Equatable {
+    case stacked
+    case horizontal
+}
+
+struct SettingsPreferenceRowLayoutPlan: Equatable {
+    let mode: SettingsPreferenceRowLayoutMode
+    let contentWidth: CGFloat
+    let allowsHorizontal: Bool
+}
+
+enum SettingsPreferenceRowLayoutPolicy {
+    static let previewSize: CGFloat = 58
+    static let minimumTextWidth: CGFloat = 88
+    static let horizontalSpacing: CGFloat = 14
+    static let stackedSpacing: CGFloat = 12
+    static let actionSpacing: CGFloat = 8
+    static let actionCount = 2
+    static let minimumTouchTarget: CGFloat = SettingsIconActionLayoutPolicy.minimumTouchTarget
+
+    static var actionRowMinimumWidth: CGFloat {
+        minimumTouchTarget * CGFloat(actionCount) + actionSpacing
+    }
+
+    static var horizontalContentWidthThreshold: CGFloat {
+        previewSize
+            + minimumTextWidth
+            + actionRowMinimumWidth
+            + horizontalSpacing * 2
+    }
+
+    static func panelContentWidth(forPanelWidth panelWidth: CGFloat) -> CGFloat {
+        guard panelWidth.isFinite, panelWidth > 0 else { return 0 }
+        return max(
+            panelWidth - WorkbenchVisualStylePolicy.panelPadding * 2,
+            0
+        )
+    }
+
+    static func isChooseActionDisabled(isImporting: Bool) -> Bool {
+        isImporting
+    }
+
+    static func isClearActionDisabled(
+        hasCustomWallpaper: Bool,
+        isImporting: Bool
+    ) -> Bool {
+        hasCustomWallpaper == false || isImporting
+    }
+
+    static func resolve(
+        contentWidth: CGFloat,
+        dynamicTypeSize: DynamicTypeSize
+    ) -> SettingsPreferenceRowLayoutPlan {
+        let safeContentWidth = contentWidth.isFinite && contentWidth > 0 ? contentWidth : 0
+        let allowsHorizontal = safeContentWidth >= horizontalContentWidthThreshold
+            && dynamicTypeSize < .xxxLarge
+
+        return SettingsPreferenceRowLayoutPlan(
+            mode: allowsHorizontal ? .horizontal : .stacked,
+            contentWidth: safeContentWidth,
+            allowsHorizontal: allowsHorizontal
+        )
+    }
+}
+
 struct ThemePreferencePanel: View {
     @Environment(\.appTheme) private var theme
 
@@ -6798,119 +6866,177 @@ struct ThemePreferencePanel: View {
 
 struct WallpaperPreferencePanel: View {
     @Environment(\.appTheme) private var theme
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     let wallpaperData: Data
     @Binding var selectedItem: PhotosPickerItem?
     let isImporting: Bool
+    let panelContentWidth: CGFloat
     let clearWallpaper: () -> Void
 
     var body: some View {
         let hasCustomWallpaper = wallpaperData.isEmpty == false
         let pickerAccent = theme.accent
         let pickerForeground = theme.inverseText
+        let plan = SettingsPreferenceRowLayoutPolicy.resolve(
+            contentWidth: panelContentWidth,
+            dynamicTypeSize: dynamicTypeSize
+        )
+        let layout = plan.mode == .horizontal
+            ? AnyLayout(
+                HStackLayout(
+                    alignment: .top,
+                    spacing: SettingsPreferenceRowLayoutPolicy.horizontalSpacing
+                )
+            )
+            : AnyLayout(
+                VStackLayout(
+                    alignment: .leading,
+                    spacing: SettingsPreferenceRowLayoutPolicy.stackedSpacing
+                )
+            )
 
-        HStack(spacing: 14) {
+        layout {
             wallpaperPreview
+            wallpaperText
+            wallpaperActions(
+                hasCustomWallpaper: hasCustomWallpaper,
+                pickerAccent: pickerAccent,
+                pickerForeground: pickerForeground
+            )
+            .frame(
+                maxWidth: plan.mode == .stacked ? .infinity : nil,
+                alignment: .trailing
+            )
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .fixedSize(horizontal: false, vertical: true)
+        .frame(minHeight: SettingsPreferenceRowLayoutPolicy.previewSize)
+        .panelStyle(border: theme.border)
+    }
 
-            VStack(alignment: .leading, spacing: SettingsPreferenceTextLayoutPolicy.verticalSpacing) {
-                Text("壁纸")
-                    .font(.headline.weight(.black))
-                    .foregroundStyle(theme.primaryText)
-                    .lineLimit(SettingsPreferenceTextLayoutPolicy.titleLineLimit)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text(statusText)
-                    .font(.subheadline.weight(.bold))
-                    .foregroundStyle(theme.secondaryText)
-                    .lineLimit(SettingsPreferenceTextLayoutPolicy.statusLineLimit)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+    private var wallpaperText: some View {
+        VStack(alignment: .leading, spacing: SettingsPreferenceTextLayoutPolicy.verticalSpacing) {
+            Text("壁纸")
+                .font(.headline.weight(.black))
+                .foregroundStyle(theme.primaryText)
+                .lineLimit(SettingsPreferenceTextLayoutPolicy.titleLineLimit)
+                .fixedSize(horizontal: false, vertical: true)
+            Text(statusText)
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(theme.secondaryText)
+                .lineLimit(SettingsPreferenceTextLayoutPolicy.statusLineLimit)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(
+            minWidth: SettingsPreferenceRowLayoutPolicy.minimumTextWidth,
+            maxWidth: .infinity,
+            alignment: .leading
+        )
+    }
 
-            Spacer()
-
-            HStack(spacing: 8) {
-                PhotosPicker(selection: $selectedItem, matching: .images) {
-                    ZStack {
-                        Image(systemName: "photo.on.rectangle.angled")
-                            .font(.system(size: 14, weight: .black))
-                            .opacity(isImporting ? 0 : 1)
-                        if isImporting {
-                            ProgressView()
-                                .tint(pickerForeground)
-                        }
+    @ViewBuilder
+    private func wallpaperActions(
+        hasCustomWallpaper: Bool,
+        pickerAccent: Color,
+        pickerForeground: Color
+    ) -> some View {
+        HStack(spacing: SettingsPreferenceRowLayoutPolicy.actionSpacing) {
+            PhotosPicker(selection: $selectedItem, matching: .images) {
+                ZStack {
+                    Image(systemName: "photo.on.rectangle.angled")
+                        .font(.system(size: 14, weight: .black))
+                        .opacity(isImporting ? 0 : 1)
+                    if isImporting {
+                        ProgressView()
+                            .tint(pickerForeground)
                     }
+                }
+                .frame(
+                    width: SettingsIconActionLayoutPolicy.iconButtonSize,
+                    height: SettingsIconActionLayoutPolicy.iconButtonSize
+                )
+                .background(pickerAccent, in: Circle())
+                .foregroundStyle(pickerForeground)
+            }
+            .buttonStyle(.plain)
+            .disabled(
+                SettingsPreferenceRowLayoutPolicy.isChooseActionDisabled(
+                    isImporting: isImporting
+                )
+            )
+            .accessibilityLabel(
+                WallpaperPreferenceAccessibilityMetadata.label(for: .choosePhoto)
+            )
+            .accessibilityValue(
+                WallpaperPreferenceAccessibilityMetadata.value(
+                    for: .choosePhoto,
+                    hasCustomWallpaper: hasCustomWallpaper,
+                    isImporting: isImporting
+                )
+            )
+            .accessibilityHint(
+                WallpaperPreferenceAccessibilityMetadata.hint(
+                    for: .choosePhoto,
+                    hasCustomWallpaper: hasCustomWallpaper,
+                    isImporting: isImporting
+                )
+            )
+            .accessibilityInputLabels(
+                WallpaperPreferenceAccessibilityMetadata.inputLabels(for: .choosePhoto)
+            )
+            .accessibilityIdentifier(
+                WallpaperPreferenceAccessibilityMetadata.identifier(for: .choosePhoto)
+            )
+
+            Button(action: clearWallpaper) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 12, weight: .black))
                     .frame(
                         width: SettingsIconActionLayoutPolicy.iconButtonSize,
                         height: SettingsIconActionLayoutPolicy.iconButtonSize
                     )
-                    .background(pickerAccent, in: Circle())
-                    .foregroundStyle(pickerForeground)
-                }
-                .buttonStyle(.plain)
-                .disabled(isImporting)
-                .accessibilityLabel(
-                    WallpaperPreferenceAccessibilityMetadata.label(for: .choosePhoto)
-                )
-                .accessibilityValue(
-                    WallpaperPreferenceAccessibilityMetadata.value(
-                        for: .choosePhoto,
-                        hasCustomWallpaper: hasCustomWallpaper,
-                        isImporting: isImporting
-                    )
-                )
-                .accessibilityHint(
-                    WallpaperPreferenceAccessibilityMetadata.hint(
-                        for: .choosePhoto,
-                        hasCustomWallpaper: hasCustomWallpaper,
-                        isImporting: isImporting
-                    )
-                )
-                .accessibilityInputLabels(
-                    WallpaperPreferenceAccessibilityMetadata.inputLabels(for: .choosePhoto)
-                )
-                .accessibilityIdentifier(
-                    WallpaperPreferenceAccessibilityMetadata.identifier(for: .choosePhoto)
-                )
-
-                Button(action: clearWallpaper) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 12, weight: .black))
-                        .frame(
-                            width: SettingsIconActionLayoutPolicy.iconButtonSize,
-                            height: SettingsIconActionLayoutPolicy.iconButtonSize
-                        )
-                        .background(theme.chipSurface, in: Circle())
-                        .overlay(Circle().stroke(theme.border, lineWidth: 1))
-                        .foregroundStyle(theme.primaryText)
-                }
-                .buttonStyle(.plain)
-                .disabled(wallpaperData.isEmpty || isImporting)
-                .opacity(wallpaperData.isEmpty || isImporting ? 0.42 : 1)
-                .accessibilityLabel(
-                    WallpaperPreferenceAccessibilityMetadata.label(for: .clearCustomWallpaper)
-                )
-                .accessibilityValue(
-                    WallpaperPreferenceAccessibilityMetadata.value(
-                        for: .clearCustomWallpaper,
-                        hasCustomWallpaper: hasCustomWallpaper,
-                        isImporting: isImporting
-                    )
-                )
-                .accessibilityHint(
-                    WallpaperPreferenceAccessibilityMetadata.hint(
-                        for: .clearCustomWallpaper,
-                        hasCustomWallpaper: hasCustomWallpaper,
-                        isImporting: isImporting
-                    )
-                )
-                .accessibilityInputLabels(
-                    WallpaperPreferenceAccessibilityMetadata.inputLabels(for: .clearCustomWallpaper)
-                )
-                .accessibilityIdentifier(
-                    WallpaperPreferenceAccessibilityMetadata.identifier(for: .clearCustomWallpaper)
-                )
+                    .background(theme.chipSurface, in: Circle())
+                    .overlay(Circle().stroke(theme.border, lineWidth: 1))
+                    .foregroundStyle(theme.primaryText)
             }
+            .buttonStyle(.plain)
+            .disabled(
+                SettingsPreferenceRowLayoutPolicy.isClearActionDisabled(
+                    hasCustomWallpaper: hasCustomWallpaper,
+                    isImporting: isImporting
+                )
+            )
+            .opacity(
+                SettingsPreferenceRowLayoutPolicy.isClearActionDisabled(
+                    hasCustomWallpaper: hasCustomWallpaper,
+                    isImporting: isImporting
+                ) ? 0.42 : 1
+            )
+            .accessibilityLabel(
+                WallpaperPreferenceAccessibilityMetadata.label(for: .clearCustomWallpaper)
+            )
+            .accessibilityValue(
+                WallpaperPreferenceAccessibilityMetadata.value(
+                    for: .clearCustomWallpaper,
+                    hasCustomWallpaper: hasCustomWallpaper,
+                    isImporting: isImporting
+                )
+            )
+            .accessibilityHint(
+                WallpaperPreferenceAccessibilityMetadata.hint(
+                    for: .clearCustomWallpaper,
+                    hasCustomWallpaper: hasCustomWallpaper,
+                    isImporting: isImporting
+                )
+            )
+            .accessibilityInputLabels(
+                WallpaperPreferenceAccessibilityMetadata.inputLabels(for: .clearCustomWallpaper)
+            )
+            .accessibilityIdentifier(
+                WallpaperPreferenceAccessibilityMetadata.identifier(for: .clearCustomWallpaper)
+            )
         }
-        .panelStyle(border: theme.border)
     }
 
     private var statusText: String {
@@ -6927,7 +7053,10 @@ struct WallpaperPreferencePanel: View {
                 Image(uiImage: image)
                     .resizable()
                     .scaledToFill()
-                    .frame(width: 58, height: 58)
+                    .frame(
+                        width: SettingsPreferenceRowLayoutPolicy.previewSize,
+                        height: SettingsPreferenceRowLayoutPolicy.previewSize
+                    )
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                     .overlay {
                         RoundedRectangle(cornerRadius: 12, style: .continuous)
@@ -6947,7 +7076,10 @@ struct WallpaperPreferencePanel: View {
                         .font(.system(size: 20, weight: .black))
                         .foregroundStyle(theme.accent)
                 }
-                .frame(width: 58, height: 58)
+                .frame(
+                    width: SettingsPreferenceRowLayoutPolicy.previewSize,
+                    height: SettingsPreferenceRowLayoutPolicy.previewSize
+                )
                 .overlay {
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
                         .stroke(theme.border, lineWidth: 1)

@@ -128,6 +128,7 @@ flowchart TD
     F -- 提示词 --> I[PromptTemplatesWorkspace<br/>SectionHeader 动态排版策略<br/>整体宽屏内容宽度策略<br/>模板网格宽屏布局策略<br/>模板文本动态排版策略<br/>分类筛选换行布局策略<br/>分类文本动态排版策略<br/>模板筛选/填入/发送<br/>模板动作 44pt 触控目标<br/>分类筛选辅助语义<br/>模板动作辅助语义]
     F -- 设置 --> J[SettingsWorkspace<br/>SectionHeader 动态排版策略<br/>整体宽屏内容宽度策略<br/>主题按钮辅助语义<br/>设置页图标动作 44pt 触控目标<br/>设置偏好行文本动态排版策略<br/>壁纸控件/芯片策略<br/>运行策略开关辅助语义<br/>运行策略开关宽屏网格<br/>运行策略开关行 44pt 触控目标<br/>OptimizationToggleGrid -> OptimizationToggleRow<br/>两个调用点共用 OptimizationToggleTextLayoutPolicy<br/>语义字体 + 标题/副标题最多两行<br/>文字允许垂直增长<br/>44pt 行高不变<br/>250pt 最小卡片宽度 / 510pt 两列边界不变<br/>芯片准备度辅助语义 + 隐私状态<br/>优化指标网格宽度策略<br/>优化指标卡辅助语义<br/>指标 label/value/detail<br/>Dynamic Type 多行策略]
     J --> CR[SettingsWorkspace / OptimizerDashboard<br/>共享 ChipReadinessCard<br/>panel 内真实内容宽度<br/>ChipReadinessLayoutPolicy<br/>354pt 及以上普通字号 horizontal<br/>Accessibility 或非法宽度 stacked<br/>AnyLayout 复用 ring + 正文子树<br/>ring slot 86pt / diameter 66pt<br/>DeviceOptimizer 状态与隐私摘要不变]
+    J --> WP[WallpaperPreferencePanel<br/>SettingsWorkspace 传入真实 panel 外框宽度<br/>扣除两侧 14pt panel padding 得到 content width<br/>SettingsPreferenceRowLayoutPolicy<br/>270pt 及以上普通字号 horizontal<br/>窄宽或 xxxLarge 及以上 stacked<br/>AnyLayout 复用预览/文案/动作子树<br/>stacked 自然垂直增长<br/>PhotosPicker/清除动作各 44pt]
 ```
 
 ## 6. 相册壁纸流
@@ -136,7 +137,8 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A[用户点击设置页壁纸按钮<br/>选择动作辅助语义<br/>44pt 触控目标] --> B[PhotosPicker 打开系统相册]
+    R[SettingsPreferenceRowLayoutPolicy<br/>外框扣除两侧 14pt panel padding<br/>270pt panel content width 阈值<br/>窄宽或 xxxLarge 及以上 stacked<br/>AnyLayout 共享预览/文案/动作子树<br/>stacked 自然垂直增长] --> A[用户点击设置页壁纸按钮<br/>选择动作辅助语义<br/>44pt 触控目标]
+    A --> B[PhotosPicker 打开系统相册]
     B --> C{是否选择图片}
     C -- 否 --> D[保持当前背景]
     C -- 是 --> E[读取 PhotosPickerItem Data]
