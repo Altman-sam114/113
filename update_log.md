@@ -4037,9 +4037,18 @@
 当前验证状态：
 
 - 已保护用户/其他 Agent 的 `LocalGemma.xcodeproj/project.pbxproj` dirty diff、未跟踪 v2.79 prompt 和当前 v2.83 prompt；未编辑、未格式化、未暂存、未提交这些文件。
-- 首轮 v2.83 云端 run `32646242958` attempt `1` 在 iOS/Catalyst build 阶段失败：`LocalGemmaTests.swift:4541` 的 Dynamic Type 数组使用了无明确数组类型的 `.xxxLarge`、`.accessibility3`、`.accessibility5` 成员引用，Swift 无法完成类型推断；该失败是测试源码编译问题，不改变生产行为。已将数组元素改为显式 `DynamicTypeSize.xxxLarge`、`DynamicTypeSize.accessibility3`、`DynamicTypeSize.accessibility5`，修复后的云端结果尚未产生，不能预写通过结论。
-- 当前源码实际测试函数数为 `128`。本地完整 `xcodebuild`、XCTest、Simulator、Mac Catalyst build/run 和截图视觉验收均未运行；轻量检查结果将在本轮提交前如实补充。GitHub Actions run、artifact、JUnit、xcresult 和 Agent C 验收尚未产生，不能预写通过结论。
+- 首轮 v2.83 云端 run `32646242958` attempt `1` 在 iOS/Catalyst build 阶段失败：`LocalGemmaTests.swift:4541` 的 Dynamic Type 数组使用了无明确数组类型的 `.xxxLarge`、`.accessibility3`、`.accessibility5` 成员引用，Swift 无法完成类型推断；该失败是测试源码编译问题，不改变生产行为。commit `42b83058bb7a22d353e793e0ac536d02c3ef9fa1` 将数组元素改为显式 `DynamicTypeSize` 成员，最终 run 已通过云端验收。
+- 当前源码实际测试函数数为 `128`。本地完整 `xcodebuild`、XCTest、Simulator、Mac Catalyst build/run 和截图视觉验收均未运行；本轮完整证据只来自指定 GitHub Actions run/artifact。
 - 未下载模型权重、tokenizer 或缓存，未执行真实模型推理，未调用云端 inference；Mac 验证仍是既有 iOS target 的 Mac Catalyst build-for-testing，不是原生 macOS target。
+
+#### v2.83 Agent C 云端验收记录
+
+- GitHub API 核对 run `32646623292` attempt `1`：branch=`main`、head SHA=`42b83058bb7a22d353e793e0ac536d02c3ef9fa1`、subject=`v2.83: 修复 badge Dynamic Type 测试类型推断`、workflow=`Local Gemma CI Results`、status=`completed`、conclusion=`success`。run URL 为 `https://github.com/Altman-sam114/113/actions/runs/32646623292`。
+- 唯一未过期 artifact 为 ID `9495147147`，名称 `localgemma-ci-v2.83-main-42b8305-run32646623292-attempt1`，size `91,923,262` bytes，API digest 为 `sha256:a9e6ddba4c94334d86b1eba9a96cae4f3b9e968d692c602e6bf42b9cb3daa4a3`；独立 API zip SHA-256 完全相同。`artifact-name.txt`、manifest 的 `artifactName`、`runId`、`runAttempt`、`commitSha`、`commitSubject` 和 `workflowName` 与 API/run 完全一致。
+- manifest、outcomes 和日志确认 static、LogicSmoke、iOS build-for-testing、XCTest、Mac Catalyst build-for-testing、Mac Catalyst run-script contract 全部 `success`；`macDesignedForIPad=skipped` 符合没有原生 macOS target 的设计。JUnit 为可解析的 `LocalGemmaCI` suite：`tests=7`、`failures=0`、`errors=0`、`skipped=1`，唯一 optional `codexRunEnvironment` skip 原因是非空的 `not-added-in-v1.0-cli-entrypoint-only`。
+- 云端 `test.log` 有 `128` 条 test case、`128` 条 passed、`0` 条 failed 和一次 `** TEST EXECUTE SUCCEEDED **`；结构化 `LocalGemma-tests.xcresult` 为 `128` test cases、`128` passed、`0` failed、`0` skipped。新增 `testModelCapsuleDeploymentStateAndBadgeReadability()` 在 test.log 与结构化 tests 树中各恰好一次且为 Passed。该测试的真实生产 ImageRenderer 覆盖 `320/390/834/1200pt` × light/dark × `.large`/`.xxxLarge`/`.accessibility3`/`.accessibility5` × deployment stopped/running × artifact missing/staged/verified × install ready/simulated/notDownloaded；纯值 contract 同时锁住 badge style/text/row/accessibility policy、44pt 模型控件、Reduce Motion 及 missing/staged/verified runtime 门禁。
+- 三份 `.xcresult` 的 Info.plist 均 `plutil -lint` 通过，版本均为 `3.58`、backend=`fileBacked2` 且有 rootId；root data/refs 存在，Data/refs hash 集合分别为 `3/3`、`3/3`、`954/954` 并完全配对。`mac-baseline-notes.md` 确认 Catalyst build-for-testing 使用既有 iOS app target，提交工程仅有 `LocalGemma` application 与 `LocalGemmaTests` unit-test targets，没有原生 macOS target。
+- 结果包没有模型权重、tokenizer、截图或视频；除预期 `.xcresult` 数据外没有超过 `1 MiB` 的无关文件。日志在成功 marker 后有一条非致命 Simulator launch 诊断，但不影响结构化 128/128 结果。Agent C 未运行本地 Xcode/build/test，验收临时目录 `/private/tmp/localgemma-c-review-32646623292` 使用 `trash` 清理。
 
 ### v2.82 / Composer 输入框 Dynamic Type 动态排版
 

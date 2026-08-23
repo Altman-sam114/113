@@ -431,7 +431,15 @@ xcodebuild -project LocalGemma.xcodeproj \
 
 同一聚合测试用公开 `ImageRenderer` 渲染真实生产 `ModelCapsule` 与 `ModelSelectorPanel` 组合，覆盖 `320/390/834/1200pt` × `.light`/`.dark` × `.large`/`.xxxLarge`/`.accessibility3`/`.accessibility5` × deployment `.stopped`/`.running` × artifact `.missing`/`.staged`/`.verified` × install `.ready`/`.simulated`/`.notDownloaded`。每项只检查 image 非空、宽高 finite 且大于 0、wrapper width 误差不超过 1pt；同一组合的 `.accessibility5` 高度严格 `>=` `.large`，不加 rounding 宽限。禁止像素/颜色采样、截图快照、私有 SwiftUI accessibility tree、UIKit first responder 或把 ImageRenderer 当作完整 VoiceOver/pointer 人工验收。
 
-本轮未运行本地完整 `xcodebuild`、XCTest、Simulator、Mac Catalyst build/run 或截图视觉检查；完成 diff/结构/parse 轻量检查后由 `main` push 触发 GitHub Actions，run、artifact 和 Agent C 验收状态待实际产生。
+本轮未运行本地完整 `xcodebuild`、XCTest、Simulator、Mac Catalyst build/run 或截图视觉检查；轻量检查后由 `main` push 触发 GitHub Actions，云端证据如下。
+
+#### v2.83 Agent C 云端验收记录
+
+- run `32646623292` attempt `1` 为 `main` push，head SHA `42b83058bb7a22d353e793e0ac536d02c3ef9fa1`，subject 为 `v2.83: 修复 badge Dynamic Type 测试类型推断`，workflow 为 `Local Gemma CI Results`，conclusion=`success`。唯一 artifact `localgemma-ci-v2.83-main-42b8305-run32646623292-attempt1`（ID `9495147147`，size `91,923,262` bytes）的 API digest 与下载 zip SHA-256 均为 `sha256:a9e6ddba4c94334d86b1eba9a96cae4f3b9e968d692c602e6bf42b9cb3daa4a3`；`artifact-name.txt`、manifest 和 run identity/attempt/head SHA/subject/workflow 完全一致。
+- static、LogicSmoke、iOS build-for-testing、XCTest、Mac Catalyst build-for-testing、Mac Catalyst run-script contract required outcomes 全部为 `success`。JUnit 可解析，`tests=7`、`failures=0`、`errors=0`；唯一 optional skip 是 `codexRunEnvironment`，原因为 `not-added-in-v1.0-cli-entrypoint-only`。
+- test.log 有 `128` 条测试记录且 `128` passed、`0` failed；`LocalGemma-tests.xcresult` 的结构化 tests 结果为 `128` test cases / `128` passed / `0` failed / `0` skipped。新增 `testModelCapsuleDeploymentStateAndBadgeReadability()` 在 test.log 与结构化 tests 树中各恰好一次且为 Passed。生产 ImageRenderer 证据来自真实 `ModelCapsule` + `ModelSelectorPanel`，覆盖 `320/390/834/1200pt`、light/dark、`.large`/`.xxxLarge`/`.accessibility3`/`.accessibility5`、deployment stopped/running、artifact missing/staged/verified 和 install ready/simulated/notDownloaded 全组合；纯值断言覆盖 badge style/text/row/accessibility policy，并回归 44pt、Reduce Motion、runtime/verified 门禁。
+- build、Mac Catalyst build、tests 三份 `.xcresult` 的 Info.plist 均通过 lint、版本均为 `3.58`、rootId 对应 root data/refs；Data/refs hash 集合分别 `3/3`、`3/3`、`954/954` 完全匹配。Mac baseline notes 明确这是既有 iOS target 的 Catalyst build-for-testing，工程提交中没有原生 macOS target；artifact 无模型权重、tokenizer、截图或视频，除 `.xcresult` 外的非结果文件最大为 `202,794` bytes。
+- 日志末尾存在一条非致命 Simulator launch 诊断，但它出现在 `** TEST EXECUTE SUCCEEDED **` 之后，不产生失败测试；Agent C 只读取 GitHub API 和已下载结果包，未运行本地 Xcode/build/test。验收临时目录使用 `trash` 清理。
 
 ### Full
 
