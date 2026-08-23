@@ -421,7 +421,7 @@ xcodebuild -project LocalGemma.xcodeproj \
 当前基线：
 
 - 期望结果：`TEST EXECUTE SUCCEEDED`。
-- 当前测试函数数：129（v2.84 Agent B implementation baseline；云端待触发）。
+- 当前测试函数数：129（v2.84 Agent B implementation baseline；run `32649219866` 已由 Agent C 验收通过）。
 
 ### v2.83 / 顶部模型胶囊部署状态与徽章可读性
 
@@ -449,7 +449,13 @@ xcodebuild -project LocalGemma.xcodeproj \
 
 聚合测试回归 `ModelSummaryAccessibilityMetadata` 的整体 label/value/hint/input labels/identifier 和空能力值、模型部署/文件 utility/workspace/header/session/composer 44pt policy、`AppMotionEffect`/Reduce Motion，以及 missing/staged/verified 到 `LocalRuntimePlanner` 的真实 runtime gate。能力标签继续走 `FlowLayout` adaptive minimum `72pt`/8pt 间距；未新增宽度断点、AnyLayout、动作、状态、网络或模型文件。
 
-本轮未运行本地完整 `xcodebuild`、XCTest、Simulator、Mac Catalyst build/run 或截图验收；已执行 `git diff --check`、129 个测试函数计数、`rg` 结构检查、`plutil -lint`、Ruby YAML 解析、脚本存在性/可执行性/`bash -n` 和两份 `xcrun swiftc -parse`，均成功（YAML 仅有既有 PATH world-writable warning）。完整 iOS/Catalyst build、LogicSmoke、129 项 XCTest、JUnit、manifest 和三份 `.xcresult` 待本轮 push 后 GitHub Actions，再由 Agent C 下载最新结果包核对。
+本轮未运行本地完整 `xcodebuild`、XCTest、Simulator、Mac Catalyst build/run 或截图验收；已执行 `git diff --check`、129 个测试函数计数、`rg` 结构检查、`plutil -lint`、Ruby YAML 解析、脚本存在性/可执行性/`bash -n` 和两份 `xcrun swiftc -parse`，均成功（YAML 仅有既有 PATH world-writable warning）。完整 iOS/Catalyst build、LogicSmoke、129 项 XCTest、JUnit、manifest 和三份 `.xcresult` 均已由本轮 GitHub Actions 云端结果覆盖并由 Agent C 核对。
+
+最新实现 commit `aa68e1c95f611dc975ab882a5c0188a13fff6068` 对应 GitHub Actions run `32649219866` attempt `1`，branch=`main`、subject=`v2.84: 校准测试基线`、workflow=`Local Gemma CI Results`、conclusion=`success`。唯一 artifact 为 `localgemma-ci-v2.84-main-aa68e1c-run32649219866-attempt1`（ID `9495868226`，size `79,490,132` bytes），GitHub API digest 为 `sha256:4b52870abac765cd0ab07c9e94d69cccd57bc2be28d03cf1a5ffbd351851c284`；artifact name、`artifact-name.txt` 与 manifest identity 一致。
+
+static、LogicSmoke、iOS build-for-testing、XCTest、Mac Catalyst build-for-testing、Mac Catalyst run-script contract 全部 success。JUnit 为 `tests=7`、`failures=0`、`errors=0`、`skipped=1`，唯一 optional skip 为 `codexRunEnvironment`，原因为 `not-added-in-v1.0-cli-entrypoint-only`；`test.log` 为 `129` passed、`0` failed，并有一次 `** TEST EXECUTE SUCCEEDED **`。新增测试在日志中恰一次且 Passed，结构化 XCTest 结果为 `129/129`，无 duplicate、Failure 或 Unknown。
+
+iOS build、Mac Catalyst build、XCTest 三份 `.xcresult` 的 Data/refs 分别为 `3/3`、`3/3`、`922/922`，rootId 均同时存在于对应 Data 和 refs，root action status 均 succeeded。Mac baseline 是既有 iOS target 的 Mac Catalyst build-for-testing，不是原生 macOS target；artifact 无模型权重、tokenizer、GGUF、Core ML 模型、截图或视频。Agent C 未运行本地 Xcode/build/test，本轮完整验证全部来自云端。
 
 ### Full
 

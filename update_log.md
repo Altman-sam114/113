@@ -4036,13 +4036,15 @@
 
 当前验证状态：
 
-- 已确认 `git fetch origin`、`git pull --ff-only origin main` 均无新增；实现基线为 `main`/`origin/main` 的 `42b8305`。用户保留的 `LocalGemma.xcodeproj/project.pbxproj`、未跟踪 v2.79/v2.83/v2.84 prompt 均未编辑、未暂存、未提交。
+- 已确认 v2.84 实现 commit `aa68e1c95f611dc975ab882a5c0188a13fff6068` 已位于 `main`/`origin/main`。用户保留的 `LocalGemma.xcodeproj/project.pbxproj`、未跟踪 v2.79/v2.83/v2.84 prompt 均未编辑、未暂存、未提交。
 - 已执行轻量检查：`git diff --check` 无输出且退出码 0；`grep -c '^[[:space:]]*func test' LocalGemmaTests/LocalGemmaTests.swift` 为 `129`；`rg` 确认生产 `ModelSummaryPanel` 读取 policy、FlowLayout、theme surface/roles 和真实 ImageRenderer 测试，概要 panel 不再使用固定 `.system(size: 11)` 或 raw `.white.opacity(0.08)`；`plutil -lint LocalGemma.xcodeproj/project.pbxproj` 输出 `OK`；Ruby workflow YAML 输出 `yaml ok`（仅有既有 PATH world-writable warning）；脚本存在、可执行且 `bash -n` 通过；`xcrun swiftc -parse LocalGemma/ContentView.swift` 与 `LocalGemmaTests/LocalGemmaTests.swift` 均成功。未运行完整 `xcodebuild`、XCTest、Simulator、Mac Catalyst build/run 或截图验收。
-- GitHub Actions、run、artifact、JUnit、三份 `.xcresult` 和 Agent C 验收尚未发生，待本轮 `main` push 后以最新 commit 对应结果包为准；不得复用旧 v2.83 artifact 或预写 PASS。
+- GitHub Actions run `32649219866` attempt `1` 对应最新实现 commit，branch=`main`、head SHA=`aa68e1c95f611dc975ab882a5c0188a13fff6068`、subject=`v2.84: 校准测试基线`、workflow=`Local Gemma CI Results`、conclusion=`success`。唯一 artifact 为 `localgemma-ci-v2.84-main-aa68e1c-run32649219866-attempt1`（ID `9495868226`，size `79,490,132` bytes），GitHub API digest 为 `sha256:4b52870abac765cd0ab07c9e94d69cccd57bc2be28d03cf1a5ffbd351851c284`；artifact name、`artifact-name.txt` 与 manifest identity 一致。
+- static、LogicSmoke、iOS build-for-testing、XCTest、Mac Catalyst build-for-testing、Mac Catalyst run-script contract 全部 success。JUnit 为 `tests=7`、`failures=0`、`errors=0`、`skipped=1`；唯一 optional `codexRunEnvironment` skip 原因为 `not-added-in-v1.0-cli-entrypoint-only`。`test.log` 有 `129` 条 passed、`0` 条 failed 和一次 `** TEST EXECUTE SUCCEEDED **`；新增 `testModelSummaryPanelTextLayoutPolicySupportsDynamicTypeAndThemeSurface()` 恰一次且 Passed，结构化 XCTest 结果为 `129/129`，无 duplicate、Failure 或 Unknown。
+- iOS build、Mac Catalyst build、XCTest 三份 `.xcresult` 的 Data/refs 分别为 `3/3`、`3/3`、`922/922`，rootId 均同时存在于对应 Data 和 refs，root action status 均 succeeded。Mac baseline 是既有 iOS target 的 Mac Catalyst build-for-testing，不是原生 macOS target；artifact 未发现模型权重、tokenizer、GGUF、Core ML 模型、截图或视频。Agent C 未运行本地 Xcode/build/test，本轮完整验证来自云端。
 
 遗留事项：
 
-- 等待 v2.84 实现 commit push 触发 GitHub Actions，并由 Agent C 核对最新 commit identity、required outcomes、JUnit、日志、三份 `.xcresult`、模型文件排除项和 artifact digest。
+- 追加验证：本次文档 commit push 后会触发新的 `ci-results.yml` run；该文档 run 只需确认其 status/conclusion，不替代上述实现 commit 的 v2.84 功能验收证据。
 
 ### v2.83 / 顶部模型胶囊部署状态与徽章可读性
 
