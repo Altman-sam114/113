@@ -4035,12 +4035,12 @@
 
 当前验证状态：
 
-- v2.78 实现 commit 为 `2d574d986680184671ae97c8bfa9c09458380459`；初始云端 run `31301323743` 的模型详情新增测试已通过，但整体 XCTest 因既有 composer 焦点生命周期失败而未通过，具体证据与修复见下方补充。
+- v2.78 实现 commit 为 `2d574d986680184671ae97c8bfa9c09458380459`；初始云端 run `31301323743` 的模型详情新增测试已通过，但整体 XCTest 因既有 composer 焦点生命周期失败而未通过，具体证据与修复见下方补充。修复 commit `e4cd8fb81a82bb4d3ec1368199b621f5eb1d2f3b` 已通过后续云端验收。
 - 用户保留的 `LocalGemma.xcodeproj/project.pbxproj` 修改未编辑、未格式化、未暂存、未提交。本地仅执行轻量 parse/diff/plist/YAML/脚本/Markdown 结构检查；未运行本地 XCTest、xcodebuild、Simulator、Mac Catalyst build/run、截图视觉验收、模型下载或真实推理。
 
 遗留事项：
 
-- 等待 v2.78 composer 焦点修复 commit push 触发新的 GitHub Actions，并由 Agent C 只验收最新 commit 对应的 run/artifact；初始失败 run 不得作为 PASS 证据。
+- v2.78 composer 焦点修复已由下方最新 `main` run 和 Agent C artifact 验收闭环；初始失败 run 仅保留为历史失败证据，不作为 PASS 证据。
 
 #### v2.78 云端失败与 composer 焦点生命周期修复
 
@@ -4050,8 +4050,19 @@
 - 下载的 `LocalGemma-tests.xcresult` 结构化 summary 为 `123` 个测试、`122` passed、`1` failed；v2.78 新增 `testModelDetailPanelTextLayoutPolicySupportsDynamicTypeHeadings()` 已 Passed。唯一失败为既有 `testComposerInputMetadataAndFocusPolicyDescribeEntryPoints()`：`LocalGemmaTests.swift:3405` 首次 request 后 `XCTAssertNotNil` 失败，`:3411` 离开聊天页后仍有 `SwiftUI.VerticalTextView` first responder。
 - 根因是 `ComposerBar` 原有 `.task(id:)` 在 `Task.yield()` 前后留下活动态时序窗口：断言时 request 尚未建立焦点，旧任务又可能在聊天页隐藏后落下焦点。修复改为 `onAppear` 与聊天活动态/request sequence 的 `onChange` 同步调用单一 `updateFocus()`；活动页立即设置 `@FocusState` 并消费 request，隐藏页立即清空待处理 request 与 `@FocusState`，不新增 UIKit、延时、状态、动画或网络路径。
 - 既有生命周期测试保持严格 first-responder 断言，并增加“隐藏聊天页时存在待处理 request”场景，要求 request 与真实焦点同时清空；测试函数数保持 `123`，不删除、跳过或放宽测试。
-- 本轮只执行轻量 diff、parse、plist、YAML、脚本和文档结构检查；未运行本地 `xcodebuild`、XCTest、Simulator、Mac Catalyst build/run 或视觉截图。修复后的云端 run、artifact、xcresult 和 Agent C PASS 尚未发生，必须由后续 `main` push 的最新唯一结果包证明。
+- 本轮只执行轻量 diff、parse、plist、YAML、脚本和文档结构检查；未运行本地 `xcodebuild`、XCTest、Simulator、Mac Catalyst build/run 或视觉截图。修复后的云端 run、artifact、xcresult 和 Agent C 验收见下方最终记录。
 - 用户保留的 `LocalGemma.xcodeproj/project.pbxproj` 签名差异与未跟踪 v2.79 prompt 均不属于本修复，必须保持未编辑、未暂存、未提交。
+
+#### v2.78 修复云端验收记录
+
+日期：2026-08-23
+
+- GitHub Actions run `32626428418`（attempt `1`）对应 `main` 上的修复 commit `e4cd8fb81a82bb4d3ec1368199b621f5eb1d2f3b`，结论为 `success`；job `97162371279` 的 static checks、LogicSmoke、iOS build-for-testing、Mac Catalyst build-for-testing、run-script contract、iPhone Simulator XCTest、manifest/JUnit、result evaluation 和 artifact upload 全部成功。
+- 唯一 artifact 为 `localgemma-ci-v2.78-main-e4cd8fb-run32626428418-attempt1`，artifact ID `9489958603`，API digest 为 `sha256:82ece1412a28dfd5f06354cdc7b8d9d32c471f43daf4e2265ee5bbd95109466c`；manifest、`artifact-name.txt`、artifact API identity、branch、完整 commit SHA、run ID、attempt、subject 和 workflow identity 完全一致。
+- outcomes 为 `static/logic/build/test/macCatalyst/macRunScript=success`；`codex-run-environment=skipped` 的原因是 `not-added-in-v1.0-cli-entrypoint-only`，`mac-designed=skipped` 符合当前非原生 macOS target 设计。日志包含 `Logic smoke passed`、iOS/Catalyst 各一次 `TEST BUILD SUCCEEDED` 和一次 `TEST EXECUTE SUCCEEDED`。
+- JUnit 可解析，CI stage 为 7 个、required failures/errors 为 0，唯一 skipped 是预期的 Codex Run environment。源码测试函数数为 `123`；结构化 `LocalGemma-tests.xcresult` 为 `123 total / 123 passed / 0 failed`，`testComposerInputMetadataAndFocusPolicyDescribeEntryPoints` 与 `testModelDetailPanelTextLayoutPolicySupportsDynamicTypeHeadings` 各出现一次且均 Passed。
+- iOS build、Mac Catalyst build 和 XCTest 三份 `.xcresult` 的 `Info.plist`、root、Data/refs 均可读取且无结构错误；Data/refs 分别为 `3/3`、`3/3`、`966/966`。baseline notes 明确这是既有 iOS app target 的 Mac Catalyst build-for-testing，不是原生 macOS target。
+- 结果包不含模型权重、缓存、截图或视频；Agent C 未运行本地 Xcode/XCTest/Simulator/Catalyst、未编辑仓库，用户保留的 `project.pbxproj` dirty diff 和未跟踪 v2.79 prompt 在验收前后保持不变。
 
 ### v2.77 / 导出会话正文动态排版
 
