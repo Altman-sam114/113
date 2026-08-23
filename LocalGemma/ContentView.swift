@@ -2642,6 +2642,21 @@ enum ComposerInputActionLayoutPolicy {
     }
 }
 
+enum ComposerInputTextLayoutPolicy {
+    static let usesSemanticFont = true
+    static let semanticFont = Font.subheadline.weight(.semibold)
+    static let minimumLineCount = 1
+    static let maximumLineCount = 4
+    static let verticalPadding: CGFloat = 12
+    static let lineSpacing: CGFloat = 0
+
+    static var allowsMultiline: Bool {
+        maximumLineCount > minimumLineCount
+    }
+
+    static let allowsNaturalVerticalGrowth = true
+}
+
 struct AppBackground: View {
     let theme: AppThemePalette
     var wallpaperData: Data = Data()
@@ -5352,10 +5367,15 @@ struct ComposerBar: View {
 
                 TextField("问本地模型任何问题", text: $text, axis: .vertical)
                     .textFieldStyle(.plain)
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(ComposerInputTextLayoutPolicy.semanticFont)
                     .foregroundStyle(theme.primaryText)
-                    .lineLimit(1...4)
-                    .padding(.vertical, 12)
+                    .lineLimit(ComposerInputTextLayoutPolicy.minimumLineCount...ComposerInputTextLayoutPolicy.maximumLineCount)
+                    .lineSpacing(ComposerInputTextLayoutPolicy.lineSpacing)
+                    .fixedSize(
+                        horizontal: false,
+                        vertical: ComposerInputTextLayoutPolicy.allowsNaturalVerticalGrowth
+                    )
+                    .padding(.vertical, ComposerInputTextLayoutPolicy.verticalPadding)
                     .focused($focusedField, equals: .input)
                     .accessibilityLabel(ComposerInputMetadata.textFieldLabel)
                     .accessibilityHint(ComposerInputMetadata.textFieldHint)

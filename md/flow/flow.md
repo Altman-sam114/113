@@ -19,6 +19,7 @@ v2.64 的顶部模型胶囊还会按真实 chrome 可用宽度切换堆叠/横�
 5. `LocalArtifactValidator` 根据 manifest、必需文件和 SHA-256 产出 artifact 状态。
 6. UI 顶部模型胶囊展示当前模型、速度、内存、后端、artifact 状态和模拟/真实标记，并用整体辅助语义合并这些本地状态。
 7. 用户在推理页输入 prompt。
+   - `ComposerBar` 的 `TextField(axis: .vertical)` 读取无状态 `ComposerInputTextLayoutPolicy`，使用公开 semantic Dynamic Type 字体、1...4 行、0pt line spacing、12pt vertical padding 和自然垂直增长；该 policy 只影响文字排版，不写回状态、不触发网络、模型下载或 runtime。
 8. `InferenceEngine.send(using:availability:)` 创建用户消息和 assistant 占位消息。
 9. `SimulatedGemmaRuntime.generate` 根据 prompt 和模型生成模拟回答。
 10. `InferenceEngine` 分 chunk 流式写回 messages，并同步 active session。
@@ -68,6 +69,7 @@ v2.64 的顶部模型胶囊还会按真实 chrome 可用宽度切换堆叠/横�
 - `WorkspaceLayoutMode.usesDetailedSidebar` 只在 regular 大屏双栏启用，用于让 Mac/iPad 大画布侧栏显示一行 workspace 用途说明；compact 双栏保持紧凑按钮。
 - `SessionCommandFocusPolicy` 为共享 `ChatWorkspace` 增加活动态 gate；结构恒定的 `SessionCommandFocusedRoute` 始终保留相同 modifier，只有 `selectedTab == .chat` 时包装内提供 `SessionCommandActions`，隐藏聊天页的 actions 为 `nil`，系统会话菜单仍沿用既有新建、导出和 composer focus 状态流。
 - `ComposerBar` 通过 `onAppear` 与由聊天活动态、request sequence 组成的 `onChange` 身份同步更新焦点；活动聊天页收到 request 时立即设置 `@FocusState` 并消费 request，隐藏聊天页立即清空待处理 request 与 `@FocusState`。该路径没有延迟异步任务，因此旧 request 不能跨越工作区活动态边界重新抢回焦点；活动聊天页没有新 request 时仍保持既有焦点。
+- `ComposerInputTextLayoutPolicy` 只为 `ComposerBar` 输入文字提供 semantic Dynamic Type 字体、1...4 行、0pt line spacing、12pt vertical padding 和自然垂直增长；生产 `TextField` 保留 `.vertical` axis、placeholder、既有辅助 metadata 和 modifier 顺序，不使用固定字号、缩放压缩或固定高度。policy 不写入 `InferenceEngine`、`ComposerFocusRequest` 或任何状态。
 - `ModelLibraryLayoutMode` 只控制模型页内部部署控制台的单栏/双栏；足够宽的 iPad/Mac 模型页显示“选择/部署/文件操作”和“模型详情”并列，窄屏继续单栏。
 - `ModelLibraryWorkspaceLayoutPolicy` 控制模型页整体内容宽度；iPhone 和窄 split view 保持原有可用宽度，iPad/Mac 超宽窗口中标题、选择/部署/文件操作和模型详情整体居中并限制最大宽度，最大内容宽度从控制列最大宽度、详情列最大阅读宽度和列间距派生，不改变模型状态流、内部双栏、详情列宽度、辅助语义或 verified 门禁。
 - `ModelDetailColumnLayoutPolicy` 只控制模型页双栏右侧详情列宽度；单栏不启用固定详情列宽，iPad/Mac 宽区域按剩余宽度计算并限制最大阅读宽度，避免概要、参数、性能和建议文本行在超宽窗口无限拉长。
@@ -121,6 +123,7 @@ v2.64 的顶部模型胶囊还会按真实 chrome 可用宽度切换堆叠/横�
 - `ChatBubbleTextLayoutPolicy` 为聊天气泡角色、正文和 token 元数据定义 Dynamic Type 语义字体与多行策略；普通字号保留既有角色比例、40/24pt reserve 和 8pt 相邻间距，Accessibility Dynamic Type 下将三者移除并使用真实可用宽度，同时继续遵守用户/本地模型/系统消息 520/680/600pt 最大阅读宽度。它不改变消息文案、辅助语义、自动滚动、会话、composer、runtime 或 verified 门禁。
 - `GenerationIndicatorStylePolicy` 为推理页空文本 assistant 生成占位定义专用脉冲指示：文本「正在生成」沿用语义字体和 `theme.secondaryText`，尾随 3 个 `theme.accent` 圆点（5pt 直径、4pt 间距），opacity 在 0.35 与 1.0 之间以 0.9 秒 easeInOut `repeatForever(autoreverses:)` 脉冲并逐点延迟 0.15 秒；`ChatBubble` 直接读系统 `accessibilityReduceMotion`，开启时不启动任何 repeatForever 动画，圆点使用 0.35/0.65/1.0 静态梯度，运行时切换用 `.task(id: reduceMotion)` 取消旧任务并重置相位。它不给 `AppMotionEffect` 新增 case、不改变 `ChatMessageAccessibilityMetadata` 生成中朗读文案、`message.text.isEmpty` 触发条件、非空正文渲染、消息状态流、runtime 或 verified 门禁。
 - `ComposerBarLayoutPolicy` 为推理页底部 composer 定义共享宽屏输入宽度策略；`ChatWorkspace.chatSurface` 保留 `ComposerBar` 内部输入、发送/停止、焦点和辅助语义，只在外层让 composer 在 iPad/Mac 宽区域居中并限制最大输入行宽，iPhone 和窄 split view 继续使用可用宽度。
+- `ComposerInputTextLayoutPolicy` 为输入框提供公开 semantic Dynamic Type 字体、1...4 行、0pt line spacing、12pt vertical padding 和自然垂直增长；`ComposerBar` 只在 TextField 内部使用该契约，不改变 `ComposerBarLayoutPolicy` 的 18/12/320/760pt 外部宽度、focus request/send-stop 路由、Command+Return、44/48pt 动作目标或辅助语义。
 - `ComposerInputActionLayoutPolicy` 为推理页 composer 发送/停止按钮定义 44pt 最小触控目标；`ComposerBar` 只复用按钮尺寸常量，不改变发送/停止闭包、空输入禁用、`Command+Return`、输入焦点、`ComposerInputMetadata` 辅助语义或模型/runtime 状态。
 - `ComposerFocusGlowStylePolicy` 为推理页 composer 内场聚焦描边与发送/停止按钮定义纯静态样式值：键盘聚焦时内场圆角 17 描边改 `theme.accent` 0.55 透明度、1.5pt 线宽，并在描边形状上加 10pt 柔和光环（暗 0.35 / 亮 0.20），未聚焦保持 `theme.border`、1pt、零光环；发送圆钮填充 accent 1.0/0.78 对角渐变，停止圆钮填充 red 0.9/0.7 同构渐变，可用时按钮加 8pt 光环（暗 0.45 / 亮 0.28），禁用时光环为 0。全部效果 overlay/shadow 实现、零动画、天然 Reduce Motion 免疫，不改布局与外壳生成态描边，不改变 `ComposerInputMetadata` 辅助语义、`Command+Return`、空输入禁用、发送/停止闭包、`ComposerFocusRequest` 焦点机制、44/48pt 触控目标、composer 宽屏宽度策略、`AppMotionEffect` 五 case、模型文件、runtime 或 verified 门禁。
 - `SectionHeaderTextLayoutPolicy` 为提示词页、模型页、设置页和优化区共享 `SectionHeader` 定义 Dynamic Type 文本策略；eyebrow 使用语义 caption 并保持单行，title 使用语义 title2 且允许两行，subtitle 使用语义 subheadline 且允许多行，避免 Mac/iPad 窄 split view 和较大文字设置下标题被压缩或截断。

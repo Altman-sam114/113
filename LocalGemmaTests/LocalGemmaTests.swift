@@ -2118,6 +2118,176 @@ final class LocalGemmaTests: XCTestCase {
         )
     }
 
+    func testComposerInputTextLayoutPolicySupportsDynamicType() {
+        let firstRead = (
+            ComposerInputTextLayoutPolicy.usesSemanticFont,
+            ComposerInputTextLayoutPolicy.minimumLineCount,
+            ComposerInputTextLayoutPolicy.maximumLineCount,
+            ComposerInputTextLayoutPolicy.verticalPadding,
+            ComposerInputTextLayoutPolicy.lineSpacing,
+            ComposerInputTextLayoutPolicy.allowsMultiline,
+            ComposerInputTextLayoutPolicy.allowsNaturalVerticalGrowth
+        )
+        let secondRead = (
+            ComposerInputTextLayoutPolicy.usesSemanticFont,
+            ComposerInputTextLayoutPolicy.minimumLineCount,
+            ComposerInputTextLayoutPolicy.maximumLineCount,
+            ComposerInputTextLayoutPolicy.verticalPadding,
+            ComposerInputTextLayoutPolicy.lineSpacing,
+            ComposerInputTextLayoutPolicy.allowsMultiline,
+            ComposerInputTextLayoutPolicy.allowsNaturalVerticalGrowth
+        )
+
+        XCTAssertTrue(firstRead.0)
+        XCTAssertEqual(firstRead.1, 1)
+        XCTAssertEqual(firstRead.2, 4)
+        XCTAssertEqual(firstRead.3, 12)
+        XCTAssertEqual(firstRead.4, 0)
+        XCTAssertTrue(firstRead.5)
+        XCTAssertTrue(firstRead.6)
+        XCTAssertEqual(firstRead.0, secondRead.0)
+        XCTAssertEqual(firstRead.1, secondRead.1)
+        XCTAssertEqual(firstRead.2, secondRead.2)
+        XCTAssertEqual(firstRead.3, secondRead.3)
+        XCTAssertEqual(firstRead.4, secondRead.4)
+        XCTAssertEqual(firstRead.5, secondRead.5)
+        XCTAssertEqual(firstRead.6, secondRead.6)
+
+        XCTAssertEqual(ComposerBarLayoutPolicy.horizontalPadding, 18)
+        XCTAssertEqual(ComposerBarLayoutPolicy.bottomPadding, 12)
+        XCTAssertEqual(ComposerBarLayoutPolicy.minimumReadableWidth, 320)
+        XCTAssertEqual(ComposerBarLayoutPolicy.maximumContentWidth, 760)
+        XCTAssertEqual(ComposerInputActionLayoutPolicy.minimumTouchTarget, 44)
+        XCTAssertEqual(ComposerInputActionLayoutPolicy.actionButtonSize, 48)
+        for action in ComposerInputAction.allCases {
+            XCTAssertTrue(ComposerInputActionLayoutPolicy.usesMinimumTouchTarget(for: action))
+        }
+
+        XCTAssertEqual(ComposerInputMetadata.textFieldIdentifier, "composer-input-field")
+        XCTAssertTrue(ComposerInputMetadata.textFieldHint.contains("Command Return"))
+        XCTAssertEqual(
+            ComposerInputMetadata.actionIdentifier(isGenerating: false),
+            "composer-send-button"
+        )
+        XCTAssertEqual(
+            ComposerInputMetadata.actionIdentifier(isGenerating: true),
+            "composer-stop-button"
+        )
+        for hint in [
+            ComposerInputMetadata.actionHint(text: "说明端侧部署", isGenerating: false),
+            ComposerInputMetadata.actionHint(text: "", isGenerating: true)
+        ] {
+            XCTAssertTrue(hint.contains("不会下载模型权重"))
+            XCTAssertTrue(hint.contains("不会启动真实 runtime"))
+            XCTAssertTrue(hint.contains("不会发送到云端服务"))
+            XCTAssertTrue(hint.contains("verified 门禁"))
+        }
+        XCTAssertTrue(ComposerInputMetadata.isActionDisabled(text: " \n", isGenerating: false))
+        XCTAssertFalse(ComposerInputMetadata.isActionDisabled(text: "说明端侧部署", isGenerating: false))
+        XCTAssertFalse(ComposerInputMetadata.isActionDisabled(text: "", isGenerating: true))
+
+        let request = ComposerFocusRequest.initial.next(for: .selectSession)
+        XCTAssertEqual(request.sequence, 1)
+        XCTAssertTrue(ComposerFocusPolicy.shouldFocus(isChatActive: true, request: request))
+        XCTAssertFalse(ComposerFocusPolicy.shouldFocus(isChatActive: false, request: request))
+        XCTAssertFalse(ComposerFocusPolicy.shouldReleaseFocus(isChatActive: true))
+        XCTAssertTrue(ComposerFocusPolicy.shouldReleaseFocus(isChatActive: false))
+        XCTAssertTrue(ComposerFocusPolicy.requestsComposerFocus(after: .sendTemplate))
+
+        let spatialEffects: Set<AppMotionEffect> = [
+            .workspaceNavigation,
+            .transcriptAutoScroll,
+            .modelSelection
+        ]
+        let localEffects: Set<AppMotionEffect> = [
+            .themeChange,
+            .copyConfirmation
+        ]
+        XCTAssertEqual(spatialEffects.union(localEffects), Set(AppMotionEffect.allCases))
+        XCTAssertEqual(AppMotionEffect.allCases.count, 5)
+
+        let longPrompt = String(
+            repeating: "本地 Gemma prompt，保持 Dynamic Type 输入可读。",
+            count: 12
+        )
+        let inputStates: [(text: String, isGenerating: Bool)] = [
+            ("", false),
+            (" \n\t", false),
+            (longPrompt, false),
+            (longPrompt, true)
+        ]
+        for width in [CGFloat(320), 390, 834, 1_200] {
+            for themeMode in AppThemeMode.allCases {
+                for dynamicTypeSize in [
+                    DynamicTypeSize.large,
+                    .xxxLarge,
+                    .accessibility3,
+                    .accessibility5
+                ] {
+                    for inputState in inputStates {
+                        let renderer = ImageRenderer(
+                            content: ComposerBar(
+                                text: .constant(inputState.text),
+                                isGenerating: inputState.isGenerating,
+                                isChatActive: false,
+                                focusRequest: .initial,
+                                clearFocusRequest: {},
+                                send: {},
+                                stop: {}
+                            )
+                                .environment(\.appTheme, AppThemePalette(mode: themeMode))
+                                .environment(\.colorScheme, themeMode.colorScheme)
+                                .environment(\.dynamicTypeSize, dynamicTypeSize)
+                                .frame(width: width)
+                        )
+                        renderer.scale = 1
+
+                        let image = renderer.uiImage
+                        XCTAssertNotNil(image)
+                        XCTAssertTrue(image?.size.width.isFinite ?? false)
+                        XCTAssertTrue(image?.size.height.isFinite ?? false)
+                        XCTAssertEqual(image?.size.width ?? 0, width, accuracy: 1)
+                        XCTAssertGreaterThan(image?.size.width ?? 0, 0)
+                        XCTAssertGreaterThan(image?.size.height ?? 0, 0)
+                    }
+                }
+            }
+        }
+
+        let comparisonCases: [(CGFloat, AppThemeMode, (String, Bool))] = [
+            (320, .light, inputStates[2]),
+            (390, .dark, inputStates[2]),
+            (834, .light, inputStates[3]),
+            (1_200, .dark, inputStates[3])
+        ]
+        for (width, themeMode, inputState) in comparisonCases {
+            func renderedHeight(for dynamicTypeSize: DynamicTypeSize) -> CGFloat {
+                let renderer = ImageRenderer(
+                    content: ComposerBar(
+                        text: .constant(inputState.0),
+                        isGenerating: inputState.1,
+                        isChatActive: false,
+                        focusRequest: .initial,
+                        clearFocusRequest: {},
+                        send: {},
+                        stop: {}
+                    )
+                        .environment(\.appTheme, AppThemePalette(mode: themeMode))
+                        .environment(\.colorScheme, themeMode.colorScheme)
+                        .environment(\.dynamicTypeSize, dynamicTypeSize)
+                        .frame(width: width)
+                )
+                renderer.scale = 1
+                return renderer.uiImage?.size.height ?? 0
+            }
+
+            let largeHeight = renderedHeight(for: .large)
+            let accessibilityHeight = renderedHeight(for: .accessibility3)
+            XCTAssertGreaterThan(largeHeight, 0)
+            XCTAssertGreaterThanOrEqual(accessibilityHeight, largeHeight)
+        }
+    }
+
     func testComposerFocusGlowStylePolicyHighlightsKeyboardFocus() {
         XCTAssertEqual(ComposerFocusGlowStylePolicy.focusedBorderOpacity, 0.55)
         XCTAssertEqual(ComposerFocusGlowStylePolicy.lineWidth(isFocused: true), 1.5)

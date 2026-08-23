@@ -24,6 +24,8 @@ v2.80 起，`SettingsWorkspace` 将真实 panel 外框宽度扣除共享 `14pt` 
 
 v2.81 起，模型详情参数/性能面板的 `DetailRow` 通过 `ModelDetailRowLayoutPolicy` 读取真实 panel content width 和 `DynamicTypeSize`；panel 外框先扣除两侧共享 `14pt` padding，内容宽度低于 `360pt` 或 `.xxxLarge` 及以上始终 stacked，普通字号达到 `84 + 264 + 12 = 360pt` 才横排。横排实际将同一 policy 的 `84pt` 标题列和 `264pt` 数值列作为最小 frame 宽度，保留 12pt 间距和数值尾部对齐；stacked 使用同一标题/数值子树自然垂直增长并让数值前导对齐；无效宽度归一为有限 `0pt`。`ModelDetailColumn`、整体/行级辅助语义、静态 `28pt` 最小行高、外部动作 44pt 目标、模型文件、Reduce Motion、runtime 与 verified 门禁不变。
 
+v2.82 起，`ComposerInputTextLayoutPolicy` 集中定义 composer 输入框的公开语义 Dynamic Type 字体、1...4 行范围、0pt line spacing、12pt vertical padding 和自然垂直增长；`ComposerBar` 只把 policy 契约传给同一 `TextField(axis: .vertical)`，不改变外部 18/12/320/760pt 宽度策略、同步 focus lifecycle、Command+Return、send/stop 48pt/44pt 触控目标、辅助语义、Reduce Motion、local runtime 或 verified 门禁。
+
 ## 2. 必读文件顺序
 
 每轮工作开始前按顺序阅读：
@@ -77,6 +79,7 @@ git remote -v
 - `WorkspaceRootShell` 使用 `AnyLayout` 在纵向/横向算法间切换，并始终保持 chrome、content 两个同序直接子节点；`ContentView` 在所有尺寸只构造一个共享 `WorkspacePagesShell`，根断点变化不得重建工作区局部状态。
 - `WorkspacePagesInteractionPolicy` 和 `WorkspacePagesShell` 用四个固定同序页面槽位隔离工作区分页手势；只有选中页可见、可命中、启用且对辅助技术可达，隐藏页必须禁用命中、控件和辅助访问，同时保持局部状态身份。工作区切换只允许经顶部/侧栏导航、系统菜单、`Command+1...4` 和既有状态路由，不得重新引入 page-style `TabView`、私有 API、透明手势阻断层或全局 `.scrollDisabled`。
 - `ComposerBar` 的焦点生命周期更新必须同时受 `ComposerFocusRequest` 和聊天页活动态约束；进入活动聊天页时同步消费 request 并设置 `@FocusState`，离开聊天页时同步清空待处理 request 与 `@FocusState`，不得用延迟异步任务跨越活动态边界，重新进入聊天页继续复用既有 focus request 路由。
+- `ComposerInputTextLayoutPolicy` 只管理 composer 输入文字的语义 Dynamic Type、1...4 行、0pt line spacing、12pt vertical padding 和自然垂直增长；它不写回 `InferenceEngine` 或 focus request，不建立宽度断点，不改变 `ComposerBar` 的输入/按钮顺序、Command+Return、send/stop、辅助语义、Reduce Motion、local runtime 或 verified 门禁。
 - `ModelLibraryLayoutMode` 控制模型页内部单栏/双栏；Mac/iPad 足够宽的模型部署工作流和窄屏回退要有测试锁住。
 - `ModelLibraryWorkspaceLayoutPolicy` 控制模型页整体内容宽度；iPhone 和窄 split view 必须保持原有可用宽度，iPad/Mac 超宽窗口必须让标题、选择/部署/文件操作和模型详情整体居中并限制最大宽度，最大内容宽度要从控制列最大宽度、详情列最大阅读宽度和列间距派生，且不得改变模型选择、部署、模型文件操作、卸载确认、内部双栏、详情列宽度、辅助语义或 verified 门禁。
 - `ModelDetailColumnLayoutPolicy` 控制模型页详情右栏在双栏宽屏中的最大阅读宽度；单栏不启用固定详情列宽，iPad/Mac 宽区域使用剩余空间但封顶，避免概要、参数、性能和建议文本行在超宽窗口无限拉长，最小/最大宽度、列间距和无效宽度 clamp 要有测试锁住。

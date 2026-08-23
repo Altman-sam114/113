@@ -16,7 +16,7 @@
 - 平台：SwiftUI iOS App，Swift 6.0，iOS deployment target 17.0，当前 app/test target 支持 iPhone、iPad 和 Mac Catalyst build-for-testing，并提供项目内 Mac Catalyst 本地 build/run 脚本入口；尚未创建原生 macOS target。
 - 当前默认模型：`Gemma 1.5B Local`
 - 当前推理：本地模拟 runtime，不下载模型权重，不执行真实模型推理。
-- 当前核心测试：`LocalGemmaTests.swift` 中 126 个 XCTest 方法。
+- 当前核心测试：`LocalGemmaTests.swift` 中 127 个 XCTest 方法。
 - 当前核心文档入口：`AGENTS.md`、`md/flow/flow.md`、`md/flow/flowchart.md`、`md/test/test.md`、`md/prompt/README.md`、`README.md`。
 - 当前协作验证：默认 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载未加密 CI 结果包验收；本地仓库当前已配置 `origin` remote，最终验收仍以最新 `origin/main` 对应的 GitHub Actions run 和结果包为准；文档已预留未来 `agentx:` 主控 Agent A -> Agent B -> Agent C 多轮循环的规则。
 
@@ -4011,6 +4011,38 @@
 - 云端 `test.log` 有恰好 120 条 `Test case` 记录、120 个 `passed` 标记、0 个 `failed` 标记和一次 `** TEST EXECUTE SUCCEEDED **`；120 条记录对应源码 120 个唯一测试函数，新增 `testChipReadinessLayoutPolicyAdaptsToCardWidthAndAccessibilityDynamicType` 恰好一次。该日志有一处 xcodebuild diagnostic 与 `testWallpaperPreferenceControlsExposeAccessibilityMetadata` 记录交错，导致该单行名称被截断；没有失败或重复记录，计数以完整 case 记录、passed 总数、源码集合和 XCTest success marker 交叉核对。
 - 三份 `.xcresult` 的 `Info.plist` 均 `plutil -lint` 通过，版本均为 3.58 且 rootId 存在；`LocalGemma-build.xcresult`、`LocalGemma-maccatalyst-build.xcresult`、`LocalGemma-tests.xcresult` 的 Data/refs 分别为 `3/3`、`3/3`、`879/879`，hash 集合完全配对。tests bundle 的唯一零字节 data 节点有对应 refs，不影响 bundle 结构；build、Catalyst build 和 tests 三个结果包均存在。
 - 本轮未运行本地 `xcodebuild`、XCTest、Simulator、Mac Catalyst build/run、`xcresulttool` 或 ImageRenderer；仅使用 GitHub CLI/API 下载和读取云端结果包，并使用轻量文件/manifest/日志/Info.plist 结构核对。未下载模型权重、未执行真实模型推理、未调用云端推理。用户既有 `LocalGemma.xcodeproj/project.pbxproj` 修改保持未编辑、未暂存、未提交。
+
+### v2.82 / Composer 输入框 Dynamic Type 动态排版
+
+日期：2026-08-23
+
+核心变更：
+
+- 基于 v2.81 最终 `origin/main`，在 `ComposerBar` 附近新增无状态 `ComposerInputTextLayoutPolicy`；policy 提供公开 semantic Dynamic Type 字体、`1...4` 行范围、`0pt` line spacing、`12pt` vertical padding 和自然垂直增长契约，不读取或写入文本、主题、窗口、会话、模型、artifact、runtime 或网络状态。
+- `ComposerBar` 的真实 `TextField(axis: .vertical)` 直接读取 policy 字体、行数、line spacing、垂直增长和 padding；移除固定 `.system(size: 15, weight: .semibold)`，保留 13pt 输入区 horizontal padding、底部对齐、既有主题/焦点修饰符、外部 `ComposerBarLayoutPolicy` 的 `18/12/320/760pt` 宽度、同步 focus lifecycle、Command+Return、send/stop、辅助语义、Reduce Motion、本地模拟 runtime 与 verified 门禁。
+- 唯一新增 `testComposerInputTextLayoutPolicySupportsDynamicType`，源码测试函数数从 126 增至 127；同一测试锁住 policy 纯值与既有 composer/focus/action/metadata/Reduce Motion/runtime contract，并以公开 `ImageRenderer` 渲染真实 `ComposerBar`，覆盖 `320/390/834/1200pt` × 亮暗主题 × `.large`/`.xxxLarge`/`.accessibility3`/`.accessibility5` × send/stop，以及空、空白和中英混合长 prompt；只断言非空、有限正尺寸、固定宽度和稳定的 Accessibility 高度规则，不做像素、颜色、截图或私有层级断言。
+
+关键文件：
+
+- `LocalGemma/ContentView.swift`
+- `LocalGemmaTests/LocalGemmaTests.swift`
+- `AGENTS.md`
+- `README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `update_log.md`
+- `md/prompt/v2（Mac体验审计）/v2.82（Composer输入框Dynamic Type动态排版）.md`（保持原样）
+
+当前验证状态：
+
+- 实现前已确认分支为 `main`，`HEAD` 与 `origin/main` 均为 v2.81 最终验收提交 `5adc78ce564bc124df94d5c15c453e3c663a6dc7`；源码计数为 `127` 个 `func test`。用户保留的 `LocalGemma.xcodeproj/project.pbxproj` dirty diff 与未跟踪 v2.79 prompt 未编辑、未格式化、未暂存、未提交。
+- 本轮轻量检查均已执行并通过：`git diff --check`；`find md -maxdepth 4 -type f | sort`、入口文档 grep、policy/矩阵/固定字号结构检索；`grep -c '^[[:space:]]*func test' LocalGemmaTests/LocalGemmaTests.swift` 输出 `127`；`plutil -lint LocalGemma.xcodeproj/project.pbxproj` 输出 `OK`；Ruby workflow YAML 解析输出 `yaml ok`（仅有既有 PATH world-writable warning）；`test -f`、`test -x`、`bash -n script/build_and_run.sh`；`xcrun swiftc -parse LocalGemma/ContentView.swift` 和 `LocalGemmaTests/LocalGemmaTests.swift` 均退出 `0`。检索确认生产输入读取 `ComposerInputTextLayoutPolicy`，未发现旧 `ComposerTextLayoutPolicy` 或 composer 输入的固定 `.system(size: 15, weight: .semibold)`。
+- 本地未运行 `xcodebuild`、XCTest、Simulator、Mac Catalyst build/run 或 ImageRenderer 视觉验收；未下载模型权重、未执行真实模型推理、未调用云端推理。v2.82 云端 build/test、run、artifact、xcresult 和 Agent C 验收尚未发生，待本轮 push 后由 CI 触发。
+
+遗留事项：
+
+- 等待本轮 v2.82 commit push 后的最新 GitHub Actions run 和 Agent C 结果包验收；在真实证据产生前不记录 CI 通过、run id、artifact digest、xcresult 或视觉人工验收结论。
 
 ### v2.81 / 模型详情行窄宽堆叠布局
 
