@@ -4038,11 +4038,21 @@
 
 - 实现前已确认分支为 `main`，`HEAD` 与 `origin/main` 均为 v2.81 最终验收提交 `5adc78ce564bc124df94d5c15c453e3c663a6dc7`；源码计数为 `127` 个 `func test`。用户保留的 `LocalGemma.xcodeproj/project.pbxproj` dirty diff 与未跟踪 v2.79 prompt 未编辑、未格式化、未暂存、未提交。
 - 本轮轻量检查均已执行并通过：`git diff --check`；`find md -maxdepth 4 -type f | sort`、入口文档 grep、policy/矩阵/固定字号结构检索；`grep -c '^[[:space:]]*func test' LocalGemmaTests/LocalGemmaTests.swift` 输出 `127`；`plutil -lint LocalGemma.xcodeproj/project.pbxproj` 输出 `OK`；Ruby workflow YAML 解析输出 `yaml ok`（仅有既有 PATH world-writable warning）；`test -f`、`test -x`、`bash -n script/build_and_run.sh`；`xcrun swiftc -parse LocalGemma/ContentView.swift` 和 `LocalGemmaTests/LocalGemmaTests.swift` 均退出 `0`。检索确认生产输入读取 `ComposerInputTextLayoutPolicy`，未发现旧 `ComposerTextLayoutPolicy` 或 composer 输入的固定 `.system(size: 15, weight: .semibold)`。
-- 本地未运行 `xcodebuild`、XCTest、Simulator、Mac Catalyst build/run 或 ImageRenderer 视觉验收；未下载模型权重、未执行真实模型推理、未调用云端推理。v2.82 云端 build/test、run、artifact、xcresult 和 Agent C 验收尚未发生，待本轮 push 后由 CI 触发。
+- 本地未运行 `xcodebuild`、XCTest、Simulator、Mac Catalyst build/run 或 ImageRenderer 视觉验收；未下载模型权重、未执行真实模型推理、未调用云端推理。v2.82 云端 build/test、run、artifact、xcresult 和 Agent C 验收见下方最终记录。
 
 遗留事项：
 
-- 等待本轮 v2.82 commit push 后的最新 GitHub Actions run 和 Agent C 结果包验收；在真实证据产生前不记录 CI 通过、run id、artifact digest、xcresult 或视觉人工验收结论。
+- v2.82 实现 commit 已由下方最新 GitHub Actions run 和 Agent C 结果包验收闭环；本次仅补写验收 evidence 的文档 commit 会再次触发新的 Actions run，新 run 尚未验收，不在此预写通过结论，后续必须重新下载并核对最新 run/artifact。
+- 用户保留的 `LocalGemma.xcodeproj/project.pbxproj` dirty diff 与未跟踪 v2.79 prompt 未编辑、未格式化、未暂存、未提交。
+
+#### v2.82 Agent C 云端验收记录
+
+- GitHub Actions run `32642793034`（attempt `1`）对应 `main` 上的实现 commit `bacf05e1cd7f5d07c483cb8e0c25fa2aecabe66e`，subject 为 `v2.82: Composer 输入框 Dynamic Type 动态排版`，workflow 为 `Local Gemma CI Results`；GitHub API 的 branch、SHA、run/attempt 与本地 `main`、`origin/main`、结果包 manifest 完全一致，conclusion 为 `success`。
+- GitHub API 返回唯一未过期 artifact：ID `9494184555`，名称为 `localgemma-ci-v2.82-main-bacf05e-run32642793034-attempt1`，size `73,254,500` bytes，API digest 为 `sha256:b409136ab36aa8e7fe15734f3bc7704172e8808d72d6dd4923428221fcbae28b`。下载目录为 `/private/tmp/localgemma-c-review-32642793034`；包内 `artifact-name.txt`、manifest 的 `artifactName`、API artifact name 完全一致。
+- manifest 与包内文件记录的 `staticChecks=success`、`logicSmoke=success`、iOS build=`success`、XCTest=`success`、Mac Catalyst build=`success`、Mac Catalyst run-script=`success` 均已由日志交叉核对；`macDesignedForIPad=skipped` 符合当前没有原生 macOS target 的设计，`codexRunEnvironment=skipped` 的唯一原因是 `not-added-in-v1.0-cli-entrypoint-only`。`logic-smoke.log` 为 `Logic smoke passed`，failure summary 为 `All required checks passed`。
+- 云端 `test.log` 有 `127/127` XCTest passed markers、`0` failed markers 和一次 `** TEST EXECUTE SUCCEEDED **`；新增 `testComposerInputTextLayoutPolicySupportsDynamicType()` 恰好出现一次并 passed。日志中有一处 xcodebuild diagnostic 与测试名交错，但不改变 127/127、0 failed 和成功 marker 的交叉核对结果。
+- JUnit XML 的 `LocalGemmaCI` suite 为 `tests=7`、`failures=0`、`skipped=1`；唯一 skipped testcase 是可选的 `codexRunEnvironment`，原因为 `not-added-in-v1.0-cli-entrypoint-only`。iOS build、Mac Catalyst build 和 XCTest 三份 `.xcresult` 均存在，`Info.plist` 均为 version `3.58`、`fileBacked2` backend 且有 rootId；Data/refs 分别为 `3/3`、`3/3`、`836/836`，hash key 集合完全配对。
+- `mac-baseline-notes.md` 确认这是既有 iOS app target 的 Mac Catalyst build-for-testing，不是原生 macOS target；结果包无模型权重、tokenizer、截图或视频，workflow 不下载模型权重、不调用外部 inference service。Agent C 未运行本地 Xcode/build/test，只读取 GitHub API 和已下载结果包的 manifest、JUnit、日志、Info.plist 与文件结构；用户 dirty 文件保持不变。
 
 ### v2.81 / 模型详情行窄宽堆叠布局
 
