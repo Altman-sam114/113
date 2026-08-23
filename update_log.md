@@ -4036,13 +4036,22 @@
 
 当前验证状态：
 
-- 当前 `main` 与 `origin/main` 仍以 v2.79 commit `48d0bd2` 为基线；v2.80 尚未提交或推送。用户保留的 `LocalGemma.xcodeproj/project.pbxproj` 签名差异、未跟踪的 v2.79 prompt 和 v2.80 prompt 均未编辑、未暂存、未回滚。
+- 当前 `main` 与 `origin/main` 均为 v2.80 实现 commit `3f4662ce9a75ca5e3a922bfe3f571db652256723`；v2.80 已提交并推送。用户保留的 `LocalGemma.xcodeproj/project.pbxproj` 签名差异和未跟踪的 v2.79 prompt 未编辑、未暂存、未回滚。
 - 本地轻量检查全部通过：`git diff --check` 无输出；`grep -c 'func test' LocalGemmaTests/LocalGemmaTests.swift` 为 `125`；`plutil -lint LocalGemma.xcodeproj/project.pbxproj` 输出 `OK`；Ruby workflow YAML 解析输出 `yaml ok`（仅有既有 PATH world-writable warning）；`bash -n script/build_and_run.sh`、`xcrun swiftc -parse LocalGemma/ContentView.swift` 和测试源码 parse 均通过；Markdown fence 结构检查通过。
-- 按项目约束未运行本地 `xcodebuild`、XCTest、Simulator、Mac Catalyst build/run 或视觉截图/ImageRenderer 验收；未下载模型权重、未执行真实模型推理、未调用云端推理。完整 iOS/Catalyst build、LogicSmoke、125 项 XCTest、JUnit、manifest、三份 `.xcresult` 和 Agent C artifact 复判待本轮 push 后 GitHub Actions 执行。
+- 按项目约束未运行本地 `xcodebuild`、XCTest、Simulator、Mac Catalyst build/run 或视觉截图/ImageRenderer 验收；未下载模型权重、未执行真实模型推理、未调用云端推理。GitHub Actions 与 Agent C artifact 复判见下方最终记录。
 
 遗留事项：
 
-- 必须只提交 v2.80 相关源码、测试、核心文档和 v2.80 prompt，保护用户的 `project.pbxproj` dirty diff 与 v2.79 prompt；push 后只验收最新 `origin/main` 对应的 run/artifact，完成云端记录后再继续下一轮 UI 审计。
+- v2.80 已完成实现、push 和最新 artifact 验收；下一轮只基于 v2.80 验收后的 `origin/main` 继续 UI 审计，保护用户的 `project.pbxproj` dirty diff 与 v2.79 prompt。
+
+#### v2.80 Agent C 云端验收记录
+
+- GitHub Actions run `32635938755`（attempt `1`）对应 `main` 上的实现 commit `3f4662ce9a75ca5e3a922bfe3f571db652256723`，subject 为 `v2.80: 设置偏好行响应式布局`，workflow 为 `Local Gemma CI Results`；run 与 commit identity 完全匹配，结论为 `success`。
+- 唯一 artifact 为 `localgemma-ci-v2.80-main-3f4662c-run32635938755-attempt1`，artifact ID `9492374856`，API/下载 ZIP digest 为 `sha256:9d45457b499ab3755bb94e0b61d73a78dc33737aed081abc3560720c8092599a`；`unzip -t`、`artifact-name.txt`、manifest、API artifact name 和完整 identity 一致。
+- manifest 的 version/repository/branch/SHA/short SHA/subject/run URL/run ID/attempt/workflow、iOS destination、Mac Catalyst destination、三个结果包路径、JUnit/日志路径和 required outcome 均一致；`static`、`logicSmoke`、iOS build、XCTest、Mac Catalyst build、Mac Catalyst run script 全部 `success`；`codexRunEnvironment` 按既有设计 skipped，`macDesignedForIPad` 也按当前非原生 macOS target 设计 skipped。
+- 云端 `test.log` 有 125 个源码对应的 XCTest case 记录，全部 `passed`，无 `failed`，并包含一次 `** TEST EXECUTE SUCCEEDED **`；其中一行既有 xcodebuild diagnostic 与测试名交错，导致简单文本匹配会截短一个名称，但完整 case 行、源码测试集合和 XCTest success marker 交叉核对一致。JUnit 为 7 个 CI 阶段、0 failures、1 个预期 skipped。
+- 三份 `.xcresult` 的 `Info.plist` 均为合法 3.58 结构且 rootId 存在；iOS build、Mac Catalyst build、XCTest bundle 的 Data/refs 分别为 `3/3`、`3/3`、`864/864`，hash 集合完全配对；三个结果包均存在。
+- artifact 不含模型权重、tokenizer、缓存、截图或视频；Agent C 未运行本地 Xcode/XCTest/Simulator/Catalyst，未下载模型或执行真实推理，未编辑仓库。临时目录验收完成后按项目规则使用 `trash` 清理；工作区仅保留用户既有 `project.pbxproj` dirty diff 与未跟踪 v2.79 prompt。
 
 ### v2.79 / 模型文件 utility 动态排版
 
