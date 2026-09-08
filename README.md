@@ -118,7 +118,11 @@
 
 - 新增无状态 `ChatGenerationPlaceholderPresentationPolicy`，只有最新的空 assistant 且 `isGenerating == true` 时呈现既有生成指示器；stop 后同一空 assistant 保留原始 message ID、数组位置、session ID/title 和消息顺序，但进入静态 cancelled presentation，不再显示圆点或向辅助技术朗读 stale “正在生成”文案。非空 assistant、用户消息和系统状态消息保持既有正文、角色、复制和辅助语义。
 - `ChatBubble`、`ChatMessageAccessibilityMetadata` 与 `ChatTranscriptAccessibilityMetadata` 共用同一 presentation 结果；未改 `InferenceEngine.stop()`，因为既有 task cancellation 和 `isGenerating = false` 已足以推导 cancelled，避免增加状态字段、异步竞态或改变 streaming cadence。复制 44pt、Reduce Motion、composer focus、local runtime、verified gate 和 cloud/privacy 边界保持不变。
-- 唯一新增聚合测试为 `testStoppingInferenceDoesNotPresentStaleGenerationPlaceholder`，源码测试函数数从 129 增至 130；测试包含 stop 前后 ID/order/session/title、空文本竞态、新一轮 placeholder 隔离、纯值 metadata/copy/motion/layout/runtime gate 回归，以及真实 `ChatBubble` 的公开 `ImageRenderer` 矩阵。当前仅完成轻量检查，未运行本地完整 build/test、Simulator、Catalyst 或 ImageRenderer；本轮 GitHub Actions 云端结果待 push 后确认。
+- 唯一新增聚合测试为 `testStoppingInferenceDoesNotPresentStaleGenerationPlaceholder`，源码测试函数数从 129 增至 130；测试包含 stop 前后 ID/order/session/title、空文本竞态、新一轮 placeholder 隔离、纯值 metadata/copy/motion/layout/runtime gate 回归，以及真实 `ChatBubble` 的公开 `ImageRenderer` 矩阵。2026-09-08 Agent C 独立验收实现 commit `a093e03df54cb205c62658d8a383f31a80ba9d05` 通过；GitHub API 确认它仍是远端 `main`，最新 [run 32653672941](https://github.com/Altman-sam114/113/actions/runs/32653672941) attempt `1` 为 `success`，未重跑。
+- artifact `localgemma-ci-v2.85-main-a093e03-run32653672941-attempt1`（ID `9496999466`，`81,944,208` bytes）可下载且未过期；API digest 与实际 ZIP SHA-256 均为 `sha256:d2f69e4b06385f331c9ddd02577e3d44d4435d7ee6f73831debd13239ee3d7ba`。`unzip -tq` 无错误，manifest、`artifact-name.txt`、run/SHA/attempt/subject/workflow identity 完全一致。
+- static、LogicSmoke、iOS/Catalyst build-for-testing、XCTest、run-script contract 全部 success；JUnit 为 7 stages、0 failure/error、1 个预期 optional Codex Run environment skip。结构化 XCTest 与源码的 130 个唯一测试名称完全一致，`130/130 Passed`、0 failed/skipped，新增测试恰一次且 Passed。日志有 130 个 passed 标记、0 failed；其中一个既有测试名被诊断插入截断，已与结构化结果交叉核对。
+- 三份 xcresult 的 Info.plist、rootId、Data/refs 和实际执行阶段均有效，Data/refs 分别为 `3/3`、`3/3`、`963/963`。Catalyst 是既有 iOS target 基线，不是原生 macOS；结果包无模型权重、tokenizer、缓存、截图或视频。非致命 Metal search-path、AppIntents、FocusState warning 和测试成功后的 Simulator launch 诊断不产生失败测试，不等于完整人工 VoiceOver/视觉验收。
+- 已知非目标：`InferenceEngine.exportActiveSessionText` 仍将空消息写成“（生成中）”，包括 stop 后保留的空 assistant；本轮只修复聊天视觉与辅助状态，未修改导出格式。Agent C 未运行本地 build/test、Simulator、Catalyst 或 ImageRenderer；本次文档仅做轻量结构/内容检查。按人工分工只本地提交三份验收文档，远端同步及该文档 commit 的新 CI 仍待主控完成，不冒充已 push 或已闭环。
 
 ## 运行方式
 

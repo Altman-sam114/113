@@ -4035,9 +4035,23 @@
 
 当前验证状态：
 
-- 已执行 `git fetch origin`、`git switch main`、`git pull --ff-only origin main`；当前 `main` 与 `origin/main` 均为 `1f7b41a`。用户 dirty `LocalGemma.xcodeproj/project.pbxproj` 与未跟踪 v2.79/v2.83/v2.84/v2.85 prompt 均未编辑、未暂存、未提交。
+- Agent B 实现前执行 `git fetch origin`、`git switch main`、`git pull --ff-only origin main`，当时 `main` 与 `origin/main` 基线为 `1f7b41a`；v2.85 实现已提交为 `a093e03df54cb205c62658d8a383f31a80ba9d05`，云端验收见下方。用户 dirty `LocalGemma.xcodeproj/project.pbxproj` 与未跟踪 v2.79/v2.83/v2.84/v2.85 prompt 均未编辑、未暂存、未提交。
 - 轻量检查均通过：`git diff --check`；`grep -c '^[[:space:]]*func test' LocalGemmaTests/LocalGemmaTests.swift` 输出 `130`；`rg` 确认 policy、ChatBubble、ChatTranscript 和 metadata 共享调用链；`plutil -lint LocalGemma.xcodeproj/project.pbxproj` 输出 `OK`；Ruby workflow YAML 输出 `yaml ok`（仅有既有 PATH world-writable warning）；脚本存在、可执行且 `bash -n` 通过；`xcrun swiftc -parse LocalGemma/ContentView.swift` 与 `LocalGemmaTests/LocalGemmaTests.swift` 均成功。
-- 未运行本地完整 `xcodebuild`、XCTest、Simulator、Mac Catalyst build/run 或 ImageRenderer 视觉验收；未下载模型权重、未执行真实推理、未调用云端 inference。v2.85 GitHub Actions run、artifact、JUnit、三份 `.xcresult` 和 Agent C 独立验收待本轮 push 后记录。
+- 未运行本地完整 `xcodebuild`、XCTest、Simulator、Mac Catalyst build/run 或 ImageRenderer 视觉验收；未下载模型权重、未执行真实推理、未调用云端 inference。v2.85 实现的 GitHub Actions run、artifact、JUnit、三份 `.xcresult` 已由 Agent C 独立验收，证据如下。
+
+#### v2.85 Agent C 云端验收记录
+
+日期：2026-09-08
+
+- GitHub API 复查远端 `main` 与验收前本地 HEAD/`origin/main` 同为 `a093e03df54cb205c62658d8a383f31a80ba9d05`；最新 [run 32653672941](https://github.com/Altman-sam114/113/actions/runs/32653672941) attempt `1` 为 `completed/success`，job `97229009203` 全部步骤成功，subject=`v2.85: 修复取消生成占位生命周期`，workflow=`Local Gemma CI Results`。API 与实际下载均证明 artifact 可用，未过期、未 rerun。
+- 唯一 artifact `localgemma-ci-v2.85-main-a093e03-run32653672941-attempt1`，ID `9496999466`、size `81,944,208` bytes；`gh run download` 与原始 ZIP 下载均成功。API digest/实际 ZIP SHA-256 同为 `sha256:d2f69e4b06385f331c9ddd02577e3d44d4435d7ee6f73831debd13239ee3d7ba`，`unzip -tq` 无错误；ZIP 内 1,965 个唯一文件逐项与解压内容 SHA-256 一致，`xcresulttool` 读取后新增的 SQLite 索引单独识别为本地派生文件。
+- manifest、`artifact-name.txt`、API name/identity、完整 SHA/subject/run URL/ID/attempt/workflow、iOS/Catalyst destination 和结果/日志路径全部一致。static、LogicSmoke、iOS build、XCTest、Catalyst build、run-script contract 全部 success；JUnit 7 stages、0 failure/error、1 个预期 optional skip，`codexRunEnvironment` reason=`not-added-in-v1.0-cli-entrypoint-only`；failure summary 明确所有 required checks passed。
+- 已分别用 `xcresulttool get test-results summary` 和 `xcresulttool get test-results tests` 读取结构化结果：`130/130 Passed`、0 failed/skipped/unknown/duplicate，130 个唯一名称与实现 commit 的源码集合一致；新增 `testStoppingInferenceDoesNotPresentStaleGenerationPlaceholder()` 在树和日志中各恰一次且 Passed（约 `1.230s`）。日志有 130 个 case 起点和 passed 标记、0 failed、一次 `TEST EXECUTE SUCCEEDED`；末尾既有 `testWorkspaceSidebarTextLayoutPolicySupportsDynamicTypeRows()` 名称被诊断插入截断，已通过结构化树和拆分前后文本交叉核实。
+- 三份 xcresult 的 Info.plist lint、`3.58` 版本、rootId、Data/refs 均有效；iOS/Catalyst/tests hash 集合为 `3/3`、`3/3`、`963/963`。`get object --legacy --format json` 确认两份 build 的 `buildResult=succeeded/actionResult=notRequested`，tests 的 `actionResult=succeeded/buildResult=notRequested`；无 error/failure summary。记录非致命诊断：Catalyst 2 条 Metal search-path warning、tests 2 条既有 composer FocusState warning、AppIntents warning、测试成功 marker 后的 Simulator launch 诊断，未伪装成无 warning 或人工视觉/VoiceOver PASS。
+- Catalyst notes/run-script 日志确认既有 iOS target 的 Mac Catalyst build-for-testing 和脚本存在/可执行/`bash -n` 契约，不是原生 macOS。结果包无模型权重、tokenizer、GGUF/Core ML 模型、缓存、截图或视频；最大非 xcresult 文件 `mac-catalyst-build.log` 为 `202,787` bytes。Agent C 只读取云端证据与权威源码；真实 `ChatBubble` 160 组合 ImageRenderer 矩阵由云端 XCTest 执行，本地未运行 build/test、Simulator、Catalyst 或 ImageRenderer。
+- 已知非目标：`LocalGemma/AppState.swift` 的 `exportActiveSessionText` 仍以 `message.text.isEmpty ? "（生成中）" : message.text` 导出，stop 后空 assistant 仍会被标为生成中；本轮聊天视觉/辅助状态修复不等于导出语义修复，不扩大范围改源码。
+- 本次仅编辑 `README.md`、`md/test/test.md`、`update_log.md` 的 v2.85 验收记录；轻量验证为 `git diff --check`、Markdown fence/链接/目录检查、证据字段与 v2.85 内容一致性检查，未跑本地完整测试的原因是人工禁止且文档-only。用户工程文件 SHA-256 保持 `cf1c1be8c477ee64eef9fabb2635e45755ad6e1bb90cbd2caddb2a2607cfdaf1`，所有未跟踪 prompt 不暂存、不提交；验收目录 `/private/tmp/localgemma-c-review-32653672941/` 保留供主控复核。
+- 交接边界：Git fetch/ls-remote 遇到 `github.com:443` 连接失败及 HTTP/2 framing error，官方 GitHub API 正常；按人工最新指令只执行本地 `TZ=UTC git commit -m 'docs: record v2.85 cloud acceptance'`，远端 non-force 同步和新文档 CI 由主控接手，不改全局 Git/origin 配置、不使用第三方代理。本记录确认实现 run 的功能验收 PASS，不提前声称文档已 push 或文档 CI 已成功。
 
 ### v2.84 / 模型概要标签与校验摘要动态排版
 

@@ -421,7 +421,7 @@ xcodebuild -project LocalGemma.xcodeproj \
 当前基线：
 
 - 期望结果：`TEST EXECUTE SUCCEEDED`。
-- 当前测试函数数：130（v2.85 Agent B implementation baseline；以 `grep -c '^[[:space:]]*func test' LocalGemmaTests/LocalGemmaTests.swift` 为准，本轮云端结果待 push 后由 Agent C 验收）。
+- 当前测试函数数：130（v2.85 实现 commit `a093e03`；Agent C 已核对源码与 run `32653672941` attempt `1` 的结构化结果为 `130/130 Passed`，具体证据见下方 v2.85 验收记录）。
 
 ### v2.85 / 取消生成占位生命周期
 
@@ -431,7 +431,18 @@ xcodebuild -project LocalGemma.xcodeproj \
 
 测试还直接渲染真实生产 `ChatBubble(message:availableWidth:isGenerating:)`，公开 `ImageRenderer` 覆盖 `320/390/834/1200pt`、light/dark、`.large`/`.xxxLarge`/`.accessibility3`/`.accessibility5` 和 active/cancelled/completed/user/system 五类输入；每项只断言图像非空、尺寸 finite/positive 和 wrapper 宽度误差不超过 1pt，不使用私有 SwiftUI tree、UIKit accessibility tree、像素/颜色采样或截图快照。完整 iOS build-for-testing、XCTest、Mac Catalyst build-for-testing、LogicSmoke、run-script contract 和结果包仍只由 GitHub Actions 执行；本地只允许轻量 diff/parse/plist/YAML/脚本检查。
 
-本轮未修改 `InferenceEngine.stop()`、工程文件、workflow、模型文件或历史 prompt；无模型下载、无云端 inference。云端 run、JUnit、三份 `.xcresult`、manifest/artifact identity 和 Agent C 独立结果包验收在 push 后补录，未在本轮实现前置写入。
+本轮未修改 `InferenceEngine.stop()`、工程文件、workflow、模型文件或历史 prompt；无模型下载、无云端 inference。云端证据由下方 Agent C 独立下载复判，不使用本地 build/test 代替。
+
+#### v2.85 Agent C 云端验收记录
+
+- 2026-09-08，GitHub API 复查远端 `main` 为 `a093e03df54cb205c62658d8a383f31a80ba9d05`，与验收前本地 HEAD/`origin/main` 一致；最新 [run 32653672941](https://github.com/Altman-sam114/113/actions/runs/32653672941) attempt `1`、job `97229009203` 均 `completed/success`，subject=`v2.85: 修复取消生成占位生命周期`，workflow=`Local Gemma CI Results`。artifact 未过期，无 rerun。
+- 使用 `gh run download 32653672941 --repo Altman-sam114/113 --name localgemma-ci-v2.85-main-a093e03-run32653672941-attempt1 --dir /private/tmp/localgemma-c-review-32653672941/attempt1` 下载结果，并通过 artifact API 下载原始 ZIP；唯一 artifact ID `9496999466`、size `81,944,208` bytes。API digest 与 `shasum -a 256` 均为 `sha256:d2f69e4b06385f331c9ddd02577e3d44d4435d7ee6f73831debd13239ee3d7ba`，`unzip -tq` 无错误；ZIP 内 1,965 个唯一文件逐项 SHA-256 与解压内容一致，无路径越界。结果读取工具另生成的 `LocalGemma-tests.xcresult/database.sqlite3` 索引不属于云端 ZIP。
+- manifest/name、repository、branch、完整/短 SHA、subject、run URL/ID/attempt、workflow、destination、结果/日志路径与 API、`artifact-name.txt` 和实际文件一致。required outcomes `static/logic/build/test/macCatalyst/macRunScript=success`；JUnit XML 可解析，7 testcase、0 failure/error、1 skipped，唯一 optional skip 为 `codexRunEnvironment`，reason=`not-added-in-v1.0-cli-entrypoint-only`；failure summary 为 `All required checks passed.`。
+- 使用 `/Applications/Xcode.app/Contents/Developer/usr/bin/xcresulttool`，分别执行 `get test-results summary` 和 `get test-results tests`，`--path` 指向已下载的 `LocalGemma-tests.xcresult`，只读取结果：`130` total/unique、`130` Passed、`0` failed/skipped/unknown/duplicate，与 `git show a093e03:LocalGemmaTests/LocalGemmaTests.swift` 提取的测试名称集合完全一致。新增 `testStoppingInferenceDoesNotPresentStaleGenerationPlaceholder()` 在结构化树和日志各恰一次且 Passed，耗时约 `1.230s`。`test.log` 有 130 个 case 起点和 passed 标记、0 failed、一次 `TEST EXECUTE SUCCEEDED`；`testWorkspaceSidebarTextLayoutPolicySupportsDynamicTypeRows()` 名称在 `Ro`/`ws()` 间被 xcodebuild 诊断插入，不能用简单整行正则误报缺测。
+- 三份 `.xcresult` 的 `Info.plist` 均通过 `plutil -lint`、版本 `3.58`；iOS build/Catalyst build/tests 的 Data/refs hash 集合分别 `3/3`、`3/3`、`963/963` 完全配对，rootId 均存在于两侧，`xcresulttool get object --legacy --format json` 均可读取。两个 build 的 `buildResult=succeeded/actionResult=notRequested`，tests 为 `actionResult=succeeded/buildResult=notRequested`，符合各自执行阶段；无 error/failure summary。Catalyst 有 2 条 Metal search-path warning，tests 有 2 条既有 composer FocusState warning；日志另有 AppIntents warning 和成功 marker 后的非致命 Simulator launch 诊断。
+- iOS XCTest destination 为 `platform=iOS Simulator,name=iPhone 17 Pro`；Mac destination 为 `generic/platform=macOS,variant=Mac Catalyst`，baseline notes 明确非原生 macOS target，run-script 日志记录存在/可执行/`bash -n` 契约。LogicSmoke 与 iOS/Catalyst 成功 marker 均存在；artifact 无模型权重、tokenizer、GGUF/Core ML 模型、缓存、截图或视频，最大非 xcresult 文件为 `mac-catalyst-build.log`（`202,787` bytes）。
+- 源码复核同一 policy/生产调用链、stop 后 ID/order/session 保留、copy 44pt、Reduce Motion、composer focus 和 verified gate；云端新增测试含真实 `ChatBubble` 的 `4` 宽度 × `2` 主题 × `4` Dynamic Type × `5` 输入矩阵（160 组合），不是完整人工 VoiceOver/视觉验收。已知非目标：`InferenceEngine.exportActiveSessionText` 仍将空消息标为“（生成中）”，包括 stopped 空 assistant，本轮未修复导出语义。
+- 本次只更新三份 v2.85 验收记录，使用 `git diff --check`、Markdown fence/链接/目录与 v2.85 内容一致性检查；未运行本地 build/test、Simulator、Catalyst 或 ImageRenderer，因人工禁止且本次为文档-only。`github.com:443` Git 连接失败而官方 API 正常；按最新人工分工仅本地 commit，远端同步与文档 CI 交主控完成，尚不宣称该文档 commit 的 CI 通过。临时证据保留在上述目录，用户 dirty 工程文件和未跟踪 prompt 不动。
 
 ### v2.83 / 顶部模型胶囊部署状态与徽章可读性
 
