@@ -6,6 +6,23 @@ import XCTest
 
 @MainActor
 final class LocalGemmaTests: XCTestCase {
+    func testWorkbenchWelcomeAndStarterLayout() {
+        for width: CGFloat in [0, -1, .nan, .infinity, 320, 479] {
+            XCTAssertEqual(WorkbenchPresentationPolicy.starterColumnCount(width: width, expandedText: false), 1)
+        }
+        for width: CGFloat in [480, 834, 1440] {
+            XCTAssertEqual(WorkbenchPresentationPolicy.starterColumnCount(width: width, expandedText: false), 2)
+            XCTAssertEqual(WorkbenchPresentationPolicy.starterColumnCount(width: width, expandedText: true), 1)
+        }
+        XCTAssertTrue(WorkbenchPresentationPolicy.showsWelcome(messages: [], isGenerating: false))
+        XCTAssertFalse(WorkbenchPresentationPolicy.showsWelcome(messages: [], isGenerating: true))
+        XCTAssertFalse(WorkbenchPresentationPolicy.showsWelcome(
+            messages: [ChatMessage(role: .user, text: "Hello")], isGenerating: false))
+        XCTAssertEqual(WorkbenchPresentationPolicy.initialWorkspace(arguments: ["--ui-workspace", "models"]), .models)
+        XCTAssertEqual(WorkbenchPresentationPolicy.initialWorkspace(arguments: ["--ui-workspace"]), .chat)
+        XCTAssertEqual(WorkbenchPresentationPolicy.initialWorkspace(arguments: ["--ui-workspace", "invalid"]), .chat)
+    }
+
     func testAppMotionAccessibilityPolicyRespectsReduceMotion() {
         let largeSpatialEffects: Set<AppMotionEffect> = [
             .workspaceNavigation,

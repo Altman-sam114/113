@@ -4429,3 +4429,11 @@
 - 直接读取 tests xcresult 的 `testsRef` 结构化对象，得到恰好 `122` 个唯一 `ActionTestMetadata` Test Case，`duplicate=0`，`testStatus=Success` 为 `122`，failed/unknown 为 `0`。新增 `testExportSessionBodyTextLayoutPolicySupportsDynamicTypeReading()` 在结构化对象中恰好一次且为 `Success`。`test.log` 的 case 行因 xcodebuild `NSMachErrorDomain Code=-308` diagnostic 把一个旧行截成 `st case`；按交错修正后为 `122` 个 passed、122 个唯一、0 duplicate。新增测试在 test.log 中恰好一次并为 passed；日志含一次 `** TEST EXECUTE SUCCEEDED **`。iOS/Catalyst build log 各含一次 `** TEST BUILD SUCCEEDED **`。结构化 xcresult 是测试数量和状态的权威来源。
 - 通过 GitHub API 读取该 commit 的测试源码确认新增测试契约：真实 `ImageRenderer` 覆盖 320/390/834/1200pt、亮暗主题和 `.large`/`.xxxLarge`/`.accessibility3`，检查完整 Markdown 正文、18pt padding、3pt line spacing、语义等宽 Dynamic Type、正尺寸/高度；同一测试复核 `ExportSessionLayoutPolicy` 的 320/760pt 宽度边界、非法宽度回退，以及分享/复制动作至少 44pt。既有 `testExportSessionActionLayoutPolicyMaintainsTouchTargets()` 与 `testExportSessionLayoutPolicyConstrainsWideContent()` 也在 test.log 和结构化结果中各自 Passed。
 - artifact 内没有 Gemma 权重、tokenizer、`.mlmodelc`、GGUF 或其他模型 payload 文件；`mac-baseline-notes.md` 明确这是既有 iOS target 的 Mac Catalyst build-for-testing、不是原生 macOS target，且 workflow 不下载模型权重、不调用外部 inference service。云端测试同时通过默认 Simulation、no-real-weights、verified 门禁和真实 runtime placeholder 边界测试。本轮没有本地 xcodebuild、XCTest、Simulator、Catalyst build/run 或 ImageRenderer；用户保留的 `LocalGemma.xcodeproj/project.pbxproj` 修改未编辑、未暂存、未提交。
+
+## v3.0 工作台界面重构（2026-09-27，云端验收待完成）
+
+本轮由单一 Agent X 串行执行设计、实现与验收。接续已有界面拆分草稿：主题、聊天、输入区、模型、提示词、设置和共享组件分别进入独立 Swift 文件并加入 app target；保留既有工程签名设置。深墨色/浅瓷白表面、青绿与靛蓝强调色、品牌导航、聊天欢迎引导与本地模拟标识形成统一工作台。AITRANS 只读参考主题的间距、圆角、最大阅读宽度组织方式，未修改该项目。
+
+状态对象、四页身份隔离、composer 同步焦点、快捷键、本地文件、44pt、Dynamic Type、Reduce Motion 和 verified gate 继续沿用。新增 testWorkbenchWelcomeAndStarterLayout，总计 131 个 XCTest 方法。Tools/capture_workbench.py 只允许 GitHub Actions 执行，采集 iPhone/iPad × 亮暗 × 四工作区的 16 张生产截图；visuals/manifest.json 记录 SHA/run/attempt/device。CI 将截图作为必选阶段，JUnit 由 7 增至 8 个阶段，仍只有可选 Codex environment 可跳过。
+
+本机仅进行源码检查、git diff --check、plutil 和 YAML/脚本解析；不执行 Swift 编译、模拟器、XCTest 或 Catalyst。完整验证和截图检查尚待最新 main 的云端结果包，不能据此声明发布就绪。默认 runtime 仍为模拟，真实推理、签名发布和真机/辅助技术验收尚未完成。

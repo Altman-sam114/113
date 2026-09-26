@@ -332,3 +332,20 @@ flowchart TD
     M --> O[成功或输出签名/窗口服务/沙箱失败原因]
     E --> F
 ```
+
+## v3.0 工作台与云端视觉验收
+
+读图说明：共享状态进入拆分后的工作区，截图由云端生产 App 生成，必须核对版本身份后人工查看。
+
+~~~mermaid
+flowchart TD
+    %% 保留现有状态边界
+    State[ModelCatalog / InferenceEngine / DeviceOptimizer] --> Shell[ContentView 稳定页面壳]
+    Shell --> Pages[聊天 / 模型 / 提示词 / 设置]
+    Theme[WorkbenchTheme / WorkbenchComponents] --> Pages
+    %% 单代理与云端验证链路
+    Main[main 提交] --> CI[云端 LogicSmoke / iOS XCTest / Catalyst]
+    CI --> Visual[iPhone / iPad 四页亮暗截图]
+    Visual --> Manifest[SHA / run / attempt / 截图 manifest]
+    Manifest --> Review[结果包核对与视觉检查]
+~~~

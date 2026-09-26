@@ -280,6 +280,17 @@ jobs:
           cat "$log"
           exit 0
 
+      - name: Capture production workbench screenshots
+        run: |
+          status=0
+          python3 Tools/capture_workbench.py >"$CI_RESULTS_DIR/visual-capture.log" 2>&1 || status=$?
+          if [ "$status" -eq 0 ]; then
+            echo success > "$CI_RESULTS_DIR/outcomes/visual"
+          else
+            echo failure > "$CI_RESULTS_DIR/outcomes/visual"
+          fi
+          cat "$CI_RESULTS_DIR/visual-capture.log"
+
       - name: Generate manifest, JUnit, and failure summary
         run: |
           set -euo pipefail
@@ -300,6 +311,7 @@ jobs:
                   return default
 
           outcomes = {
+              "visual": read_text(outcomes_dir / "visual", "skipped"),
               "static": read_text(outcomes_dir / "static", "skipped"),
               "logic": read_text(outcomes_dir / "logic", "skipped"),
               "build": read_text(outcomes_dir / "build", "skipped"),
@@ -334,6 +346,7 @@ jobs:
           )
 
           junit_cases = [
+              ("workbenchScreenshots", outcomes["visual"], "visuals/manifest.json"),
               ("staticChecks", outcomes["static"], "git diff, plutil, workflow YAML"),
               ("logicSmoke", outcomes["logic"], "Tools/LogicSmoke.swift"),
               ("xcodeBuildForTesting", outcomes["build"], "xcodebuild build-for-testing"),
@@ -410,6 +423,7 @@ jobs:
               "",
           ]
           required_outcomes = [
+              "visual",
               "static",
               "logic",
               "build",
@@ -451,6 +465,8 @@ jobs:
           (results_dir / "ci-failure-summary.md").write_text("\n".join(failure_lines), encoding="utf-8")
 
           manifest = {
+              "visualCaptureOutcome": outcomes["visual"],
+              "visualManifestPath": "ci-results/visuals/manifest.json",
               "artifactName": artifact_name,
               "version": os.environ["CI_VERSION"],
               "repository": repository,
@@ -516,7 +532,8 @@ jobs:
           mac_run_script_outcome="$(cat "$CI_RESULTS_DIR/outcomes/mac-run-script")"
           codex_run_environment_outcome="$(cat "$CI_RESULTS_DIR/outcomes/codex-run-environment")"
           cat "$CI_RESULTS_DIR/ci-failure-summary.md"
-          if [ "$static_outcome" != "success" ] ||
+          if [ "$(cat "$CI_RESULTS_DIR/outcomes/visual")" != "success" ] ||
+             [ "$static_outcome" != "success" ] ||
              [ "$logic_outcome" != "success" ] ||
              [ "$build_outcome" != "success" ] ||
              [ "$test_outcome" != "success" ] ||

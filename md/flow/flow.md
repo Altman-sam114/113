@@ -428,3 +428,11 @@ Agent X 不能跳过 Agent C artifact 验收；失败时不能继续下一轮并
 - staged 不能提升为 verified。
 - 只有确认卸载后才删除 artifact，且卸载 artifact 后必须停止部署；取消卸载不能改变文件或部署状态。
 - README、测试规范、核心流程图必须跟源码和 CI 流程同步。
+
+## v3.0 工作台界面重构（2026-09-27，云端验收待完成）
+
+本轮由单一 Agent X 串行执行设计、实现与验收。接续已有界面拆分草稿：主题、聊天、输入区、模型、提示词、设置和共享组件分别进入独立 Swift 文件并加入 app target；保留既有工程签名设置。深墨色/浅瓷白表面、青绿与靛蓝强调色、品牌导航、聊天欢迎引导与本地模拟标识形成统一工作台。AITRANS 只读参考主题的间距、圆角、最大阅读宽度组织方式，未修改该项目。
+
+状态对象、四页身份隔离、composer 同步焦点、快捷键、本地文件、44pt、Dynamic Type、Reduce Motion 和 verified gate 继续沿用。新增 testWorkbenchWelcomeAndStarterLayout，总计 131 个 XCTest 方法。Tools/capture_workbench.py 只允许 GitHub Actions 执行，采集 iPhone/iPad × 亮暗 × 四工作区的 16 张生产截图；visuals/manifest.json 记录 SHA/run/attempt/device。CI 将截图作为必选阶段，JUnit 由 7 增至 8 个阶段，仍只有可选 Codex environment 可跳过。
+
+本机仅进行源码检查、git diff --check、plutil 和 YAML/脚本解析；不执行 Swift 编译、模拟器、XCTest 或 Catalyst。完整验证和截图检查尚待最新 main 的云端结果包，不能据此声明发布就绪。默认 runtime 仍为模拟，真实推理、签名发布和真机/辅助技术验收尚未完成。
