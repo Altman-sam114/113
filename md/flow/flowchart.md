@@ -367,3 +367,17 @@ flowchart LR
     Split --> Cloud[云端回归与截图验收]
     Stack --> Cloud
 ```
+
+
+## v3.1 云端验收结果
+
+读图说明：布局回归修复后，最新 main commit 由同一云端 run 完成代码、构建、测试和视觉截图验收。
+
+```mermaid
+flowchart LR
+    Commit[592aa1c main] --> Build[iOS + Catalyst build]
+    Build --> Test[131 XCTest + LogicSmoke]
+    Test --> Visual[16 张 iPhone/iPad 亮暗截图]
+    Visual --> Package[manifest / JUnit / artifact]
+    Package --> Pass[run 36309087049 attempt 2 success]
+```

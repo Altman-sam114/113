@@ -89,3 +89,10 @@ Agent A 给 Agent B 的提示词要默认采用：
 v3.0 云端 run `36260394187` 的四组布局测试仍沿用旧侧栏宽度，已按生产设计同步：compact 为宽度 25%、224...256pt，regular 为 22%、260...288pt；根断点保持 700/980/700。1180pt 窗口扣除全局侧栏后已有 920pt 聊天 pane，故应进入会话/聊天 split，仍保障聊天面至少 620pt。新增现有测试内的比例及 clamp 边界矩阵，不削弱断言、不跳过失败测试；XCTest 方法总数保持 131。
 
 本机仅源码与 git diff --check、工程 plutil、YAML 解析，不执行编译、模拟器或 XCTest。全部构建测试在 GitHub Actions，最新 SHA/run/attempt 和结果包、生产截图仍需验收；不声明发布就绪。AITRANS 仅只读参考，无修改。
+
+
+## v3.1 云端验收通过（2026-09-27）
+
+最新 `origin/main` commit `592aa1c8b1d95e0f8f69a1bea91a69ae0c7f53ab` 对应 GitHub Actions run `36309087049`、attempt `2` 已通过。结果包 artifact 为 `localgemma-ci-v3.1-main-592aa1c-run36309087049-attempt2`。Static checks、LogicSmoke、iOS build-for-testing、iPhone Simulator XCTest、Mac Catalyst build、Mac Catalyst 脚本契约、16 张 iPhone/iPad 亮暗工作区截图、manifest、JUnit 和结果包上传均成功。下载完整压缩包在当前网络环境中速度极慢，已以 GitHub run 状态、artifact 元数据和成功阶段作为验收证据；未把本地输出冒充结果包内容。
+
+本地未执行 Swift 编译、XCTest、模拟器或 Catalyst。默认 runtime 仍为模拟，未下载模型权重，未接入真实推理或签名发布；AITRANS 仍只读参考。
