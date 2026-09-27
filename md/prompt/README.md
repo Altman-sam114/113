@@ -108,3 +108,10 @@ v3.0 云端 run `36260394187` 的四组布局测试仍沿用旧侧栏宽度，�
 ## v3.2 提示词页提示词
 
 本轮直接修复 PromptTemplateGrid 的真实宽度列数选择；Agent B 应通过 main 云端 run 验收 iPhone/iPad 亮暗截图，并检查模板卡片在 Mac/Catalyst 宽窗口不再退回单列。
+
+
+## v3.3 云端视觉采集稳定性（2026-09-27，云端待验收）
+
+`Tools/capture_workbench.py` 的 `sim()` 为 GitHub Actions 上的 `xcrun simctl` 增加最多 3 次、有界 2 秒退避重试，并在最终失败时保留命令与 stderr；覆盖 boot、bootstatus、install、launch、screenshot 和 shutdown，解决 CoreSimulator 瞬态 launch denied 导致视觉阶段误失败的问题。仍只允许 `GITHUB_ACTIONS=true`，仍采集 iPhone/iPad × 亮暗 × 四工作区 16 张截图，不改变 App UI、状态流、模型文件、runtime 或 verified gate。
+
+本地仅做 Python 语法和文本结构检查；构建、XCTest、Catalyst 和截图仍全部在云端执行。

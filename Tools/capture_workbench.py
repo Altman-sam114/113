@@ -8,8 +8,18 @@ import time
 if os.environ.get("GITHUB_ACTIONS") != "true":
     raise SystemExit("Cloud-only UI capture requires GITHUB_ACTIONS=true")
 
-def sim(*args):
-    return subprocess.check_output(["xcrun", "simctl", *args], text=True).strip()
+def sim(*args, attempts=3):
+    """Run simctl with bounded retries for transient CoreSimulator service errors."""
+    command = ["xcrun", "simctl", *args]
+    last_error = None
+    for attempt in range(1, attempts + 1):
+        result = subprocess.run(command, text=True, capture_output=True)
+        if result.returncode == 0:
+            return result.stdout.strip()
+        last_error = result.stderr.strip() or result.stdout.strip() or "simctl failed"
+        if attempt < attempts:
+            time.sleep(2)
+    raise RuntimeError(f"{' '.join(command)} failed after {attempts} attempts: {last_error}")
 
 output = Path(os.environ["CI_RESULTS_DIR"]) / "visuals"
 output.mkdir(parents=True, exist_ok=True)

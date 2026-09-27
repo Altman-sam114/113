@@ -394,3 +394,17 @@ flowchart LR
     Policy --> Columns[1 / 2 / 3 / 4 列]
     Columns --> Cards[统一模板卡片与 44pt 动作]
 ```
+
+
+## v3.3 云端截图重试
+
+读图说明：视觉采集只对 simctl 瞬态失败做有界重试，最终错误仍使阶段失败。
+
+```mermaid
+flowchart LR
+    Action[boot / install / launch / screenshot] --> Retry{simctl 成功?}
+    Retry -- 否且未超3次 --> Backoff[2秒退避]
+    Backoff --> Action
+    Retry -- 否且已达上限 --> Fail[保留 stderr 并失败]
+    Retry -- 是 --> Record[写入截图 manifest]
+```

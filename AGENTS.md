@@ -448,3 +448,10 @@ v3.0 云端 run `36260394187` 的四组布局测试仍沿用旧侧栏宽度，�
 提示词页不再用 `ViewThatFits` 竞争多个带最小宽度的 LazyVGrid；`PromptTemplatesWorkspace` 将真实内容宽度传入 `PromptTemplateGrid`，由已有 `PromptTemplateGridLayoutPolicy.columnCount(for:)` 直接选择 1/2/3/4 列。这样 Mac/iPad 侧栏剩余宽度会稳定展示多列卡片，避免宽屏右侧出现大片空白，同时保留 230...320pt 卡片宽度、12pt 间距、模板动作 44pt、辅助语义、动态字体、本地 runtime 与 verified 门禁。未改变模板填入/发送状态流。
 
 本地只执行源码、git diff、工程和 YAML 结构检查；Swift/XCTest/截图由 GitHub Actions 云端验证。
+
+
+## v3.3 云端视觉采集稳定性（2026-09-27，云端待验收）
+
+`Tools/capture_workbench.py` 的 `sim()` 为 GitHub Actions 上的 `xcrun simctl` 增加最多 3 次、有界 2 秒退避重试，并在最终失败时保留命令与 stderr；覆盖 boot、bootstatus、install、launch、screenshot 和 shutdown，解决 CoreSimulator 瞬态 launch denied 导致视觉阶段误失败的问题。仍只允许 `GITHUB_ACTIONS=true`，仍采集 iPhone/iPad × 亮暗 × 四工作区 16 张截图，不改变 App UI、状态流、模型文件、runtime 或 verified gate。
+
+本地仅做 Python 语法和文本结构检查；构建、XCTest、Catalyst 和截图仍全部在云端执行。
