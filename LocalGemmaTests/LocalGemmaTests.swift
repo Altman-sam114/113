@@ -6664,19 +6664,20 @@ final class LocalGemmaTests: XCTestCase {
             for: CGSize(width: 1024, height: 1366)
         )
 
-        XCTAssertGreaterThanOrEqual(compactWidth, 250)
-        XCTAssertLessThanOrEqual(compactWidth, 310)
-        XCTAssertGreaterThanOrEqual(regularWidth, 320)
-        XCTAssertLessThanOrEqual(regularWidth, 390)
-        XCTAssertGreaterThanOrEqual(iPadPortraitWidth, 320)
-        XCTAssertLessThanOrEqual(iPadPortraitWidth, 390)
+        XCTAssertGreaterThanOrEqual(compactWidth, 224)
+        XCTAssertLessThanOrEqual(compactWidth, 256)
+        XCTAssertGreaterThanOrEqual(regularWidth, 260)
+        XCTAssertLessThanOrEqual(regularWidth, 288)
+        XCTAssertGreaterThanOrEqual(iPadPortraitWidth, 260)
+        XCTAssertLessThanOrEqual(iPadPortraitWidth, 288)
         // Lock the new compact/detailed sidebar ratios and both clamp edges.
-        for (width, compact, regular) in [
+        let sidebarCases: [(CGFloat, CGFloat, CGFloat)] = [
             (700.0, 224.0, 260.0),
             (960.0, 240.0, 260.0),
             (1280.0, 256.0, 281.6),
             (1600.0, 256.0, 288.0)
-        ] {
+        ]
+        for (width, compact, regular) in sidebarCases {
             let size = CGSize(width: width, height: 900)
             XCTAssertEqual(WorkspaceLayoutMode.landscapeCompact.sidebarWidth(for: size), compact, accuracy: 0.001)
             XCTAssertEqual(WorkspaceLayoutMode.landscapeRegular.sidebarWidth(for: size), regular, accuracy: 0.001)
