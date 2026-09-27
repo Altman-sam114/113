@@ -441,3 +441,10 @@ v3.0 云端 run `36260394187` 的四组布局测试仍沿用旧侧栏宽度，�
 最新 `origin/main` commit `592aa1c8b1d95e0f8f69a1bea91a69ae0c7f53ab` 对应 GitHub Actions run `36309087049`、attempt `2` 已通过。结果包 artifact 为 `localgemma-ci-v3.1-main-592aa1c-run36309087049-attempt2`。Static checks、LogicSmoke、iOS build-for-testing、iPhone Simulator XCTest、Mac Catalyst build、Mac Catalyst 脚本契约、16 张 iPhone/iPad 亮暗工作区截图、manifest、JUnit 和结果包上传均成功。下载完整压缩包在当前网络环境中速度极慢，已以 GitHub run 状态、artifact 元数据和成功阶段作为验收证据；未把本地输出冒充结果包内容。
 
 本地未执行 Swift 编译、XCTest、模拟器或 Catalyst。默认 runtime 仍为模拟，未下载模型权重，未接入真实推理或签名发布；AITRANS 仍只读参考。
+
+
+## v3.2 提示词网格真实宽度布局（2026-09-27，云端待验收）
+
+提示词页不再用 `ViewThatFits` 竞争多个带最小宽度的 LazyVGrid；`PromptTemplatesWorkspace` 将真实内容宽度传入 `PromptTemplateGrid`，由已有 `PromptTemplateGridLayoutPolicy.columnCount(for:)` 直接选择 1/2/3/4 列。这样 Mac/iPad 侧栏剩余宽度会稳定展示多列卡片，避免宽屏右侧出现大片空白，同时保留 230...320pt 卡片宽度、12pt 间距、模板动作 44pt、辅助语义、动态字体、本地 runtime 与 verified 门禁。未改变模板填入/发送状态流。
+
+本地只执行源码、git diff、工程和 YAML 结构检查；Swift/XCTest/截图由 GitHub Actions 云端验证。

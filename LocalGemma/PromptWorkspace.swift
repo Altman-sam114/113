@@ -30,6 +30,9 @@ struct PromptTemplatesWorkspace: View {
 
                     PromptTemplateGrid(
                         templates: templates,
+                        availableWidth: PromptTemplatesWorkspaceLayoutPolicy.contentWidth(
+                            forContainerWidth: proxy.size.width
+                        ),
                         isGenerating: inference.isGenerating,
                         apply: { template in
                             inference.applyTemplate(template)
@@ -87,17 +90,15 @@ enum PromptTemplatesWorkspaceLayoutPolicy {
 
 struct PromptTemplateGrid: View {
     let templates: [PresetPromptTemplate]
+    let availableWidth: CGFloat
     let isGenerating: Bool
     let apply: (PresetPromptTemplate) -> Void
     let send: (PresetPromptTemplate) -> Void
 
     var body: some View {
-        ViewThatFits(in: .horizontal) {
-            templateGrid(columnCount: 4)
-            templateGrid(columnCount: 3)
-            templateGrid(columnCount: 2)
-            templateGrid(columnCount: 1)
-        }
+        templateGrid(
+            columnCount: PromptTemplateGridLayoutPolicy.columnCount(for: availableWidth)
+        )
     }
 
     private func templateGrid(columnCount: Int) -> some View {
@@ -454,4 +455,3 @@ enum PromptTemplateActionLayoutPolicy {
         cardWidth >= minimumCardWidthForActionRow()
     }
 }
-

@@ -381,3 +381,16 @@ flowchart LR
     Visual --> Package[manifest / JUnit / artifact]
     Package --> Pass[run 36309087049 attempt 2 success]
 ```
+
+
+## v3.2 提示词网格
+
+读图说明：模板网格使用真实剩余宽度选择列数，避免宽屏单列空白。
+
+```mermaid
+flowchart LR
+    Root[工作区真实宽度] --> Content[扣除横向 padding]
+    Content --> Policy[PromptTemplateGridLayoutPolicy]
+    Policy --> Columns[1 / 2 / 3 / 4 列]
+    Columns --> Cards[统一模板卡片与 44pt 动作]
+```
