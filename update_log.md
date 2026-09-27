@@ -16,7 +16,7 @@
 - 平台：SwiftUI iOS App，Swift 6.0，iOS deployment target 17.0，当前 app/test target 支持 iPhone、iPad 和 Mac Catalyst build-for-testing，并提供项目内 Mac Catalyst 本地 build/run 脚本入口；尚未创建原生 macOS target。
 - 当前默认模型：`Gemma 1.5B Local`
 - 当前推理：本地模拟 runtime，不下载模型权重，不执行真实模型推理。
-- 当前核心测试：`LocalGemmaTests.swift` 中 129 个 XCTest 方法。
+- 当前核心测试：`LocalGemmaTests.swift` 中 131 个 XCTest 方法。
 - 当前核心文档入口：`AGENTS.md`、`md/flow/flow.md`、`md/flow/flowchart.md`、`md/test/test.md`、`md/prompt/README.md`、`README.md`。
 - 当前协作验证：默认 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载未加密 CI 结果包验收；本地仓库当前已配置 `origin` remote，最终验收仍以最新 `origin/main` 对应的 GitHub Actions run 和结果包为准；文档已预留未来 `agentx:` 主控 Agent A -> Agent B -> Agent C 多轮循环的规则。
 
@@ -4437,3 +4437,10 @@
 状态对象、四页身份隔离、composer 同步焦点、快捷键、本地文件、44pt、Dynamic Type、Reduce Motion 和 verified gate 继续沿用。新增 testWorkbenchWelcomeAndStarterLayout，总计 131 个 XCTest 方法。Tools/capture_workbench.py 只允许 GitHub Actions 执行，采集 iPhone/iPad × 亮暗 × 四工作区的 16 张生产截图；visuals/manifest.json 记录 SHA/run/attempt/device。CI 将截图作为必选阶段，JUnit 由 7 增至 8 个阶段，仍只有可选 Codex environment 可跳过。
 
 本机仅进行源码检查、git diff --check、plutil 和 YAML/脚本解析；不执行 Swift 编译、模拟器、XCTest 或 Catalyst。完整验证和截图检查尚待最新 main 的云端结果包，不能据此声明发布就绪。默认 runtime 仍为模拟，真实推理、签名发布和真机/辅助技术验收尚未完成。
+
+
+## v3.1 侧栏布局回归修复（2026-09-27，云端待验收）
+
+v3.0 云端 run `36260394187` 的四组布局测试仍沿用旧侧栏宽度，已按生产设计同步：compact 为宽度 25%、224...256pt，regular 为 22%、260...288pt；根断点保持 700/980/700。1180pt 窗口扣除全局侧栏后已有 920pt 聊天 pane，故应进入会话/聊天 split，仍保障聊天面至少 620pt。新增现有测试内的比例及 clamp 边界矩阵，不削弱断言、不跳过失败测试；XCTest 方法总数保持 131。
+
+本机仅源码与 git diff --check、工程 plutil、YAML 解析，不执行编译、模拟器或 XCTest。全部构建测试在 GitHub Actions，最新 SHA/run/attempt 和结果包、生产截图仍需验收；不声明发布就绪。AITRANS 仅只读参考，无修改。

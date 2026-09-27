@@ -349,3 +349,21 @@ flowchart TD
     Visual --> Manifest[SHA / run / attempt / 截图 manifest]
     Manifest --> Review[结果包核对与视觉检查]
 ~~~
+
+
+## v3.1 大屏宽度契约
+
+读图说明：收窄后的全局导航和会话分栏使用真实剩余宽度，测试同步生产设计。
+
+```mermaid
+flowchart LR
+    %% 根尺寸决定导航形式与宽度
+    Root[窗口尺寸] --> Global[compact 224至256 / regular 260至288]
+    Global --> Pane[窗口减全局侧栏]
+    %% 聊天侧栏保留既有可读宽度门槛
+    Pane --> Threshold{pane 至少 860pt}
+    Threshold -- 是 --> Split[会话与聊天分栏 / 聊天至少620pt]
+    Threshold -- 否 --> Stack[横向会话栏]
+    Split --> Cloud[云端回归与截图验收]
+    Stack --> Cloud
+```

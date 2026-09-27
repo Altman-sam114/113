@@ -3951,7 +3951,7 @@ final class LocalGemmaTests: XCTestCase {
             (CGSize(width: 1_024, height: 1_366), .landscapeRegular, .horizontal, .detailedSidebar)
         ]
 
-        let expectedSidebarWidths: [CGFloat] = [0, 250, 293.997, 294, 320, 250, 327.68]
+        let expectedSidebarWidths: [CGFloat] = [0, 224, 244.9975, 245, 260, 224, 260]
 
         for (item, expectedSidebarWidth) in zip(cases, expectedSidebarWidths) {
             let plan = WorkspaceRootLayoutPolicy.resolve(for: item.size)
@@ -3984,7 +3984,7 @@ final class LocalGemmaTests: XCTestCase {
             for: CGSize(width: CGFloat.infinity, height: 900)
         )
         XCTAssertEqual(infiniteWidthPlan.mode, .landscapeRegular)
-        XCTAssertEqual(infiniteWidthPlan.sidebarWidth, 390)
+        XCTAssertEqual(infiniteWidthPlan.sidebarWidth, 288)
         XCTAssertTrue(infiniteWidthPlan.sidebarWidth.isFinite)
     }
 
@@ -4174,8 +4174,8 @@ final class LocalGemmaTests: XCTestCase {
         XCTAssertTrue(narrowDesktop.usesSidebar)
         XCTAssertEqual(splitWindow, .portrait)
         XCTAssertFalse(splitWindow.usesSidebar)
-        XCTAssertGreaterThanOrEqual(desktopSidebarWidth, 320)
-        XCTAssertLessThanOrEqual(desktopSidebarWidth, 390)
+        XCTAssertGreaterThanOrEqual(desktopSidebarWidth, 260)
+        XCTAssertLessThanOrEqual(desktopSidebarWidth, 288)
     }
 
     func testSessionSidebarLayoutPolicyConstrainsWideChatHistory() {
@@ -4294,7 +4294,7 @@ final class LocalGemmaTests: XCTestCase {
             (CGSize(width: 820, height: 1_180), .stacked),
             (CGSize(width: 1_024, height: 1_366), .stacked),
             (CGSize(width: 1_030, height: 800), .stacked),
-            (CGSize(width: 1_180, height: 820), .stacked),
+            (CGSize(width: 1_180, height: 820), .split),
             (CGSize(width: 1_280, height: 800), .split),
             (CGSize(width: 1_366, height: 900), .split)
         ]
@@ -6670,6 +6670,17 @@ final class LocalGemmaTests: XCTestCase {
         XCTAssertLessThanOrEqual(regularWidth, 390)
         XCTAssertGreaterThanOrEqual(iPadPortraitWidth, 320)
         XCTAssertLessThanOrEqual(iPadPortraitWidth, 390)
+        // Lock the new compact/detailed sidebar ratios and both clamp edges.
+        for (width, compact, regular) in [
+            (700.0, 224.0, 260.0),
+            (960.0, 240.0, 260.0),
+            (1280.0, 256.0, 281.6),
+            (1600.0, 256.0, 288.0)
+        ] {
+            let size = CGSize(width: width, height: 900)
+            XCTAssertEqual(WorkspaceLayoutMode.landscapeCompact.sidebarWidth(for: size), compact, accuracy: 0.001)
+            XCTAssertEqual(WorkspaceLayoutMode.landscapeRegular.sidebarWidth(for: size), regular, accuracy: 0.001)
+        }
         XCTAssertEqual(
             WorkspaceLayoutMode.portrait.sidebarWidth(for: CGSize(width: 390, height: 844)),
             0
