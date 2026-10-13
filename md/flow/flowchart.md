@@ -408,3 +408,26 @@ flowchart LR
     Retry -- 否且已达上限 --> Fail[保留 stderr 并失败]
     Retry -- 是 --> Record[写入截图 manifest]
 ```
+
+## v3.3.1 焦点测试宿主与同步生产边界
+
+读图说明：首次 pending request 仍在挂载前设置，测试分别验证公开窗口生命周期和真实文本焦点；任何条件失败都会留下诊断并执行清理，生产逻辑没有延迟任务。
+
+```mermaid
+flowchart TD
+    %% 测试宿主使用已有活跃场景，不创建新的场景
+    Scene[等待现有 foreground-active scene] --> Save[保存原 key window]
+    Save --> Attach[scene-aware window 挂载真实 ComposerBar<br/>保留预先 pending request]
+    Attach --> Ready[有界 expectation<br/>key + visible + attached + viewDidAppear]
+    %% 生产路径保持同步，测试只观察结果
+    Ready --> Focus[同步 updateFocus 消费 request<br/>验证真实 UITextInput first responder]
+    Focus --> Hide[隐藏聊天页且有 pending request<br/>验证 request 与焦点均清空]
+    Hide --> Enter[重新进入活动聊天页<br/>验证新请求再次聚焦]
+    %% 任一失败保留诊断，成功与失败路径都恢复窗口环境
+    Ready -- 超时 --> Fail[记录 scene/window/request/responder 并失败]
+    Focus -- 超时 --> Fail
+    Hide -- 超时 --> Fail
+    Enter -- 超时 --> Fail
+    Enter --> Cleanup[defer 结束编辑 / 隐藏 / 移除宿主<br/>恢复原 key window 并断言]
+    Fail --> Cleanup
+```

@@ -4465,3 +4465,25 @@ v3.0 云端 run `36260394187` 的四组布局测试仍沿用旧侧栏宽度，�
 `Tools/capture_workbench.py` 的 `sim()` 为 GitHub Actions 上的 `xcrun simctl` 增加最多 3 次、有界 2 秒退避重试，并在最终失败时保留命令与 stderr；覆盖 boot、bootstatus、install、launch、screenshot 和 shutdown，解决 CoreSimulator 瞬态 launch denied 导致视觉阶段误失败的问题。仍只允许 `GITHUB_ACTIONS=true`，仍采集 iPhone/iPad × 亮暗 × 四工作区 16 张截图，不改变 App UI、状态流、模型文件、runtime 或 verified gate。
 
 本地仅做 Python 语法和文本结构检查；构建、XCTest、Catalyst 和截图仍全部在云端执行。
+
+## v3.3.1 焦点测试窗口生命周期
+
+日期：2026-10-13（Asia/Taipei）
+
+失败依据与范围：
+
+- v3.3 commit `241768700efd97425993ac79006701b699cec4da`、run `36314940076`、attempt `1` 结构化结果为 131 项、130 通过、1 失败；仅首次 attachment 后的 composer first-responder 非 nil 断言失败。后续隐藏释放和重返聚焦断言通过，但不能据此把整轮记为通过。
+- 原测试无 window scene、固定等待 20ms、结束时仅隐藏窗口，没有记录 scene/key/attachment 就绪；旧结果不足以将失败归因于生产 focus。修复限定测试宿主，未修改 `ComposerBar.swift` 或业务源码。
+
+核心变更：
+
+- `testComposerInputMetadataAndFocusPolicyDescribeEntryPoints` 改为 async 测试，关联已有 foreground-active `UIWindowScene`；保留挂载前 `.applyTemplate` pending request 和同一真实 composer，不把首次请求移到重新挂载之后。
+- 通过公开 `viewDidAppear` 与 key/visible/attached 条件确认宿主；独立有界 expectation 验证首次聚焦、隐藏释放、重返聚焦，保留原断言并要求 responder 符合 `UITextInput`。阶段日志与失败诊断保存窗口/request/responder 状态。
+- `defer` 结束编辑、隐藏窗口、移除 root controller、恢复原 key window，并锁住 cleanup 断言。测试不调用 `becomeFirstResponder()`，不加入任意 sleep/生产异步 focus、不 skip/重试测试；其他两个 identity 宿主保持原样。
+- 同步 `AGENTS.md`、README、flow/flowchart、测试规范及 prompt 索引，当前测试基线保持 131。
+
+验证状态与遗留项：
+
+- `git diff --check` 与 `bash -n script/build_and_run.sh` 无输出、退出 0；`plutil -lint LocalGemma.xcodeproj/project.pbxproj` 为 OK；Ruby YAML 解析为 `yaml ok`（仅有既有 PATH world-writable warning）；`rg -c 'func test'` 为 131；8 份文档路径/fence/version 与焦点三阶段源码契约结构检查通过。用户明确禁止本机构建，因此不运行 Swift、Probe/Fast、XCTest、模拟器、ImageRenderer 或 Catalyst。
+- 完整云端构建、131 项 XCTest、16 张截图与 Agent C 最新结果包验收尚待本轮提交后执行；不提前宣称故障解决或发布就绪。
+- 默认 runtime 仍为本地模拟；模型文件、网络、verified 门禁、真实 runtime 占位和 AITRANS 项目均未修改。

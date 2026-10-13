@@ -464,3 +464,11 @@ v3.0 云端 run `36260394187` 的四组布局测试仍沿用旧侧栏宽度，�
 `Tools/capture_workbench.py` 的 `sim()` 为 GitHub Actions 上的 `xcrun simctl` 增加最多 3 次、有界 2 秒退避重试，并在最终失败时保留命令与 stderr；覆盖 boot、bootstatus、install、launch、screenshot 和 shutdown，解决 CoreSimulator 瞬态 launch denied 导致视觉阶段误失败的问题。仍只允许 `GITHUB_ACTIONS=true`，仍采集 iPhone/iPad × 亮暗 × 四工作区 16 张截图，不改变 App UI、状态流、模型文件、runtime 或 verified gate。
 
 本地仅做 Python 语法和文本结构检查；构建、XCTest、Catalyst 和截图仍全部在云端执行。
+
+## v3.3.1 焦点生命周期的测试宿主边界
+
+生产数据流不变：`ComposerFocusRequest` 与聊天活动态进入同一 `ComposerBar`；`onAppear`/`onChange` 同步调用 `updateFocus()`，活动页设 `@FocusState` 后消费 request，隐藏页清空 request 与焦点。测试等待 UIKit/SwiftUI 的可观察结果，不向生产引入延时或额外请求。
+
+焦点测试先找到已有 foreground-active `UIWindowScene` 并保存其 key window，再挂载带有预先 pending request 的生产 composer。`ComposerFocusHostingController.viewDidAppear`、key/visible/attached 条件确认宿主有效，随后 `waitForComposerCondition` 的有界 XCTest predicate 分别确认首次聚焦、隐藏释放、重返聚焦；聚焦目标还须符合公开 `UITextInput`。每阶段记录 scene/window/request/responder 状态，缺少 scene 或条件超时直接失败，不 skip、不重试、不重建 view。
+
+`defer` 在成功和失败路径都结束编辑、隐藏测试窗口、移除 root controller、恢复原 key window，并断言 detached/responder 清空/key 恢复。其他两个 identity 宿主测试本轮未改；业务状态、四页身份、runtime 与 verified 门禁不变。

@@ -455,3 +455,9 @@ v3.0 云端 run `36260394187` 的四组布局测试仍沿用旧侧栏宽度，�
 `Tools/capture_workbench.py` 的 `sim()` 为 GitHub Actions 上的 `xcrun simctl` 增加最多 3 次、有界 2 秒退避重试，并在最终失败时保留命令与 stderr；覆盖 boot、bootstatus、install、launch、screenshot 和 shutdown，解决 CoreSimulator 瞬态 launch denied 导致视觉阶段误失败的问题。仍只允许 `GITHUB_ACTIONS=true`，仍采集 iPhone/iPad × 亮暗 × 四工作区 16 张截图，不改变 App UI、状态流、模型文件、runtime 或 verified gate。
 
 本地仅做 Python 语法和文本结构检查；构建、XCTest、Catalyst 和截图仍全部在云端执行。
+
+## v3.3.1 焦点测试窗口生命周期（2026-10-13，云端待验收）
+
+焦点回归测试必须在已有 foreground-active `UIWindowScene` 中托管真实 `ComposerBar`，保留首次 attachment 前的待处理 request，并分别等待公开 `viewDidAppear`/key-window/attachment 就绪和真实 `UITextInput` first responder 结果。测试使用有界条件 expectation，不以固定 sleep、测试重试或直接 `becomeFirstResponder()` 替代受测行为；失败需保留 scene、window、request 和 responder 诊断。退出时统一结束编辑、隐藏并移除 root controller、恢复原 key window，断言无宿主残留。
+
+生产 `ComposerBar` 的同步 `onAppear`/`onChange`、隐藏页清 request/焦点和四页身份保持不变。v3.3 run `36314940076` 的唯一 XCTest 失败尚不能仅凭旧日志确定为生产缺陷；本轮先修复无 scene 与固定 20ms 测试宿主假设，全部 131 项 XCTest 及构建仍交云端，不提前宣布修复通过。

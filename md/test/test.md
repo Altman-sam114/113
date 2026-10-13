@@ -58,7 +58,7 @@ xcrun simctl list devices available
 
 当前测试基线：
 
-- `LocalGemmaTests.swift` 当前包含 129 个 `test...` 方法。
+- `LocalGemmaTests.swift` 当前包含 131 个 `test...` 方法；v3.3.1 只增强既有焦点测试，不新增或跳过方法。
 - v2.75 新增 `testChipReadinessLayoutPolicyAdaptsToCardWidthAndAccessibilityDynamicType`，锁住 `354pt` 真实 panel 内容宽度边界、普通字号横排、Accessibility Dynamic Type 无条件 stacked、NaN/Infinity/非正宽度回退、纯值 plan、`DeviceOptimizer`/隐私状态不变，以及 `86pt` slot / `66pt` diameter；生产 `ChipReadinessCard` 的 `ImageRenderer` 覆盖亮暗主题、`382pt` 外框（扣除两侧 `14pt` panel padding 后为 `354pt` 内容）、窄外框与 Accessibility 字号 stacked，只断言图像非 nil、宽度误差不超过 1pt、高度合理，不做像素/私有层级/截图断言。测试函数数从 119 增至 120；本地只做轻量检查，完整 iOS/Catalyst build、LogicSmoke、120 项 XCTest 和结果包待本轮 push 后 GitHub Actions 执行。
 - v2.76 新增 `testOptimizationToggleTextLayoutPolicySupportsDynamicTypeRows`，锁住共享 `OptimizationToggleTextLayoutPolicy` 的标题/行标题/副标题均为两行、行内 spacing 为 3pt、subtitle lineSpacing 为 2pt、三个多行能力计算属性、44pt 行最小高度、250pt 最小卡片宽度和 510pt 两列边界，并确认重复读取不改变 `DeviceOptimizer` 开关、准备度或隐私摘要。生产 `ImageRenderer` 使用真实 `OptimizationToggleRow` 覆盖 250/510pt、亮暗主题、enabled/disabled 与 `.large`/`.xxxLarge`/`.accessibility3`，比较普通/Accessibility 高度，并用真实 `OptimizationToggleGrid` 覆盖窄单列和宽区域；只断言非 nil、宽度误差不超过 1pt、高度合理，不做像素、私有层级或截图断言。测试函数数从 120 增至 121；本地只做轻量检查，完整 iOS/Catalyst build、LogicSmoke、121 项 XCTest 和结果包待本轮 push 后 GitHub Actions 执行。
 - v2.77 新增 `testExportSessionBodyTextLayoutPolicySupportsDynamicTypeReading`，锁住 `ExportSessionBodyTextLayoutPolicy` 的 18pt content padding、3pt body line spacing、`preservesFullText`、语义等宽 Dynamic Type 契约、重复读取不变性、`ExportSessionLayoutPolicy` 的 320/390/834/1200pt 与负数/NaN 回归及导出动作 44pt 目标。生产公开 `ImageRenderer` 直接渲染真实 `ExportSessionView(payload:)`，覆盖亮暗主题、320/390/834/1200pt 与 `.large`/`.xxxLarge`/`.accessibility3`，只断言非 nil、正尺寸和固定 NavigationStack/GeometryReader 测试 viewport 下的非下降高度，不做像素、颜色、截图或私有层级断言。测试函数数从 121 增至 122；本地不运行 XCTest、xcodebuild、Simulator、Catalyst build/run 或视觉截图验收，完整 iOS/Catalyst build、LogicSmoke、122 项 XCTest 和结果包待本轮 push 后 GitHub Actions 执行。
@@ -421,7 +421,7 @@ xcodebuild -project LocalGemma.xcodeproj \
 当前基线：
 
 - 期望结果：`TEST EXECUTE SUCCEEDED`。
-- 当前测试函数数：130（v2.85 实现 commit `a093e03`；Agent C 已核对源码与 run `32653672941` attempt `1` 的结构化结果为 `130/130 Passed`，具体证据见下方 v2.85 验收记录）。
+- 当前测试函数数：131。历史 v2.85 实现 commit `a093e03` 的 run `32653672941` attempt `1` 为 `130/130 Passed`；它不代表当前版本的云端结果。
 
 ### v2.85 / 取消生成占位生命周期
 
@@ -581,3 +581,12 @@ v3.0 云端 run `36260394187` 的四组布局测试仍沿用旧侧栏宽度，�
 `Tools/capture_workbench.py` 的 `sim()` 为 GitHub Actions 上的 `xcrun simctl` 增加最多 3 次、有界 2 秒退避重试，并在最终失败时保留命令与 stderr；覆盖 boot、bootstatus、install、launch、screenshot 和 shutdown，解决 CoreSimulator 瞬态 launch denied 导致视觉阶段误失败的问题。仍只允许 `GITHUB_ACTIONS=true`，仍采集 iPhone/iPad × 亮暗 × 四工作区 16 张截图，不改变 App UI、状态流、模型文件、runtime 或 verified gate。
 
 本地仅做 Python 语法和文本结构检查；构建、XCTest、Catalyst 和截图仍全部在云端执行。
+
+## v3.3.1 首次焦点宿主回归（2026-10-13）
+
+- 失败依据：commit `2417687`、run `36314940076`、attempt `1` 的结构化 XCTest 为 131 total / 130 passed / 1 failed。唯一失败是 `testComposerInputMetadataAndFocusPolicyDescribeEntryPoints` 初次 attachment 后的非 nil responder 断言；旧包没有足够窗口状态诊断，不能宣称已经证明生产焦点丢失。
+- 受测场景不变：挂载前已有 `.applyTemplate` request；初始活动页消费并聚焦；非活动页收到 `.selectSession` request 后同时清 request 与焦点；重返活动页 `.openChatWorkspace` 再次聚焦。原非 nil/nil 与 request 断言全部保留，聚焦还要求公开 `UITextInput`，不匹配私有 UIKit/SwiftUI 类名。
+- 宿主改用已有 foreground-active `UIWindowScene`，`ComposerFocusHostingController` 记录公开 `viewDidAppear`。就绪检查与焦点结果检查分离，`XCTNSPredicateExpectation` 经异步 `XCTWaiter.fulfillment` 在主 actor 观察条件，每阶段 timeout 为 2 秒、条件满足即完成；这不是固定 sleep，也不重发 request、重建 view、直接调用 `becomeFirstResponder()` 或重试测试。
+- `defer` 始终结束编辑、隐藏 window、移除 root controller、恢复原 key window，并断言 responder/window/root 已移除且原 key window 已恢复。阶段日志前缀为 `[ComposerFocusLifecycle]`，包含 scene、key/hidden/attached/appeared、active/request 和 responder/textInput；超时诊断进入 XCTest failure。
+- 本轮测试数量仍为 131。完整云端必须通过 static、LogicSmoke、iOS build、XCTest、Catalyst build、脚本契约、16 张生产截图；JUnit 8 stages 与既有 optional skip 规则不变，workflow 不修改。Agent C 必须核对最新 SHA/run/attempt 的 manifest、日志和结构化 xcresult，不以 v3.3 截图或历史绿色 run 替代。
+- 本地仅运行 `git diff --check`、`plutil -lint`、Ruby YAML 解析、`bash -n`、测试计数及文档结构检查；用户要求只云端构建，因此不运行本地 Swift/Probe/Fast、xcodebuild、XCTest、Simulator、ImageRenderer 或 Catalyst。修复后的云端结果待提交后验证。

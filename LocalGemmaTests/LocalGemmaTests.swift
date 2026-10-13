@@ -3798,7 +3798,7 @@ final class LocalGemmaTests: XCTestCase {
         }
     }
 
-    func testComposerInputMetadataAndFocusPolicyDescribeEntryPoints() {
+    func testComposerInputMetadataAndFocusPolicyDescribeEntryPoints() async throws {
         XCTAssertEqual(ComposerInputMetadata.textFieldLabel, "本地模型输入")
         XCTAssertTrue(ComposerInputMetadata.textFieldHint.contains("Command Return"))
         XCTAssertTrue(ComposerInputMetadata.textFieldInputLabels.contains("输入 prompt"))
@@ -3880,28 +3880,89 @@ final class LocalGemmaTests: XCTestCase {
         XCTAssertEqual(templateRequest.next(for: .selectSession).sequence, 2)
         XCTAssertFalse(ComposerFocusRequest.initial.shouldFocus)
 
+        let activeScene: @MainActor () -> UIWindowScene? = {
+            UIApplication.shared.connectedScenes
+                .compactMap { $0 as? UIWindowScene }
+                .first { $0.activationState == .foregroundActive }
+        }
+        guard await waitForComposerCondition(
+            "foreground scene available",
+            diagnostic: {
+                "scene states: \(UIApplication.shared.connectedScenes.map(\.activationState))"
+            },
+            condition: { activeScene() != nil }
+        ) else { return }
+
+        let scene = try XCTUnwrap(activeScene())
+        let originalKeyWindow = try XCTUnwrap(scene.windows.first(where: \.isKeyWindow))
         let focusStore = ComposerFocusLifecycleStore(
             isChatActive: true,
             focusRequest: templateRequest
         )
-        let controller = UIHostingController(
+        let controller = ComposerFocusHostingController(
             rootView: ComposerFocusLifecycleHarness(store: focusStore)
         )
-        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 600, height: 120))
+        let window = UIWindow(windowScene: scene)
+        window.frame = CGRect(x: 0, y: 0, width: 600, height: 120)
+        defer {
+            window.endEditing(true)
+            window.isHidden = true
+            window.rootViewController = nil
+            originalKeyWindow.makeKey()
+            XCTAssertNil(firstResponder(in: controller.view))
+            XCTAssertNil(controller.view.window)
+            XCTAssertTrue(window.isHidden)
+            XCTAssertNil(window.rootViewController)
+            XCTAssertTrue(originalKeyWindow.isKeyWindow)
+            print("[ComposerFocusLifecycle] teardown: detached, original key window restored")
+        }
+
+        let diagnostic: @MainActor () -> String = {
+            "scene=\(scene.activationState), key=\(window.isKeyWindow), hidden=\(window.isHidden), "
+                + "attached=\(controller.view.window === window), appeared=\(controller.hasAppeared), "
+                + "active=\(focusStore.isChatActive), request=\(focusStore.focusRequest), "
+                + "responder=\(self.firstResponder(in: controller.view) != nil), "
+                + "textInput=\(self.firstResponder(in: controller.view) is any UITextInput)"
+        }
         window.rootViewController = controller
         window.makeKeyAndVisible()
         controller.view.setNeedsLayout()
         controller.view.layoutIfNeeded()
-        drainMainRunLoop()
+
+        guard await waitForComposerCondition(
+            "initial host attachment",
+            diagnostic: diagnostic,
+            condition: {
+                scene.activationState == .foregroundActive
+                    && window.isKeyWindow && !window.isHidden
+                    && controller.view.window === window && controller.hasAppeared
+            }
+        ) else { return }
+        guard await waitForComposerCondition(
+            "initial pending request focuses input",
+            diagnostic: diagnostic,
+            condition: {
+                focusStore.focusRequest == .initial
+                    && self.firstResponder(in: controller.view) is any UITextInput
+            }
+        ) else { return }
 
         XCTAssertEqual(focusStore.focusRequest, .initial)
         XCTAssertNotNil(firstResponder(in: controller.view))
+        XCTAssertTrue(firstResponder(in: controller.view) is any UITextInput)
 
         focusStore.isChatActive = false
         focusStore.focusRequest = .initial.next(for: .selectSession)
         controller.view.setNeedsLayout()
         controller.view.layoutIfNeeded()
-        drainMainRunLoop()
+        guard await waitForComposerCondition(
+            "inactive page clears request and releases input",
+            diagnostic: diagnostic,
+            condition: {
+                focusStore.focusRequest == .initial
+                    && self.firstResponder(in: controller.view) == nil
+            }
+        ) else { return }
         XCTAssertEqual(focusStore.focusRequest, .initial)
         XCTAssertNil(firstResponder(in: controller.view))
 
@@ -3909,11 +3970,17 @@ final class LocalGemmaTests: XCTestCase {
         focusStore.focusRequest = .initial.next(for: .openChatWorkspace)
         controller.view.setNeedsLayout()
         controller.view.layoutIfNeeded()
-        drainMainRunLoop()
+        guard await waitForComposerCondition(
+            "reentry request focuses input",
+            diagnostic: diagnostic,
+            condition: {
+                focusStore.focusRequest == .initial
+                    && self.firstResponder(in: controller.view) is any UITextInput
+            }
+        ) else { return }
         XCTAssertEqual(focusStore.focusRequest, .initial)
         XCTAssertNotNil(firstResponder(in: controller.view))
-
-        window.isHidden = true
+        XCTAssertTrue(firstResponder(in: controller.view) is any UITextInput)
     }
 
     func testWorkspaceLayoutModeResolvesLandscapeVariants() {
@@ -4114,6 +4181,28 @@ final class LocalGemmaTests: XCTestCase {
 
     private func drainMainRunLoop() {
         RunLoop.main.run(until: Date().addingTimeInterval(0.02))
+    }
+
+    private func waitForComposerCondition(
+        _ description: String,
+        diagnostic: @escaping @MainActor () -> String,
+        condition: @escaping @MainActor () -> Bool,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) async -> Bool {
+        let expectation = XCTNSPredicateExpectation(
+            predicate: NSPredicate { _, _ in
+                // Awaited async fulfillment guarantees main-actor predicate evaluation; sync wait does not.
+                MainActor.assumeIsolated { condition() }
+            },
+            object: nil
+        )
+        expectation.expectationDescription = description
+        let result = await XCTWaiter.fulfillment(of: [expectation], timeout: 2)
+        let state = diagnostic()
+        print("[ComposerFocusLifecycle] \(description): \(state)")
+        XCTAssertEqual(result, .completed, "\(description): \(state)", file: file, line: line)
+        return result == .completed
     }
 
     private func firstResponder(in view: UIView) -> UIView? {
@@ -7689,6 +7778,15 @@ private struct WorkspacePageIdentityProbe: View {
             .onDisappear {
                 recorder.recordDisappearance(tab: tab)
             }
+    }
+}
+
+private final class ComposerFocusHostingController: UIHostingController<ComposerFocusLifecycleHarness> {
+    private(set) var hasAppeared = false
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        hasAppeared = true
     }
 }
 
