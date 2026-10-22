@@ -89,7 +89,18 @@ def main():
             if (abs(width - capture["imageWidth"]) > 1
                     or abs(height - capture["imageHeight"]) > 1):
                 raise RuntimeError(f"PNG/provenance dimensions disagree: {name}")
-            if capture["evidenceKind"] == "image-renderer-production-view":
+            if capture.get("captureMethod") != "UIView.drawHierarchy":
+                raise RuntimeError(f"Expected a real UIKit-hosted snapshot: {name}")
+            if capture["evidenceKind"] == "uihostingcontroller-production-view":
+                markers = {
+                    "chat": "ON-DEVICE WORKSPACE", "models": "MODEL LIBRARY",
+                    "prompts": "PROMPTS", "settings": "SETTINGS",
+                }
+                marker = markers[capture["workspace"]]
+                normalize = lambda text: "".join(c for c in text.upper() if c.isalnum())
+                if (capture.get("requiredTextMarker") != marker
+                        or normalize(marker) not in normalize(capture.get("recognizedText", ""))):
+                    raise RuntimeError(f"Production page heading was not recognized: {name}")
                 if (capture["referenceRootWidth"] != 1366
                         or capture["globalSidebarWidth"] != 288
                         or capture["workspacePaneWidth"] != 1078
@@ -103,6 +114,8 @@ def main():
                            + capture["chatSurfaceWidth"] - 1078) > 0.01
                 ):
                     raise RuntimeError(f"Incorrect real chat pane allocation: {name}")
+            elif capture["evidenceKind"] != "uihostingcontroller-production-component":
+                raise RuntimeError(f"Unknown production snapshot source: {name}")
             captures.append({
                 **capture,
                 "file": source.relative_to(output).as_posix(),
@@ -127,11 +140,19 @@ def main():
             or {capture["attachmentName"] for capture in captures}
             != expected_wide | expected_readiness):
         raise RuntimeError("Incomplete or duplicate production-render capture matrix")
+    for theme in ["light", "dark"]:
+        hashes = [capture["sha256"] for capture in captures
+                  if capture["evidenceKind"] == "uihostingcontroller-production-view"
+                  and capture["theme"] == theme]
+        if len(hashes) != 4 or len(set(hashes)) != 4:
+            raise RuntimeError(f"Repeated/blank wide workspace snapshots: {theme}")
     manifest = {
         "commitSha": os.environ["GITHUB_SHA"],
         "runId": os.environ["GITHUB_RUN_ID"],
         "runAttempt": os.environ["GITHUB_RUN_ATTEMPT"],
-        "captureMethod": "SwiftUI.ImageRenderer in cloud XCTest",
+        "captureMethod": "UIHostingController + UIView.drawHierarchy in cloud XCTest",
+        "sizeMeasurementMethod": "SwiftUI.ImageRenderer for readiness natural height only",
+        "wideContentValidation": "Vision OCR page marker + distinct workspace SHA-256 + manual review",
         "notSimulatorScreenshot": True,
         "notMacGUI": True,
         "sourceResultBundle": "LocalGemma-tests.xcresult",

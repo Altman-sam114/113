@@ -16,7 +16,7 @@
 - 平台：SwiftUI iOS App，Swift 6.0，iOS deployment target 17.0，当前 app/test target 支持 iPhone、iPad 和 Mac Catalyst build-for-testing，并提供项目内 Mac Catalyst 本地 build/run 脚本入口；尚未创建原生 macOS target。
 - 当前默认模型：`Gemma 1.5B Local`
 - 当前推理：本地模拟 runtime，不下载模型权重，不执行真实模型推理。
-- 当前核心测试：`LocalGemmaTests.swift` 中 137 个 XCTest 方法；v3.4 新增 6 项，尚待本轮云端执行，不能把源码计数当成通过结果。
+- 当前核心测试：`LocalGemmaTests.swift` 中 137 个 XCTest 方法；v3.4 run `39805938317` 已核对 137/137 Success，但宽屏证据缺正文而退回，v3.4.1 改进宿主截图后仍须新的云端结果。
 - 当前核心文档入口：`AGENTS.md`、`md/flow/flow.md`、`md/flow/flowchart.md`、`md/test/test.md`、`md/prompt/README.md`、`README.md`。
 - 当前协作验证：默认 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载未加密 CI 结果包验收；本地仓库当前已配置 `origin` remote，最终验收仍以最新 `origin/main` 对应的 GitHub Actions run 和结果包为准；文档已预留未来 `agentx:` 主控 Agent A -> Agent B -> Agent C 多轮循环的规则。
 
@@ -4516,4 +4516,22 @@ v3.0 云端 run `36260394187` 的四组布局测试仍沿用旧侧栏宽度，�
 - Python 静态检查通过：两份 Tools 的 `ast.parse`、全部 workflow run block 的 `bash -n`、内嵌 Python AST 和 8 个 JUnit 阶段契约、8 份 Markdown 路径/链接/fence。源码为 137 个唯一测试；原 130 方法逐字不变，唯一旧 readiness 测试只补真实宽度参数；禁止写只读系统 EnvironmentValues 的扫描通过。
 - AppState/ComposerBar/LocalGemmaApp/pbxproj/LogicSmoke diff 为空，原六份未跟踪 prompt SHA-256 不变且仍未跟踪。C 对生产及测试/CI 的静态预审在修正只读环境注入后未发现第二个明确阻塞，但这不替代云端验证。
 - 按人工要求未运行本地 Swift/SwiftC、Probe/Fast、Xcode、XCTest、Simulator、ImageRenderer 或 Catalyst；全部重验证只交云端。v3.4 的精确提交/run、137 项测试、12 图导出和 C 实图结果由本轮 push 后实际产物记录，不在此预写成功。
+
+## v3.4 云端复判：结构通过，宽屏证据退回（2026-10-22）
+
+- 实际提交 `3911a3fe2926aedce2e3b774438fbeb2f7aacb34`，run `39805938317` attempt `1`；完整 artifact `localgemma-ci-v3.4-main-3911a3f-run39805938317-attempt1` 和同名 `-review` 已通过 `gh run download` 下载。API digest 分别为 `8dcc0da481c2900e7d4f91eea674fb71bd44eb3b99520077fa9440246ed622e9`、`b63187c69497331e94ac94dfeeb2eb2fe635dbd0d6b70db10c313d279fc4e38c`，未另验原 ZIP digest；64 个公共文件字节/hash 相同。
+- 根 Agent 只读取云端产物，纯 Python/zstd/SQLite 核对三份 xcresult 成功、Data/refs 为 3/3、3/3、984/984；137 个唯一 Success 与源码集合一致，严格 focus 恰一次通过。JUnit 8 阶段、0 failure/error、1 预期 optional Codex environment skip；LogicSmoke、iOS/Catalyst build、测试、visual/export 和上传 success。
+- 已亲看 16 张真实模拟器图及 12 张附件：欢迎区不混入 seed、iPhone 首屏 starter/composer 可见、readiness ring/正文被 panel 包住。4 张组件图有 ImageRenderer progress 占位；8 张宽屏图缺少滚动正文，模型/提示词/设置同主题 hash 完全一样，故退回宽屏证据，不能写成整体视觉或发布通过。
+- 完整包和独立记录留在 `/private/tmp/localgemma-c-review-39805938317/`。本地未执行任何 Swift、Xcode、模拟器或截图。Metal toolchain 搜索路径和部分旧 ImageRenderer FocusState 警告属于已记录残余；不掩盖真实焦点测试结果。
+
+## v3.4.1 / 云端宽屏证据修复（2026-10-22，待自身云端验收）
+
+按最新人工要求不再启动子智能体，由同一 Agent 串行设计、实现、验收。A 提示词为 `md/prompt/v3（工作台重构）/v3.4.1（云端宽屏证据修复）.md`。
+
+- 仅测试与证据修改：8 个工作区附件和4个选定 readiness 附件用真实 UIHostingController + UIView.drawHierarchy，正确绘制 UIKit-backed 滚动/输入/进度控件；等待公开宿主生命周期与 viewport 条件，统一 detach/恢复原 key window。生产代码、工程、业务状态和137项数量不变。
+- 宽屏仍从1366根宽减288全局sidebar得到1078pt pane；保留 split/620pt/守恒和会话不变断言。Vision OCR 检查页面已有英文 eyebrow，附件记录实际识别文本；exporter 拒绝非宿主来源、缺标题或同主题相同工作区图 hash。readiness 全矩阵原自然尺寸断言不弱化。
+- 保留16张真实模拟器图、三份完整xcresult、结构化summary/tests、12附件及原始索引、精确manifest、必选visual和review包。宿主截图不是Mac GUI实测，OCR/尺寸/hash不替代人眼。
+- 本地仅静态检查，完整构建、137项、Vision/宿主截图和验收必须等待本提交的云端run，不复用v3.4通过状态。真实runtime、Mac GUI/pointer、真机/完整辅助技术和签名发布仍未完成。
+
+实际本地检查：`git diff --check`、`bash -n script/build_and_run.sh` 退出0；`plutil -lint LocalGemma.xcodeproj/project.pbxproj` 为OK；Ruby解析workflow输出yaml ok（仅既有PATH world-writable警告）；两份Python脚本AST、137个唯一测试方法、核心文档fence/版本和生产保护文件无diff检查通过。未运行任何本地编译或UI执行。
 - 不改 AppState/LocalGemmaApp/ComposerBar、模型文件/下载/推理门禁或 AITRANS。真实推理、Mac GUI/pointer、真机/完整辅助技术和签名发布仍是残余缺口。

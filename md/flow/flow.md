@@ -268,7 +268,7 @@ Agent X 不能跳过 Agent C artifact 验收；失败时不能继续下一轮并
   - `mac-catalyst-run-script.log`
   - `mac-baseline-notes.md`
   - `.xcresult` 或等价 Xcode 结果包
-- v3.4 还包含 `xctest-summary.json`、`xctest-tests.json`、`evidence-export.log`、`layout-renders/manifest.json`、导出附件原索引和 12 张渲染 PNG；`review-artifact-name.txt` 与 manifest `reviewArtifactName` 定位轻量包，`artifactName` 继续指完整包。
+- v3.4 还包含 `xctest-summary.json`、`xctest-tests.json`、`evidence-export.log`、`layout-renders/manifest.json`、导出附件原索引和 12 张宿主截图 PNG（v3.4.1 改为 UIKit 截图，readiness 仅用 ImageRenderer 测量高度）；`review-artifact-name.txt` 与 manifest `reviewArtifactName` 定位轻量包，`artifactName` 继续指完整包。
 - manifest 必须自描述 `artifactName`、`repository`、`commitSubject`、`runUrl`、`runId`、`runAttempt`、各阶段 outcome、自动选择的 `destination`、`macBaselineKind`、`macCatalystBuildOutcome`、`macCatalystRunEntrypoint`、`macCatalystRunScriptCheckOutcome`、`codexRunEnvironmentCheckOutcome` 和相关日志路径。
 
 ### Agent C
@@ -479,3 +479,11 @@ v3.0 云端 run `36260394187` 的四组布局测试仍沿用旧侧栏宽度，�
 焦点测试先找到已有 foreground-active `UIWindowScene` 并保存其 key window，再挂载带有预先 pending request 的生产 composer。`ComposerFocusHostingController.viewDidAppear`、key/visible/attached 条件确认宿主有效，随后 `waitForComposerCondition` 的有界 XCTest predicate 分别确认首次聚焦、隐藏释放、重返聚焦；聚焦目标还须符合公开 `UITextInput`。每阶段记录 scene/window/request/responder 状态，缺少 scene 或条件超时直接失败，不 skip、不重试、不重建 view。
 
 `defer` 在成功和失败路径都结束编辑、隐藏测试窗口、移除 root controller、恢复原 key window，并断言 detached/responder 清空/key 恢复。其他两个 identity 宿主测试本轮未改；业务状态、四页身份、runtime 与 verified 门禁不变。
+
+## v3.4.1 云端视觉证据链
+
+生产数据流和v3.4界面完全不变。v3.4 run `39805938317` 的137项/构建与三份结果包已核对，但宽屏ImageRenderer缺失滚动正文，故证据退回。
+
+云端XCTest将四个真实生产workspace置于1078×1024pt UIHostingController子宿主（参考根1366−全局288），公开window/containment/viewDidAppear与bounds就绪后通过UIView.drawHierarchy捕获。Vision OCR读取已有页面标题，图片、识别文本、真实pane及来源写入keepAlways附件/provenance；不添加测试专用生产文案，不改变session或focus。readiness仍以ImageRenderer测自然高度，选定4图改用同样公开宿主捕获真实UIKit控件。所有宿主退出恢复原key window。
+
+xcresulttool导出结构化summary/tests与原始附件索引，exporter校验12矩阵、来源、OCR、尺寸/hash及同主题宽屏图互不相同，再进入原必选visual阶段；16张真实模拟器图、完整三份xcresult和review小包仍保留。C必须对最新SHA/run/attempt逐图复核，不能把OCR/尺寸/CI绿色单独当大屏通过；宿主图不是全屏模拟器截图或Mac GUI。用户要求不再多开子智能体，后续职责由单一Agent串行执行，所有编译/运行/截图只在云端。

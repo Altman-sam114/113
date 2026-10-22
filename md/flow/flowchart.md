@@ -455,22 +455,23 @@ flowchart TD
     Theme --> Grid[静态40pt工程网格<br/>辅助显示偏好开启时移除装饰]
 ```
 
-## v3.4 云端产物与真实宽度证据
+## v3.4.1 云端产物与真实宽度证据
 
-读图说明：完整 XCTest 与 16 张模拟器截图仍是必选。新增生产 View/组件渲染只说明固定 viewport 布局，不声称 Mac GUI 已测；C 要同时读结构化结果、完整 xcresult 和实际图片。
+读图说明：完整 XCTest 与 16 张模拟器截图仍是必选。v3.4 的 ImageRenderer 宽屏图缺正文而退回，改用公开 UIKit 宿主截图和标题 OCR；固定 viewport 图不声称 Mac GUI 已测。C 要同时读结构化结果、完整 xcresult 和实际图片，不能仅依赖 OCR。
 
 ```mermaid
 flowchart TD
     %% 参考窗口先扣除生产全局侧栏，不能把root宽度冒充pane
     Root[1366x1024参考root] --> Global[生产root policy分配288pt sidebar]
     Global --> Pane[1078pt真实workspace pane<br/>chat再分会话栏与至少620pt阅读面]
-    Pane --> Render[云端XCTest ImageRenderer<br/>四工作区亮暗8图]
-    Card[窄readiness大小字亮暗] --> Component[真实组件自然高度回归4图]
+    Pane --> Render[云端XCTest真实UIKit宿主<br/>drawHierarchy四工作区亮暗8图]
+    Card[窄readiness大小字亮暗] --> Component[ImageRenderer仅测自然高度<br/>UIKit宿主组件截图4图]
     %% 原始附件和结构化结果来自同一个本轮xcresult
-    Render --> Result[keepAlways PNG + JSON provenance<br/>LocalGemma-tests.xcresult]
+    Render --> OCR[Vision OCR识别已有页面标题<br/>缺正文不能仅靠尺寸通过]
+    OCR --> Result[keepAlways PNG + JSON provenance<br/>LocalGemma-tests.xcresult]
     Component --> Result
     Result --> Export[公开xcresulttool导出<br/>summary / tests / 附件原索引]
-    Export --> Manifest[校验12矩阵 / PNG尺寸hash / SHA-run-attempt]
+    Export --> Manifest[校验12矩阵 / PNG尺寸hash / SHA-run-attempt<br/>OCR标记 + 同主题工作区hash不同]
     Export -- 失败 --> Failure[记录outcome并入visual失败<br/>仍生成manifest和JUnit]
     Screens[16张真实模拟器生产截图] --> Visual[现有必选visual阶段]
     Manifest --> Visual

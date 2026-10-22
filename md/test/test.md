@@ -59,7 +59,7 @@ case "$LOCAL_SIMULATOR_UDID" in FAC4325D*) ;; *) exit 1 ;; esac
 
 当前测试基线：
 
-- `LocalGemmaTests.swift` 当前包含 137 个 `test...` 方法；v3.4 在 v3.3.1 已核对的 131 项基线上新增 6 项。源码计数不等于云端通过，新增契约和产物见本文 v3.4 小节；既有严格焦点与 identity 不弱化、不跳过。
+- `LocalGemmaTests.swift` 当前包含 137 个 `test...` 方法；v3.4 在 v3.3.1 已核对的 131 项基线上新增 6 项，run `39805938317` 实际为 137/137 Success；宽屏 ImageRenderer 图缺正文而退回，v3.4.1 更换截图路径后仍待自身云端复验。新增契约和产物见文末小节；既有严格焦点与 identity 不弱化、不跳过。
 - v2.75 新增 `testChipReadinessLayoutPolicyAdaptsToCardWidthAndAccessibilityDynamicType`，锁住 `354pt` 真实 panel 内容宽度边界、普通字号横排、Accessibility Dynamic Type 无条件 stacked、NaN/Infinity/非正宽度回退、纯值 plan、`DeviceOptimizer`/隐私状态不变，以及 `86pt` slot / `66pt` diameter；生产 `ChipReadinessCard` 的 `ImageRenderer` 覆盖亮暗主题、`382pt` 外框（扣除两侧 `14pt` panel padding 后为 `354pt` 内容）、窄外框与 Accessibility 字号 stacked，只断言图像非 nil、宽度误差不超过 1pt、高度合理，不做像素/私有层级/截图断言。测试函数数从 119 增至 120；本地只做轻量检查，完整 iOS/Catalyst build、LogicSmoke、120 项 XCTest 和结果包待本轮 push 后 GitHub Actions 执行。
 - v2.76 新增 `testOptimizationToggleTextLayoutPolicySupportsDynamicTypeRows`，锁住共享 `OptimizationToggleTextLayoutPolicy` 的标题/行标题/副标题均为两行、行内 spacing 为 3pt、subtitle lineSpacing 为 2pt、三个多行能力计算属性、44pt 行最小高度、250pt 最小卡片宽度和 510pt 两列边界，并确认重复读取不改变 `DeviceOptimizer` 开关、准备度或隐私摘要。生产 `ImageRenderer` 使用真实 `OptimizationToggleRow` 覆盖 250/510pt、亮暗主题、enabled/disabled 与 `.large`/`.xxxLarge`/`.accessibility3`，比较普通/Accessibility 高度，并用真实 `OptimizationToggleGrid` 覆盖窄单列和宽区域；只断言非 nil、宽度误差不超过 1pt、高度合理，不做像素、私有层级或截图断言。测试函数数从 120 增至 121；本地只做轻量检查，完整 iOS/Catalyst build、LogicSmoke、121 项 XCTest 和结果包待本轮 push 后 GitHub Actions 执行。
 - v2.77 新增 `testExportSessionBodyTextLayoutPolicySupportsDynamicTypeReading`，锁住 `ExportSessionBodyTextLayoutPolicy` 的 18pt content padding、3pt body line spacing、`preservesFullText`、语义等宽 Dynamic Type 契约、重复读取不变性、`ExportSessionLayoutPolicy` 的 320/390/834/1200pt 与负数/NaN 回归及导出动作 44pt 目标。生产公开 `ImageRenderer` 直接渲染真实 `ExportSessionView(payload:)`，覆盖亮暗主题、320/390/834/1200pt 与 `.large`/`.xxxLarge`/`.accessibility3`，只断言非 nil、正尺寸和固定 NavigationStack/GeometryReader 测试 viewport 下的非下降高度，不做像素、颜色、截图或私有层级断言。测试函数数从 121 增至 122；本地不运行 XCTest、xcodebuild、Simulator、Catalyst build/run 或视觉截图验收，完整 iOS/Catalyst build、LogicSmoke、122 项 XCTest 和结果包待本轮 push 后 GitHub Actions 执行。
@@ -645,3 +645,16 @@ xcrun xcresulttool export attachments --path ci-results/LocalGemma-tests.xcresul
 导出/结构化读取失败写 `layout-evidence=failure` 并使原必选 visual 失败，但步骤仍返回给后续 manifest/JUnit 生成，最后 Evaluate 统一判失败。JUnit 仍 8 阶段；16 张真实模拟器截图不取消，不新增 optional skip。`-review` 包只便于快速看身份、日志和图，C 仍要核完整 xcresult 和实际生产图。
 
 本机只运行 diff/plutil/YAML/bash-n/Python AST、方法计数及 Markdown 结构检查；Swift、XCTest、ImageRenderer、Simulator 和 Catalyst 全部交云端。新增 137 项与 12 张附件是否执行成功、readiness panel 是否完整包住内容、欢迎/动作/宽屏是否达到视觉门槛，必须等待本轮精确提交的 CI 与 Agent C 复判。
+
+## v3.4.1 真实宿主截图与内容门禁
+
+v3.4 `3911a3f` / run `39805938317` attempt `1` 已实际核对137/137 Success、JUnit 8阶段/0失败、三份xcresult和28图。16张模拟器图无新增阻塞，但8张ImageRenderer宽屏图缺失滚动正文、三页同主题hash相同；4张组件图的progress也是占位。因此宽屏视觉证据退回，原图不能作为大屏通过依据。
+
+本轮不新增或删除测试（仍137），不改生产代码和既有focus/identity断言：
+
+- `testWorkbenchWideProductionViewsProduceReviewEvidence` 改为 async，真实foreground scene挂载公开UIHostingController子控制器；固定1078×1024pt pane，不依赖iPhone屏幕宽度，保留1366−288、split/620pt和会话不变。等待viewDidAppear、key/visible/attached与实际bounds，5秒有界条件，不用sleep或重试。UIView.drawHierarchy保存8张keepAlways图；退出detach并恢复原key window。
+- 公开Vision OCR要求每图出现生产已有英文标题：ON-DEVICE WORKSPACE / MODEL LIBRARY / PROMPTS / SETTINGS；仅归一化标点与大小写，失败保留图片及识别文本，不改UI或添加截图专用标记。不读取SwiftUI私有树、不采样颜色，不把OCR当完整视觉验收。
+- `testChipReadinessCardReportsNaturalStackedHeight` 保留原ImageRenderer尺寸矩阵/阈值/增长/optimizer断言；选定320pt大小字两主题的4张附件改为相同自然尺寸的UIKit宿主截图，避免ProgressView占位被误当真实外观。
+- exporter仍用公开xcresulttool，验证8+4、PNG尺寸/hash/provenance；新来源为uihostingcontroller-production-view/component，captureMethod必须UIView.drawHierarchy。宽屏必须带实际OCR标记，同主题四工作区hash均不同。导出失败仍使必选visual失败，JUnit仍8阶段、16张全屏模拟器图与三份xcresult不减。
+
+待新SHA自身云端结果核对全部137项及28图。宿主viewport图不是全屏Simulator screenshot或Mac GUI；依旧缺少桌面GUI/pointer、实际系统辅助偏好组合、真机/VoiceOver和签名发布验收。本地只做静态检查，Vision/宿主/Swift/Xcode执行均只在云端。

@@ -129,3 +129,9 @@ Agent A 提示词：`md/prompt/v3（工作台重构）/v3.3.1（焦点回归验�
 提示词要求 welcome/transcript 互斥但不改 seed/会话/导出，288pt 会话工具布局、主题动作角色、背景辅助退化、readiness 自然报高，以及保留严格 focus/identity/44pt/verified 门禁。源码基线由 131 增至 137，实际执行仍以新 run 为准；云端 16 张模拟器图、8 张真实 1078pt pane 工作区渲染、4 张 readiness 大小字组件图、结构化测试结果和三份 xcresult 均必须核对。轻量 review 包不是原始结果包替代，固定 viewport 渲染不是 Mac GUI。
 
 所有 Swift、Xcode、Simulator、XCTest、ImageRenderer 和 Catalyst 只在云端；本机仅静态检查，未来明确获准的本机 iOS 验证也必须锁定 `FAC4325D` 前缀完整 UDID。失败追加本轮修复，不跳过必选 visual/测试或提前进入新版本；不宣称真实推理或发布工作已完成。
+
+## v3.4.1 云端宽屏证据修复
+
+A提示词：`md/prompt/v3（工作台重构）/v3.4.1（云端宽屏证据修复）.md`。v3.4 run `39805938317` 的137项与完整包结构已核对，但宽屏ImageRenderer附件缺少滚动正文而退回；不能继续新功能或宣称大屏视觉通过。
+
+本轮仅改测试/证据/文档，保留生产UI及137项：真实公开UIKit宿主截图替换12张附件，8张宽屏要求Vision OCR识别已有标题和同主题不同hash，readiness原自然高度矩阵保持。保留16模拟器图、完整包和必选visual，所有执行只在云端。按最新人工要求不新增或重启子智能体，同一Agent串行完成A/B/C职责；仍必须验收最新main自己的run与实际图片。

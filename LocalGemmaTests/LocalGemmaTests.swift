@@ -1,6 +1,7 @@
 import Combine
 import SwiftUI
 import UIKit
+import Vision
 import XCTest
 @testable import LocalGemma
 
@@ -330,7 +331,7 @@ final class LocalGemmaTests: XCTestCase {
         return (max(first, second) + 0.05) / (min(first, second) + 0.05)
     }
 
-    func testWorkbenchWideProductionViewsProduceReviewEvidence() throws {
+    func testWorkbenchWideProductionViewsProduceReviewEvidence() async throws {
         let rootSize = CGSize(width: 1_366, height: 1_024)
         let rootPlan = WorkspaceRootLayoutPolicy.resolve(for: rootSize)
         XCTAssertEqual(rootPlan.sidebarWidth, 288)
@@ -358,8 +359,8 @@ final class LocalGemmaTests: XCTestCase {
                 )))
             ]
             for (workspace, productionView, view) in workspaces {
-                let renderer = ImageRenderer(
-                    content: view
+                let content = AnyView(
+                    view
                         .environmentObject(catalog)
                         .environmentObject(inference)
                         .environmentObject(optimizer)
@@ -369,15 +370,31 @@ final class LocalGemmaTests: XCTestCase {
                         .frame(width: paneWidth, height: rootSize.height)
                         .background(AppThemePalette(mode: themeMode).canvas)
                 )
-                renderer.scale = 1
-                let image = try XCTUnwrap(renderer.uiImage)
+                let image = try await captureWorkbenchView(
+                    content, size: CGSize(width: paneWidth, height: rootSize.height), themeMode: themeMode
+                )
                 XCTAssertEqual(image.size.width, paneWidth, accuracy: 1)
                 XCTAssertEqual(image.size.height, rootSize.height, accuracy: 1)
                 let attachmentName = "workbench-wide-\(themeMode.rawValue)-\(workspace.rawValue)"
                 keepWorkbenchImage(image, name: attachmentName)
+                let marker: String
+                switch workspace {
+                case .chat: marker = "ON-DEVICE WORKSPACE"
+                case .models: marker = "MODEL LIBRARY"
+                case .prompts: marker = "PROMPTS"
+                case .settings: marker = "SETTINGS"
+                }
+                let recognizedText = try workbenchRecognizedText(in: image)
+                XCTAssertTrue(
+                    workbenchNormalizedText(recognizedText).contains(workbenchNormalizedText(marker)),
+                    "Missing production content in \(attachmentName). OCR: \(recognizedText)"
+                )
                 evidence.append([
                     "attachmentName": attachmentName,
-                    "evidenceKind": "image-renderer-production-view",
+                    "evidenceKind": "uihostingcontroller-production-view",
+                    "captureMethod": "UIView.drawHierarchy",
+                    "requiredTextMarker": marker,
+                    "recognizedText": recognizedText,
                     "productionView": productionView,
                     "workspace": workspace.rawValue,
                     "theme": themeMode.rawValue,
@@ -400,6 +417,91 @@ final class LocalGemmaTests: XCTestCase {
             ["captures": evidence, "testIdentifier": "LocalGemmaTests/testWorkbenchWideProductionViewsProduceReviewEvidence()"],
             name: "workbench-wide-provenance"
         )
+    }
+
+    private func captureWorkbenchView(
+        _ content: AnyView, size: CGSize, themeMode: AppThemeMode
+    ) async throws -> UIImage {
+        let scene = try XCTUnwrap(
+            UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+                .first { $0.activationState == .foregroundActive },
+            "Production capture needs an existing foreground scene"
+        )
+        let originalKeyWindow = try XCTUnwrap(scene.windows.first(where: \.isKeyWindow))
+        let controller = WorkbenchEvidenceHostingController(rootView: AnyView(content.ignoresSafeArea()))
+        controller.safeAreaRegions = []
+        controller.overrideUserInterfaceStyle = themeMode == .dark ? .dark : .light
+        controller.view.backgroundColor = UIColor(AppThemePalette(mode: themeMode).canvas)
+        let container = UIViewController()
+        let window = UIWindow(windowScene: scene)
+        window.frame = scene.coordinateSpace.bounds
+        window.rootViewController = container
+        container.loadViewIfNeeded()
+        container.view.clipsToBounds = false
+        container.addChild(controller)
+        controller.view.translatesAutoresizingMaskIntoConstraints = false
+        container.view.addSubview(controller.view)
+        NSLayoutConstraint.activate([
+            controller.view.leadingAnchor.constraint(equalTo: container.view.leadingAnchor),
+            controller.view.topAnchor.constraint(equalTo: container.view.topAnchor),
+            controller.view.widthAnchor.constraint(equalToConstant: size.width),
+            controller.view.heightAnchor.constraint(equalToConstant: size.height)
+        ])
+        controller.didMove(toParent: container)
+        defer {
+            window.endEditing(true)
+            controller.willMove(toParent: nil)
+            controller.view.removeFromSuperview()
+            controller.removeFromParent()
+            window.isHidden = true
+            window.rootViewController = nil
+            originalKeyWindow.makeKey()
+            XCTAssertNil(controller.view.window)
+            XCTAssertTrue(originalKeyWindow.isKeyWindow)
+        }
+        window.makeKeyAndVisible()
+        container.view.setNeedsLayout()
+        container.view.layoutIfNeeded()
+
+        let attached = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            MainActor.assumeIsolated {
+                controller.hasAppeared && controller.view.window === window
+                    && !window.isHidden && window.isKeyWindow
+                    && abs(controller.view.bounds.width - size.width) < 0.5
+                    && abs(controller.view.bounds.height - size.height) < 0.5
+            }
+        }, object: nil)
+        let result = await XCTWaiter.fulfillment(of: [attached], timeout: 5)
+        XCTAssertEqual(result, .completed, "Production capture host did not attach at \(size)")
+        controller.view.layoutIfNeeded()
+
+        // UIKit-backed scroll/text/progress controls are not drawn by SwiftUI ImageRenderer.
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = true
+        var drewHierarchy = false
+        let image = UIGraphicsImageRenderer(size: size, format: format).image { _ in
+            drewHierarchy = controller.view.drawHierarchy(
+                in: CGRect(origin: .zero, size: size), afterScreenUpdates: true
+            )
+        }
+        XCTAssertTrue(drewHierarchy, "UIKit could not capture the attached production view")
+        print("[WorkbenchEvidence] viewport=\(size), bounds=\(controller.view.bounds), appeared=\(controller.hasAppeared), drawn=\(drewHierarchy)")
+        return image
+    }
+
+    private func workbenchNormalizedText(_ text: String) -> String {
+        text.uppercased().filter { $0.isLetter || $0.isNumber }
+    }
+
+    private func workbenchRecognizedText(in image: UIImage) throws -> String {
+        let request = VNRecognizeTextRequest()
+        request.recognitionLevel = .accurate
+        request.recognitionLanguages = ["en-US"]
+        request.usesLanguageCorrection = false
+        let cgImage = try XCTUnwrap(image.cgImage)
+        try VNImageRequestHandler(cgImage: cgImage, options: [:]).perform([request])
+        return (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }.joined(separator: "\n")
     }
 
     private func keepWorkbenchImage(_ image: UIImage, name: String) {
@@ -1139,7 +1241,7 @@ final class LocalGemmaTests: XCTestCase {
         }
     }
 
-    func testChipReadinessCardReportsNaturalStackedHeight() throws {
+    func testChipReadinessCardReportsNaturalStackedHeight() async throws {
         XCTAssertEqual(ChipReadinessLayoutPolicy.horizontalSpacing, 16)
         XCTAssertEqual(ChipReadinessLayoutPolicy.stackedSpacing, 12)
         for width: CGFloat in [0, -1, .nan, .infinity, -.infinity] {
@@ -1197,10 +1299,25 @@ final class LocalGemmaTests: XCTestCase {
                     if width == 320 && (textSize == .large || textSize == .accessibility3) {
                         let sizeName = textSize == .large ? "large" : "accessibility3"
                         let attachmentName = "workbench-readiness-\(themeMode.rawValue)-\(sizeName)"
-                        keepWorkbenchImage(image, name: attachmentName)
+                        let snapshot = try await captureWorkbenchView(
+                            AnyView(ChipReadinessCard(
+                                progress: optimizer.deploymentReadiness,
+                                thermalState: optimizer.thermalState,
+                                privacyGuardEnabled: optimizer.isOfflinePrivacyGuardEnabled,
+                                panelContentWidth: contentWidth
+                            )
+                            .environment(\.appTheme, AppThemePalette(mode: themeMode))
+                            .environment(\.colorScheme, themeMode.colorScheme)
+                            .environment(\.dynamicTypeSize, textSize)
+                            .frame(width: width)),
+                            size: image.size, themeMode: themeMode
+                        )
+                        keepWorkbenchImage(snapshot, name: attachmentName)
                         evidence.append([
                             "attachmentName": attachmentName,
-                            "evidenceKind": "image-renderer-production-component",
+                            "evidenceKind": "uihostingcontroller-production-component",
+                            "captureMethod": "UIView.drawHierarchy",
+                            "sizeMeasurementMethod": "SwiftUI.ImageRenderer",
                             "productionView": "ChipReadinessCard",
                             "theme": themeMode.rawValue,
                             "dynamicTypeSize": sizeName,
@@ -8293,6 +8410,15 @@ private struct WorkspacePageIdentityProbe: View {
 }
 
 private final class ComposerFocusHostingController: UIHostingController<ComposerFocusLifecycleHarness> {
+    private(set) var hasAppeared = false
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        hasAppeared = true
+    }
+}
+
+private final class WorkbenchEvidenceHostingController: UIHostingController<AnyView> {
     private(set) var hasAppeared = false
 
     override func viewDidAppear(_ animated: Bool) {

@@ -473,3 +473,9 @@ v3.0 云端 run `36260394187` 的四组布局测试仍沿用旧侧栏宽度，�
 - `ChipReadinessCard` 不再在卡内用 GeometryReader 固定高度。设置页与 dashboard 从真实 panel 外框扣除两侧各 14pt 后传入 content width，同一 AnyLayout 自然上报高度；保留 354pt、86pt slot、66pt ring、隐私摘要、辅助语义与 optimizer 状态。
 - 源码新增 6 项测试至 137。云端保留 16 张模拟器生产截图，另导出 8 张真实剩余 1078pt pane 的生产工作区固定 viewport 渲染和 4 张 readiness 组件渲染；后两者明确不是模拟器截图或 Mac GUI 实测。结构化 summary/tests、附件原索引、尺寸/hash/provenance 与轻量 review 包辅助 C，完整三份 xcresult 仍必须核对；现有 JUnit 8 阶段不减项，导出失败并入必选 visual outcome。
 - v3.4 尚待本轮精确 SHA 的云端构建、测试及 C 人眼复判。默认 runtime 仍为模拟，真实推理、Mac GUI/pointer、真机/辅助技术和签名发布均未完成。
+
+## v3.4.1 云端证据修复边界
+
+用户最新要求不再多开子智能体；同一 Agent 串行完成设计、实现和结果包验收，不重启既有子智能体。v3.4 `3911a3f` / run `39805938317` attempt `1` 已下载完整包并核对 137/137 Success、JUnit 8 阶段、三份 xcresult 及全部 28 图；16 张真实模拟器图有效，但 8 张 ImageRenderer 宽屏图缺失滚动正文，宽屏视觉证据退回，不能宣布整体视觉或发布 PASS。
+
+v3.4.1 仅改测试/证据和文档，不改生产代码：真实 foreground scene 中以公开 UIHostingController/child containment 挂载同一生产 View，通过 viewDidAppear/attachment/尺寸条件有界等待后用 UIView.drawHierarchy 截图；退出恢复 key window。真实 1078pt pane/至少620pt聊天面不变，宽屏图需通过 Vision OCR 识别已有页面标题，exporter 要求来源、OCR 与同主题不同工作区 hash。readiness 全矩阵仍用 ImageRenderer 测自然高度，选定四图改为 UIKit 宿主截图，保留 137 项和既有严格焦点/identity。宿主截图不是全屏模拟器截图或 Mac GUI；新 SHA 仍需自身云端完整结果和人眼验收，所有 Swift/截图/构建测试只在云端。
