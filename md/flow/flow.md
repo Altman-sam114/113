@@ -25,7 +25,7 @@ v2.64 的顶部模型胶囊还会按真实 chrome 可用宽度切换堆叠/横�
 10. `InferenceEngine` 分 chunk 流式写回 messages，并同步 active session。
 11. 用户可导出当前会话，生成 Markdown 文本和临时 `.md` 文件。
 12. 分享视图优先分享真实存在的 Markdown 文件；文件不存在时分享文本，导出弹层分享/复制动作向辅助技术说明本地文件、文本兜底和剪贴板边界，并通过独立动作布局策略保持 44pt 触控目标；`InferenceEngine.exportActiveSessionText` 生成的完整 Markdown 通过 `ExportPayload.text` 传给 `ExportSessionView`，正文由 `ExportSessionBodyTextLayoutPolicy` 提供 18pt padding、3pt line spacing 和语义等宽 Dynamic Type 字体，继续使用 ScrollView、`textSelection(.enabled)` 和 `frame(maxWidth: .infinity, alignment: .leading)`；导出弹层会话摘要、Markdown 预览和底部动作通过 `ExportSessionLayoutPolicy` 在 iPad/Mac 宽 sheet 中居中并沿用 320/760pt 宽度。
-13. `SettingsWorkspace` 与 `OptimizerDashboard` 都复用 `ChipReadinessCard`；卡片在 `.panelStyle` 内侧用 `GeometryReader` 读取真实 panel 内容宽度，交给 `ChipReadinessLayoutPolicy`，再由同一 `AnyLayout` 在 `HStackLayout` / `VStackLayout` 间切换。普通字号在 `354pt` 内容宽度边界横排，Accessibility Dynamic Type 或非法宽度 stacked；状态、隐私摘要、ReadinessRing 和辅助语义仍来自既有本地状态。
+13. `SettingsWorkspace` 与 `OptimizerDashboard` 都复用 `ChipReadinessCard`；调用侧把真实 panel 外框扣除两侧各 `14pt` padding 后传入 `ChipReadinessLayoutPolicy`，卡内不再使用吞掉 intrinsic height 的 GeometryReader。同一 `AnyLayout` 在 `HStackLayout` / `VStackLayout` 间切换并自然上报完整高度；普通字号在 `354pt` 内容宽度（`382pt` panel 外框）边界横排，Accessibility Dynamic Type 或非法宽度 stacked，`86pt` slot / `66pt` ring、状态、隐私摘要和辅助语义不变。
 14. `SettingsWorkspace` 与 `OptimizerDashboard` 都把 `optimizer.switches` 传给同一个 `OptimizationToggleGrid`；网格继续由 `OptimizationToggleGridLayoutPolicy` 在 `250pt` 最小卡片宽度和 `510pt` 两列边界间选择列数，并为每个元素构造同一个 `OptimizationToggleRow`。`OptimizationToggleGrid` 的小节标题和 `OptimizationToggleRow` 的标题/副标题共同复用无状态 `OptimizationToggleTextLayoutPolicy`，使用语义字体、两行上限、policy 间距和 `fixedSize(horizontal: false, vertical: true)` 允许垂直增长。policy 只影响文字排版，开关点击仍由 `DeviceOptimizer` 管理，辅助语义、44pt 行高、Reduce Motion、runtime 和 verified 门禁不变。
 15. `ArtifactActionPanel` 读取 `ModelCatalog` 的 artifact validation 后展示下载/卸载与扫描/导入 utility；后两个 utility label 复用无状态 `ModelArtifactUtilityTextLayoutPolicy` 的语义 Dynamic Type 字体、两行上限、1pt line spacing、10pt padding 和垂直增长约束。policy 只影响文字排版，扫描/Files 导入闭包、独立辅助语义、44pt 触控目标、本地 artifact 校验、runtime 和 verified 门禁不变，不联网、不写回状态。
 16. `SettingsWorkspace` 先按 `SettingsWorkspaceLayoutPolicy` 得到设置页真实内容外框宽度，再扣除共享 `WorkbenchVisualStylePolicy.panelPadding` 两侧各 `14pt`，把 `WallpaperPreferencePanel` 的真实 panel content width 传给 `SettingsPreferenceRowLayoutPolicy`；普通字号在 `270pt` 内容阈值横排，窄宽或 `.xxxLarge` 及以上 stacked。壁纸行用同一 `AnyLayout` 复用预览、文案、PhotosPicker/清除动作子树，stacked layout 在 `fixedSize` 外部自然增长，两个动作禁用策略和辅助 metadata 仍由本地值派生。
@@ -81,6 +81,9 @@ v2.64 的顶部模型胶囊还会按真实 chrome 可用宽度切换堆叠/横�
 
 ### UI 工作区
 
+- `WorkbenchPresentationPolicy.chatPresentation` 只由 messages、isGenerating 和是否有 starter 决定 welcome/transcript。welcome 与 seed 气泡不同时出现，不改消息/会话数组或导出；欢迎顶部自然阅读、使用可见内容的独立辅助摘要。无 starter、有 user 或正在生成时完整使用原 transcript，保留 UUID、顺序、短会话 bottom 和受 Reduce Motion 约束的自动滚动，欢迎模式不 scrollTo 隐藏 seed。
+- `SessionBarLayoutPolicy` 接收已扣除外层 padding 的真实 availableWidth；横向在 `180 + 2*44 + 8 + 12 = 288pt` 且非 expanded text 时 inline，否则 stacked，竖向始终 sidebar。单一 sessionList/actions 经 AnyLayout 排列；stacked 区承担当前会话语义/模拟摘要，split 才保留独立聊天标题，不隐藏选择、删除、新建或导出。
+- `AppThemePalette.actionPalette(for:)` 是模型/模板控件的主、次、危险与 prominent 配对入口，分类 tint 仅用于小图标/标签。`WorkbenchBackgroundStylePolicy` 控制 40pt/每四格主线的低噪声静态装饰，Reduce Transparency 或 increased contrast 下取消网格/光晕，不改变 wallpaper 输入、动画或业务状态。
 - `ContentView` 包含四个工作区：推理、模型、提示词、设置。
 - `WorkspaceRootLayoutPolicy` 复用 `WorkspaceLayoutMode`，把容器尺寸解析为纵向/横向轴、顶部导航/紧凑侧栏/详细侧栏 chrome 和既有侧栏宽度；不维护第二套断点。
 - `WorkspaceRootShell` 用 `AnyLayout(VStackLayout/HStackLayout)` 切换根布局算法，并始终保留 chrome、content 两个同序直接子节点；第二个节点在所有尺寸都是同一个 `WorkspacePagesShell`。
@@ -247,6 +250,9 @@ Agent X 不能跳过 Agent C artifact 验收；失败时不能继续下一轮并
 
 - `.github/workflows/ci-results.yml` 在 `main` push 和 `workflow_dispatch` 触发。
 - CI 运行静态检查、逻辑烟测、iOS Simulator build-for-testing、Mac Catalyst build-for-testing、Mac Catalyst run script contract 和可用模拟器 XCTest。
+- `Tools/capture_workbench.py` 仍生成 iPhone/iPad × 亮暗 × 四页的 16 张真实模拟器生产截图。`Tools/export_workbench_evidence.py` 只在云端读取本次 XCTest 结果，导出公开 summary/tests JSON 和 keepAlways 附件：8 张真实生产工作区固定 viewport 渲染、4 张 readiness 组件渲染及两份测试生成的 provenance。后两者明确不是 Simulator screenshot 或 Mac GUI。
+- 宽屏参考 root 为 `1366x1024pt`，先经生产 root policy 扣除 `288pt` 全局 sidebar，实际工作区 pane 为 `1078pt`；聊天再由原 pane policy 分配 session/sidebar 与至少 `620pt` 阅读面。manifest 记录实际外框、panel/content/pane 数值、原附件索引、PNG 尺寸与 SHA-256，禁止把整个 1366pt 直接传给内容冒充真实剩余宽度。
+- 导出失败记录 `layout-evidence`，并入既有必选 visual outcome；即使失败也继续生成 manifest/JUnit/日志，最后 Evaluate 统一失败。JUnit 仍 8 阶段，完整三份 xcresult 和 16 张图不减项；`-review` 小包只辅助先读，不代替 C 对完整原包的核对。
 - CI 上传未加密结果包，不复用任何带密码或私密发布包。
 - 结果包至少包含：
   - `ci-artifact-manifest.json`
@@ -262,6 +268,7 @@ Agent X 不能跳过 Agent C artifact 验收；失败时不能继续下一轮并
   - `mac-catalyst-run-script.log`
   - `mac-baseline-notes.md`
   - `.xcresult` 或等价 Xcode 结果包
+- v3.4 还包含 `xctest-summary.json`、`xctest-tests.json`、`evidence-export.log`、`layout-renders/manifest.json`、导出附件原索引和 12 张渲染 PNG；`review-artifact-name.txt` 与 manifest `reviewArtifactName` 定位轻量包，`artifactName` 继续指完整包。
 - manifest 必须自描述 `artifactName`、`repository`、`commitSubject`、`runUrl`、`runId`、`runAttempt`、各阶段 outcome、自动选择的 `destination`、`macBaselineKind`、`macCatalystBuildOutcome`、`macCatalystRunEntrypoint`、`macCatalystRunScriptCheckOutcome`、`codexRunEnvironmentCheckOutcome` 和相关日志路径。
 
 ### Agent C
@@ -386,7 +393,7 @@ Agent X 不能跳过 Agent C artifact 验收；失败时不能继续下一轮并
 
 ## 层关系
 
-- 前端层：`ContentView.swift` 中的 SwiftUI views。
+- 前端层：`ContentView.swift` 稳定工作区壳，以及独立的 `ChatWorkspace.swift`、`ComposerBar.swift`、`ModelWorkspace.swift`、`PromptWorkspace.swift`、`SettingsWorkspace.swift`、`WorkbenchComponents.swift` 与 `WorkbenchTheme.swift`。
 - 状态层：`ModelCatalog`、`InferenceEngine`、`DeviceOptimizer`。
 - 模型文件层：`ModelArtifactStore`、`ModelArtifactHasher`、`LocalArtifactValidator`。
 - Runtime 层：`LocalInferenceRuntime`、`SimulatedGemmaRuntime`、`RealGemmaRuntimePlaceholder`。

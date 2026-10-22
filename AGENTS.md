@@ -61,6 +61,8 @@ git remote -v
 - 文档-only 变更也要说明为什么未跑完整测试，并至少做结构/内容校验。
 - 不伪造测试结果；没有跑就写未跑及原因。
 - 不做无关重构；大文件拆分必须有清晰收益，并保证 Xcode target 正确。
+- 当前人工要求全部 Swift 编译、运行、XCTest、ImageRenderer 和 Catalyst 验证只在云端；本地仅静态轻量检查，不设置 `GITHUB_ACTIONS=true` 冒充云端。将来如人工明确授权本机 iOS 验证，也只能使用已确认完整 UDID 以 `FAC4325D` 开头的唯一模拟器，不按名称或 `booted` 选择、不创建其他设备；云端不受该设备限制。
+- 删除文件或目录默认用 `trash <path>`；保留用户和并行 Agent 的改动，不使用 `rm` 清理未经确认的内容。
 
 ## 4. 核心架构边界
 
@@ -461,3 +463,13 @@ v3.0 云端 run `36260394187` 的四组布局测试仍沿用旧侧栏宽度，�
 焦点回归测试必须在已有 foreground-active `UIWindowScene` 中托管真实 `ComposerBar`，保留首次 attachment 前的待处理 request，并分别等待公开 `viewDidAppear`/key-window/attachment 就绪和真实 `UITextInput` first responder 结果。测试使用有界条件 expectation，不以固定 sleep、测试重试或直接 `becomeFirstResponder()` 替代受测行为；失败需保留 scene、window、request 和 responder 诊断。退出时统一结束编辑、隐藏并移除 root controller、恢复原 key window，断言无宿主残留。
 
 生产 `ComposerBar` 的同步 `onAppear`/`onChange`、隐藏页清 request/焦点和四页身份保持不变。v3.3 run `36314940076` 的唯一 XCTest 失败尚不能仅凭旧日志确定为生产缺陷；本轮先修复无 scene 与固定 20ms 测试宿主假设，全部 131 项 XCTest 及构建仍交云端，不提前宣布修复通过。
+
+## v3.4 当前呈现与证据边界
+
+- 实施基线是 `9ccf8b9` / run `38343587295` attempt `1`：Agent C 已下载完整结果包，核对 digest、JUnit 8 阶段、131 个结构化 Success 和三份 xcresult，并明确仅焦点/构建回归基线 PASS；iPhone 设置页 readiness 溢出是 v3.4 必修，不能据此宣布整产品视觉或发布验收通过。
+- `WorkbenchPresentationPolicy.chatPresentation` 只在有 starter、非生成且没有 user 时选择 welcome；欢迎与消息正文互斥，welcome 自然顶部阅读，不改 seed、消息/session UUID、顺序、标题或导出。无 starter 和已有 user 的会话仍完整显示原 transcript，短会话底部定位和同步 focus 不变。
+- `SessionBarLayoutPolicy` 只根据真实内容宽度、horizontal/vertical 与 expanded text 解析 inline/stacked/sidebar；inline 门槛为 `180 + 2*44 + 8 + 12 = 288pt`，非法宽度归零、大字横向 stacked，同一个 sessionList/actions 经 AnyLayout 复用；不新增根断点、不隐藏删除/导出。
+- `WorkbenchActionRole` / `WorkbenchActionPalette` 集中定义低饱和主/次/危险动作与 prominent 配对；分类色只用于小面积标识。`WorkbenchBackgroundStylePolicy` 在 Reduce Transparency 或 increased contrast 下移除静态网格和光晕；不新增动画、状态或网络资源。
+- `ChipReadinessCard` 不再在卡内用 GeometryReader 固定高度。设置页与 dashboard 从真实 panel 外框扣除两侧各 14pt 后传入 content width，同一 AnyLayout 自然上报高度；保留 354pt、86pt slot、66pt ring、隐私摘要、辅助语义与 optimizer 状态。
+- 源码新增 6 项测试至 137。云端保留 16 张模拟器生产截图，另导出 8 张真实剩余 1078pt pane 的生产工作区固定 viewport 渲染和 4 张 readiness 组件渲染；后两者明确不是模拟器截图或 Mac GUI 实测。结构化 summary/tests、附件原索引、尺寸/hash/provenance 与轻量 review 包辅助 C，完整三份 xcresult 仍必须核对；现有 JUnit 8 阶段不减项，导出失败并入必选 visual outcome。
+- v3.4 尚待本轮精确 SHA 的云端构建、测试及 C 人眼复判。默认 runtime 仍为模拟，真实推理、Mac GUI/pointer、真机/辅助技术和签名发布均未完成。

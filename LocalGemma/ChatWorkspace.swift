@@ -8,6 +8,7 @@ struct ChatWorkspace: View {
     @EnvironmentObject private var catalog: ModelCatalog
     @EnvironmentObject private var inference: InferenceEngine
     @Environment(\.appTheme) private var theme
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var exportPayload: ExportPayload?
 
     let isActive: Bool
@@ -31,15 +32,26 @@ struct ChatWorkspace: View {
         GeometryReader { proxy in
             let paneLayout = ChatWorkspacePaneLayoutPolicy.resolve(for: proxy.size)
             let usesSessionSidebar = paneLayout.mode == .split
+            let sessionLayout: SessionBarLayout = usesSessionSidebar ? .vertical : .horizontal
+            let sessionHorizontalPadding: CGFloat = usesSessionSidebar ? 14 : 18
+            let sessionWidth = usesSessionSidebar
+                ? paneLayout.sessionSidebarWidth
+                : paneLayout.chatSurfaceWidth
+            let sessionBarPlan = SessionBarLayoutPolicy.resolve(
+                layout: sessionLayout,
+                availableWidth: sessionWidth - sessionHorizontalPadding * 2,
+                expandedText: dynamicTypeSize >= .xxxLarge
+            )
             let workspaceLayout = usesSessionSidebar
                 ? AnyLayout(HStackLayout(spacing: 0))
-                : AnyLayout(VStackLayout(spacing: 10))
+                : AnyLayout(VStackLayout(spacing: 0))
 
             workspaceLayout {
                 SessionBar(
                     sessions: inference.sessions,
                     activeSessionID: inference.activeSessionID,
-                    layout: usesSessionSidebar ? .vertical : .horizontal,
+                    layout: sessionLayout,
+                    availableWidth: sessionBarPlan.availableWidth,
                     create: {
                         inference.createSession()
                         requestComposerFocus(.createSession)
@@ -53,9 +65,9 @@ struct ChatWorkspace: View {
                     },
                     export: prepareExport
                 )
-                .padding(.horizontal, usesSessionSidebar ? 14 : 18)
+                .padding(.horizontal, sessionHorizontalPadding)
                 .padding(.vertical, usesSessionSidebar ? 14 : 0)
-                .padding(.top, usesSessionSidebar ? 0 : 12)
+                .padding(.top, usesSessionSidebar ? 0 : 8)
                 .frame(width: usesSessionSidebar ? paneLayout.sessionSidebarWidth : nil)
                 .background {
                     if usesSessionSidebar {
@@ -70,7 +82,7 @@ struct ChatWorkspace: View {
                     }
                 }
 
-                chatSurface
+                chatSurface(showsHeading: sessionBarPlan.showsWorkspaceHeading)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
@@ -101,12 +113,14 @@ struct ChatWorkspace: View {
         )
     }
 
-    private var chatSurface: some View {
+    private func chatSurface(showsHeading: Bool) -> some View {
         let selectedModel = catalog.selectedModel
         let selectedValidation = catalog.validation(for: catalog.selectedModel)
 
         return VStack(spacing: 0) {
-            ChatWorkspaceHeading(title: inference.activeSessionTitle)
+            if showsHeading {
+                ChatWorkspaceHeading(title: inference.activeSessionTitle)
+            }
             ChatTranscript(
                 messages: inference.messages,
                 isGenerating: inference.isGenerating,
@@ -319,9 +333,51 @@ enum ExportSessionLayoutPolicy {
     }
 }
 
-enum SessionBarLayout {
+enum SessionBarLayout: Equatable {
     case horizontal
     case vertical
+}
+
+enum SessionBarLayoutMode: Equatable {
+    case inline
+    case stacked
+    case sidebar
+}
+
+struct SessionBarLayoutPlan: Equatable {
+    let mode: SessionBarLayoutMode
+    let availableWidth: CGFloat
+
+    var showsSectionHeading: Bool { mode == .sidebar }
+    var showsWorkspaceHeading: Bool { mode == .sidebar }
+}
+
+enum SessionBarLayoutPolicy {
+    static let minimumSessionTrackWidth: CGFloat = 180
+    static let actionSpacing: CGFloat = 8
+    static let contentSpacing: CGFloat = 12
+
+    static var minimumInlineWidth: CGFloat {
+        minimumSessionTrackWidth
+            + SessionBarActionLayoutPolicy.iconButtonSize * 2
+            + actionSpacing
+            + contentSpacing
+    }
+
+    static func resolve(
+        layout: SessionBarLayout,
+        availableWidth: CGFloat,
+        expandedText: Bool
+    ) -> SessionBarLayoutPlan {
+        let width = availableWidth.isFinite && availableWidth > 0 ? availableWidth : 0
+        let mode: SessionBarLayoutMode
+        if layout == .vertical {
+            mode = .sidebar
+        } else {
+            mode = !expandedText && width >= minimumInlineWidth ? .inline : .stacked
+        }
+        return SessionBarLayoutPlan(mode: mode, availableWidth: width)
+    }
 }
 
 struct SessionChipSidebarMetadataPlan: Equatable {
@@ -427,90 +483,125 @@ enum SessionBarActionLayoutPolicy {
 
 struct SessionBar: View {
     @Environment(\.appTheme) private var theme
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     let sessions: [ChatSession]
     let activeSessionID: UUID
     var layout: SessionBarLayout = .horizontal
+    var availableWidth: CGFloat = 0
     let create: () -> Void
     let select: (ChatSession) -> Void
     let delete: (ChatSession) -> Void
     let export: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 10) {
+        let plan = SessionBarLayoutPolicy.resolve(
+            layout: layout,
+            availableWidth: availableWidth,
+            expandedText: dynamicTypeSize >= .xxxLarge
+        )
+        let contentLayout = plan.mode == .inline
+            ? AnyLayout(HStackLayout(alignment: .center, spacing: SessionBarLayoutPolicy.contentSpacing))
+            : AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+
+        VStack(alignment: .leading, spacing: 6) {
+            if plan.showsSectionHeading {
                 Label("会话记录", systemImage: "clock.arrow.circlepath")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(theme.primaryText)
-
-                Spacer(minLength: 0)
-
-                Button(action: export) {
-                    Label(
-                        SessionBarActionAccessibilityMetadata.label(for: .exportSession),
-                        systemImage: "square.and.arrow.up.fill"
-                    )
-                        .labelStyle(.iconOnly)
-                        .font(.system(size: 13, weight: .semibold))
-                        .frame(
-                            width: SessionBarActionLayoutPolicy.iconButtonSize,
-                            height: SessionBarActionLayoutPolicy.iconButtonSize
-                        )
-                        .background(theme.chipSurface, in: Circle())
-                        .overlay(Circle().stroke(theme.border, lineWidth: 1))
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(theme.primaryText)
-                .accessibilityLabel(
-                    SessionBarActionAccessibilityMetadata.label(for: .exportSession)
-                )
-                .accessibilityValue(
-                    SessionBarActionAccessibilityMetadata.value(for: .exportSession)
-                )
-                .accessibilityHint(
-                    SessionBarActionAccessibilityMetadata.hint(for: .exportSession)
-                )
-                .accessibilityInputLabels(
-                    SessionBarActionAccessibilityMetadata.inputLabels(for: .exportSession)
-                )
-                .accessibilityIdentifier(
-                    SessionBarActionAccessibilityMetadata.identifier(for: .exportSession)
-                )
-
-                Button(action: create) {
-                    Label(
-                        SessionBarActionAccessibilityMetadata.label(for: .createSession),
-                        systemImage: "plus.message.fill"
-                    )
-                        .labelStyle(.iconOnly)
-                        .font(.system(size: 13, weight: .semibold))
-                        .frame(
-                            width: SessionBarActionLayoutPolicy.iconButtonSize,
-                            height: SessionBarActionLayoutPolicy.iconButtonSize
-                        )
-                        .background(theme.accent, in: Circle())
-                        .foregroundStyle(theme.inverseText)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(
-                    SessionBarActionAccessibilityMetadata.label(for: .createSession)
-                )
-                .accessibilityValue(
-                    SessionBarActionAccessibilityMetadata.value(for: .createSession)
-                )
-                .accessibilityHint(
-                    SessionBarActionAccessibilityMetadata.hint(for: .createSession)
-                )
-                .accessibilityInputLabels(
-                    SessionBarActionAccessibilityMetadata.inputLabels(for: .createSession)
-                )
-                .accessibilityIdentifier(
-                    SessionBarActionAccessibilityMetadata.identifier(for: .createSession)
-                )
+            } else {
+                Label("本地会话 · 模拟预览", systemImage: "circle.dotted")
+                    .font(.caption)
+                    .foregroundStyle(theme.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityLabel(compactSessionSummary)
+                    .accessibilityAddTraits(.isHeader)
             }
 
-            sessionList
+            contentLayout {
+                sessionList
+                    .frame(maxWidth: .infinity)
+                    .fixedSize(horizontal: false, vertical: layout == .horizontal)
+
+                actions
+                    .frame(maxWidth: plan.mode == .inline ? nil : .infinity, alignment: .trailing)
+            }
         }
+    }
+
+    private var compactSessionSummary: String {
+        guard let activeSession = sessions.first(where: { $0.id == activeSessionID }) else {
+            return "本地会话，当前没有选中的会话。模拟预览。"
+        }
+        return "当前会话 \(activeSession.title)，本地模拟预览。"
+    }
+
+    private var actions: some View {
+        HStack(spacing: SessionBarLayoutPolicy.actionSpacing) {
+            Button(action: export) {
+                Label(
+                    SessionBarActionAccessibilityMetadata.label(for: .exportSession),
+                    systemImage: "square.and.arrow.up.fill"
+                )
+                    .labelStyle(.iconOnly)
+                    .font(.subheadline.weight(.semibold))
+                    .frame(
+                        width: SessionBarActionLayoutPolicy.iconButtonSize,
+                        height: SessionBarActionLayoutPolicy.iconButtonSize
+                    )
+                    .background(theme.chipSurface, in: RoundedRectangle(cornerRadius: 8))
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(theme.border, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(theme.primaryText)
+            .accessibilityLabel(
+                SessionBarActionAccessibilityMetadata.label(for: .exportSession)
+            )
+            .accessibilityValue(
+                SessionBarActionAccessibilityMetadata.value(for: .exportSession)
+            )
+            .accessibilityHint(
+                SessionBarActionAccessibilityMetadata.hint(for: .exportSession)
+            )
+            .accessibilityInputLabels(
+                SessionBarActionAccessibilityMetadata.inputLabels(for: .exportSession)
+            )
+            .accessibilityIdentifier(
+                SessionBarActionAccessibilityMetadata.identifier(for: .exportSession)
+            )
+
+            Button(action: create) {
+                Label(
+                    SessionBarActionAccessibilityMetadata.label(for: .createSession),
+                    systemImage: "plus.message.fill"
+                )
+                    .labelStyle(.iconOnly)
+                    .font(.subheadline.weight(.semibold))
+                    .frame(
+                        width: SessionBarActionLayoutPolicy.iconButtonSize,
+                        height: SessionBarActionLayoutPolicy.iconButtonSize
+                    )
+                    .background(theme.accent, in: RoundedRectangle(cornerRadius: 8))
+                    .foregroundStyle(theme.inverseText)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(
+                SessionBarActionAccessibilityMetadata.label(for: .createSession)
+            )
+            .accessibilityValue(
+                SessionBarActionAccessibilityMetadata.value(for: .createSession)
+            )
+            .accessibilityHint(
+                SessionBarActionAccessibilityMetadata.hint(for: .createSession)
+            )
+            .accessibilityInputLabels(
+                SessionBarActionAccessibilityMetadata.inputLabels(for: .createSession)
+            )
+            .accessibilityIdentifier(
+                SessionBarActionAccessibilityMetadata.identifier(for: .createSession)
+            )
+        }
+        .fixedSize()
     }
 
     @ViewBuilder
@@ -751,7 +842,7 @@ struct SessionChip: View {
             )
         }
         .padding(.horizontal, 10)
-        .padding(.vertical, 8)
+        .padding(.vertical, layout == .vertical ? 8 : 4)
         .frame(maxWidth: layout == .vertical ? .infinity : nil, alignment: .leading)
         .contentShape(Rectangle())
         .onHover { isHovered = $0 }
@@ -847,56 +938,76 @@ struct ChatTranscript: View {
     var applyStarter: ((PresetPromptTemplate) -> Void)? = nil
 
     var body: some View {
+        let presentation = WorkbenchPresentationPolicy.chatPresentation(
+            messages: messages,
+            isGenerating: isGenerating,
+            hasStarter: applyStarter != nil
+        )
+
         GeometryReader { geometry in
             let trackWidth = ChatTranscriptTrackLayoutPolicy.contentWidth(
                 forContainerWidth: geometry.size.width
             )
-            let verticalLayout = ChatTranscriptVerticalLayoutPolicy.resolve(
-                viewportHeight: geometry.size.height,
-                messageCount: messages.count
-            )
-
             ScrollViewReader { proxy in
                 ScrollView {
-                    LazyVStack(spacing: 12) {
-                        if let applyStarter,
-                           WorkbenchPresentationPolicy.showsWelcome(messages: messages, isGenerating: isGenerating) {
-                            ChatWelcomeView(availableWidth: trackWidth, apply: applyStarter)
-                        }
+                    if presentation == .welcome, let applyStarter {
+                        ChatWelcomeView(availableWidth: trackWidth, apply: applyStarter)
+                            .padding(.vertical, ChatTranscriptVerticalLayoutPolicy.verticalPadding)
+                    } else {
+                        let verticalLayout = ChatTranscriptVerticalLayoutPolicy.resolve(
+                            viewportHeight: geometry.size.height,
+                            messageCount: messages.count
+                        )
 
-                        ForEach(messages) { message in
-                            ChatBubble(
-                                message: message,
-                                availableWidth: trackWidth,
-                                isGenerating: isGenerating
-                                    && message.id == messages.last?.id
-                                    && message.role == .assistant
-                            )
-                            .id(message.id)
+                        LazyVStack(spacing: 12) {
+                            ForEach(messages) { message in
+                                ChatBubble(
+                                    message: message,
+                                    availableWidth: trackWidth,
+                                    isGenerating: isGenerating
+                                        && message.id == messages.last?.id
+                                        && message.role == .assistant
+                                )
+                                .id(message.id)
+                            }
                         }
+                        .frame(width: trackWidth)
+                        .frame(
+                            minHeight: verticalLayout.minimumContentHeight,
+                            alignment: verticalLayout.anchorsContentToBottom ? .bottom : .top
+                        )
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.vertical, ChatTranscriptVerticalLayoutPolicy.verticalPadding)
                     }
-                    .frame(width: trackWidth)
-                    .frame(
-                        minHeight: verticalLayout.minimumContentHeight,
-                        alignment: verticalLayout.anchorsContentToBottom ? .bottom : .top
-                    )
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.vertical, ChatTranscriptVerticalLayoutPolicy.verticalPadding)
                 }
                 .scrollIndicators(.hidden)
                 .accessibilityElement(children: .contain)
-                .accessibilityLabel(ChatTranscriptAccessibilityMetadata.label)
-                .accessibilityValue(
-                    ChatTranscriptAccessibilityMetadata.value(
-                        for: messages,
-                        isGenerating: isGenerating
-                    )
+                .accessibilityLabel(
+                    presentation == .welcome
+                        ? ChatWelcomeAccessibilityMetadata.label
+                        : ChatTranscriptAccessibilityMetadata.label
                 )
-                .accessibilityHint(ChatTranscriptAccessibilityMetadata.hint)
-                .accessibilityInputLabels(ChatTranscriptAccessibilityMetadata.inputLabels)
+                .accessibilityValue(
+                    presentation == .welcome
+                        ? ChatWelcomeAccessibilityMetadata.value
+                        : ChatTranscriptAccessibilityMetadata.value(
+                            for: messages,
+                            isGenerating: isGenerating
+                        )
+                )
+                .accessibilityHint(
+                    presentation == .welcome
+                        ? ChatWelcomeAccessibilityMetadata.hint
+                        : ChatTranscriptAccessibilityMetadata.hint
+                )
+                .accessibilityInputLabels(
+                    presentation == .welcome
+                        ? ChatWelcomeAccessibilityMetadata.inputLabels
+                        : ChatTranscriptAccessibilityMetadata.inputLabels
+                )
                 .accessibilityIdentifier(ChatTranscriptAccessibilityMetadata.identifier)
                 .onChange(of: messages) { _, messages in
-                    guard let last = messages.last else { return }
+                    guard presentation == .transcript, let last = messages.last else { return }
                     withAnimation(
                         AppMotionAccessibilityPolicy.animation(
                             .easeOut(duration: 0.22),

@@ -2,6 +2,16 @@
 
 一个 SwiftUI iOS 原型 App，主打 iPhone、iPad 与 Mac Catalyst 构建/本地运行基线下部署 Gemma 1.5B 的产品形态。当前版本不下载模型权重，使用本地模拟推理引擎验证 UI、模型管理、流式输出、停止生成占位生命周期和苹果芯片部署优化面板。
 
+## v3.4 当前界面
+
+- 欢迎区与默认消息正文互斥，欢迎内容从顶部自然展开；开始真实会话后完整显示原消息，短会话仍靠近输入框。默认 seed、会话身份、导出与同步输入焦点不变。
+- iPhone 会话轨道与新建/导出合并，窄宽和较大文字回退堆叠；iPad/Mac 宽区域保留三级工作台表面与真实剩余宽度分栏，不隐藏删除或导出入口。
+- 模型部署/文件动作和提示词填入/发送统一为主题感知主次/危险层级，移除满幅彩虹块；分类保留小面积识别色。静态工程网格在“降低透明度”或提高对比度时退出，readiness ring 使用主题同色系。
+- readiness panel 改由真实内容自然报高，修复云端 iPhone 设置图中圆环/正文越出边框；保留 354pt 内容阈值、86pt slot、66pt ring、隐私与优化开关行为。
+- 源码现有 137 个 XCTest 方法（本轮新增 6 个）。云端保留 16 张生产模拟器截图，新增 8 张真实 1078pt pane 固定 viewport 的生产 View 渲染和 4 张窄 readiness 大小字渲染；它们不是 Mac GUI 实测。完整结果包和可先读的 `-review` 小包都带精确 SHA/run/attempt。
+
+本轮尚待提交后的完整云端构建、测试与 Agent C 实图复判，不把源码计数或非空渲染当成通过。背景辅助开关目前覆盖纯 policy 真值表和生产默认环境渲染，不等于实际系统开关组合实测。当前仍为模拟原型；真实推理、Mac GUI/pointer、真机/完整辅助技术和签名发布未完成，尚不宣称可发布。
+
 ## 当前范围
 
 - `LocalGemma.xcodeproj`：可用 Xcode 打开的 iOS 工程，当前 app/test target 支持 iPhone、iPad，并已启用 Mac Catalyst build-for-testing 基线和项目内本地 build/run 入口；本轮没有创建原生 macOS target。
@@ -126,19 +136,24 @@
 
 ## 运行方式
 
+当前人工要求全部构建、运行、XCTest、ImageRenderer 和 Catalyst 验证只在 GitHub Actions 云端执行；本机只做静态轻量检查。以下本机入口仅供将来人工明确授权后使用，不是本轮执行步骤。iOS 本机验证还必须使用已确认完整 UDID 以 `FAC4325D` 开头的唯一模拟器，不能按名称或 `booted` 选择，也不能创建其他设备；云端没有该设备限制。
+
 1. 打开 `LocalGemma.xcodeproj`。
 2. 选择 `LocalGemma` scheme。
-3. 选择 iPhone / iPad 模拟器或真机。
+3. 仅在人工明确授权本机验证后，指定已确认的 `FAC4325D` 开头完整模拟器 UDID。
 4. 运行 App。
 
 可用以下命令在本机验证构建。当前机器的 `xcode-select` 指向 Command Line Tools，因此命令使用完整 Xcode 路径：
 
 ```sh
+# Only after explicit local authorization; never guess or discover another device.
+: "${LOCAL_SIMULATOR_UDID:?Set the confirmed full FAC4325D-prefixed UDID first}"
+case "$LOCAL_SIMULATOR_UDID" in FAC4325D*) ;; *) exit 1 ;; esac
 /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild \
   -project LocalGemma.xcodeproj \
   -scheme LocalGemma \
   -configuration Debug \
-  -destination 'generic/platform=iOS' \
+  -destination "platform=iOS Simulator,id=$LOCAL_SIMULATOR_UDID" \
   -derivedDataPath .build/DerivedData \
   CODE_SIGNING_ALLOWED=NO \
   build
@@ -147,19 +162,19 @@
   -project LocalGemma.xcodeproj \
   -scheme LocalGemma \
   -configuration Debug \
-  -destination 'generic/platform=iOS' \
+  -destination "platform=iOS Simulator,id=$LOCAL_SIMULATOR_UDID" \
   -derivedDataPath .build/DerivedData \
   CODE_SIGNING_ALLOWED=NO \
   build-for-testing
 ```
 
-有可用 iOS 模拟器或真机后，可执行测试：
+只有人工明确授权，并已按前述校验设置唯一模拟器完整 UDID 后，才可执行本机测试：
 
 ```sh
 /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild \
   -project LocalGemma.xcodeproj \
   -scheme LocalGemma \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+  -destination "platform=iOS Simulator,id=$LOCAL_SIMULATOR_UDID" \
   -derivedDataPath .build/DerivedData \
   test
 ```
@@ -199,6 +214,8 @@ Mac Catalyst 构建基线可用以下命令验证：
 ## 协作与云端验证
 
 项目协作默认使用 `main` 直推和云端重验证：Agent B 在本地完成轻量检查后提交并 push 到 `origin/main`，GitHub Actions 运行 `ci-results.yml`，上传包含 manifest、失败摘要、JUnit、日志和 Xcode 结果包的未加密 CI artifact。Agent C 必须下载该结果包，核对 `origin/main` 最新 commit、artifact name、run URL、run id、run attempt 和日志后再给出验收结论。
+
+当前 JUnit 固定 8 阶段，生产截图/布局证据是必选 visual 阶段的一部分，仅既有 Codex environment 允许带原因的 optional skip。`Tools/export_workbench_evidence.py` 在云端导出 summary/tests JSON 与 12 张生产渲染附件，保留附件原索引并验证实际 PNG 尺寸、hash 和 pane 分配；导出失败仍生成 manifest/JUnit，最后统一判失败。完整包保留三份 xcresult 与 16 张真实模拟器截图；同名加 `-review` 的轻量包只辅助先看日志和图，不能代替 C 对完整原始结果的核对。
 
 CI artifact 的版本号从最新 commit 主题开头的 `vX.Y` 提取，例如 `v1.0: ...` 会生成 `localgemma-ci-v1.0-main-<sha>-run<run_id>-attempt<attempt>`，避免结果包沿用旧版本号。v0.9 起，`ci-artifact-manifest.json` 明确记录 `artifactName`、`repository`、`commitSubject`、`runUrl`、`runId`、`runAttempt`、各阶段 outcome、`destination`、`macBaselineKind`、`macCatalystBuildOutcome` 和 Mac baseline 日志路径；v1.0 起，manifest 还记录 `macCatalystRunEntrypoint`、`macCatalystRunScriptCheckOutcome`、`macCatalystRunScriptLogPath`、`codexRunEnvironmentPath`、`codexRunEnvironmentCheckOutcome` 和 `codexRunEnvironmentSkippedReason`。`artifact-name.txt` 必须与 manifest 中的 `artifactName` 一致。
 
@@ -278,6 +295,8 @@ Gemma 1.5B 已预留真实模型接入清单：
 - 单模型部署状态、启动/关闭控制、模拟下载和确认后卸载本地 artifact
 
 ## 已完成验证
+
+本节旧版本条目是历史命令/结果，不是当前本机执行入口。当前源码 137 项尚待 v3.4 云端 run；已核对的上一实施基线和限定结论见文末 v3.3.1 记录，所有本机限制以“运行方式”为准。
 
 v2.48 本轮增加优化指标卡文本动态排版策略：设置页和优化 dashboard 的指标卡由 `OptimizerMetricTextLayoutPolicy` 控制，label、value 和 detail 使用 Dynamic Type 语义字体并允许多行，移除 label/value 的单行缩放压缩，改善 iPad split view、Mac Catalyst 窄窗口和较大文字设置下的可读性，同时保留指标数据、进度、tint、辅助语义、网格列数、本地模拟 runtime 和 verified 门禁边界；`LocalGemmaTests.swift` 当前测试函数数为 91。
 
@@ -405,7 +424,7 @@ v2.63 当时已生成可测试导入的 `LocalGemma.swiftmodule`，并用 iPhone
 
 历史结果：`TEST BUILD SUCCEEDED`。
 
-完整 iPhone 17 Pro 模拟器 XCTest 命令如下：
+历史 iPhone 17 Pro 模拟器 XCTest 命令记录如下，不可作为本轮或未来本机设备选择入口：
 
 ```sh
 /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild \
@@ -649,3 +668,7 @@ v3.3 云端 run `36314940076` 的 131 项 XCTest 中 130 通过、1 失败：输
 本轮只校正焦点测试宿主：关联现有活跃 window scene，分开验证窗口/控制器就绪与真实文本输入焦点，使用最多 2 秒的条件 expectation 替换该测试的固定 20ms 等待；首次挂载前的待处理请求仍保留。测试结束时校验宿主移除和原 key window 恢复。不修改 App UI、生产同步焦点、会话、模型文件、默认模拟 runtime 或 verified 门禁；测试方法总数仍为 131。
 
 本机仅做文本、工程和脚本结构检查，不运行 Swift 编译、XCTest、模拟器或 Catalyst。修复是否恢复云端基线须以最新 main 的完整结果包为准，当前不声明发布就绪。
+
+### v3.3.1 限定基线已核对（2026-10-22）
+
+Agent C 已实际下载 `9ccf8b91a25c90242cd733a2da6cb3e4230844fa` 对应 run `38343587295` attempt `1` 的完整 artifact `localgemma-ci-v3.3.1-main-9ccf8b9-run38343587295-attempt1`，核对 ZIP/API SHA-256、manifest、JUnit 8 阶段、131 个唯一结构化 Success（含严格焦点测试恰一次成功）、三份 xcresult 和 16 张生产图。结论仅为焦点/构建回归基线 PASS；图中发现的 iPhone readiness 越界是 v3.4 必修，不能写成整产品视觉或发布 PASS。v3.4 仍需自己的最新 SHA/run/产物验收。

@@ -51,7 +51,10 @@ struct SettingsWorkspace: View {
                     ChipReadinessCard(
                         progress: optimizer.deploymentReadiness,
                         thermalState: optimizer.thermalState,
-                        privacyGuardEnabled: optimizer.isOfflinePrivacyGuardEnabled
+                        privacyGuardEnabled: optimizer.isOfflinePrivacyGuardEnabled,
+                        panelContentWidth: ChipReadinessLayoutPolicy.panelContentWidth(
+                            forPanelWidth: contentWidth
+                        )
                     )
 
                     OptimizerMetricGrid(metrics: optimizer.metrics)
@@ -524,36 +527,41 @@ struct OptimizerDashboard: View {
     var isModal = false
 
     var body: some View {
-        ZStack {
-            if isModal {
-                Color(red: 0.045, green: 0.047, blue: 0.055).ignoresSafeArea()
-            }
-
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    SectionHeader(
-                        eyebrow: "APPLE SILICON",
-                        title: "芯片部署优化",
-                        subtitle: "Apple Silicon 运行计划与模拟预算，非实时设备性能测量。"
-                    )
-
-                    ChipReadinessCard(
-                        progress: optimizer.deploymentReadiness,
-                        thermalState: optimizer.thermalState,
-                        privacyGuardEnabled: optimizer.isOfflinePrivacyGuardEnabled
-                    )
-
-                    OptimizerMetricGrid(metrics: optimizer.metrics)
-
-                    OptimizationToggleGrid(
-                        items: optimizer.switches,
-                        titleColor: .white,
-                        toggle: { optimizer.toggle($0) }
-                    )
+        GeometryReader { geometry in
+            ZStack {
+                if isModal {
+                    Color(red: 0.045, green: 0.047, blue: 0.055).ignoresSafeArea()
                 }
-                .padding(.horizontal, 18)
-                .padding(.top, isModal ? 22 : 16)
-                .padding(.bottom, 28)
+
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        SectionHeader(
+                            eyebrow: "APPLE SILICON",
+                            title: "芯片部署优化",
+                            subtitle: "Apple Silicon 运行计划与模拟预算，非实时设备性能测量。"
+                        )
+
+                        ChipReadinessCard(
+                            progress: optimizer.deploymentReadiness,
+                            thermalState: optimizer.thermalState,
+                            privacyGuardEnabled: optimizer.isOfflinePrivacyGuardEnabled,
+                            panelContentWidth: ChipReadinessLayoutPolicy.panelContentWidth(
+                                forPanelWidth: max(geometry.size.width - 36, 0)
+                            )
+                        )
+
+                        OptimizerMetricGrid(metrics: optimizer.metrics)
+
+                        OptimizationToggleGrid(
+                            items: optimizer.switches,
+                            titleColor: .white,
+                            toggle: { optimizer.toggle($0) }
+                        )
+                    }
+                    .padding(.horizontal, 18)
+                    .padding(.top, isModal ? 22 : 16)
+                    .padding(.bottom, 28)
+                }
             }
         }
     }
@@ -566,62 +574,60 @@ struct ChipReadinessCard: View {
     let progress: Double
     let thermalState: String
     let privacyGuardEnabled: Bool
+    let panelContentWidth: CGFloat
 
     var body: some View {
-        GeometryReader { proxy in
-            let plan = ChipReadinessLayoutPolicy.resolve(
-                contentWidth: proxy.size.width,
-                usesAccessibilityDynamicType: dynamicTypeSize >= .accessibility1
-            )
-            let layout = plan.mode == .horizontal
-                ? AnyLayout(HStackLayout(spacing: 16))
-                : AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
+        let plan = ChipReadinessLayoutPolicy.resolve(
+            contentWidth: panelContentWidth,
+            usesAccessibilityDynamicType: dynamicTypeSize >= .accessibility1
+        )
+        let layout = plan.mode == .horizontal
+            ? AnyLayout(HStackLayout(spacing: ChipReadinessLayoutPolicy.horizontalSpacing))
+            : AnyLayout(VStackLayout(alignment: .leading, spacing: ChipReadinessLayoutPolicy.stackedSpacing))
 
-            layout {
-                ReadinessRing(
-                    progress: progress,
-                    diameter: ChipReadinessLayoutPolicy.ringDiameter,
-                    accessibilityIdentifier: ChipReadinessAccessibilityMetadata.chipRingIdentifier
+        layout {
+            ReadinessRing(
+                progress: progress,
+                diameter: ChipReadinessLayoutPolicy.ringDiameter,
+                accessibilityIdentifier: ChipReadinessAccessibilityMetadata.chipRingIdentifier
+            )
+                .frame(
+                    width: ChipReadinessLayoutPolicy.ringSlot,
+                    height: ChipReadinessLayoutPolicy.ringSlot
                 )
-                    .frame(
-                        width: ChipReadinessLayoutPolicy.ringSlot,
-                        height: ChipReadinessLayoutPolicy.ringSlot
+                .layoutPriority(1)
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("A17 Pro / M 系列准备度")
+                    .font(.headline.weight(.semibold))
+                    .foregroundStyle(theme.primaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text(
+                    ChipReadinessAccessibilityMetadata.summary(
+                        thermalState: thermalState,
+                        privacyGuardEnabled: privacyGuardEnabled
                     )
-                    .layoutPriority(1)
+                )
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(theme.secondaryText)
+                    .lineLimit(4)
+                    .lineSpacing(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("A17 Pro / M 系列准备度")
-                        .font(.headline.weight(.semibold))
-                        .foregroundStyle(theme.primaryText)
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    Text(
-                        ChipReadinessAccessibilityMetadata.summary(
-                            thermalState: thermalState,
-                            privacyGuardEnabled: privacyGuardEnabled
-                        )
-                    )
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(theme.secondaryText)
-                        .lineLimit(4)
-                        .lineSpacing(2)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    ProgressView(value: progress)
-                        .tint(.cyan)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                ProgressView(value: progress)
+                    .tint(.cyan)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .fixedSize(horizontal: false, vertical: true)
-            .frame(
-                maxWidth: .infinity,
-                minHeight: ChipReadinessLayoutPolicy.ringSlot,
-                alignment: .leading
-            )
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .frame(minHeight: ChipReadinessLayoutPolicy.ringSlot)
+        .fixedSize(horizontal: false, vertical: true)
+        .frame(
+            maxWidth: .infinity,
+            minHeight: ChipReadinessLayoutPolicy.ringSlot,
+            alignment: .leading
+        )
         .panelStyle(border: theme.accent.opacity(0.3))
         .accessibilityElement(children: .combine)
         .accessibilityLabel(ChipReadinessAccessibilityMetadata.cardLabel)
@@ -653,6 +659,13 @@ enum ChipReadinessLayoutPolicy {
     static let horizontalContentWidthThreshold: CGFloat = 354
     static let ringSlot: CGFloat = 86
     static let ringDiameter: CGFloat = 66
+    static let horizontalSpacing: CGFloat = 16
+    static let stackedSpacing: CGFloat = 12
+
+    static func panelContentWidth(forPanelWidth width: CGFloat) -> CGFloat {
+        guard width.isFinite, width > 0 else { return 0 }
+        return max(width - WorkbenchVisualStylePolicy.panelPadding * 2, 0)
+    }
 
     static func resolve(
         contentWidth: CGFloat,

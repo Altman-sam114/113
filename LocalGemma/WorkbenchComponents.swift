@@ -1,5 +1,10 @@
 import SwiftUI
 
+enum ChatContentPresentation: Equatable {
+    case welcome
+    case transcript
+}
+
 /// Presentation constants shared by the desktop shell and compact workspace.
 enum WorkbenchPresentationPolicy {
     static let pageTopInset: CGFloat = 28
@@ -13,7 +18,22 @@ enum WorkbenchPresentationPolicy {
     }
 
     static func showsWelcome(messages: [ChatMessage], isGenerating: Bool) -> Bool {
-        !isGenerating && !messages.contains { $0.role == .user }
+        chatPresentation(messages: messages, isGenerating: isGenerating, hasStarter: true) == .welcome
+    }
+
+    static func chatPresentation(
+        messages: [ChatMessage],
+        isGenerating: Bool,
+        hasStarter: Bool
+    ) -> ChatContentPresentation {
+        hasStarter && !isGenerating && !messages.contains { $0.role == .user }
+            ? .welcome
+            : .transcript
+    }
+
+    static func welcomeContentWidth(for availableWidth: CGFloat) -> CGFloat {
+        guard availableWidth.isFinite, availableWidth > 0 else { return 0 }
+        return min(availableWidth, heroMaximumWidth)
     }
 
     static func initialWorkspace(arguments: [String]) -> WorkspaceTab {
@@ -55,16 +75,16 @@ struct WorkbenchBrandHeader: View {
 
     var body: some View {
         let layout = isSidebar || dynamicTypeSize >= .xxxLarge
-            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 16))
-            : AnyLayout(HStackLayout(alignment: .center, spacing: 12))
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
+            : AnyLayout(HStackLayout(alignment: .center, spacing: 8))
 
         layout {
-            HStack(spacing: 12) {
+            HStack(spacing: 10) {
                 WorkbenchBrandMark()
-                VStack(alignment: .leading, spacing: 3) {
+                VStack(alignment: .leading, spacing: 2) {
                     Text("LOCAL INTELLIGENCE")
                         .font(.caption2.weight(.medium).monospaced())
-                        .tracking(1.2)
+                        .tracking(0.8)
                         .foregroundStyle(theme.secondaryText)
                     Text("Gemma")
                         .font(.title2.weight(.semibold))
@@ -196,69 +216,103 @@ struct ChatWelcomeView: View {
     let apply: (PresetPromptTemplate) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 22) {
-            ZStack {
-                Circle().stroke(theme.accent.opacity(0.12), lineWidth: 1).frame(width: 82, height: 82)
-                Circle().fill(theme.accent.opacity(0.08)).frame(width: 62, height: 62)
-                Image(systemName: "sparkle")
-                    .font(.largeTitle.weight(.light))
+        let contentWidth = WorkbenchPresentationPolicy.welcomeContentWidth(for: availableWidth)
+
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(spacing: 10) {
+                Image(systemName: "cpu")
+                    .font(.title3.weight(.medium))
                     .foregroundStyle(theme.accent)
-                Circle().fill(theme.secondaryAccent).frame(width: 6, height: 6).offset(x: 34, y: -23)
-                Circle().fill(theme.accent).frame(width: 4, height: 4).offset(x: -36, y: 20)
+                    .frame(width: 42, height: 42)
+                    .background(theme.accent.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(theme.accent.opacity(0.2), lineWidth: 1)
+                    }
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("ON-DEVICE WORKSPACE")
+                        .font(.caption2.weight(.medium).monospaced())
+                        .tracking(0.8)
+                    Text("本地模拟 · 无云端推理")
+                        .font(.caption)
+                }
+                .foregroundStyle(theme.secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
             }
             .accessibilityHidden(true)
 
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 6) {
                 Text("让想法，在此发生。")
-                    .font(.largeTitle.weight(.semibold))
+                    .font(.title.weight(.semibold))
                     .foregroundStyle(theme.primaryText)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityAddTraits(.isHeader)
-                Text("一个安静、私密的本地 AI 工作空间。\n从一个问题开始，探索端侧智能。")
-                    .font(.body)
-                    .lineSpacing(5)
+                Text("从一个问题开始，探索私密的端侧工作空间。")
+                    .font(.subheadline)
+                    .lineSpacing(2)
                     .foregroundStyle(theme.secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), alignment: .topLeading),
                                     count: WorkbenchPresentationPolicy.starterColumnCount(
-                                        width: availableWidth, expandedText: dynamicTypeSize >= .xxxLarge)),
-                      alignment: .leading, spacing: 10) {
+                                        width: contentWidth, expandedText: dynamicTypeSize >= .xxxLarge)),
+                      alignment: .leading, spacing: 8) {
                 ForEach(Array(PromptTemplateLibrary.defaultTemplates.prefix(2))) { template in
                     Button { apply(template) } label: {
-                        VStack(alignment: .leading, spacing: 14) {
-                            Image(systemName: template.icon).foregroundStyle(theme.accent)
-                            HStack(alignment: .top, spacing: 8) {
+                        HStack(spacing: 10) {
+                            Image(systemName: template.icon)
+                                .font(.body)
+                                .foregroundStyle(theme.accent)
+                                .frame(width: 28, height: 28)
+                                .background(theme.accent.opacity(0.08), in: RoundedRectangle(cornerRadius: 6))
+                            VStack(alignment: .leading, spacing: 2) {
                                 Text(template.title)
                                     .font(.subheadline.weight(.medium))
                                     .fixedSize(horizontal: false, vertical: true)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                Image(systemName: "arrow.up.left").font(.caption)
+                                    .foregroundStyle(theme.primaryText)
+                                Text(template.subtitle)
+                                    .font(.caption)
+                                    .foregroundStyle(theme.secondaryText)
+                                    .fixedSize(horizontal: false, vertical: true)
                             }
-                            .foregroundStyle(theme.primaryText)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            Image(systemName: "arrow.up.left")
+                                .font(.caption)
+                                .foregroundStyle(theme.secondaryText)
                         }
-                        .padding(16)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
                         .frame(maxWidth: .infinity, minHeight: WorkbenchPresentationPolicy.minimumActionHeight,
                                alignment: .leading)
-                        .background(theme.surface, in: RoundedRectangle(cornerRadius: 14))
-                        .overlay { RoundedRectangle(cornerRadius: 14).stroke(theme.border, lineWidth: 1) }
+                        .background(theme.surface, in: RoundedRectangle(cornerRadius: 8))
+                        .overlay { RoundedRectangle(cornerRadius: 8).stroke(theme.border, lineWidth: 1) }
                     }
                     .buttonStyle(.plain)
                     .hoverEffect(.highlight)
                     .accessibilityLabel(PromptTemplateActionAccessibilityMetadata.label(for: .apply, template: template))
-                    .accessibilityHint("仅填入输入框并聚焦，不自动发送。当前为本地模拟预览。")
+                    .accessibilityValue(PromptTemplateActionAccessibilityMetadata.value(for: .apply, isGenerating: false))
+                    .accessibilityHint(PromptTemplateActionAccessibilityMetadata.hint(for: .apply, template: template))
+                    .accessibilityInputLabels(PromptTemplateActionAccessibilityMetadata.inputLabels(for: .apply, template: template))
                     .accessibilityIdentifier("welcome.apply.\(template.id)")
                 }
             }
 
-            Label("当前为模拟预览，尚未接入真实模型推理。", systemImage: "info.circle")
+            Label("模拟预览，尚未接入真实模型推理。", systemImage: "info.circle")
                 .font(.caption)
                 .foregroundStyle(theme.secondaryText)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(.vertical, 28)
-        .frame(maxWidth: WorkbenchPresentationPolicy.heroMaximumWidth, alignment: .leading)
+        .padding(.vertical, 12)
+        .frame(width: contentWidth, alignment: .leading)
+        .fixedSize(horizontal: false, vertical: true)
         .frame(maxWidth: .infinity)
     }
+}
+
+enum ChatWelcomeAccessibilityMetadata {
+    static let label = "本地工作区欢迎页"
+    static let value = "当前为本地模拟预览，可选择部署方案或隐私评审模板。模板只填入输入框并聚焦，不自动发送；尚未接入真实模型推理。"
+    static let hint = "浏览本地欢迎内容或选择起始模板；不会发送 prompt，不会下载模型权重，不会启动真实 runtime，不会发送到云端服务，也不会绕过 artifact verified 门禁。"
+    static let inputLabels = ["欢迎页", "本地工作区欢迎页", "开始本地会话"]
 }

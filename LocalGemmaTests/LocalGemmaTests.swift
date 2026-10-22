@@ -6,6 +6,421 @@ import XCTest
 
 @MainActor
 final class LocalGemmaTests: XCTestCase {
+    func testWorkbenchChatPresentationPreservesSessionAndExportData() {
+        let inference = InferenceEngine()
+        let originalMessages = inference.messages
+        let originalSessions = inference.sessions
+        let originalSessionID = inference.activeSessionID
+        let originalTitle = inference.activeSessionTitle
+        let originalExport = inference.exportActiveSessionText(modelName: "Gemma 1.5B Local")
+        let fixtures: [([ChatMessage], Bool)] = [
+            ([], false),
+            (originalMessages, false),
+            ([ChatMessage(role: .system, text: "Local status")], false),
+            ([ChatMessage(role: .assistant, text: "")], false),
+            ([ChatMessage(role: .user, text: "")], true),
+            (originalMessages + [ChatMessage(role: .user, text: "Hello")], true),
+            ([ChatMessage(role: .user, text: "Question"),
+              ChatMessage(role: .assistant, text: "")], true)
+        ]
+        for (messages, containsUser) in fixtures {
+            let snapshot = messages
+            for hasStarter in [false, true] {
+                for isGenerating in [false, true] {
+                    let expected: ChatContentPresentation =
+                        hasStarter && !isGenerating && !containsUser ? .welcome : .transcript
+                    for _ in 0..<2 {
+                        XCTAssertEqual(
+                            WorkbenchPresentationPolicy.chatPresentation(
+                                messages: messages,
+                                isGenerating: isGenerating,
+                                hasStarter: hasStarter
+                            ),
+                            expected
+                        )
+                    }
+                    XCTAssertEqual(messages, snapshot)
+                }
+            }
+        }
+        XCTAssertEqual(inference.messages, originalMessages)
+        XCTAssertEqual(inference.sessions, originalSessions)
+        XCTAssertEqual(inference.activeSessionID, originalSessionID)
+        XCTAssertEqual(inference.activeSessionTitle, originalTitle)
+        // Each export call generates a fresh timestamp; only that volatile line is excluded.
+        let exportBody: (String) -> [String] = { text in
+            text.components(separatedBy: "\n").filter { !$0.hasPrefix("导出时间：") }
+        }
+        XCTAssertEqual(
+            exportBody(inference.exportActiveSessionText(modelName: "Gemma 1.5B Local")),
+            exportBody(originalExport)
+        )
+        for message in originalMessages {
+            XCTAssertTrue(originalExport.contains(message.text))
+        }
+
+        let model = ModelCatalog(autoScanLocalArtifacts: false).selectedModel
+        inference.inputText = "Stop before the first simulated chunk"
+        inference.send(using: model, availability: .missing)
+        inference.stop()
+        let stoppedMessages = inference.messages
+        let stoppedSessions = inference.sessions
+        let stoppedID = inference.activeSessionID
+        let stoppedTitle = inference.activeSessionTitle
+        let stoppedExport = inference.exportActiveSessionText(modelName: model.name)
+        XCTAssertEqual(
+            WorkbenchPresentationPolicy.chatPresentation(
+                messages: stoppedMessages, isGenerating: false, hasStarter: true
+            ),
+            .transcript
+        )
+        XCTAssertEqual(inference.messages, stoppedMessages)
+        XCTAssertEqual(inference.sessions, stoppedSessions)
+        XCTAssertEqual(inference.activeSessionID, stoppedID)
+        XCTAssertEqual(inference.activeSessionTitle, stoppedTitle)
+        XCTAssertEqual(exportBody(inference.exportActiveSessionText(modelName: model.name)), exportBody(stoppedExport))
+        XCTAssertEqual(stoppedMessages.prefix(originalMessages.count).map(\.id), originalMessages.map(\.id))
+        XCTAssertEqual(stoppedMessages.last?.role, .assistant)
+        XCTAssertTrue(stoppedMessages.last?.text.isEmpty == true)
+
+        for width: CGFloat in [0, -1, .nan, .infinity, -.infinity] {
+            XCTAssertEqual(WorkbenchPresentationPolicy.welcomeContentWidth(for: width), 0)
+        }
+        for width: CGFloat in [320, 390, 600, 834, 1_200] {
+            XCTAssertEqual(WorkbenchPresentationPolicy.welcomeContentWidth(for: width), min(width, 680))
+        }
+        XCTAssertFalse(ChatTranscriptVerticalLayoutPolicy.resolve(viewportHeight: 800, messageCount: 0).anchorsContentToBottom)
+        XCTAssertTrue(ChatTranscriptVerticalLayoutPolicy.resolve(viewportHeight: 800, messageCount: stoppedMessages.count).anchorsContentToBottom)
+        XCTAssertTrue(ChatWelcomeAccessibilityMetadata.value.contains("不自动发送"))
+        XCTAssertFalse(ChatWelcomeAccessibilityMetadata.value.contains("最新消息"))
+        XCTAssertTrue(ChatWelcomeAccessibilityMetadata.hint.contains("verified 门禁"))
+        XCTAssertTrue(ChatWelcomeAccessibilityMetadata.hint.contains("不会发送到云端服务"))
+        XCTAssertFalse(ChatWelcomeAccessibilityMetadata.inputLabels.isEmpty)
+        XCTAssertEqual(ChatTranscriptAccessibilityMetadata.identifier, "chat-transcript")
+    }
+
+    func testSessionBarLayoutPolicyCoordinatesCompactActions() {
+        XCTAssertEqual(SessionBarLayoutPolicy.minimumSessionTrackWidth, 180)
+        XCTAssertEqual(SessionBarLayoutPolicy.actionSpacing, 8)
+        XCTAssertEqual(SessionBarLayoutPolicy.contentSpacing, 12)
+        XCTAssertEqual(SessionBarActionLayoutPolicy.iconButtonSize, 44)
+        XCTAssertEqual(SessionBarLayoutPolicy.minimumInlineWidth, 180 + 2 * 44 + 8 + 12)
+        let widths: [CGFloat] = [0, -1, .nan, .infinity, -.infinity, 180, 287.99, 288, 320, 390, 600, 834, 1_200]
+        for width in widths {
+            for expandedText in [false, true] {
+                let horizontal = SessionBarLayoutPolicy.resolve(
+                    layout: .horizontal, availableWidth: width, expandedText: expandedText
+                )
+                XCTAssertEqual(
+                    horizontal.mode,
+                    width.isFinite && width >= 288 && !expandedText ? .inline : .stacked
+                )
+                XCTAssertEqual(horizontal.availableWidth, width.isFinite ? max(width, 0) : 0)
+                XCTAssertTrue(horizontal.availableWidth.isFinite)
+                XCTAssertFalse(horizontal.showsSectionHeading)
+                XCTAssertFalse(horizontal.showsWorkspaceHeading)
+                let vertical = SessionBarLayoutPolicy.resolve(
+                    layout: .vertical, availableWidth: width, expandedText: expandedText
+                )
+                XCTAssertEqual(vertical.mode, .sidebar)
+                XCTAssertEqual(vertical.availableWidth, horizontal.availableWidth)
+                XCTAssertTrue(vertical.showsSectionHeading)
+                XCTAssertTrue(vertical.showsWorkspaceHeading)
+                XCTAssertEqual(
+                    horizontal,
+                    SessionBarLayoutPolicy.resolve(layout: .horizontal, availableWidth: width, expandedText: expandedText)
+                )
+            }
+        }
+        let empty = ChatSession(title: "新对话", messages: [])
+        let conversation = ChatSession(
+            title: "Long local conversation title with 中文 and more context",
+            messages: [ChatMessage(role: .user, text: "Local payload")]
+        )
+        XCTAssertFalse(SessionChipActionAccessibilityMetadata.canDelete(session: empty, isActive: true))
+        XCTAssertTrue(SessionChipActionAccessibilityMetadata.canDelete(session: empty, isActive: false))
+        XCTAssertTrue(SessionChipActionAccessibilityMetadata.canDelete(session: conversation, isActive: true))
+        for session in [empty, conversation] {
+            for action in SessionChipActionAccessibilityMetadata.Action.allCases {
+                XCTAssertFalse(SessionChipActionAccessibilityMetadata.identifier(for: action, session: session).isEmpty)
+                XCTAssertFalse(SessionChipActionAccessibilityMetadata.inputLabels(for: action, session: session).isEmpty)
+            }
+        }
+        XCTAssertEqual(SessionCommandAction.createSession.shortcutKey, "n")
+        XCTAssertEqual(SessionCommandAction.exportSession.shortcutKey, "e")
+        XCTAssertFalse(SessionCommandAction.createSession.requiresShift)
+        XCTAssertTrue(SessionCommandAction.exportSession.requiresShift)
+        XCTAssertGreaterThanOrEqual(SessionChipActionLayoutPolicy.selectButtonMinHeight, 44)
+        XCTAssertGreaterThanOrEqual(SessionChipActionLayoutPolicy.deleteButtonSize, 44)
+    }
+
+    func testWorkbenchSemanticActionAndCategoryColorsHaveReadableContrast() {
+        XCTAssertEqual(WorkbenchActionRole.allCases.count, 3)
+        XCTAssertEqual(PromptTemplateCategory.allCases.count, 6)
+        for themeMode in AppThemeMode.allCases {
+            let theme = AppThemePalette(mode: themeMode)
+            for role in WorkbenchActionRole.allCases {
+                let palette = theme.actionPalette(for: role)
+                let repeated = theme.actionPalette(for: role)
+                let pairs: [(Color, Color)] = [
+                    (palette.foreground, repeated.foreground), (palette.fill, repeated.fill),
+                    (palette.border, repeated.border), (palette.iconSurface, repeated.iconSurface),
+                    (palette.prominentFill, repeated.prominentFill),
+                    (palette.prominentForeground, repeated.prominentForeground)
+                ]
+                for (first, second) in pairs {
+                    XCTAssertEqual(workbenchColorComponents(first), workbenchColorComponents(second))
+                }
+                XCTAssertGreaterThanOrEqual(workbenchContrast(palette.foreground, on: palette.fill, base: theme.surface), 4.5)
+                XCTAssertGreaterThanOrEqual(workbenchContrast(theme.secondaryText, on: palette.fill, base: theme.surface), 4.5)
+                XCTAssertGreaterThanOrEqual(workbenchContrast(palette.prominentForeground, on: palette.prominentFill, base: theme.surface), 4.5)
+                XCTAssertGreaterThanOrEqual(workbenchContrast(palette.foreground, on: palette.iconSurface, base: palette.fill), 3)
+            }
+            for category in PromptTemplateCategory.allCases {
+                let tint = theme.categoryTint(for: category)
+                XCTAssertEqual(workbenchColorComponents(tint), workbenchColorComponents(theme.categoryTint(for: category)))
+                XCTAssertGreaterThanOrEqual(workbenchContrast(tint, on: tint.opacity(0.10), base: theme.surface), 4.5)
+            }
+            XCTAssertGreaterThanOrEqual(workbenchContrast(theme.primaryText, on: theme.canvas, base: theme.surface), 4.5)
+            XCTAssertGreaterThanOrEqual(workbenchContrast(theme.secondaryText, on: theme.canvas, base: theme.surface), 4.5)
+        }
+        for reduceTransparency in [false, true] {
+            for increasedContrast in [false, true] {
+                XCTAssertEqual(
+                    WorkbenchBackgroundStylePolicy.showsGrid(
+                        reduceTransparency: reduceTransparency, increasedContrast: increasedContrast
+                    ),
+                    !reduceTransparency && !increasedContrast
+                )
+            }
+        }
+        XCTAssertEqual(WorkbenchBackgroundStylePolicy.gridSpacing, 40)
+        XCTAssertEqual(WorkbenchBackgroundStylePolicy.majorGridInterval, 4)
+        for isDark in [false, true] {
+            let minor = WorkbenchBackgroundStylePolicy.minorLineOpacity(isDark: isDark)
+            let major = WorkbenchBackgroundStylePolicy.majorLineOpacity(isDark: isDark)
+            XCTAssertGreaterThan(minor, 0)
+            XCTAssertGreaterThan(major, minor)
+            XCTAssertLessThanOrEqual(major, 0.07)
+        }
+        for action in PromptTemplateActionAccessibilityMetadata.Action.allCases {
+            XCTAssertEqual(
+                PromptTemplateActionAccessibilityMetadata.value(for: action, isGenerating: true),
+                "生成中，暂不可用"
+            )
+        }
+        XCTAssertEqual(WorkbenchVisualStylePolicy.panelPadding, 14)
+        XCTAssertEqual(WorkbenchVisualStylePolicy.panelCornerRadius, 8)
+        XCTAssertEqual(WorkbenchVisualStylePolicy.hairlineWidth, 1)
+    }
+
+    func testWorkbenchProductionControlsSupportDynamicType() throws {
+        let catalog = ModelCatalog(autoScanLocalArtifacts: false)
+        let model = catalog.selectedModel
+        let validation = catalog.validation(for: model)
+        let inference = InferenceEngine()
+        let empty = ChatSession(title: "新对话", messages: [])
+        let conversation = ChatSession(
+            title: "A longer local conversation title with 中文说明",
+            messages: [ChatMessage(role: .user, text: "A local prompt")]
+        )
+        let other = ChatSession(title: "Another local session", messages: [ChatMessage(role: .assistant, text: "Local answer")])
+        let renderCases: [(CGFloat, DynamicTypeSize)] = [
+            (320, .large), (390, .xxxLarge), (600, .large),
+            (834, .accessibility3), (1_200, .large)
+        ]
+        for themeMode in AppThemeMode.allCases {
+            for (width, textSize) in renderCases {
+                var controls: [AnyView] = [
+                    AnyView(ChatWelcomeView(availableWidth: width, apply: { _ in })),
+                    AnyView(DeploymentPowerButton(model: model, validation: validation, deploymentState: .stopped, toggle: {})),
+                    AnyView(DeploymentPowerButton(model: model, validation: validation, deploymentState: .running, toggle: {})),
+                    AnyView(ArtifactActionButton(
+                        metadataAction: .download, availability: .missing, title: "模拟暂存",
+                        subtitle: "只在本机模拟，不下载模型权重", icon: "arrow.down.circle", isDestructive: false, action: {}
+                    )),
+                    AnyView(ArtifactActionButton(
+                        metadataAction: .uninstall, availability: .staged, title: "卸载模型",
+                        subtitle: "确认后只删除 App 托管文件", icon: "trash", isDestructive: true, action: {}
+                    )),
+                    AnyView(PromptCategorySelector(selectedCategory: .constant(nil))),
+                    AnyView(PromptCategorySelector(selectedCategory: .constant(.privacy))),
+                    AnyView(ChatTranscript(messages: inference.messages, isGenerating: false, applyStarter: { _ in }).frame(height: 600)),
+                    AnyView(ChatTranscript(messages: inference.messages, isGenerating: false).frame(height: 600)),
+                    AnyView(ChatTranscript(messages: conversation.messages, isGenerating: false, applyStarter: { _ in }).frame(height: 600))
+                ]
+                for template in PromptTemplateLibrary.defaultTemplates {
+                    for isGenerating in [false, true] {
+                        controls.append(AnyView(PromptTemplateCard(template: template, isGenerating: isGenerating, apply: {}, send: {})))
+                    }
+                }
+                for sessions in [[ChatSession](), [empty], [empty, conversation, other]] {
+                    controls.append(AnyView(SessionBar(
+                        sessions: sessions, activeSessionID: empty.id, layout: .horizontal,
+                        availableWidth: width, create: {}, select: { _ in }, delete: { _ in }, export: {}
+                    )))
+                }
+                for (index, control) in controls.enumerated() {
+                    let renderer = ImageRenderer(
+                        content: control
+                            .environment(\.appTheme, AppThemePalette(mode: themeMode))
+                            .environment(\.colorScheme, themeMode.colorScheme)
+                            .environment(\.dynamicTypeSize, textSize)
+                            .frame(width: width)
+                    )
+                    renderer.scale = 1
+                    let image = try XCTUnwrap(renderer.uiImage, "Production control \(index), \(width), \(textSize)")
+                    XCTAssertTrue(image.size.width.isFinite && image.size.height.isFinite)
+                    XCTAssertEqual(image.size.width, width, accuracy: 1)
+                    XCTAssertGreaterThan(image.size.height, 0)
+                    XCTAssertLessThan(image.size.height, 4_000)
+                }
+            }
+            let welcomeHeights = try [DynamicTypeSize.large, .accessibility3].map { textSize -> CGFloat in
+                let renderer = ImageRenderer(
+                    content: ChatWelcomeView(availableWidth: 320, apply: { _ in })
+                        .environment(\.appTheme, AppThemePalette(mode: themeMode))
+                        .environment(\.dynamicTypeSize, textSize)
+                        .frame(width: 320)
+                )
+                renderer.scale = 1
+                return try XCTUnwrap(renderer.uiImage).size.height
+            }
+            XCTAssertGreaterThan(welcomeHeights[1], welcomeHeights[0])
+            let backgroundRenderer = ImageRenderer(
+                content: AppBackground(theme: AppThemePalette(mode: themeMode))
+                    .frame(width: 390, height: 160)
+            )
+            let backgroundImage = try XCTUnwrap(backgroundRenderer.uiImage)
+            XCTAssertEqual(backgroundImage.size.width, 390, accuracy: 1)
+            XCTAssertEqual(backgroundImage.size.height, 160, accuracy: 1)
+        }
+        XCTAssertEqual(inference.messages, inference.activeSession?.messages)
+    }
+
+    private func workbenchColorComponents(_ color: Color) -> [Double] {
+        var red: CGFloat = 0
+        var green: CGFloat = 0
+        var blue: CGFloat = 0
+        var alpha: CGFloat = 0
+        XCTAssertTrue(UIColor(color).getRed(&red, green: &green, blue: &blue, alpha: &alpha))
+        let components = [Double(red), Double(green), Double(blue), Double(alpha)]
+        XCTAssertTrue(components.allSatisfy { $0.isFinite && (0...1).contains($0) })
+        return components
+    }
+
+    private func workbenchContrast(_ foreground: Color, on background: Color, base: Color) -> Double {
+        let composite: ([Double], [Double]) -> [Double] = { front, back in
+            let alpha = front[3] + back[3] * (1 - front[3])
+            let rgb = (0..<3).map { index in
+                (front[index] * front[3] + back[index] * back[3] * (1 - front[3])) / max(alpha, 0.0001)
+            }
+            return rgb + [alpha]
+        }
+        let backgroundColor = composite(workbenchColorComponents(background), workbenchColorComponents(base))
+        let foregroundColor = composite(workbenchColorComponents(foreground), backgroundColor)
+        let luminance: ([Double]) -> Double = { components in
+            let linear = components.prefix(3).map { value in
+                value <= 0.04045 ? value / 12.92 : pow((value + 0.055) / 1.055, 2.4)
+            }
+            return linear[0] * 0.2126 + linear[1] * 0.7152 + linear[2] * 0.0722
+        }
+        let first = luminance(foregroundColor)
+        let second = luminance(backgroundColor)
+        return (max(first, second) + 0.05) / (min(first, second) + 0.05)
+    }
+
+    func testWorkbenchWideProductionViewsProduceReviewEvidence() throws {
+        let rootSize = CGSize(width: 1_366, height: 1_024)
+        let rootPlan = WorkspaceRootLayoutPolicy.resolve(for: rootSize)
+        XCTAssertEqual(rootPlan.sidebarWidth, 288)
+        let paneWidth = rootSize.width - rootPlan.sidebarWidth
+        XCTAssertEqual(paneWidth, 1_078)
+        let panePlan = ChatWorkspacePaneLayoutPolicy.resolve(
+            for: CGSize(width: paneWidth, height: rootSize.height)
+        )
+        XCTAssertEqual(panePlan.mode, .split)
+        XCTAssertGreaterThanOrEqual(panePlan.chatSurfaceWidth, 620)
+        XCTAssertEqual(panePlan.sessionSidebarWidth + panePlan.chatSurfaceWidth, paneWidth, accuracy: 0.001)
+        let catalog = ModelCatalog(autoScanLocalArtifacts: false)
+        let inference = InferenceEngine()
+        let optimizer = DeviceOptimizer()
+        let originalSessions = inference.sessions
+        var evidence: [[String: Any]] = []
+        for themeMode in AppThemeMode.allCases {
+            let workspaces: [(WorkspaceTab, String, AnyView)] = [
+                (.chat, "ChatWorkspace", AnyView(ChatWorkspace(isActive: false))),
+                (.models, "ModelLibraryView", AnyView(ModelLibraryView())),
+                (.prompts, "PromptTemplatesWorkspace", AnyView(PromptTemplatesWorkspace(openChat: { _ in }))),
+                (.settings, "SettingsWorkspace", AnyView(SettingsWorkspace(
+                    themeMode: themeMode, wallpaperData: Data(), toggleTheme: {},
+                    setWallpaperData: { _ in }, clearWallpaper: {}
+                )))
+            ]
+            for (workspace, productionView, view) in workspaces {
+                let renderer = ImageRenderer(
+                    content: view
+                        .environmentObject(catalog)
+                        .environmentObject(inference)
+                        .environmentObject(optimizer)
+                        .environment(\.appTheme, AppThemePalette(mode: themeMode))
+                        .environment(\.colorScheme, themeMode.colorScheme)
+                        .environment(\.dynamicTypeSize, .large)
+                        .frame(width: paneWidth, height: rootSize.height)
+                        .background(AppThemePalette(mode: themeMode).canvas)
+                )
+                renderer.scale = 1
+                let image = try XCTUnwrap(renderer.uiImage)
+                XCTAssertEqual(image.size.width, paneWidth, accuracy: 1)
+                XCTAssertEqual(image.size.height, rootSize.height, accuracy: 1)
+                let attachmentName = "workbench-wide-\(themeMode.rawValue)-\(workspace.rawValue)"
+                keepWorkbenchImage(image, name: attachmentName)
+                evidence.append([
+                    "attachmentName": attachmentName,
+                    "evidenceKind": "image-renderer-production-view",
+                    "productionView": productionView,
+                    "workspace": workspace.rawValue,
+                    "theme": themeMode.rawValue,
+                    "dynamicTypeSize": "large",
+                    "referenceRootWidth": Double(rootSize.width),
+                    "referenceRootHeight": Double(rootSize.height),
+                    "globalSidebarWidth": Double(rootPlan.sidebarWidth),
+                    "workspacePaneWidth": Double(paneWidth),
+                    "chatSessionSidebarWidth": Double(panePlan.sessionSidebarWidth),
+                    "chatSurfaceWidth": Double(panePlan.chatSurfaceWidth),
+                    "chatLayoutMode": "split",
+                    "imageWidth": Double(image.size.width),
+                    "imageHeight": Double(image.size.height)
+                ])
+            }
+        }
+        XCTAssertEqual(inference.sessions, originalSessions)
+        XCTAssertEqual(evidence.count, 8)
+        try keepWorkbenchProvenance(
+            ["captures": evidence, "testIdentifier": "LocalGemmaTests/testWorkbenchWideProductionViewsProduceReviewEvidence()"],
+            name: "workbench-wide-provenance"
+        )
+    }
+
+    private func keepWorkbenchImage(_ image: UIImage, name: String) {
+        guard let data = image.pngData() else {
+            XCTFail("Could not encode production render \(name) as PNG")
+            return
+        }
+        let attachment = XCTAttachment(data: data, uniformTypeIdentifier: "public.png")
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
+    private func keepWorkbenchProvenance(_ document: [String: Any], name: String) throws {
+        let data = try JSONSerialization.data(withJSONObject: document, options: [.prettyPrinted, .sortedKeys])
+        let attachment = XCTAttachment(data: data, uniformTypeIdentifier: "public.json")
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
     func testWorkbenchWelcomeAndStarterLayout() {
         for width: CGFloat in [0, -1, .nan, .infinity, 320, 479] {
             XCTAssertEqual(WorkbenchPresentationPolicy.starterColumnCount(width: width, expandedText: false), 1)
@@ -704,7 +1119,10 @@ final class LocalGemmaTests: XCTestCase {
                 content: ChipReadinessCard(
                     progress: optimizer.deploymentReadiness,
                     thermalState: optimizer.thermalState,
-                    privacyGuardEnabled: optimizer.isOfflinePrivacyGuardEnabled
+                    privacyGuardEnabled: optimizer.isOfflinePrivacyGuardEnabled,
+                    panelContentWidth: ChipReadinessLayoutPolicy.panelContentWidth(
+                        forPanelWidth: externalWidth
+                    )
                 )
                     .environment(\.appTheme, AppThemePalette(mode: themeMode))
                     .environment(\.colorScheme, themeMode.colorScheme)
@@ -719,6 +1137,99 @@ final class LocalGemmaTests: XCTestCase {
             XCTAssertGreaterThan(image?.size.height ?? 0, 0)
             XCTAssertLessThan(image?.size.height ?? .infinity, 1_000)
         }
+    }
+
+    func testChipReadinessCardReportsNaturalStackedHeight() throws {
+        XCTAssertEqual(ChipReadinessLayoutPolicy.horizontalSpacing, 16)
+        XCTAssertEqual(ChipReadinessLayoutPolicy.stackedSpacing, 12)
+        for width: CGFloat in [0, -1, .nan, .infinity, -.infinity] {
+            XCTAssertEqual(ChipReadinessLayoutPolicy.panelContentWidth(forPanelWidth: width), 0)
+        }
+        XCTAssertEqual(ChipReadinessLayoutPolicy.panelContentWidth(forPanelWidth: 354), 326)
+        XCTAssertEqual(ChipReadinessLayoutPolicy.panelContentWidth(forPanelWidth: 382), 354)
+
+        let optimizer = DeviceOptimizer()
+        let originalReadiness = optimizer.deploymentReadiness
+        let originalPrivacy = optimizer.isOfflinePrivacyGuardEnabled
+        let originalThermalState = optimizer.thermalState
+        var evidence: [[String: Any]] = []
+
+        for themeMode in AppThemeMode.allCases {
+            var heights: [CGFloat: [DynamicTypeSize: CGFloat]] = [:]
+            for width: CGFloat in [320, 354, 381.99, 382, 834] {
+                let contentWidth = ChipReadinessLayoutPolicy.panelContentWidth(forPanelWidth: width)
+                for textSize in [DynamicTypeSize.large, .xxxLarge, .accessibility3] {
+                    let plan = ChipReadinessLayoutPolicy.resolve(
+                        contentWidth: contentWidth,
+                        usesAccessibilityDynamicType: textSize >= .accessibility1
+                    )
+                    XCTAssertEqual(
+                        plan.mode,
+                        width >= 382 && textSize < .accessibility1 ? .horizontal : .stacked
+                    )
+                    let renderer = ImageRenderer(
+                        content: ChipReadinessCard(
+                            progress: optimizer.deploymentReadiness,
+                            thermalState: optimizer.thermalState,
+                            privacyGuardEnabled: optimizer.isOfflinePrivacyGuardEnabled,
+                            panelContentWidth: contentWidth
+                        )
+                        .environment(\.appTheme, AppThemePalette(mode: themeMode))
+                        .environment(\.colorScheme, themeMode.colorScheme)
+                        .environment(\.dynamicTypeSize, textSize)
+                        .frame(width: width)
+                    )
+                    renderer.scale = 1
+                    let image = try XCTUnwrap(renderer.uiImage)
+                    XCTAssertTrue(image.size.width.isFinite && image.size.height.isFinite)
+                    XCTAssertEqual(image.size.width, width, accuracy: 1)
+                    XCTAssertGreaterThan(image.size.height, 0)
+                    XCTAssertLessThan(image.size.height, 1_600)
+                    if plan.mode == .stacked {
+                        // The old reader reported only 86 + 28pt and let its content escape the panel.
+                        let ringAndGap = ChipReadinessLayoutPolicy.ringSlot
+                            + ChipReadinessLayoutPolicy.stackedSpacing
+                            + WorkbenchVisualStylePolicy.panelPadding * 2
+                        XCTAssertGreaterThan(image.size.height, ringAndGap)
+                    }
+                    heights[width, default: [:]][textSize] = image.size.height
+
+                    if width == 320 && (textSize == .large || textSize == .accessibility3) {
+                        let sizeName = textSize == .large ? "large" : "accessibility3"
+                        let attachmentName = "workbench-readiness-\(themeMode.rawValue)-\(sizeName)"
+                        keepWorkbenchImage(image, name: attachmentName)
+                        evidence.append([
+                            "attachmentName": attachmentName,
+                            "evidenceKind": "image-renderer-production-component",
+                            "productionView": "ChipReadinessCard",
+                            "theme": themeMode.rawValue,
+                            "dynamicTypeSize": sizeName,
+                            "panelWidth": Double(width),
+                            "panelContentWidth": Double(contentWidth),
+                            "imageWidth": Double(image.size.width),
+                            "imageHeight": Double(image.size.height),
+                            "layoutMode": "stacked"
+                        ])
+                    }
+                }
+            }
+            let belowThreshold = try XCTUnwrap(heights[381.99]?[.large])
+            let atThreshold = try XCTUnwrap(heights[382]?[.large])
+            XCTAssertGreaterThan(belowThreshold, atThreshold)
+            for width: CGFloat in [320, 354, 382, 834] {
+                let standard = try XCTUnwrap(heights[width]?[.large])
+                let accessibility = try XCTUnwrap(heights[width]?[.accessibility3])
+                XCTAssertGreaterThan(accessibility, standard)
+            }
+        }
+        XCTAssertEqual(optimizer.deploymentReadiness, originalReadiness)
+        XCTAssertEqual(optimizer.isOfflinePrivacyGuardEnabled, originalPrivacy)
+        XCTAssertEqual(optimizer.thermalState, originalThermalState)
+        XCTAssertEqual(evidence.count, 4)
+        try keepWorkbenchProvenance(
+            ["captures": evidence, "testIdentifier": "LocalGemmaTests/testChipReadinessCardReportsNaturalStackedHeight()"],
+            name: "workbench-readiness-provenance"
+        )
     }
 
     func testOptimizationToggleRowsExposeAccessibilityMetadata() {

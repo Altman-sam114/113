@@ -684,11 +684,11 @@ struct ContentView: View {
                     layoutMode: layoutPlan.mode
                 )
                     .padding(.horizontal, 18)
-                    .padding(.top, 8)
+                    .padding(.top, 4)
 
                 tabPicker
                     .padding(.horizontal, 18)
-                    .padding(.top, 14)
+                    .padding(.top, 6)
             }
         case .compactSidebar, .detailedSidebar:
             sidebarChrome(
@@ -2821,7 +2821,7 @@ struct HeaderView: View {
     let showModels: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 6) {
             WorkbenchBrandHeader(themeMode: themeMode, isSidebar: layoutMode.usesSidebar,
                                  toggleTheme: toggleTheme, showModels: showModels)
             if !layoutMode.usesSidebar {
@@ -3360,7 +3360,10 @@ struct ReadinessRing: View {
             Circle()
                 .trim(from: 0, to: clampedProgress)
                 .stroke(
-                    AngularGradient(colors: [.cyan, .green, .blue, .cyan], center: .center),
+                    AngularGradient(
+                        colors: [theme.accent.opacity(0.6), theme.accent, theme.accent.opacity(0.8), theme.accent.opacity(0.6)],
+                        center: .center
+                    ),
                     style: StrokeStyle(lineWidth: 7, lineCap: .round)
                 )
                 .rotationEffect(.degrees(-90))

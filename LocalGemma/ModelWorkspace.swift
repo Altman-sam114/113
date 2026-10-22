@@ -6,6 +6,7 @@ import UniformTypeIdentifiers
 
 struct ModelLibraryView: View {
     @EnvironmentObject private var catalog: ModelCatalog
+    @Environment(\.appTheme) private var theme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var isModal = false
     @State private var importTargetModel: LocalModel?
@@ -17,7 +18,7 @@ struct ModelLibraryView: View {
     var body: some View {
         ZStack {
             if isModal {
-                Color(red: 0.045, green: 0.047, blue: 0.055).ignoresSafeArea()
+                theme.canvas.ignoresSafeArea()
             }
 
             GeometryReader { proxy in
@@ -436,6 +437,8 @@ enum ModelDeploymentPowerTextLayoutPolicy {
 }
 
 struct DeploymentPowerButton: View {
+    @Environment(\.appTheme) private var theme
+
     let model: LocalModel
     let validation: ArtifactValidationResult
     let deploymentState: ModelDeploymentState
@@ -446,11 +449,13 @@ struct DeploymentPowerButton: View {
     }
 
     var body: some View {
+        let palette = theme.actionPalette(for: isRunning ? .destructive : .primary)
+
         Button(action: toggle) {
             HStack(spacing: 14) {
                 ZStack {
                     Circle()
-                        .fill(iconBackground)
+                        .fill(palette.iconSurface)
                     Image(systemName: isRunning ? "stop.fill" : "power")
                         .font(.system(size: 25, weight: .semibold))
                 }
@@ -465,6 +470,7 @@ struct DeploymentPowerButton: View {
                         .font(.footnote.weight(.bold))
                         .lineLimit(ModelDeploymentPowerTextLayoutPolicy.subtitleLineLimit)
                         .fixedSize(horizontal: false, vertical: true)
+                        .foregroundStyle(theme.secondaryText)
                 }
 
                 Spacer(minLength: 0)
@@ -473,16 +479,16 @@ struct DeploymentPowerButton: View {
                     .font(.system(size: 26, weight: .bold))
                     .opacity(0.84)
             }
-            .foregroundStyle(isRunning ? .white : .black)
+            .foregroundStyle(palette.foreground)
             .padding(16)
             .frame(
                 maxWidth: .infinity,
                 minHeight: ModelDeploymentControlLayoutPolicy.powerButtonMinHeight
             )
-            .background(buttonFill, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .background(palette.fill, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(isRunning ? Color.red.opacity(0.36) : Color.white.opacity(0.42), lineWidth: 1)
+                    .stroke(palette.border, lineWidth: 1)
             }
         }
         .buttonStyle(.plain)
@@ -512,20 +518,6 @@ struct DeploymentPowerButton: View {
             )
         )
         .accessibilityIdentifier("model-deployment-power")
-    }
-
-    private var buttonFill: some ShapeStyle {
-        LinearGradient(
-            colors: isRunning
-                ? [Color.red.opacity(0.92), Color.orange.opacity(0.72)]
-                : [Color.cyan, Color.green.opacity(0.88)],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-    }
-
-    private var iconBackground: Color {
-        isRunning ? Color.black.opacity(0.2) : Color.white.opacity(0.4)
     }
 
     private var deploymentSubtitle: String {
@@ -681,6 +673,8 @@ enum ModelArtifactUtilityTextLayoutPolicy {
 }
 
 struct ArtifactActionButton: View {
+    @Environment(\.appTheme) private var theme
+
     let metadataAction: ModelDeploymentControlAccessibilityMetadata.ArtifactAction
     let availability: ArtifactAvailability
     let title: String
@@ -690,10 +684,19 @@ struct ArtifactActionButton: View {
     let action: () -> Void
 
     var body: some View {
+        let palette = theme.actionPalette(for: isDestructive ? .destructive : .secondary)
+
         Button(action: action) {
             VStack(alignment: .leading, spacing: ModelArtifactActionTextLayoutPolicy.verticalSpacing) {
                 Image(systemName: icon)
                     .font(.system(size: 23, weight: .semibold))
+                    .background {
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(palette.iconSurface)
+                            .padding(-5)
+                            .allowsHitTesting(false)
+                            .accessibilityHidden(true)
+                    }
                 Spacer(minLength: 0)
                 Text(title)
                     .font(.subheadline.weight(.semibold))
@@ -703,25 +706,20 @@ struct ArtifactActionButton: View {
                     .font(.caption2.weight(.bold))
                     .lineLimit(ModelArtifactActionTextLayoutPolicy.subtitleLineLimit)
                     .fixedSize(horizontal: false, vertical: true)
-                    .opacity(0.68)
+                    .foregroundStyle(theme.secondaryText)
             }
-            .foregroundStyle(isDestructive ? .white : .black)
+            .foregroundStyle(palette.foreground)
             .frame(
                 maxWidth: .infinity,
                 minHeight: ModelArtifactActionTextLayoutPolicy.minimumHeight,
                 alignment: .leading
             )
             .padding(12)
-            .background(
-                LinearGradient(
-                    colors: isDestructive
-                        ? [Color.red.opacity(0.88), Color.red.opacity(0.55)]
-                        : [Color.cyan, Color.green.opacity(0.78)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                ),
-                in: RoundedRectangle(cornerRadius: 14, style: .continuous)
-            )
+            .background(palette.fill, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(palette.border, lineWidth: 1)
+            }
         }
         .buttonStyle(.plain)
         .accessibilityLabel(
@@ -901,14 +899,8 @@ struct ModelSummaryPanel: View {
         .accessibilityIdentifier(ModelSummaryAccessibilityMetadata.identifier)
     }
 
-    private var iconFill: some ShapeStyle {
-        LinearGradient(
-            colors: model.family == "Gemma"
-                ? [Color.cyan.opacity(0.22), Color.green.opacity(0.14)]
-                : [theme.surface, theme.chipSurface],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
+    private var iconFill: Color {
+        theme.actionPalette(for: model.family == "Gemma" ? .primary : .secondary).iconSurface
     }
 }
 

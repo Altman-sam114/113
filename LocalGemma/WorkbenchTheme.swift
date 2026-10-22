@@ -48,9 +48,10 @@ struct AppThemePalette {
     var tertiaryText: Color { secondaryText }
     var inverseText: Color { isDark ? Color(red: 0.03, green: 0.15, blue: 0.15) : .white }
     var accent: Color { isDark ? Color(red: 0.46, green: 0.89, blue: 0.79) : Color(red: 0.02, green: 0.43, blue: 0.39) }
-    var secondaryAccent: Color { isDark ? Color(red: 0.56, green: 0.65, blue: 0.98) : Color(red: 0.34, green: 0.39, blue: 0.73) }
+    var secondaryAccent: Color { isDark ? Color(red: 0.50, green: 0.75, blue: 0.89) : Color(red: 0.20, green: 0.43, blue: 0.59) }
     var success: Color { accent }
     var warning: Color { isDark ? Color(red: 0.95, green: 0.76, blue: 0.44) : Color(red: 0.57, green: 0.34, blue: 0.07) }
+    var danger: Color { isDark ? Color(red: 0.99, green: 0.62, blue: 0.58) : Color(red: 0.65, green: 0.18, blue: 0.19) }
     var canvas: Color { isDark ? Color(red: 0.039, green: 0.059, blue: 0.078) : Color(red: 0.95, green: 0.97, blue: 0.97) }
     var surface: Color { isDark ? Color(red: 0.071, green: 0.098, blue: 0.125) : .white }
     var recessedSurface: Color { isDark ? Color(red: 0.048, green: 0.074, blue: 0.094) : Color(red: 0.93, green: 0.95, blue: 0.95) }
@@ -61,6 +62,106 @@ struct AppThemePalette {
 
     var backgroundColors: [Color] { [canvas, canvas, recessedSurface] }
 
+    func actionPalette(for role: WorkbenchActionRole) -> WorkbenchActionPalette {
+        switch role {
+        case .primary:
+            return WorkbenchActionPalette(
+                foreground: accent,
+                fill: isDark
+                    ? Color(red: 0.075, green: 0.18, blue: 0.185)
+                    : Color(red: 0.90, green: 0.955, blue: 0.94),
+                border: accent.opacity(isDark ? 0.42 : 0.40),
+                iconSurface: isDark
+                    ? Color(red: 0.10, green: 0.27, blue: 0.25)
+                    : Color(red: 0.84, green: 0.91, blue: 0.89),
+                prominentFill: accent,
+                prominentForeground: inverseText
+            )
+        case .secondary:
+            return WorkbenchActionPalette(
+                foreground: primaryText,
+                fill: chipSurface,
+                border: border,
+                iconSurface: surface,
+                prominentFill: primaryText,
+                prominentForeground: surface
+            )
+        case .destructive:
+            return WorkbenchActionPalette(
+                foreground: danger,
+                fill: isDark
+                    ? Color(red: 0.23, green: 0.115, blue: 0.13)
+                    : Color(red: 0.985, green: 0.93, blue: 0.925),
+                border: danger.opacity(isDark ? 0.40 : 0.34),
+                iconSurface: isDark
+                    ? Color(red: 0.31, green: 0.15, blue: 0.16)
+                    : Color(red: 0.96, green: 0.87, blue: 0.86),
+                prominentFill: danger,
+                prominentForeground: isDark
+                    ? Color(red: 0.23, green: 0.06, blue: 0.07)
+                    : .white
+            )
+        }
+    }
+
+    func categoryTint(for category: PromptTemplateCategory) -> Color {
+        switch category {
+        case .deployment:
+            return accent
+        case .privacy:
+            return isDark
+                ? Color(red: 0.55, green: 0.81, blue: 0.68)
+                : Color(red: 0.20, green: 0.40, blue: 0.34)
+        case .performance:
+            return isDark
+                ? Color(red: 0.58, green: 0.76, blue: 0.89)
+                : Color(red: 0.20, green: 0.39, blue: 0.55)
+        case .writing:
+            return isDark
+                ? Color(red: 0.70, green: 0.74, blue: 0.91)
+                : Color(red: 0.36, green: 0.39, blue: 0.53)
+        case .product:
+            return isDark
+                ? Color(red: 0.88, green: 0.76, blue: 0.53)
+                : Color(red: 0.49, green: 0.34, blue: 0.14)
+        case .troubleshooting:
+            return isDark
+                ? Color(red: 0.91, green: 0.68, blue: 0.55)
+                : Color(red: 0.51, green: 0.29, blue: 0.20)
+        }
+    }
+}
+
+enum WorkbenchActionRole: CaseIterable, Equatable {
+    case primary
+    case secondary
+    case destructive
+}
+
+struct WorkbenchActionPalette {
+    let foreground: Color
+    let fill: Color
+    let border: Color
+    let iconSurface: Color
+    let prominentFill: Color
+    let prominentForeground: Color
+}
+
+enum WorkbenchBackgroundStylePolicy {
+    static let gridSpacing: CGFloat = 40
+    static let majorGridInterval = 4
+
+    static func showsGrid(reduceTransparency: Bool, increasedContrast: Bool) -> Bool {
+        !reduceTransparency && !increasedContrast
+    }
+
+    static func minorLineOpacity(isDark: Bool) -> Double {
+        isDark ? 0.035 : 0.025
+    }
+
+    static func majorLineOpacity(isDark: Bool) -> Double {
+        isDark ? 0.07 : 0.05
+    }
 }
 
 enum WorkbenchVisualStylePolicy {
@@ -115,10 +216,18 @@ enum WorkbenchVisualStylePolicy {
 }
 
 struct AppBackground: View {
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
+
     let theme: AppThemePalette
     var wallpaperData: Data = Data()
 
     var body: some View {
+        let showsDecoration = WorkbenchBackgroundStylePolicy.showsGrid(
+            reduceTransparency: reduceTransparency,
+            increasedContrast: contrast == .increased
+        )
+
         GeometryReader { geometry in
             ZStack {
                 theme.canvas
@@ -129,17 +238,94 @@ struct AppBackground: View {
                         .frame(width: geometry.size.width, height: geometry.size.height)
                         .clipped()
                         .overlay(theme.canvas.opacity(theme.isDark ? 0.86 : 0.90))
-                } else {
+                } else if showsDecoration {
                     RadialGradient(
                         colors: [theme.accent.opacity(theme.isDark ? 0.065 : 0.045), .clear],
                         center: .topTrailing, startRadius: 0, endRadius: 850
                     )
+                }
+
+                if showsDecoration {
+                    WorkbenchGridBackground(theme: theme)
                 }
             }
         }
         .ignoresSafeArea()
         .allowsHitTesting(false)
         .accessibilityHidden(true)
+    }
+}
+
+private struct WorkbenchGridBackground: View {
+    let theme: AppThemePalette
+
+    var body: some View {
+        Canvas { context, size in
+            guard size.width.isFinite, size.height.isFinite,
+                  size.width > 0, size.height > 0 else { return }
+
+            let spacing = Double(WorkbenchBackgroundStylePolicy.gridSpacing)
+            var minorLines = Path()
+            var majorLines = Path()
+
+            for coordinate in stride(from: 0.0, through: Double(size.width), by: spacing) {
+                let x = CGFloat(coordinate)
+                let column = Int((coordinate / spacing).rounded())
+                if column.isMultiple(of: WorkbenchBackgroundStylePolicy.majorGridInterval) {
+                    majorLines.move(to: CGPoint(x: x, y: 0))
+                    majorLines.addLine(to: CGPoint(x: x, y: size.height))
+                } else {
+                    minorLines.move(to: CGPoint(x: x, y: 0))
+                    minorLines.addLine(to: CGPoint(x: x, y: size.height))
+                }
+            }
+            for coordinate in stride(from: 0.0, through: Double(size.height), by: spacing) {
+                let y = CGFloat(coordinate)
+                let row = Int((coordinate / spacing).rounded())
+                if row.isMultiple(of: WorkbenchBackgroundStylePolicy.majorGridInterval) {
+                    majorLines.move(to: CGPoint(x: 0, y: y))
+                    majorLines.addLine(to: CGPoint(x: size.width, y: y))
+                } else {
+                    minorLines.move(to: CGPoint(x: 0, y: y))
+                    minorLines.addLine(to: CGPoint(x: size.width, y: y))
+                }
+            }
+
+            context.stroke(
+                minorLines,
+                with: .color(theme.accent.opacity(
+                    WorkbenchBackgroundStylePolicy.minorLineOpacity(isDark: theme.isDark)
+                )),
+                lineWidth: 0.5
+            )
+            context.stroke(
+                majorLines,
+                with: .color(theme.accent.opacity(
+                    WorkbenchBackgroundStylePolicy.majorLineOpacity(isDark: theme.isDark)
+                )),
+                lineWidth: 0.5
+            )
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
+private struct WorkbenchUtilityModifier: ViewModifier {
+    @Environment(\.appTheme) private var theme
+
+    func body(content: Content) -> some View {
+        let palette = theme.actionPalette(for: .secondary)
+
+        content
+            .foregroundStyle(palette.foreground)
+            .padding(.vertical, ModelArtifactUtilityTextLayoutPolicy.verticalPadding)
+            .background(palette.fill, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 11, style: .continuous)
+                    .stroke(palette.border, lineWidth: 1)
+            }
+            .buttonStyle(.plain)
     }
 }
 
@@ -256,14 +442,6 @@ extension View {
     }
 
     func compactUtilityStyle() -> some View {
-        self
-            .foregroundStyle(Color.primary.opacity(0.86))
-            .padding(.vertical, ModelArtifactUtilityTextLayoutPolicy.verticalPadding)
-            .background(Color.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 11, style: .continuous)
-                    .stroke(Color.primary.opacity(0.14), lineWidth: 1)
-            }
-            .buttonStyle(.plain)
+        modifier(WorkbenchUtilityModifier())
     }
 }

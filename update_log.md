@@ -16,7 +16,7 @@
 - 平台：SwiftUI iOS App，Swift 6.0，iOS deployment target 17.0，当前 app/test target 支持 iPhone、iPad 和 Mac Catalyst build-for-testing，并提供项目内 Mac Catalyst 本地 build/run 脚本入口；尚未创建原生 macOS target。
 - 当前默认模型：`Gemma 1.5B Local`
 - 当前推理：本地模拟 runtime，不下载模型权重，不执行真实模型推理。
-- 当前核心测试：`LocalGemmaTests.swift` 中 131 个 XCTest 方法。
+- 当前核心测试：`LocalGemmaTests.swift` 中 137 个 XCTest 方法；v3.4 新增 6 项，尚待本轮云端执行，不能把源码计数当成通过结果。
 - 当前核心文档入口：`AGENTS.md`、`md/flow/flow.md`、`md/flow/flowchart.md`、`md/test/test.md`、`md/prompt/README.md`、`README.md`。
 - 当前协作验证：默认 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载未加密 CI 结果包验收；本地仓库当前已配置 `origin` remote，最终验收仍以最新 `origin/main` 对应的 GitHub Actions run 和结果包为准；文档已预留未来 `agentx:` 主控 Agent A -> Agent B -> Agent C 多轮循环的规则。
 
@@ -4487,3 +4487,33 @@ v3.0 云端 run `36260394187` 的四组布局测试仍沿用旧侧栏宽度，�
 - `git diff --check` 与 `bash -n script/build_and_run.sh` 无输出、退出 0；`plutil -lint LocalGemma.xcodeproj/project.pbxproj` 为 OK；Ruby YAML 解析为 `yaml ok`（仅有既有 PATH world-writable warning）；`rg -c 'func test'` 为 131；8 份文档路径/fence/version 与焦点三阶段源码契约结构检查通过。用户明确禁止本机构建，因此不运行 Swift、Probe/Fast、XCTest、模拟器、ImageRenderer 或 Catalyst。
 - 完整云端构建、131 项 XCTest、16 张截图与 Agent C 最新结果包验收尚待本轮提交后执行；不提前宣称故障解决或发布就绪。
 - 默认 runtime 仍为本地模拟；模型文件、网络、verified 门禁、真实 runtime 占位和 AITRANS 项目均未修改。
+
+## v3.3.1 限定基线验收记录（2026-10-22）
+
+- Agent C 实际下载 `localgemma-ci-v3.3.1-main-9ccf8b9-run38343587295-attempt1`，run `38343587295` / attempt `1` / commit `9ccf8b91a25c90242cd733a2da6cb3e4230844fa` 与当时 main、origin/main、manifest 和 artifact name 对齐。ZIP SHA-256 为 `892fe0286c1cb8daa03b82f9520f048e3bac6bab7eb642e2eb1f5ccc9f256992`，与 API digest 一致，CRC 通过。
+- JUnit 为 8 阶段、0 failure/error、仅既有 optional Codex environment skip。结构化 XCTest 为 131 个唯一 Success，与源码名称集合一致；严格 composer 焦点测试恰一次成功，三份 xcresult root/action 状态有效，Data/refs 分别为 iOS build 3/3、Catalyst build 3/3、tests 898/898。环境为 Xcode 26.6 / 17F113。
+- C 核对 16 张真实生产截图，并发现 iPhone 亮暗设置页 `ChipReadinessCard` 圆环/正文越出 panel。结论仅为 v3.3.1 焦点与构建回归基线 PASS、允许进入 v3.4；不是完整视觉或可发布验收。该高度缺陷明确列为下一轮阻塞项。
+- 原始包、日志和独立解析记录保留在 `/private/tmp/localgemma-c-review-38343587295/`；本次验收未运行本地 Swift、Xcode、Simulator、XCTest、ImageRenderer 或 Catalyst，不以 metadata-only 或旧绿色 run 代替实际产物。
+
+## v3.4 / 精密本地智能工作台（2026-10-22，云端待验收）
+
+核心变更：
+
+- 欢迎与 transcript 互斥，默认 seed 仍完整保存在状态/导出中；欢迎区顶部自然布局、两张紧凑 starter 只填入并聚焦。横向会话区按 288pt 真实内容阈值合并轨道与两个 44pt 工具，窄宽/大字堆叠，大屏仍保留 split 标题与会话侧栏。
+- 主题集中 primary/secondary/destructive 与 prominent 配对，模型部署/卸载和提示词主次动作去除整块彩虹渐变；分类仅小面积主题感知着色。背景使用稀疏静态工程网格，Reduce Transparency/increased contrast 时移除装饰，readiness ring 使用主题同色系。
+- 修复 C 实图发现的 readiness 越界：卡内 GeometryReader 不再用 86pt 最小高度吞掉 stacked intrinsic height；设置页与 dashboard 将 panel 外框扣除两侧 14pt 后传入，同一 AnyLayout 自然报高。保留 354pt 横排边界、86/66pt ring、辅助语义、隐私与 optimizer 状态。
+- 6 个新增 XCTest 将源码基线从 131 增至 137，覆盖呈现/数据不变、会话布局、公开颜色分量 WCAG、真实控件动态字、宽屏真实 pane 渲染和 readiness 实测自然高度。既有严格焦点/identity/文件/导出/runtime 门禁测试未弱化。
+- C 静态预审指出系统 motion/transparency/contrast EnvironmentValues 只读，已移除新增测试中的写入 modifier；背景辅助偏好只锁纯 policy 真值表，真实 AppBackground 使用默认系统环境渲染，实际系统开关组合保留人工实测缺口，不用私有 API 或新增宿主绕过。
+- 新增 `Tools/export_workbench_evidence.py`：只在 GitHub Actions 导出结构化 XCTest summary/tests、keepAlways PNG/JSON 附件原索引，校验 8 张 1078pt pane（1366 减 288）四页亮暗与 4 张窄 readiness 大小字图的尺寸、hash、provenance。固定 viewport 生产 View/组件渲染不是模拟器截图，也不是 Catalyst GUI。
+- CI 保留 16 张必选生产模拟器图和完整三份 xcresult，另上传 `-review` 小包用于先读；导出失败记录 outcome 并入 visual，后续 manifest/JUnit 仍生成，最终统一评估。JUnit 仍 8 阶段，仅旧 optional Codex environment 可跳过。
+
+关键文件：`WorkbenchComponents.swift`、`ChatWorkspace.swift`、`ContentView.swift`、`WorkbenchTheme.swift`、`ModelWorkspace.swift`、`PromptWorkspace.swift`、`SettingsWorkspace.swift`、`LocalGemmaTests.swift`、workflow、evidence exporter 与核心文档；A 新补充为 `md/prompt/v3（工作台重构）/v3.4（界面重构执行与验收补充）.md`。用户预存六份未跟踪 prompt 保留，不编辑、不暂存、不提交。
+
+当前验证：
+
+- `git fetch origin`、`git pull --ff-only origin main` 确认基线无远端新增；集成前 branch 为 main、HEAD/origin/main 均为 `9ccf8b9`，`gh api user --jq .login` 为 `Altman-sam114`。
+- `git diff --check` 无输出/退出 0；`plutil -lint LocalGemma.xcodeproj/project.pbxproj` 为 OK；`ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'` 为 yaml ok（只有既有 PATH warning）；run script 存在、可执行并通过 `bash -n`。
+- Python 静态检查通过：两份 Tools 的 `ast.parse`、全部 workflow run block 的 `bash -n`、内嵌 Python AST 和 8 个 JUnit 阶段契约、8 份 Markdown 路径/链接/fence。源码为 137 个唯一测试；原 130 方法逐字不变，唯一旧 readiness 测试只补真实宽度参数；禁止写只读系统 EnvironmentValues 的扫描通过。
+- AppState/ComposerBar/LocalGemmaApp/pbxproj/LogicSmoke diff 为空，原六份未跟踪 prompt SHA-256 不变且仍未跟踪。C 对生产及测试/CI 的静态预审在修正只读环境注入后未发现第二个明确阻塞，但这不替代云端验证。
+- 按人工要求未运行本地 Swift/SwiftC、Probe/Fast、Xcode、XCTest、Simulator、ImageRenderer 或 Catalyst；全部重验证只交云端。v3.4 的精确提交/run、137 项测试、12 图导出和 C 实图结果由本轮 push 后实际产物记录，不在此预写成功。
+- 不改 AppState/LocalGemmaApp/ComposerBar、模型文件/下载/推理门禁或 AITRANS。真实推理、Mac GUI/pointer、真机/完整辅助技术和签名发布仍是残余缺口。

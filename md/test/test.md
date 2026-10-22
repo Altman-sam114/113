@@ -12,6 +12,7 @@
 - 本项目当前不允许自动下载模型权重；CI 也不能下载 Gemma 或把提示词发往外部推理服务。
 - Agent X 循环中的每一轮仍必须遵守同一验证链：Agent B 本地轻量检查、GitHub Actions artifact、Agent C 下载复判。
 - Agent X 不得跳过 Agent C artifact 验收；失败时不能继续下一轮并伪装为已通过。
+- 当前人工明确要求所有 Swift/SwiftC、Probe/Fast、Xcode、Simulator、XCTest、ImageRenderer 和 Catalyst 只在云端；不得本机运行或设置 `GITHUB_ACTIONS=true` 绕过。以下本机命令仅是未来明确获准后的入口，不是本轮步骤。
 
 ## Agent X 循环下的验证规则
 
@@ -45,20 +46,20 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
 
 - Xcode 位于 `/Applications/Xcode.app/Contents/Developer`。
 - iOS Simulator SDK 可用。
-- 本机完整 XCTest 需要可用模拟器，例如 `iPhone 17`、`iPad Pro` 或本机实际存在的 iOS 模拟器。
+- 将来如人工明确授权本机 iOS 验证，也只能使用已确认完整 UDID 以 `FAC4325D` 开头的唯一模拟器；不按名称/`booted` 选择，不创建或替换设备。云端不受这个设备限制。
 - 网络不是业务测试前提；项目当前不允许自动下载模型权重。
 - 云端 CI 由 `.github/workflows/ci-results.yml` 负责，触发条件是 `main` push 和 `workflow_dispatch`。
 
-查可用模拟器：
+未来本机入口必须先由人工确认完整 UDID；本轮不查询、启动或创建本机模拟器：
 
 ```sh
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
-xcrun simctl list devices available
+: "${LOCAL_SIMULATOR_UDID:?Set the confirmed full FAC4325D-prefixed UDID first}"
+case "$LOCAL_SIMULATOR_UDID" in FAC4325D*) ;; *) exit 1 ;; esac
 ```
 
 当前测试基线：
 
-- `LocalGemmaTests.swift` 当前包含 131 个 `test...` 方法；v3.3.1 只增强既有焦点测试，不新增或跳过方法。
+- `LocalGemmaTests.swift` 当前包含 137 个 `test...` 方法；v3.4 在 v3.3.1 已核对的 131 项基线上新增 6 项。源码计数不等于云端通过，新增契约和产物见本文 v3.4 小节；既有严格焦点与 identity 不弱化、不跳过。
 - v2.75 新增 `testChipReadinessLayoutPolicyAdaptsToCardWidthAndAccessibilityDynamicType`，锁住 `354pt` 真实 panel 内容宽度边界、普通字号横排、Accessibility Dynamic Type 无条件 stacked、NaN/Infinity/非正宽度回退、纯值 plan、`DeviceOptimizer`/隐私状态不变，以及 `86pt` slot / `66pt` diameter；生产 `ChipReadinessCard` 的 `ImageRenderer` 覆盖亮暗主题、`382pt` 外框（扣除两侧 `14pt` panel padding 后为 `354pt` 内容）、窄外框与 Accessibility 字号 stacked，只断言图像非 nil、宽度误差不超过 1pt、高度合理，不做像素/私有层级/截图断言。测试函数数从 119 增至 120；本地只做轻量检查，完整 iOS/Catalyst build、LogicSmoke、120 项 XCTest 和结果包待本轮 push 后 GitHub Actions 执行。
 - v2.76 新增 `testOptimizationToggleTextLayoutPolicySupportsDynamicTypeRows`，锁住共享 `OptimizationToggleTextLayoutPolicy` 的标题/行标题/副标题均为两行、行内 spacing 为 3pt、subtitle lineSpacing 为 2pt、三个多行能力计算属性、44pt 行最小高度、250pt 最小卡片宽度和 510pt 两列边界，并确认重复读取不改变 `DeviceOptimizer` 开关、准备度或隐私摘要。生产 `ImageRenderer` 使用真实 `OptimizationToggleRow` 覆盖 250/510pt、亮暗主题、enabled/disabled 与 `.large`/`.xxxLarge`/`.accessibility3`，比较普通/Accessibility 高度，并用真实 `OptimizationToggleGrid` 覆盖窄单列和宽区域；只断言非 nil、宽度误差不超过 1pt、高度合理，不做像素、私有层级或截图断言。测试函数数从 120 增至 121；本地只做轻量检查，完整 iOS/Catalyst build、LogicSmoke、121 项 XCTest 和结果包待本轮 push 后 GitHub Actions 执行。
 - v2.77 新增 `testExportSessionBodyTextLayoutPolicySupportsDynamicTypeReading`，锁住 `ExportSessionBodyTextLayoutPolicy` 的 18pt content padding、3pt body line spacing、`preservesFullText`、语义等宽 Dynamic Type 契约、重复读取不变性、`ExportSessionLayoutPolicy` 的 320/390/834/1200pt 与负数/NaN 回归及导出动作 44pt 目标。生产公开 `ImageRenderer` 直接渲染真实 `ExportSessionView(payload:)`，覆盖亮暗主题、320/390/834/1200pt 与 `.large`/`.xxxLarge`/`.accessibility3`，只断言非 nil、正尺寸和固定 NavigationStack/GeometryReader 测试 viewport 下的非下降高度，不做像素、颜色、截图或私有层级断言。测试函数数从 121 增至 122；本地不运行 XCTest、xcodebuild、Simulator、Catalyst build/run 或视觉截图验收，完整 iOS/Catalyst build、LogicSmoke、122 项 XCTest 和结果包待本轮 push 后 GitHub Actions 执行。
@@ -193,6 +194,8 @@ on:
 - Mac Catalyst 本地 run 入口静态契约：`script/build_and_run.sh` 存在、可执行、`bash -n` 通过
 - 可选 Codex Run environment 检查：存在 `.codex/environments/environment.toml` 时必须指向 `./script/build_and_run.sh`，不存在时记录 skipped reason
 - 自动选择可用 iPhone Simulator 后执行 `xcodebuild test-without-building`
+- 真实 iPhone/iPad × 亮暗 × 四工作区共 16 张生产模拟器截图
+- 云端公开 `xcresulttool get test-results summary/tests` 与 `export attachments`：结构化 JSON、8 张真实剩余 pane 工作区渲染、4 张窄 readiness 组件图和 provenance；导出失败纳入必选 visual
 - 生成 `ci-artifact-manifest.json`
 - 生成 `artifact-name.txt`
 - 生成 `ci-failure-summary.md`
@@ -201,7 +204,7 @@ on:
 
 云端 DerivedData 使用 `.derivedData-ci`，不同于本地推荐的 `.build/DerivedDataCodex`。这是 CI 内部缓存路径差异，不改变工程行为。
 
-当前 `junit.xml` 的 `LocalGemmaCI` suite 包含 7 个 CI testcase：静态检查、LogicSmoke、iOS build-for-testing、XCTest、Mac Catalyst build-for-testing、Mac Catalyst run script contract 和可选 Codex Run environment。v1.0 未提交 Codex Run action 时，Codex Run environment testcase 允许 `skipped`，但必须有非空 skipped reason；其它 required testcase 必须为 `success`。
+当前 `junit.xml` 的 `LocalGemmaCI` suite 包含 8 个 CI testcase：生产截图/布局证据、静态检查、LogicSmoke、iOS build-for-testing、XCTest、Mac Catalyst build-for-testing、Mac Catalyst run script contract 和可选 Codex Run environment。Codex Run environment 允许带非空原因的 `skipped`；其它 7 个 required testcase 必须为 `success`。附件/结构化导出失败先写 outcome、并入 visual，保留 manifest/JUnit/日志生成，最后 Evaluate 统一失败；不能让新步骤硬退出跳过结果描述。
 
 ### 结果包内容
 
@@ -210,6 +213,8 @@ GitHub Actions 上传未加密 artifact，版本号从最新 commit 主题的第
 ```text
 localgemma-ci-<commit_version>-main-<short_sha>-run<run_id>-attempt<run_attempt>
 ```
+
+同名加 `-review` 的轻量 artifact 保留可读身份、日志、结构化摘要和图片，不含三份 xcresult；它用于先读，不代替完整包。`artifact-name.txt`/manifest `artifactName` 始终指完整包，`review-artifact-name.txt`/`reviewArtifactName` 指小包。
 
 最低内容：
 
@@ -228,12 +233,16 @@ localgemma-ci-<commit_version>-main-<short_sha>-run<run_id>-attempt<run_attempt>
 - `mac-catalyst-run-script.log`
 - `mac-baseline-notes.md`
 - `LocalGemma-maccatalyst-build.xcresult`
+- `visual-capture.log`、`visuals/manifest.json` 与 16 张真实模拟器生产图
+- `evidence-export.log`、`xctest-summary.json`、`xctest-tests.json`
+- `layout-renders/manifest.json`、`layout-renders/attachments/manifest.json` 原始附件索引、8 张工作区与 4 张 readiness 渲染 PNG/测试 provenance
 
 `ci-artifact-manifest.json` 至少包含：
 
 ```json
 {
   "artifactName": "localgemma-ci-vX.Y-main-abcdef0-run123-attempt1",
+  "reviewArtifactName": "localgemma-ci-vX.Y-main-abcdef0-run123-attempt1-review",
   "version": "vX.Y",
   "repository": "owner/repo",
   "branch": "main",
@@ -258,6 +267,13 @@ localgemma-ci-<commit_version>-main-<short_sha>-run<run_id>-attempt<run_attempt>
   "logicSmokeOutcome": "success/failure",
   "buildOutcome": "success/failure",
   "testOutcome": "success/failure/skipped",
+  "visualCaptureOutcome": "success/failure",
+  "visualManifestPath": "ci-results/visuals/manifest.json",
+  "layoutEvidenceOutcome": "success/failure",
+  "layoutEvidenceManifestPath": "ci-results/layout-renders/manifest.json",
+  "testSummaryPath": "ci-results/xctest-summary.json",
+  "testTreePath": "ci-results/xctest-tests.json",
+  "evidenceExportLogPath": "ci-results/evidence-export.log",
   "macBaselineKind": "mac-catalyst",
   "macCatalystBuildOutcome": "success/failure/skipped",
   "macCatalystDestination": "generic/platform=macOS,variant=Mac Catalyst",
@@ -355,6 +371,10 @@ Agent C 必须核对：
 - `mac-baseline-notes.md` 明确这是 Mac Catalyst build-for-testing 基线，不是原生 macOS target，不改变模拟 runtime 边界。
 - `junit.xml` 的失败数与 `ci-failure-summary.md` 一致。
 - `xcodebuild.log`、`test.log`、Mac Catalyst log、`.xcresult` 或等价结果存在且可打开。
+- `xctest-summary.json`/`xctest-tests.json` 与完整 xcresult 的测试集合、状态一致，新增 6 项和原 focus/identity 均实际执行。轻量包不豁免完整 xcresult 核对。
+- 真实截图 manifest 精确 SHA/run/attempt 与 16 张图片齐全。新增 `layout-renders/manifest.json` 明确 ImageRenderer 来源、非 Simulator screenshot/非 Mac GUI，原附件索引与 PNG SHA-256/尺寸相符，工作区 8 图、readiness 4 图不缺失/重复。
+- 宽屏 root `1366x1024pt` 先由生产 policy 分配 288pt 全局 sidebar，实际 pane 为 1078pt；chat 再 split 且阅读面至少 620pt，manifest 记录真实 pane/外框/内部宽度。readiness 4 图是 320pt panel、292pt content、亮暗及 `.large`/`.accessibility3` 自然高度组件渲染，不能冒充全工作区截图。
+- 必须实际看图，尤其检查 iPhone 设置 panel 完整包住 ring/正文、欢迎不混 seed/不被 composer 遮挡、宽屏 split 和模型/提示词动作层级；ImageRenderer 非 nil 不等于视觉验收。
 - 如果 test 被 `skipped`，必须有明确原因，例如 runner 没有可用 iPhone Simulator。
 
 Agent C 不自动删除 `/private/tmp/localgemma-c-review-<run_id>/`，除非人工明确同意。
@@ -379,7 +399,7 @@ xcodebuild -project LocalGemma.xcodeproj \
   -scheme LocalGemma \
   -configuration Debug \
   -sdk iphonesimulator \
-  -destination 'generic/platform=iOS Simulator' \
+  -destination "platform=iOS Simulator,id=$LOCAL_SIMULATOR_UDID" \
   -derivedDataPath .build/DerivedDataCodex \
   CODE_SIGNING_ALLOWED=NO \
   build-for-testing
@@ -410,18 +430,18 @@ xcodebuild -project LocalGemma.xcodeproj \
   -scheme LocalGemma \
   -configuration Debug \
   -sdk iphonesimulator \
-  -destination 'platform=iOS Simulator,name=iPhone 17' \
+  -destination "platform=iOS Simulator,id=$LOCAL_SIMULATOR_UDID" \
   -derivedDataPath .build/DerivedDataCodex \
   CODE_SIGNING_ALLOWED=NO \
   test-without-building
 ```
 
-如果 `iPhone 17` 不存在，先运行 `xcrun simctl list devices available`，选择本机可用 iPhone 模拟器。
+如果未由人工确认唯一 `FAC4325D` 前缀完整 UDID，则不执行本机验证，不查询/选择替代设备；当前轮全部交云端。
 
 当前基线：
 
 - 期望结果：`TEST EXECUTE SUCCEEDED`。
-- 当前测试函数数：131。历史 v2.85 实现 commit `a093e03` 的 run `32653672941` attempt `1` 为 `130/130 Passed`；它不代表当前版本的云端结果。
+- 当前测试函数数：137。已核对的 v3.3.1 基线为 `9ccf8b9` / run `38343587295` attempt `1` 的 `131/131 Success`，只证明焦点/构建回归基线；v3.4 新增及视觉修复必须由自己的新 run 验证。
 
 ### v2.85 / 取消生成占位生命周期
 
@@ -497,7 +517,7 @@ xcodebuild -project LocalGemma.xcodeproj \
   -scheme LocalGemma \
   -configuration Debug \
   -sdk iphonesimulator \
-  -destination 'generic/platform=iOS Simulator' \
+  -destination "platform=iOS Simulator,id=$LOCAL_SIMULATOR_UDID" \
   -derivedDataPath .build/DerivedDataCodex \
   CODE_SIGNING_ALLOWED=NO \
   build-for-testing
@@ -507,7 +527,7 @@ xcodebuild -project LocalGemma.xcodeproj \
   -scheme LocalGemma \
   -configuration Debug \
   -sdk iphonesimulator \
-  -destination 'platform=iOS Simulator,name=iPhone 17' \
+  -destination "platform=iOS Simulator,id=$LOCAL_SIMULATOR_UDID" \
   -derivedDataPath .build/DerivedDataCodex \
   CODE_SIGNING_ALLOWED=NO \
   test-without-building
@@ -517,13 +537,13 @@ xcodebuild -project LocalGemma.xcodeproj \
 
 ```sh
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
-xcrun simctl install booted .build/DerivedDataCodex/Build/Products/Debug-iphonesimulator/LocalGemma.app
+xcrun simctl install "$LOCAL_SIMULATOR_UDID" .build/DerivedDataCodex/Build/Products/Debug-iphonesimulator/LocalGemma.app
 
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
-xcrun simctl launch booted com.localgemma.prototype
+xcrun simctl launch "$LOCAL_SIMULATOR_UDID" com.localgemma.prototype
 
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
-xcrun simctl io booted screenshot .build/localgemma-check.png
+xcrun simctl io "$LOCAL_SIMULATOR_UDID" screenshot .build/localgemma-check.png
 ```
 
 当前基线：
@@ -590,3 +610,38 @@ v3.0 云端 run `36260394187` 的四组布局测试仍沿用旧侧栏宽度，�
 - `defer` 始终结束编辑、隐藏 window、移除 root controller、恢复原 key window，并断言 responder/window/root 已移除且原 key window 已恢复。阶段日志前缀为 `[ComposerFocusLifecycle]`，包含 scene、key/hidden/attached/appeared、active/request 和 responder/textInput；超时诊断进入 XCTest failure。
 - 本轮测试数量仍为 131。完整云端必须通过 static、LogicSmoke、iOS build、XCTest、Catalyst build、脚本契约、16 张生产截图；JUnit 8 stages 与既有 optional skip 规则不变，workflow 不修改。Agent C 必须核对最新 SHA/run/attempt 的 manifest、日志和结构化 xcresult，不以 v3.3 截图或历史绿色 run 替代。
 - 本地仅运行 `git diff --check`、`plutil -lint`、Ruby YAML 解析、`bash -n`、测试计数及文档结构检查；用户要求只云端构建，因此不运行本地 Swift/Probe/Fast、xcodebuild、XCTest、Simulator、ImageRenderer 或 Catalyst。修复后的云端结果待提交后验证。
+
+## v3.4 呈现、自然高度与可审计视觉证据
+
+### 已核对的实施基线
+
+2026-10-22，Agent C 实际下载 `9ccf8b91a25c90242cd733a2da6cb3e4230844fa` 对应 run `38343587295` attempt `1` 的完整 artifact `localgemma-ci-v3.3.1-main-9ccf8b9-run38343587295-attempt1`。ZIP/API SHA-256 一致（`892fe0286c1cb8daa03b82f9520f048e3bac6bab7eb642e2eb1f5ccc9f256992`），JUnit 为 8 阶段/0 failure/error/1 optional skip；三份 xcresult root 状态与 Data/refs 有效（3/3、3/3、898/898），131 个唯一结构化 Success 与源码名称集合匹配，严格 focus 测试恰一次成功。Xcode 26.6 / 17F113，C 未运行本地 Xcode。
+
+C 看图发现 iPhone 设置页 readiness 圆环和正文越出 panel，因此只给出焦点/构建回归基线 PASS、允许本轮修复，不给整产品视觉或发布 PASS。v3.4 必须检查自己的最新 SHA/run/attempt 和完整产物，不能沿用该基线结果。
+
+### 新增 6 项 XCTest
+
+- `testWorkbenchChatPresentationPreservesSessionAndExportData`：空消息/seed/system/assistant/空 user/已有 user/停止 placeholder × starter/生成开关真值表；重复只读决定不改变 messages/session/UUID/title。导出比对仅排除每次调用新生成的时间行，正文与 seed 保留；真实 send 后立即 stop 的会话仍 transcript。锁住 welcome 0...680pt clamp、辅助摘要、无 starter 旧行为和真实 transcript bottom policy。
+- `testSessionBarLayoutPolicyCoordinatesCompactActions`：`180 + 2*44 + 8 + 12 = 288pt`，287.99/288 边界、320/390/600/834/1200、NaN/infinity/非正值，横向大字 stacked、竖向 sidebar、有限宽度和 heading 契约；默认不可删/非当前可删/长标题可删、稳定动作 metadata 与 Command+N/Shift+E/44pt 不变。
+- `testWorkbenchSemanticActionAndCategoryColorsHaveReadableContrast`：生产亮暗三角色六字段重复读取、六分类；用公开 `UIColor(Color).getRed` 读取分量，按真实 alpha 合成后做 sRGB/WCAG。正常前景、prominent 配对、模型副标题与分类 0.10 wash 目标 4.5:1，必要 icon 前景/背景目标 3:1；不采样截图像素，不对 disabled 0.5 opacity 声称满足对比。另锁背景辅助偏好真值、40pt/四格网格及既有 panel 几何。
+- `testWorkbenchProductionControlsSupportDynamicType`：真实 welcome、seed/无 starter/已有 user 的 ChatTranscript、部署启停、暂存/卸载、全部模板分类/生成中禁用、分类 selector 和 0/1/多会话横向区域；宽度/字号用 320/large、390/xxxLarge、600/large、834/accessibility3、1200/large 的亮暗组合，检查有限正尺寸和外框宽度。额外比较 320pt welcome 大字高度增长，真实 AppBackground 只用公开默认系统环境渲染；辅助开关组合由前项纯 policy 真值表覆盖，实际系统切换仍待人工实测。不写只读 EnvironmentValues，不构造测试替身 UI、不探查私有层级。
+- `testWorkbenchWideProductionViewsProduceReviewEvidence`：先用生产 root policy 分配参考 `1366x1024pt` 的 288pt 全局 sidebar，再将真实 1078pt pane 交给四个生产工作区。chat 确认 split、会话栏/阅读面守恒、阅读面至少 620pt；两主题共 8 张 keepAlways PNG 与测试生成 JSON provenance，记录实际 pane、内部宽度、图像尺寸和来源。这不是 Simulator screenshot 或 Mac GUI 实测。
+- `testChipReadinessCardReportsNaturalStackedHeight`：真实生产卡自然尺寸，panel 320/354/381.99/382/834 × 亮暗 × large/xxxLarge/accessibility3；显式区分 354pt content 与 382pt panel 横排阈值。stacked 高度必须严格大于 `86slot + 12gap + 28padding`，原固定 114pt 会失败；381.99 stacked 高于 382 horizontal 普通字基线，大字同宽自然增长，optimizer/隐私/热状态不变。320pt 大小字两主题额外保留 4 张组件 PNG/provenance，不能只凭非 nil 宣布高度修复。
+
+既有严格焦点、根/四页 identity、文件/卸载/导出、Reduce Motion、44pt 与 verified 门禁测试保留。源码总数 137；这里描述测试内容，尚未预写本轮执行结果。
+
+### 结果包与视觉失败规则
+
+`Tools/export_workbench_evidence.py` 只允许 GitHub Actions，使用公开命令，不在本机运行：
+
+```sh
+xcrun xcresulttool get test-results summary --path ci-results/LocalGemma-tests.xcresult --compact
+xcrun xcresulttool get test-results tests --path ci-results/LocalGemma-tests.xcresult --compact
+xcrun xcresulttool export attachments --path ci-results/LocalGemma-tests.xcresult --output-path ci-results/layout-renders/attachments
+```
+
+原始导出索引保留，派生 `layout-renders/manifest.json` 记录 SHA/run/attempt、来源测试、生产 View/组件类型、真实 viewport/pane/panel/content 数值、PNG IHDR 尺寸和文件 SHA-256；要求完整唯一 8+4 矩阵且新增渲染单边不超过 1600px。结构化 summary/tests JSON 同包保存，完整三份 xcresult 不减项。
+
+导出/结构化读取失败写 `layout-evidence=failure` 并使原必选 visual 失败，但步骤仍返回给后续 manifest/JUnit 生成，最后 Evaluate 统一判失败。JUnit 仍 8 阶段；16 张真实模拟器截图不取消，不新增 optional skip。`-review` 包只便于快速看身份、日志和图，C 仍要核完整 xcresult 和实际生产图。
+
+本机只运行 diff/plutil/YAML/bash-n/Python AST、方法计数及 Markdown 结构检查；Swift、XCTest、ImageRenderer、Simulator 和 Catalyst 全部交云端。新增 137 项与 12 张附件是否执行成功、readiness panel 是否完整包住内容、欢迎/动作/宽屏是否达到视觉门槛，必须等待本轮精确提交的 CI 与 Agent C 复判。

@@ -187,13 +187,15 @@ struct PromptCategorySelector: View {
 
     private func categoryButton(category: PromptTemplateCategory?, icon: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
         let title = PromptCategoryAccessibilityMetadata.title(for: category)
+        let primary = theme.actionPalette(for: .primary)
+        let secondary = theme.actionPalette(for: .secondary)
 
         return Button(action: action) {
             Label(title, systemImage: icon)
                 .font(.subheadline)
                 .bold()
                 .labelStyle(.titleAndIcon)
-                .foregroundStyle(isSelected ? theme.inverseText : theme.secondaryText)
+                .foregroundStyle(isSelected ? primary.prominentForeground : secondary.foreground)
                 .lineLimit(PromptCategoryTextLayoutPolicy.labelLineLimit)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, PromptCategoryLayoutPolicy.horizontalPadding)
@@ -202,8 +204,8 @@ struct PromptCategorySelector: View {
                     minWidth: PromptCategoryLayoutPolicy.minimumChipWidth,
                     minHeight: PromptCategoryLayoutPolicy.minimumTouchTarget
                 )
-                .background(isSelected ? theme.accent : theme.chipSurface, in: Capsule())
-                .overlay(Capsule().stroke(isSelected ? theme.accent.opacity(0.7) : theme.border, lineWidth: 1))
+                .background(isSelected ? primary.prominentFill : secondary.fill, in: Capsule())
+                .overlay(Capsule().stroke(isSelected ? primary.border : secondary.border, lineWidth: 1))
         }
         .buttonStyle(.plain)
         .accessibilityLabel(PromptCategoryAccessibilityMetadata.label(for: category))
@@ -299,14 +301,18 @@ struct PromptTemplateCard: View {
     let send: () -> Void
 
     var body: some View {
+        let categoryTint = theme.categoryTint(for: template.category)
+        let primary = theme.actionPalette(for: .primary)
+        let secondary = theme.actionPalette(for: .secondary)
+
         VStack(alignment: .leading, spacing: 11) {
             HStack(alignment: .top, spacing: 10) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(template.category.accentColor.opacity(0.16))
+                        .fill(categoryTint.opacity(0.10))
                     Image(systemName: template.icon)
                         .font(.system(size: 17, weight: .semibold))
-                        .foregroundStyle(template.category.accentColor)
+                        .foregroundStyle(categoryTint)
                 }
                 .frame(width: 38, height: 38)
 
@@ -330,11 +336,11 @@ struct PromptTemplateCard: View {
                 Text(template.category.title)
                     .font(.caption)
                     .bold()
-                    .foregroundStyle(template.category.accentColor)
+                    .foregroundStyle(categoryTint)
                     .lineLimit(PromptTemplateTextLayoutPolicy.categoryLineLimit)
                     .padding(.horizontal, 7)
                     .padding(.vertical, 4)
-                    .background(template.category.accentColor.opacity(0.12), in: Capsule())
+                    .background(categoryTint.opacity(0.10), in: Capsule())
             }
 
             Text(template.prompt)
@@ -351,14 +357,14 @@ struct PromptTemplateCard: View {
                     Label("填入", systemImage: "text.cursor")
                         .font(.subheadline)
                         .bold()
-                        .foregroundStyle(theme.primaryText)
+                        .foregroundStyle(secondary.foreground)
                         .frame(maxWidth: .infinity)
                         .frame(minHeight: PromptTemplateActionLayoutPolicy.minimumTouchTarget)
                         .padding(.vertical, 9)
-                        .background(template.category.accentColor.opacity(0.18), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .background(secondary.fill, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                         .overlay {
                             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .stroke(template.category.accentColor.opacity(0.34), lineWidth: 1)
+                                .stroke(secondary.border, lineWidth: 1)
                         }
                 }
                 .buttonStyle(.plain)
@@ -387,8 +393,8 @@ struct PromptTemplateCard: View {
                             width: PromptTemplateActionLayoutPolicy.sendButtonSize,
                             height: PromptTemplateActionLayoutPolicy.sendButtonSize
                         )
-                        .background(template.category.accentColor, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        .foregroundStyle(theme.inverseText)
+                        .background(primary.prominentFill, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .foregroundStyle(primary.prominentForeground)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(

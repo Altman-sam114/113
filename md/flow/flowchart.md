@@ -128,7 +128,7 @@ flowchart TD
     G --> GHover[SessionChipHoverStylePolicy<br/>仅 vertical + 未选中 + pointer hover<br/>亮/暗 accent opacity 0.06/0.10<br/>装饰层不命中且辅助隐藏<br/>横向胶囊/选中态/状态流不变]
     F -- 提示词 --> I[PromptTemplatesWorkspace<br/>SectionHeader 动态排版策略<br/>整体宽屏内容宽度策略<br/>模板网格宽屏布局策略<br/>模板文本动态排版策略<br/>分类筛选换行布局策略<br/>分类文本动态排版策略<br/>模板筛选/填入/发送<br/>模板动作 44pt 触控目标<br/>分类筛选辅助语义<br/>模板动作辅助语义]
     F -- 设置 --> J[SettingsWorkspace<br/>SectionHeader 动态排版策略<br/>整体宽屏内容宽度策略<br/>主题按钮辅助语义<br/>设置页图标动作 44pt 触控目标<br/>设置偏好行文本动态排版策略<br/>壁纸控件/芯片策略<br/>运行策略开关辅助语义<br/>运行策略开关宽屏网格<br/>运行策略开关行 44pt 触控目标<br/>OptimizationToggleGrid -> OptimizationToggleRow<br/>两个调用点共用 OptimizationToggleTextLayoutPolicy<br/>语义字体 + 标题/副标题最多两行<br/>文字允许垂直增长<br/>44pt 行高不变<br/>250pt 最小卡片宽度 / 510pt 两列边界不变<br/>芯片准备度辅助语义 + 隐私状态<br/>优化指标网格宽度策略<br/>优化指标卡辅助语义<br/>指标 label/value/detail<br/>Dynamic Type 多行策略]
-    J --> CR[SettingsWorkspace / OptimizerDashboard<br/>共享 ChipReadinessCard<br/>panel 内真实内容宽度<br/>ChipReadinessLayoutPolicy<br/>354pt 及以上普通字号 horizontal<br/>Accessibility 或非法宽度 stacked<br/>AnyLayout 复用 ring + 正文子树<br/>ring slot 86pt / diameter 66pt<br/>DeviceOptimizer 状态与隐私摘要不变]
+    J --> CR[SettingsWorkspace / OptimizerDashboard<br/>panel 外框扣两侧各14pt后传入<br/>共享 ChipReadinessCard 无卡内GeometryReader<br/>354pt 内容宽度及以上普通字号 horizontal<br/>Accessibility 或非法宽度 stacked<br/>AnyLayout 复用 ring + 正文并自然报高<br/>ring slot 86pt / diameter 66pt<br/>DeviceOptimizer 状态与隐私摘要不变]
     J --> WP[WallpaperPreferencePanel<br/>SettingsWorkspace 传入真实 panel 外框宽度<br/>扣除两侧 14pt panel padding 得到 content width<br/>SettingsPreferenceRowLayoutPolicy<br/>270pt 及以上普通字号 horizontal<br/>窄宽或 xxxLarge 及以上 stacked<br/>AnyLayout 复用预览/文案/动作子树<br/>stacked 自然垂直增长<br/>PhotosPicker/清除动作各 44pt]
 ```
 
@@ -430,4 +430,52 @@ flowchart TD
     Enter -- 超时 --> Fail
     Enter --> Cleanup[defer 结束编辑 / 隐藏 / 移除宿主<br/>恢复原 key window 并断言]
     Fail --> Cleanup
+```
+
+## v3.4 互斥呈现、自然高度与语义动作
+
+读图说明：欢迎只选择可见子树，不改 seed 或会话数据；真实会话仍完整显示。布局和颜色都是本地只读呈现，readiness 高度由真实内容自然上报，不再让卡内 GeometryReader 固定高度造成越界。
+
+```mermaid
+flowchart TD
+    %% 呈现决策只读既有输入，不删除默认消息
+    Input[messages / isGenerating / hasStarter] --> Choice{有starter 且非生成且无user?}
+    Choice -- 是 --> Welcome[顶部自然高度 welcome<br/>独立可见内容辅助摘要]
+    Choice -- 否 --> Transcript[完整原数组 transcript<br/>UUID顺序不变 / 短会话bottom]
+    Welcome -. 不改写 .-> State[会话 / seed / 标题 / 导出保持]
+    Transcript -. 不改写 .-> State
+    %% 会话工具基于实际剩余内容宽度，不新增根断点
+    Width[SessionBar真实content width] --> Bar[288pt普通文字inline<br/>窄宽或大字stacked / 竖向sidebar]
+    Bar --> Shared[单一sessionList + actions<br/>选择删除新建导出均保留44pt]
+    %% panel只包裹真实自然高度
+    Panel[设置页或dashboard panel外框] --> Content[扣两侧各14pt<br/>传真实content width]
+    Content --> Card[354pt边界 / 原AnyLayout<br/>86slot和66ring / 自然报高]
+    %% 风格映射与业务状态分离
+    Theme[AppThemePalette] --> Actions[主次危险及prominent配对<br/>分类小面积tint]
+    Theme --> Grid[静态40pt工程网格<br/>辅助显示偏好开启时移除装饰]
+```
+
+## v3.4 云端产物与真实宽度证据
+
+读图说明：完整 XCTest 与 16 张模拟器截图仍是必选。新增生产 View/组件渲染只说明固定 viewport 布局，不声称 Mac GUI 已测；C 要同时读结构化结果、完整 xcresult 和实际图片。
+
+```mermaid
+flowchart TD
+    %% 参考窗口先扣除生产全局侧栏，不能把root宽度冒充pane
+    Root[1366x1024参考root] --> Global[生产root policy分配288pt sidebar]
+    Global --> Pane[1078pt真实workspace pane<br/>chat再分会话栏与至少620pt阅读面]
+    Pane --> Render[云端XCTest ImageRenderer<br/>四工作区亮暗8图]
+    Card[窄readiness大小字亮暗] --> Component[真实组件自然高度回归4图]
+    %% 原始附件和结构化结果来自同一个本轮xcresult
+    Render --> Result[keepAlways PNG + JSON provenance<br/>LocalGemma-tests.xcresult]
+    Component --> Result
+    Result --> Export[公开xcresulttool导出<br/>summary / tests / 附件原索引]
+    Export --> Manifest[校验12矩阵 / PNG尺寸hash / SHA-run-attempt]
+    Export -- 失败 --> Failure[记录outcome并入visual失败<br/>仍生成manifest和JUnit]
+    Screens[16张真实模拟器生产截图] --> Visual[现有必选visual阶段]
+    Manifest --> Visual
+    Visual --> Full[完整包保留三份xcresult]
+    Visual --> Review[review小包辅助先读<br/>不是完整包替代]
+    Full --> C[Agent C核对精确身份与结构化结果<br/>并实际看图决定PASS或退回]
+    Review --> C
 ```
