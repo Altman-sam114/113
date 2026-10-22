@@ -479,3 +479,7 @@ v3.0 云端 run `36260394187` 的四组布局测试仍沿用旧侧栏宽度，�
 用户最新要求不再多开子智能体；同一 Agent 串行完成设计、实现和结果包验收，不重启既有子智能体。v3.4 `3911a3f` / run `39805938317` attempt `1` 已下载完整包并核对 137/137 Success、JUnit 8 阶段、三份 xcresult 及全部 28 图；16 张真实模拟器图有效，但 8 张 ImageRenderer 宽屏图缺失滚动正文，宽屏视觉证据退回，不能宣布整体视觉或发布 PASS。
 
 v3.4.1 仅改测试/证据和文档，不改生产代码：真实 foreground scene 中以公开 UIHostingController/child containment 挂载同一生产 View，通过 viewDidAppear/attachment/尺寸条件有界等待后用 UIView.drawHierarchy 截图；退出恢复 key window。真实 1078pt pane/至少620pt聊天面不变，宽屏图需通过 Vision OCR 识别已有页面标题，exporter 要求来源、OCR 与同主题不同工作区 hash。readiness 全矩阵仍用 ImageRenderer 测自然高度，选定四图改为 UIKit 宿主截图，保留 137 项和既有严格焦点/identity。宿主截图不是全屏模拟器截图或 Mac GUI；新 SHA 仍需自身云端完整结果和人眼验收，所有 Swift/截图/构建测试只在云端。
+
+## v3.4.2 模型文件动作自然高度
+
+v3.4.1 `37e3b3b` / run `39816180114` attempt1已核对完整包、137/137、三份xcresult和28图，宿主截图修复通过；新图暴露模型库双栏文件动作卡约515pt过高。v3.4.2只移除`ArtifactActionButton` label中的竖向Spacer，并在padding后使用`.fixedSize(horizontal:false,vertical:true)`让内容报告自然高度；不以固定最大高度/缩字/裁剪解决。86pt minimum、12pt padding、8pt spacing、两行语义文字、44pt、配色/动作/辅助语义、模型双栏/状态/verified均不变。新增公开`UIHostingController.sizeThatFits`压力回归，总计138项；600/1400pt提议不得改变同宽同字自然高度，大字允许增长。所有执行只在云端，仍不新增或启动子智能体。

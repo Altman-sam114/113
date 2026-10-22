@@ -697,7 +697,6 @@ struct ArtifactActionButton: View {
                             .allowsHitTesting(false)
                             .accessibilityHidden(true)
                     }
-                Spacer(minLength: 0)
                 Text(title)
                     .font(.subheadline.weight(.semibold))
                     .lineLimit(ModelArtifactActionTextLayoutPolicy.titleLineLimit)
@@ -715,6 +714,7 @@ struct ArtifactActionButton: View {
                 alignment: .leading
             )
             .padding(12)
+            .fixedSize(horizontal: false, vertical: true)
             .background(palette.fill, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 14, style: .continuous)

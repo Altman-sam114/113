@@ -7026,6 +7026,85 @@ final class LocalGemmaTests: XCTestCase {
         )
     }
 
+    func testModelArtifactActionsKeepNaturalHeightUnderTallProposals() throws {
+        let catalog = ModelCatalog(autoScanLocalArtifacts: false)
+        let model = catalog.selectedModel
+        let validation = catalog.validation(for: model)
+        let rootSize = CGSize(width: 1_366, height: 1_024)
+        let paneWidth = rootSize.width - WorkspaceRootLayoutPolicy.resolve(for: rootSize).sidebarWidth
+        let librarySize = CGSize(
+            width: ModelLibraryWorkspaceLayoutPolicy.contentWidth(forContainerWidth: paneWidth),
+            height: rootSize.height
+        )
+        let libraryMode = ModelLibraryLayoutMode.resolve(for: librarySize)
+        XCTAssertEqual(libraryMode, .twoColumn)
+        let controlWidth = libraryMode.controlColumnWidth(for: librarySize)
+        var actionCount = 0
+
+        @MainActor func measuredSize(_ view: AnyView, width: CGFloat, height: CGFloat) -> CGSize {
+            let host = UIHostingController(rootView: view.frame(width: width))
+            host.safeAreaRegions = []
+            return host.sizeThatFits(in: CGSize(width: width, height: height))
+        }
+
+        for themeMode in AppThemeMode.allCases {
+            for width: CGFloat in [146, 170, 250, 360] {
+                for destructive in [false, true] {
+                    var heights: [DynamicTypeSize: CGFloat] = [:]
+                    for textSize in [DynamicTypeSize.large, .xxxLarge, .accessibility3] {
+                        let button = AnyView(ArtifactActionButton(
+                            metadataAction: destructive ? .uninstall : .download,
+                            availability: validation.availability,
+                            title: destructive ? "卸载本地模型文件" : "模拟暂存本地模型",
+                            subtitle: "Only managed artifacts · 仅本机文件",
+                            icon: destructive ? "trash.circle.fill" : "arrow.down.circle.fill",
+                            isDestructive: destructive,
+                            action: { actionCount += 1 }
+                        )
+                        .environment(\.appTheme, AppThemePalette(mode: themeMode))
+                        .environment(\.colorScheme, themeMode.colorScheme)
+                        .environment(\.dynamicTypeSize, textSize))
+                        let compact = measuredSize(button, width: width, height: 600)
+                        let tall = measuredSize(button, width: width, height: 1_400)
+                        XCTAssertTrue(compact.width.isFinite && compact.height.isFinite)
+                        XCTAssertEqual(compact.width, width, accuracy: 1)
+                        XCTAssertEqual(tall.width, width, accuracy: 1)
+                        XCTAssertEqual(tall.height, compact.height, accuracy: 1)
+                        XCTAssertGreaterThanOrEqual(compact.height, ModelArtifactActionTextLayoutPolicy.minimumHeight)
+                        if textSize == .large {
+                            XCTAssertLessThan(compact.height, 240, "A file action must not absorb a tall detail column")
+                        }
+                        heights[textSize] = compact.height
+                    }
+                    XCTAssertGreaterThan(
+                        try XCTUnwrap(heights[.accessibility3]), try XCTUnwrap(heights[.large])
+                    )
+                }
+            }
+            for width in [CGFloat(320), controlWidth, CGFloat(760)] {
+                for textSize in [DynamicTypeSize.large, .accessibility3] {
+                    let panel = AnyView(ArtifactActionPanel(
+                        validation: validation,
+                        download: { actionCount += 1 }, uninstall: { actionCount += 1 },
+                        scan: { actionCount += 1 }, importFiles: { actionCount += 1 }
+                    )
+                    .environment(\.appTheme, AppThemePalette(mode: themeMode))
+                    .environment(\.colorScheme, themeMode.colorScheme)
+                    .environment(\.dynamicTypeSize, textSize))
+                    let compact = measuredSize(panel, width: width, height: 600)
+                    let tall = measuredSize(panel, width: width, height: 1_400)
+                    XCTAssertEqual(compact.width, width, accuracy: 1)
+                    XCTAssertEqual(tall.height, compact.height, accuracy: 1)
+                    XCTAssertGreaterThan(compact.height, 0)
+                    if textSize == .large { XCTAssertLessThan(compact.height, 350) }
+                }
+            }
+        }
+        XCTAssertEqual(actionCount, 0)
+        XCTAssertEqual(catalog.validation(for: model), validation)
+        XCTAssertEqual(catalog.deploymentState(for: model), .stopped)
+    }
+
     func testModelArtifactActionLayoutPolicyMaintainsUtilityTouchTargets() {
         XCTAssertEqual(ModelArtifactActionLayoutPolicy.minimumTouchTarget, 44)
         XCTAssertGreaterThanOrEqual(

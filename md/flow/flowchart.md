@@ -480,3 +480,20 @@ flowchart TD
     Full --> C[Agent C核对精确身份与结构化结果<br/>并实际看图决定PASS或退回]
     Review --> C
 ```
+
+## v3.4.2 模型文件动作自然高度
+
+读图说明：新宿主图揭示宽屏动作竖向拉伸，修复只收敛label高度，不改变模型文件或部署链。大字号继续自然增长，完整云端截图验证不取消。
+
+```mermaid
+flowchart TD
+    %% 右列不能把空白高度注入左侧动作内容
+    Pane[1078pt真实pane] --> Columns[生产模型双栏<br/>控制列 + 长详情列]
+    Columns --> Panel[ArtifactActionPanel同一HStack]
+    Panel --> Label[同一生产Button label<br/>移除竖向Spacer<br/>padding后fixedSize vertical]
+    Label --> Height[图标标题副标题连续自然报高<br/>86pt minimum / 大字自然增长]
+    %% 只测布局，不调用动作或写入状态
+    Height --> Test[公开UIHostingController.sizeThatFits<br/>600/1400pt提议高度一致]
+    Test --> Cloud[138项 + 28图 + 三份xcresult<br/>精确SHA云端验收]
+    Label -. 不改变 .-> Boundary[44pt / metadata / 本地文件<br/>卸载确认 / runtime verified gate]
+```

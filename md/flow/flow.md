@@ -487,3 +487,9 @@ v3.0 云端 run `36260394187` 的四组布局测试仍沿用旧侧栏宽度，�
 云端XCTest将四个真实生产workspace置于1078×1024pt UIHostingController子宿主（参考根1366−全局288），公开window/containment/viewDidAppear与bounds就绪后通过UIView.drawHierarchy捕获。Vision OCR读取已有页面标题，图片、识别文本、真实pane及来源写入keepAlways附件/provenance；不添加测试专用生产文案，不改变session或focus。readiness仍以ImageRenderer测自然高度，选定4图改用同样公开宿主捕获真实UIKit控件。所有宿主退出恢复原key window。
 
 xcresulttool导出结构化summary/tests与原始附件索引，exporter校验12矩阵、来源、OCR、尺寸/hash及同主题宽屏图互不相同，再进入原必选visual阶段；16张真实模拟器图、完整三份xcresult和review小包仍保留。C必须对最新SHA/run/attempt逐图复核，不能把OCR/尺寸/CI绿色单独当大屏通过；宿主图不是全屏模拟器截图或Mac GUI。用户要求不再多开子智能体，后续职责由单一Agent串行执行，所有编译/运行/截图只在云端。
+
+## v3.4.2 模型文件动作内容高度
+
+v3.4.1 run `39816180114` 的137项及证据修复已核对；新宽屏图暴露动作label竖向Spacer吸收右侧长详情列提议高度。生产链仍是ModelLibraryView双栏左侧ArtifactActionPanel -> 同一HStack两个ArtifactActionButton；仅移除label的竖向Spacer，并在原padding后固定垂直理想尺寸。图标、标题、副标题连续排列，文字自然增长，不设置最大高度，不改86pt minimum、动作/metadata、扫描导入、卸载确认或任何状态。
+
+新增公开sizeThatFits压力回归将源码基线增至138，直接在600/1400pt高度提议下比较同宽同字的生产Button/Panel自然高度，并用真实1078pt pane推导控制列宽。完整云端138项、16全屏图+12宿主图和三份xcresult门禁保持，待本提交自己的结果后复判。

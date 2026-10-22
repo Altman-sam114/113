@@ -16,7 +16,7 @@
 - 平台：SwiftUI iOS App，Swift 6.0，iOS deployment target 17.0，当前 app/test target 支持 iPhone、iPad 和 Mac Catalyst build-for-testing，并提供项目内 Mac Catalyst 本地 build/run 脚本入口；尚未创建原生 macOS target。
 - 当前默认模型：`Gemma 1.5B Local`
 - 当前推理：本地模拟 runtime，不下载模型权重，不执行真实模型推理。
-- 当前核心测试：`LocalGemmaTests.swift` 中 137 个 XCTest 方法；v3.4 run `39805938317` 已核对 137/137 Success，但宽屏证据缺正文而退回，v3.4.1 改进宿主截图后仍须新的云端结果。
+- 当前核心测试：`LocalGemmaTests.swift` 中138个XCTest方法；v3.4.1 run `39816180114` 已核对137/137与宿主截图，宽屏模型动作过度拉伸退回v3.4.2，新增自然高度回归须自身云端结果。
 - 当前核心文档入口：`AGENTS.md`、`md/flow/flow.md`、`md/flow/flowchart.md`、`md/test/test.md`、`md/prompt/README.md`、`README.md`。
 - 当前协作验证：默认 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载未加密 CI 结果包验收；本地仓库当前已配置 `origin` remote，最终验收仍以最新 `origin/main` 对应的 GitHub Actions run 和结果包为准；文档已预留未来 `agentx:` 主控 Agent A -> Agent B -> Agent C 多轮循环的规则。
 
@@ -4534,4 +4534,19 @@ v3.0 云端 run `36260394187` 的四组布局测试仍沿用旧侧栏宽度，�
 - 本地仅静态检查，完整构建、137项、Vision/宿主截图和验收必须等待本提交的云端run，不复用v3.4通过状态。真实runtime、Mac GUI/pointer、真机/完整辅助技术和签名发布仍未完成。
 
 实际本地检查：`git diff --check`、`bash -n script/build_and_run.sh` 退出0；`plutil -lint LocalGemma.xcodeproj/project.pbxproj` 为OK；Ruby解析workflow输出yaml ok（仅既有PATH world-writable警告）；两份Python脚本AST、137个唯一测试方法、核心文档fence/版本和生产保护文件无diff检查通过。未运行任何本地编译或UI执行。
+
+## v3.4.1 证据修复验收与新问题（2026-10-22）
+
+- 实际提交`37e3b3b7590845243ad474ebfe942fc5769df766`，run `39816180114` attempt1全必选成功。完整artifact `localgemma-ci-v3.4.1-main-37e3b3b-run39816180114-attempt1`与同名review包已下载；API digest分别`6e19a3366b311e4357fa82d50dd14804a3aae79fa42db4de3a60ca365ba8dbcd`、`6a76e1042b57c33274b126e76aecbbb9adb8235bc29ee0727f92d7f9d7f6f6d9`，未独立验原ZIP hash，64公共文件字节一致。
+- 纯Python/zstd/SQLite读取三份xcresult root成功/Data-refs 3/3、3/3、978/978，137唯一Success匹配源码，focus/identity及新增两项截图测试通过。JUnit8阶段/0 failure/error/1 optional skip。所有Swift、UIKit/Vision和图片生成在云端。
+- 亲看28图：8张wide滚动正文、会话和welcome完整，composer与4张readiness的真实UIKit控件不再是占位；16模拟器图保持既有改善。截图修复限定PASS，不是整体视觉或发布PASS。
+- wide模型页亮暗均发现两个文件动作约515pt高、图标文字之间巨大空白，根源是label内竖向Spacer；退回v3.4.2针对性修复。原包和真实复判记录在`/private/tmp/localgemma-c-review-39816180114/`。
+
+## v3.4.2 / 宽屏模型动作过度拉伸（2026-10-22）
+
+同一Agent串行执行，A提示词`md/prompt/v3（工作台重构）/v3.4.2（模型文件动作自然高度）.md`。仅`ModelWorkspace.swift`内ArtifactActionButton移除竖向Spacer、padding后fixedSize vertical；图标标题副标题成组自然报高，不设置最大高度，不改业务/布局断点/列宽/metadata/配色/最小高度/44pt或verified。
+
+新增唯一自然高度压力测试到138：公开UIHostingController.sizeThatFits，600/1400pt提议，同宽同字高度一致；亮暗/多宽/长中英文/大字增长及真实控制列panel，不执行动作。核心文档同步；原16+12图、三份xcresult和完整云端阶段不变。此提交的构建/138项/宽屏复判以自身云端结果为准，不能沿用v3.4.1通过。默认模拟runtime、Mac GUI/pointer、真机/VoiceOver和签名发布缺口仍未完成。
+
+实际本地检查：`git diff --check`和`bash -n script/build_and_run.sh`退出0；工程`plutil -lint`为OK；Ruby workflow YAML解析为yaml ok（既有PATH权限警告）；Python脚本AST、138唯一方法/只新增指定1项、文档fence/版本及生产保护文件范围检查通过。未本机编译或运行UI。
 - 不改 AppState/LocalGemmaApp/ComposerBar、模型文件/下载/推理门禁或 AITRANS。真实推理、Mac GUI/pointer、真机/完整辅助技术和签名发布仍是残余缺口。
