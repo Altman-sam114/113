@@ -59,7 +59,7 @@ case "$LOCAL_SIMULATOR_UDID" in FAC4325D*) ;; *) exit 1 ;; esac
 
 当前测试基线：
 
-- `LocalGemmaTests.swift` 当前包含138个`test...`方法；v3.4新增6项、v3.4.2新增1项。v3.4.1 run `39816180114` 的137/137及宿主截图修复已核对；新图暴露宽屏文件动作过度拉伸，v3.4.2新增自然高度压力回归，仍须自身云端复验。新增契约和产物见文末小节；既有严格焦点与 identity 不弱化、不跳过。
+- `LocalGemmaTests.swift` 当前包含138个`test...`方法；v3.4新增6项、v3.4.2新增1项。最近已验收代码提交`1601bd6` / run `39825340832` attempt1为138/138，完整结果包和28图回归已核对，呈现/布局修复限定通过；不是发布或Mac GUI验收。新增契约和产物见文末小节；既有严格焦点与 identity 不弱化、不跳过。
 - v2.75 新增 `testChipReadinessLayoutPolicyAdaptsToCardWidthAndAccessibilityDynamicType`，锁住 `354pt` 真实 panel 内容宽度边界、普通字号横排、Accessibility Dynamic Type 无条件 stacked、NaN/Infinity/非正宽度回退、纯值 plan、`DeviceOptimizer`/隐私状态不变，以及 `86pt` slot / `66pt` diameter；生产 `ChipReadinessCard` 的 `ImageRenderer` 覆盖亮暗主题、`382pt` 外框（扣除两侧 `14pt` panel padding 后为 `354pt` 内容）、窄外框与 Accessibility 字号 stacked，只断言图像非 nil、宽度误差不超过 1pt、高度合理，不做像素/私有层级/截图断言。测试函数数从 119 增至 120；本地只做轻量检查，完整 iOS/Catalyst build、LogicSmoke、120 项 XCTest 和结果包待本轮 push 后 GitHub Actions 执行。
 - v2.76 新增 `testOptimizationToggleTextLayoutPolicySupportsDynamicTypeRows`，锁住共享 `OptimizationToggleTextLayoutPolicy` 的标题/行标题/副标题均为两行、行内 spacing 为 3pt、subtitle lineSpacing 为 2pt、三个多行能力计算属性、44pt 行最小高度、250pt 最小卡片宽度和 510pt 两列边界，并确认重复读取不改变 `DeviceOptimizer` 开关、准备度或隐私摘要。生产 `ImageRenderer` 使用真实 `OptimizationToggleRow` 覆盖 250/510pt、亮暗主题、enabled/disabled 与 `.large`/`.xxxLarge`/`.accessibility3`，比较普通/Accessibility 高度，并用真实 `OptimizationToggleGrid` 覆盖窄单列和宽区域；只断言非 nil、宽度误差不超过 1pt、高度合理，不做像素、私有层级或截图断言。测试函数数从 120 增至 121；本地只做轻量检查，完整 iOS/Catalyst build、LogicSmoke、121 项 XCTest 和结果包待本轮 push 后 GitHub Actions 执行。
 - v2.77 新增 `testExportSessionBodyTextLayoutPolicySupportsDynamicTypeReading`，锁住 `ExportSessionBodyTextLayoutPolicy` 的 18pt content padding、3pt body line spacing、`preservesFullText`、语义等宽 Dynamic Type 契约、重复读取不变性、`ExportSessionLayoutPolicy` 的 320/390/834/1200pt 与负数/NaN 回归及导出动作 44pt 目标。生产公开 `ImageRenderer` 直接渲染真实 `ExportSessionView(payload:)`，覆盖亮暗主题、320/390/834/1200pt 与 `.large`/`.xxxLarge`/`.accessibility3`，只断言非 nil、正尺寸和固定 NavigationStack/GeometryReader 测试 viewport 下的非下降高度，不做像素、颜色、截图或私有层级断言。测试函数数从 121 增至 122；本地不运行 XCTest、xcodebuild、Simulator、Catalyst build/run 或视觉截图验收，完整 iOS/Catalyst build、LogicSmoke、122 项 XCTest 和结果包待本轮 push 后 GitHub Actions 执行。
@@ -441,7 +441,7 @@ xcodebuild -project LocalGemma.xcodeproj \
 当前基线：
 
 - 期望结果：`TEST EXECUTE SUCCEEDED`。
-- 当前测试函数数：138。v3.4.1已核对137/137，v3.4.2新增回归须自身云端结果。已核对的 v3.3.1 基线为 `9ccf8b9` / run `38343587295` attempt `1` 的 `131/131 Success`，只证明焦点/构建回归基线；v3.4 新增及视觉修复必须由自己的新 run 验证。
+- 当前测试函数数：138。v3.4.2代码提交`1601bd6` / run `39825340832`已核对138/138，详见文末限定验收记录。已核对的 v3.3.1 基线为 `9ccf8b9` / run `38343587295` attempt `1` 的 `131/131 Success`，只证明焦点/构建回归基线；v3.4 新增及视觉修复必须由自己的新 run 验证。
 
 ### v2.85 / 取消生成占位生命周期
 
@@ -666,3 +666,12 @@ v3.4 `3911a3f` / run `39805938317` attempt `1` 已实际核对137/137 Success、
 新增唯一`testModelArtifactActionsKeepNaturalHeightUnderTallProposals`，总数138。直接使用生产ArtifactActionButton/Panel，公开UIHostingController.sizeThatFits比较600/1400pt提议高度，同宽同字自然高度必须一致，普通字单动作<240pt、panel<350pt（测试合理上限，不作为生产硬上限）；亮暗、146/170/250/360pt、large/xxxLarge/accessibility3、长中英标题副标题和两种动作，Accessibility自然高度须大于普通字。panel还覆盖320pt、从1366−288=1078真实pane进一步推导的控制列宽、760pt；验证动作闭包不执行、validation/deployment不变。
 
 生产只移除Spacer并固定垂直理想尺寸，保留86pt minimum/12pt padding/8pt spacing/两行/44pt和所有动作辅助语义。原137项、严格focus/identity、16模拟器图+12宿主图、OCR/hash来源门禁及三份完整xcresult不减；待新SHA自身云端138项及宽屏亮暗模型图复核。本机仅静态检查。
+
+### v3.4.2 代码验收（2026-10-22）
+
+- 精确代码SHA `1601bd63bd2527e10fd01a44d006d09842299bdc`，run `39825340832` attempt1；完整包`localgemma-ci-v3.4.2-main-1601bd6-run39825340832-attempt1`及同名review包均已实际下载，不是只看workflow绿色。
+- 独立Python/zstd/SQLite读取三份xcresult root均succeeded，Data/refs 3/3、3/3、926/926；138个唯一Success与源码/现代test tree名单匹配，0 failed/skipped。新自然高度测试0.197s、严格focus5.666s、wide宿主26.614s均恰一次Success。JUnit仍8阶段/0 failure/error/1 optional Codex environment skip。
+- 64公共文件字节/hash一致，12附件来源/OCR/PNG尺寸/hash及16模拟器图身份均有效。28图逐项回归比对：2张改变的宽屏模型宿主图和6张有正文像素差异的模拟器图已重新打开；其余10宿主PNG与上一轮亲看图字节完全相同，10模拟器图在仅排除系统状态栏（phone180px/pad60px）后正文像素相同。此为读取新产物做内容比较，不以旧SHA结果替代新测试。
+- 宽屏亮暗模型动作约110pt，图标/文字连续、scan/import紧邻，无原515pt空条；窄屏及readiness自然增长不退化。本轮呈现/布局回归限定PASS，不声称Mac GUI、真机、完整辅助技术、真实推理或签名发布通过。Metal toolchain搜索路径、未依赖AppIntents的metadata及Actions Node版本迁移警告仍有记录，不作虚假清零。
+
+本验收记录是文档-only追加，不改Swift、工程、脚本或workflow。本地仅静态结构/链接/计数与diff检查；没有本地Xcode/Swift/UI执行。文档提交本身仍由main push触发新的完整云端run，结论必须再对齐其精确SHA，不能把上述代码run称作新的文档run。

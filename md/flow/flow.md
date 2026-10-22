@@ -493,3 +493,5 @@ xcresulttool导出结构化summary/tests与原始附件索引，exporter校验12
 v3.4.1 run `39816180114` 的137项及证据修复已核对；新宽屏图暴露动作label竖向Spacer吸收右侧长详情列提议高度。生产链仍是ModelLibraryView双栏左侧ArtifactActionPanel -> 同一HStack两个ArtifactActionButton；仅移除label的竖向Spacer，并在原padding后固定垂直理想尺寸。图标、标题、副标题连续排列，文字自然增长，不设置最大高度，不改86pt minimum、动作/metadata、扫描导入、卸载确认或任何状态。
 
 新增公开sizeThatFits压力回归将源码基线增至138，直接在600/1400pt高度提议下比较同宽同字的生产Button/Panel自然高度，并用真实1078pt pane推导控制列宽。完整云端138项、16全屏图+12宿主图和三份xcresult门禁保持，待本提交自己的结果后复判。
+
+验收绑定代码`1601bd6` / run `39825340832` attempt1：完整结果包核对138/138、三份xcresult及28图回归，模型动作自然高度修复通过。本轮生产流已确认，不代表原生macOS/真实Mac GUI/真实推理或签名发布完成；后续文档提交仍需新run对齐，而不改变这些生产数据流。

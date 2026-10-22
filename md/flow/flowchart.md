@@ -495,5 +495,7 @@ flowchart TD
     %% 只测布局，不调用动作或写入状态
     Height --> Test[公开UIHostingController.sizeThatFits<br/>600/1400pt提议高度一致]
     Test --> Cloud[138项 + 28图 + 三份xcresult<br/>精确SHA云端验收]
+    %% 已验收代码身份不冒充后续main文档提交
+    Cloud --> Accepted[1601bd6 / run39825340832 attempt1<br/>呈现与布局回归限定PASS<br/>不是Mac GUI或发布验收]
     Label -. 不改变 .-> Boundary[44pt / metadata / 本地文件<br/>卸载确认 / runtime verified gate]
 ```

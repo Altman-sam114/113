@@ -483,3 +483,5 @@ v3.4.1 仅改测试/证据和文档，不改生产代码：真实 foreground sce
 ## v3.4.2 模型文件动作自然高度
 
 v3.4.1 `37e3b3b` / run `39816180114` attempt1已核对完整包、137/137、三份xcresult和28图，宿主截图修复通过；新图暴露模型库双栏文件动作卡约515pt过高。v3.4.2只移除`ArtifactActionButton` label中的竖向Spacer，并在padding后使用`.fixedSize(horizontal:false,vertical:true)`让内容报告自然高度；不以固定最大高度/缩字/裁剪解决。86pt minimum、12pt padding、8pt spacing、两行语义文字、44pt、配色/动作/辅助语义、模型双栏/状态/verified均不变。新增公开`UIHostingController.sizeThatFits`压力回归，总计138项；600/1400pt提议不得改变同宽同字自然高度，大字允许增长。所有执行只在云端，仍不新增或启动子智能体。
+
+代码提交`1601bd63bd2527e10fd01a44d006d09842299bdc` / run `39825340832` attempt1的完整包已下载验收：138唯一Success、JUnit8/0失败/1 optional skip、三份xcresult成功，28图回归确认宽屏动作约110pt自然高度。结论仅为v3.4 UI呈现/布局回归PASS；默认模拟runtime、真实Mac GUI/pointer、真机/完整辅助技术及签名发布仍未验收。该结论绑定上述代码SHA，不自动覆盖后续文档或代码提交；后续main仍须对应的新run和产物核对。

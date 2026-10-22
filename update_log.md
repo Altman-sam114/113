@@ -16,7 +16,7 @@
 - 平台：SwiftUI iOS App，Swift 6.0，iOS deployment target 17.0，当前 app/test target 支持 iPhone、iPad 和 Mac Catalyst build-for-testing，并提供项目内 Mac Catalyst 本地 build/run 脚本入口；尚未创建原生 macOS target。
 - 当前默认模型：`Gemma 1.5B Local`
 - 当前推理：本地模拟 runtime，不下载模型权重，不执行真实模型推理。
-- 当前核心测试：`LocalGemmaTests.swift` 中138个XCTest方法；v3.4.1 run `39816180114` 已核对137/137与宿主截图，宽屏模型动作过度拉伸退回v3.4.2，新增自然高度回归须自身云端结果。
+- 当前核心测试：`LocalGemmaTests.swift` 中138个XCTest方法；代码提交`1601bd6` / run `39825340832` attempt1已实际核对138/138和28图回归，v3.4呈现/布局修复限定通过，仍非整产品发布验收。
 - 当前核心文档入口：`AGENTS.md`、`md/flow/flow.md`、`md/flow/flowchart.md`、`md/test/test.md`、`md/prompt/README.md`、`README.md`。
 - 当前协作验证：默认 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载未加密 CI 结果包验收；本地仓库当前已配置 `origin` remote，最终验收仍以最新 `origin/main` 对应的 GitHub Actions run 和结果包为准；文档已预留未来 `agentx:` 主控 Agent A -> Agent B -> Agent C 多轮循环的规则。
 
@@ -4549,4 +4549,13 @@ v3.0 云端 run `36260394187` 的四组布局测试仍沿用旧侧栏宽度，�
 新增唯一自然高度压力测试到138：公开UIHostingController.sizeThatFits，600/1400pt提议，同宽同字高度一致；亮暗/多宽/长中英文/大字增长及真实控制列panel，不执行动作。核心文档同步；原16+12图、三份xcresult和完整云端阶段不变。此提交的构建/138项/宽屏复判以自身云端结果为准，不能沿用v3.4.1通过。默认模拟runtime、Mac GUI/pointer、真机/VoiceOver和签名发布缺口仍未完成。
 
 实际本地检查：`git diff --check`和`bash -n script/build_and_run.sh`退出0；工程`plutil -lint`为OK；Ruby workflow YAML解析为yaml ok（既有PATH权限警告）；Python脚本AST、138唯一方法/只新增指定1项、文档fence/版本及生产保护文件范围检查通过。未本机编译或运行UI。
+
+## v3.4.2 代码云端验收通过（2026-10-22，限定UI回归）
+
+- 代码提交`1601bd63bd2527e10fd01a44d006d09842299bdc`，run `39825340832` attempt1，所有必选阶段成功、耗时9m14s。完整artifact `localgemma-ci-v3.4.2-main-1601bd6-run39825340832-attempt1`与同名review包已下载；API digest分别`881c6272cc5b14fd6e2232e1d0ca1ceb60aa4c68efa3d11e6dfc933acb2274f1`、`ac4ef056c259c014dcb2b8ac3ab9340c9dd8592a6ff621a3010b486ec5408bfb`（不冒称独立原ZIP hash验真）。
+- 纯Python/zstd/SQLite独立核对138个唯一Success匹配源码/test tree，三份xcresult root succeeded、Data/refs 3/3、3/3、926/926；JUnit8/0 failure/error/1 optional skip，64公共文件字节相同。自然高度新测试0.197s、严格focus5.666s、wide截图26.614s各Success一次，未弱化或重试测试。
+- 28图做新产物回归：2张改变的wide模型图、6张正文有差异的模拟器图已打开；10宿主PNG与此前亲看图字节一致，10模拟器正文在排除系统状态栏后像素一致。宽屏动作约110pt、图标文字成组、扫描导入紧邻，原515pt空条解除；readiness和其他页不退化。原始包、图和明确比较方式的验收记录位于`/private/tmp/localgemma-c-review-39825340832/`。
+- 结论：v3.4呈现/布局回归限定PASS；整体目标继续，不宣称发布就绪。默认模拟runtime、Mac GUI/pointer、真机/VoiceOver/实际系统辅助组合、签名分发仍未验证。runner Metal搜索路径/AppIntents metadata、Actions Node迁移/arm64容量提示是残余，不写成warning-free。
+
+本次追加验收只改文档；未改变Swift/工程/脚本/workflow。本地仅做diff/文档结构链接/138计数及必要静态检查，不执行编译/UI。该文档提交仍要触发并核对自身云端run；本节代码验收身份不自动变成后续main的验收身份。
 - 不改 AppState/LocalGemmaApp/ComposerBar、模型文件/下载/推理门禁或 AITRANS。真实推理、Mac GUI/pointer、真机/完整辅助技术和签名发布仍是残余缺口。
