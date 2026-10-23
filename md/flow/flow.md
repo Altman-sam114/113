@@ -503,3 +503,10 @@ v3.4.1 run `39816180114` 的137项及证据修复已核对；新宽屏图暴露�
 `SettingsSectionsShell` 只切换AnyLayout算法，两个直接子节点始终同序；不重建PhotosPicker或运行策略控件。双栏中无状态的主题/壁纸缩略示意禁用命中且隐藏辅助树，窄宽不展示，不改照片数据；静态本地说明不读取或猜测runtime。外观和readiness panel都从各自真实列宽扣除28pt，而不是继续用整个页面宽度。
 
 `SettingsRuntimeSection -> OptimizerMetricGrid / OptimizationToggleGrid` 明确传入实际列宽，直接按共享policy选列数；toggle先扣自身panel padding再使用510pt阈值，dashboard同步同一API。optimizer状态、顺序、metadata、44pt与模型verified gate均不变。新增3项到141，宽屏provenance/exporter锁住1042/320/24/698；保留16+12图和全部云端门禁，未本机运行Swift或UI。
+
+
+## v3.5.1 焦点测试宿主窗口就绪（2026-10-23，待自身云端验收）
+
+v3.5 `a28ac41` / run `39885347849` attempt1 的结果包为140/141成功，唯一失败是首次composer request已消费但实际UITextInput未聚焦；设置三项新增测试、iOS/Catalyst构建及28图成功，整轮退回。测试宿主由600x120pt改用已有foreground scene的真实bounds，先以普通container建立key/visible窗口，再以公开child containment挂载带预存request的原生产ComposerBar；内容随可用宽度收缩、最多560pt。保持2秒有界条件、首次/离页/重进严格first-responder及清理断言，增加窗口与宿主尺寸诊断，不改生产同步焦点、设置状态或runtime/verified边界。
+
+单Agent串行，无子智能体；本地仅diff/工程/YAML/结构检查，141项及全部构建运行截图只交GitHub Actions。最新SHA自身manifest、JUnit、完整三份xcresult和28图须复判，不提前宣称通过或发布就绪。

@@ -4574,3 +4574,10 @@ v3.0 云端 run `36260394187` 的四组布局测试仍沿用旧侧栏宽度，�
 关键文件：`SettingsSections.swift`、`SettingsWorkspace.swift`、工程source注册、`LocalGemmaTests.swift`、`Tools/export_workbench_evidence.py`和核心文档。本地仅静态轻量检查，实际命令结果在提交前追加；本轮所有Swift/构建/测试/截图仍只在云端。预存六份未跟踪prompt不修改、不提交；AITRANS只读参考AppTheme语义token/间距，无修改。默认模拟runtime、Mac GUI/pointer、真机/完整辅助技术、真实推理与签名发布仍是明确缺口。
 
 实际本地检查：`git diff --check`、`bash -n script/build_and_run.sh`退出0；`plutil -lint LocalGemma.xcodeproj/project.pbxproj`为OK；Ruby YAML为yaml ok（既有PATH world-writable警告）。Python AST、141唯一测试/保留原138名称、8份文档版本/fence/链接、新文件target注册、6份预存prompt SHA-256及状态/runtime/focus/其他工作区/theme/workflow保护范围检查通过。没有运行本地Swift、Xcode或UI；完整云端结果未预写。
+
+
+## v3.5.1 焦点测试宿主窗口就绪（2026-10-23，待自身云端验收）
+
+v3.5 `a28ac41` / run `39885347849` attempt1 的结果包为140/141成功，唯一失败是首次composer request已消费但实际UITextInput未聚焦；设置三项新增测试、iOS/Catalyst构建及28图成功，整轮退回。测试宿主由600x120pt改用已有foreground scene的真实bounds，先以普通container建立key/visible窗口，再以公开child containment挂载带预存request的原生产ComposerBar；内容随可用宽度收缩、最多560pt。保持2秒有界条件、首次/离页/重进严格first-responder及清理断言，增加窗口与宿主尺寸诊断，不改生产同步焦点、设置状态或runtime/verified边界。
+
+单Agent串行，无子智能体；本地仅diff/工程/YAML/结构检查，141项及全部构建运行截图只交GitHub Actions。最新SHA自身manifest、JUnit、完整三份xcresult和28图须复判，不提前宣称通过或发布就绪。

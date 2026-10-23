@@ -687,3 +687,10 @@ v3.4 `3911a3f` / run `39805938317` attempt `1` 已实际核对137/137 Success、
 宽屏宿主仍为真实1078×1024pt，设置provenance与exporter新增columns/1042/320/24/698守恒门禁；同一28图、OCR/hash、三份完整xcresult、JUnit8阶段及review小包不减。本轮云端要实际核对设置亮暗双栏、iPhone与iPad窄pane单栏、大字不裁剪和运行开关完整可达，不以尺寸或OCR单独宣布视觉通过。宿主图不是Mac GUI。
 
 本地只跑diff/plutil/YAML/bash-n/Python AST、141唯一方法/文档链接/fence/预存prompt hash和范围检查；不运行Swift/Probe/Fast、Xcode、XCTest、Simulator、ImageRenderer、Vision或Catalyst。完整执行及本轮图片验收等待本提交自己的main云端run。
+
+
+## v3.5.1 焦点测试宿主窗口就绪（2026-10-23，待自身云端验收）
+
+v3.5 `a28ac41` / run `39885347849` attempt1 的结果包为140/141成功，唯一失败是首次composer request已消费但实际UITextInput未聚焦；设置三项新增测试、iOS/Catalyst构建及28图成功，整轮退回。测试宿主由600x120pt改用已有foreground scene的真实bounds，先以普通container建立key/visible窗口，再以公开child containment挂载带预存request的原生产ComposerBar；内容随可用宽度收缩、最多560pt。保持2秒有界条件、首次/离页/重进严格first-responder及清理断言，增加窗口与宿主尺寸诊断，不改生产同步焦点、设置状态或runtime/verified边界。
+
+单Agent串行，无子智能体；本地仅diff/工程/YAML/结构检查，141项及全部构建运行截图只交GitHub Actions。最新SHA自身manifest、JUnit、完整三份xcresult和28图须复判，不提前宣称通过或发布就绪。

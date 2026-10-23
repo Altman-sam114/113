@@ -4673,10 +4673,16 @@ final class LocalGemmaTests: XCTestCase {
         let controller = ComposerFocusHostingController(
             rootView: ComposerFocusLifecycleHarness(store: focusStore)
         )
+        let container = UIViewController()
         let window = UIWindow(windowScene: scene)
-        window.frame = CGRect(x: 0, y: 0, width: 600, height: 120)
+        window.frame = scene.coordinateSpace.bounds
+        window.rootViewController = container
+        container.loadViewIfNeeded()
         defer {
             window.endEditing(true)
+            controller.willMove(toParent: nil)
+            controller.view.removeFromSuperview()
+            controller.removeFromParent()
             window.isHidden = true
             window.rootViewController = nil
             originalKeyWindow.makeKey()
@@ -4691,12 +4697,25 @@ final class LocalGemmaTests: XCTestCase {
         let diagnostic: @MainActor () -> String = {
             "scene=\(scene.activationState), key=\(window.isKeyWindow), hidden=\(window.isHidden), "
                 + "attached=\(controller.view.window === window), appeared=\(controller.hasAppeared), "
+                + "windowFrame=\(window.frame), hostBounds=\(controller.view.bounds), "
                 + "active=\(focusStore.isChatActive), request=\(focusStore.focusRequest), "
                 + "responder=\(self.firstResponder(in: controller.view) != nil), "
                 + "textInput=\(self.firstResponder(in: controller.view) is any UITextInput)"
         }
-        window.rootViewController = controller
         window.makeKeyAndVisible()
+        // Mount the pending request only after a full-size scene window can accept focus.
+        container.addChild(controller)
+        controller.view.translatesAutoresizingMaskIntoConstraints = false
+        container.view.addSubview(controller.view)
+        NSLayoutConstraint.activate([
+            controller.view.leadingAnchor.constraint(equalTo: container.view.leadingAnchor),
+            controller.view.trailingAnchor.constraint(equalTo: container.view.trailingAnchor),
+            controller.view.topAnchor.constraint(equalTo: container.view.topAnchor),
+            controller.view.bottomAnchor.constraint(equalTo: container.view.bottomAnchor)
+        ])
+        controller.didMove(toParent: container)
+        container.view.setNeedsLayout()
+        container.view.layoutIfNeeded()
         controller.view.setNeedsLayout()
         controller.view.layoutIfNeeded()
 
@@ -8730,6 +8749,7 @@ private struct ComposerFocusLifecycleHarness: View {
             send: {},
             stop: {}
         )
-        .frame(width: 560)
+        .frame(maxWidth: 560)
+        .padding(.horizontal, 18)
     }
 }

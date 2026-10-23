@@ -494,3 +494,10 @@ v3.4.1 `37e3b3b` / run `39816180114` attempt1已核对完整包、137/137、三�
 `SettingsSections.swift` 加入app target并集中纯值plan、稳定shell、外观/芯片生产section。真实1078pt pane得到1042pt内容、320pt偏好、24pt间距和698pt运行计划；普通字号882pt内容/918pt pane开始双栏，`.xxxLarge`及以上单栏。双栏偏好区增加无命中、辅助树隐藏的当前主题/壁纸缩略示意；本地图片说明不暗示云端服务。PhotosPicker/导入中/错误状态仍归原SettingsWorkspace，44pt和metadata不变。指标与策略grid改用明确实际宽度，toggle扣panel padding，dashboard同步调用。
 
 新增阈值/大字、双节点identity、真实section自然高度3项至141，宽屏provenance/exporter锁住设置真实列宽；原28图、严格focus/identity、8阶段、三份完整xcresult均保留。所有Swift/构建/测试/图片只在云端；本地仅静态检查。尚未接真实runtime、原生macOS、Mac GUI/pointer或签名发布，不宣称发布就绪。
+
+
+## v3.5.1 焦点测试宿主窗口就绪（2026-10-23，待自身云端验收）
+
+v3.5 `a28ac41` / run `39885347849` attempt1 的结果包为140/141成功，唯一失败是首次composer request已消费但实际UITextInput未聚焦；设置三项新增测试、iOS/Catalyst构建及28图成功，整轮退回。测试宿主由600x120pt改用已有foreground scene的真实bounds，先以普通container建立key/visible窗口，再以公开child containment挂载带预存request的原生产ComposerBar；内容随可用宽度收缩、最多560pt。保持2秒有界条件、首次/离页/重进严格first-responder及清理断言，增加窗口与宿主尺寸诊断，不改生产同步焦点、设置状态或runtime/verified边界。
+
+单Agent串行，无子智能体；本地仅diff/工程/YAML/结构检查，141项及全部构建运行截图只交GitHub Actions。最新SHA自身manifest、JUnit、完整三份xcresult和28图须复判，不提前宣称通过或发布就绪。

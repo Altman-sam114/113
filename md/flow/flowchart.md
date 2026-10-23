@@ -522,3 +522,22 @@ flowchart TD
     %% 所有执行只在云端，本机仅静态检查
     Shell --> Cloud[141项 + 16模拟器图 + 12宿主图<br/>三份xcresult / 精确SHA验收]
 ```
+
+
+## v3.5.1 焦点宿主顺序
+
+读图说明：首次request仍在挂载前存在，改变的是公开测试窗口的尺寸和就绪顺序；生产同步焦点不新增延迟。
+
+```mermaid
+flowchart TD
+    %% 测试窗口先以真实场景尺寸接受焦点
+    Scene[已有foreground scene] --> Key[真实bounds窗口 + container先key/visible]
+    Key --> Mount[公开child containment挂载原ComposerBar
+预存pending request仍在]
+    %% 只观察生产同步焦点，不代替其设置first responder
+    Mount --> Focus[同步onAppear消费request
+严格观察真实UITextInput]
+    Focus --> Lifecycle[离页清焦点和request / 重进再次聚焦]
+    Lifecycle --> Cleanup[移除child和window / 恢复原key window]
+    Cleanup --> Cloud[云端141项 + 三份xcresult + 28图复判]
+```

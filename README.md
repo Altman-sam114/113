@@ -681,3 +681,10 @@ v3.3 云端 run `36314940076` 的 131 项 XCTest 中 130 通过、1 失败：输
 ### v3.3.1 限定基线已核对（2026-10-22）
 
 Agent C 已实际下载 `9ccf8b91a25c90242cd733a2da6cb3e4230844fa` 对应 run `38343587295` attempt `1` 的完整 artifact `localgemma-ci-v3.3.1-main-9ccf8b9-run38343587295-attempt1`，核对 ZIP/API SHA-256、manifest、JUnit 8 阶段、131 个唯一结构化 Success（含严格焦点测试恰一次成功）、三份 xcresult 和 16 张生产图。结论仅为焦点/构建回归基线 PASS；图中发现的 iPhone readiness 越界是 v3.4 必修，不能写成整产品视觉或发布 PASS。v3.4 仍需自己的最新 SHA/run/产物验收。
+
+
+## v3.5.1 焦点测试宿主窗口就绪（2026-10-23，待自身云端验收）
+
+v3.5 `a28ac41` / run `39885347849` attempt1 的结果包为140/141成功，唯一失败是首次composer request已消费但实际UITextInput未聚焦；设置三项新增测试、iOS/Catalyst构建及28图成功，整轮退回。测试宿主由600x120pt改用已有foreground scene的真实bounds，先以普通container建立key/visible窗口，再以公开child containment挂载带预存request的原生产ComposerBar；内容随可用宽度收缩、最多560pt。保持2秒有界条件、首次/离页/重进严格first-responder及清理断言，增加窗口与宿主尺寸诊断，不改生产同步焦点、设置状态或runtime/verified边界。
+
+单Agent串行，无子智能体；本地仅diff/工程/YAML/结构检查，141项及全部构建运行截图只交GitHub Actions。最新SHA自身manifest、JUnit、完整三份xcresult和28图须复判，不提前宣称通过或发布就绪。
