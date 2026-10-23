@@ -16,7 +16,7 @@
 - 平台：SwiftUI iOS App，Swift 6.0，iOS deployment target 17.0，当前 app/test target 支持 iPhone、iPad 和 Mac Catalyst build-for-testing，并提供项目内 Mac Catalyst 本地 build/run 脚本入口；尚未创建原生 macOS target。
 - 当前默认模型：`Gemma 1.5B Local`
 - 当前推理：本地模拟 runtime，不下载模型权重，不执行真实模型推理。
-- 当前核心测试：`LocalGemmaTests.swift` 中138个XCTest方法；代码提交`1601bd6` / run `39825340832` attempt1已实际核对138/138和28图回归，v3.4呈现/布局修复限定通过，仍非整产品发布验收。
+- 当前核心测试：`LocalGemmaTests.swift` 中141个XCTest方法；实施基线`fc3d4a9` / run `39830013497` attempt1已实际核对138/138及完整结果包。v3.5设置自适应双栏和新增3项等待自身云端验收，仍非整产品发布验收。
 - 当前核心文档入口：`AGENTS.md`、`md/flow/flow.md`、`md/flow/flowchart.md`、`md/test/test.md`、`md/prompt/README.md`、`README.md`。
 - 当前协作验证：默认 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载未加密 CI 结果包验收；本地仓库当前已配置 `origin` remote，最终验收仍以最新 `origin/main` 对应的 GitHub Actions run 和结果包为准；文档已预留未来 `agentx:` 主控 Agent A -> Agent B -> Agent C 多轮循环的规则。
 
@@ -4559,3 +4559,18 @@ v3.0 云端 run `36260394187` 的四组布局测试仍沿用旧侧栏宽度，�
 
 本次追加验收只改文档；未改变Swift/工程/脚本/workflow。本地仅做diff/文档结构链接/138计数及必要静态检查，不执行编译/UI。该文档提交仍要触发并核对自身云端run；本节代码验收身份不自动变成后续main的验收身份。
 - 不改 AppState/LocalGemmaApp/ComposerBar、模型文件/下载/推理门禁或 AITRANS。真实推理、Mac GUI/pointer、真机/完整辅助技术和签名发布仍是残余缺口。
+
+## v3.5 / 自适应设置工作台（2026-10-23，云端待验收）
+
+同一Agent串行执行A/B/C职责，不开启子智能体。A提示词：`md/prompt/v3（工作台重构）/v3.5（设置工作台自适应双栏）.md`。本轮前已同步main/origin/main，活动GitHub账号为Altman-sam114。`fc3d4a9` / run `39830013497` attempt1完整包已下载到`/private/tmp/localgemma-c-review-39830013497/full`，独立Python/zstd/SQLite核对138唯一Success、JUnit8/0失败/1 optional skip、三份xcresult成功（3/3、3/3、1068/1068）及28图身份；设置实际图中的长单列是优化依据，不把它写成发布验收。
+
+核心变更：
+
+- 新增并注册`SettingsSections.swift`，按真实pane与DynamicTypeSize构建纯值plan；普通字号内容达到882pt后，320pt偏好与至少538pt运行计划并列，24pt间距、1104pt整体上限。538从toggle510内容+28panel padding派生。窄宽或xxxLarge以上仍为最多760pt单栏，1078pt真实pane对应1042/320/24/698。
+- 稳定AnyLayout始终保留preferences/runtime两个同序节点；父级继续拥有PhotosPicker/导入中/错误状态。双栏偏好区加入当前主题/壁纸缩略示意，装饰禁用命中且隐藏辅助树；所有原动作、44pt、语义和照片状态流不变。
+- 共享指标/策略grid明确接收真实宽度，不再使用多个ViewThatFits网格；toggle先扣panel padding，dashboard同步调用。readiness按运行列真实宽度自然报高，不改optimizer、模型、focus、runtime或verified门禁。
+- 新增3项测试至141，覆盖全字号/非法宽度/阈值守恒、跨布局两节点身份与真实section自然高度/大字增长/状态不变；宽屏provenance/exporter新增真实设置列宽门禁。原28图、严格focus/identity、三份xcresult与8阶段均保留。
+
+关键文件：`SettingsSections.swift`、`SettingsWorkspace.swift`、工程source注册、`LocalGemmaTests.swift`、`Tools/export_workbench_evidence.py`和核心文档。本地仅静态轻量检查，实际命令结果在提交前追加；本轮所有Swift/构建/测试/截图仍只在云端。预存六份未跟踪prompt不修改、不提交；AITRANS只读参考AppTheme语义token/间距，无修改。默认模拟runtime、Mac GUI/pointer、真机/完整辅助技术、真实推理与签名发布仍是明确缺口。
+
+实际本地检查：`git diff --check`、`bash -n script/build_and_run.sh`退出0；`plutil -lint LocalGemma.xcodeproj/project.pbxproj`为OK；Ruby YAML为yaml ok（既有PATH world-writable警告）。Python AST、141唯一测试/保留原138名称、8份文档版本/fence/链接、新文件target注册、6份预存prompt SHA-256及状态/runtime/focus/其他工作区/theme/workflow保护范围检查通过。没有运行本地Swift、Xcode或UI；完整云端结果未预写。

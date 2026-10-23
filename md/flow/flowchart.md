@@ -499,3 +499,26 @@ flowchart TD
     Cloud --> Accepted[1601bd6 / run39825340832 attempt1<br/>呈现与布局回归限定PASS<br/>不是Mac GUI或发布验收]
     Label -. 不改变 .-> Boundary[44pt / metadata / 本地文件<br/>卸载确认 / runtime verified gate]
 ```
+
+## v3.5 设置页双栏与自然回退
+
+读图说明：设置页只使用根侧栏之后的真实pane，不建立第二套根断点；两块生产section在同一个shell中切换布局算法，状态与动作不变。宽屏图仍须实际复核，不以宽度断言替代人眼。
+
+```mermaid
+flowchart TD
+    %% 根侧栏先分配，设置页再扣自己的padding
+    Pane[真实workspace pane] --> Width[扣左右各18pt page padding]
+    Width --> Choice{内容至少882pt<br/>且字号小于xxxLarge?}
+    Choice -- 是 --> Columns[320pt偏好 + 24pt间距 + 运行计划<br/>运行列538至760pt / 整体最多1104pt]
+    Choice -- 否 --> Stacked[同序单栏 / 最多760pt<br/>大字自然垂直增长]
+    %% 两个直接子节点固定，只改变AnyLayout算法
+    Columns --> Shell[同一个SettingsSectionsShell<br/>preferences + runtime身份保持]
+    Stacked --> Shell
+    Shell --> Preferences[相册binding / 导入中 / 错误仍归父级<br/>原主题与清除动作 / 44pt和metadata]
+    Shell --> Runtime[真实运行列宽传给readiness与grid]
+    %% panel内容宽度不能冒充外框宽度
+    Runtime --> Grid[toggle扣28pt panel padding<br/>510pt内容阈值 / 指标350pt阈值]
+    Grid --> State[原DeviceOptimizer状态流<br/>不启动runtime或联网]
+    %% 所有执行只在云端，本机仅静态检查
+    Shell --> Cloud[141项 + 16模拟器图 + 12宿主图<br/>三份xcresult / 精确SHA验收]
+```

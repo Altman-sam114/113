@@ -7,6 +7,139 @@ import XCTest
 
 @MainActor
 final class LocalGemmaTests: XCTestCase {
+    func testSettingsWorkspaceColumnsUseRealPaneWidthAndDynamicType() {
+        XCTAssertEqual(SettingsSectionsLayoutPolicy.preferenceColumnWidth, 320)
+        XCTAssertEqual(SettingsSectionsLayoutPolicy.columnSpacing, 24)
+        XCTAssertEqual(SettingsSectionsLayoutPolicy.minimumRuntimeColumnWidth, 538)
+        XCTAssertEqual(SettingsSectionsLayoutPolicy.columnsThreshold, 882)
+        XCTAssertEqual(SettingsSectionsLayoutPolicy.maximumContentWidth, 1_104)
+        for size in DynamicTypeSize.allCases {
+            for width: CGFloat in [0, -1, .nan, .infinity, -.infinity, 284, 760, 881.99, 882, 1_042, 4_000] {
+                let plan = SettingsSectionsLayoutPolicy.resolve(contentWidth: width, dynamicTypeSize: size)
+                let finiteWidth = width.isFinite && width > 0 ? width : 0
+                let expectsColumns = finiteWidth >= 882 && size < .xxxLarge
+                XCTAssertEqual(plan.mode, expectsColumns ? .columns : .stacked)
+                XCTAssertTrue(plan.contentWidth.isFinite && plan.preferenceWidth.isFinite && plan.runtimeWidth.isFinite)
+                XCTAssertGreaterThanOrEqual(plan.contentWidth, 0)
+                XCTAssertLessThanOrEqual(plan.contentWidth, finiteWidth)
+                if expectsColumns {
+                    XCTAssertEqual(plan.preferenceWidth, 320)
+                    XCTAssertGreaterThanOrEqual(plan.runtimeWidth, 538)
+                    XCTAssertLessThanOrEqual(plan.runtimeWidth, 760)
+                    XCTAssertEqual(plan.preferenceWidth + 24 + plan.runtimeWidth, plan.contentWidth, accuracy: 0.001)
+                    XCTAssertEqual(OptimizationToggleGridLayoutPolicy.columnCount(
+                        for: plan.runtimeWidth - WorkbenchVisualStylePolicy.panelPadding * 2
+                    ), 2)
+                } else {
+                    XCTAssertLessThanOrEqual(plan.contentWidth, 760)
+                    XCTAssertEqual(plan.preferenceWidth, plan.contentWidth)
+                    XCTAssertEqual(plan.runtimeWidth, plan.contentWidth)
+                }
+                XCTAssertEqual(plan, SettingsSectionsLayoutPolicy.resolve(contentWidth: width, dynamicTypeSize: size))
+            }
+        }
+        XCTAssertEqual(SettingsWorkspaceLayoutPolicy.resolve(forContainerWidth: 917.99, dynamicTypeSize: .large).mode, .stacked)
+        XCTAssertEqual(SettingsWorkspaceLayoutPolicy.resolve(forContainerWidth: 918, dynamicTypeSize: .large).mode, .columns)
+        let rootWidth: CGFloat = 1_366
+        let root = WorkspaceRootLayoutPolicy.resolve(for: CGSize(width: rootWidth, height: 1_024))
+        let plan = SettingsWorkspaceLayoutPolicy.resolve(forContainerWidth: rootWidth - root.sidebarWidth, dynamicTypeSize: .large)
+        XCTAssertEqual(plan.contentWidth, 1_042)
+        XCTAssertEqual(plan.runtimeWidth, 698)
+        XCTAssertEqual(plan.preferenceWidth - WorkbenchVisualStylePolicy.panelPadding * 2, 292)
+        XCTAssertEqual(SettingsWorkspaceLayoutPolicy.resolve(forContainerWidth: 1_078, dynamicTypeSize: .xxxLarge).contentWidth, 760)
+    }
+
+    func testSettingsSectionsShellPreservesBothSectionIdentities() async throws {
+        let inputs: [(CGFloat, DynamicTypeSize)] = [
+            (320, .large), (1_078, .large), (1_400, .large), (1_400, .xxxLarge),
+            (918, .large), (917.99, .large), (1_078, .large), (320, .accessibility3)
+        ]
+        let plans = inputs.map { SettingsWorkspaceLayoutPolicy.resolve(forContainerWidth: $0.0, dynamicTypeSize: $0.1) }
+        let store = SettingsSectionsPlanStore(plan: plans[0])
+        let recorder = SettingsSectionsIdentityRecorder()
+        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+            .first { $0.activationState == .foregroundActive })
+        let originalKeyWindow = try XCTUnwrap(scene.windows.first(where: \.isKeyWindow))
+        let controller = UIHostingController(rootView: SettingsSectionsIdentityHarness(store: store, recorder: recorder))
+        let window = UIWindow(windowScene: scene)
+        window.frame = scene.coordinateSpace.bounds
+        window.rootViewController = controller
+        defer {
+            window.endEditing(true)
+            window.isHidden = true
+            window.rootViewController = nil
+            originalKeyWindow.makeKey()
+            XCTAssertNil(controller.view.window)
+            XCTAssertTrue(originalKeyWindow.isKeyWindow)
+        }
+        window.makeKeyAndVisible()
+        for plan in plans {
+            store.plan = plan
+            controller.view.setNeedsLayout()
+            controller.view.layoutIfNeeded()
+            let observed = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+                MainActor.assumeIsolated {
+                    ["preferences", "runtime"].allSatisfy { recorder.observations[$0]?.last?.plan == plan }
+                }
+            }, object: nil)
+            let result = await XCTWaiter.fulfillment(of: [observed], timeout: 3)
+            XCTAssertEqual(result, .completed, "Settings section identity update missing for \(plan)")
+        }
+        for role in ["preferences", "runtime"] {
+            let observations = try XCTUnwrap(recorder.observations[role])
+            XCTAssertEqual(observations.map(\.plan), plans)
+            XCTAssertEqual(Set(observations.map(\.token)).count, 1)
+            XCTAssertEqual(recorder.appearances[role], 1)
+            XCTAssertNil(recorder.disappearances[role])
+        }
+    }
+
+    func testSettingsSectionsReportNaturalHeightAndPreserveLocalState() {
+        let optimizer = DeviceOptimizer()
+        let initialSwitches = optimizer.switches
+        let initialReadiness = optimizer.deploymentReadiness
+        var actionCount = 0
+        func measure(_ view: AnyView, width: CGFloat, textSize: DynamicTypeSize, themeMode: AppThemeMode) -> CGSize {
+            let controller = UIHostingController(rootView: view
+                .environmentObject(optimizer)
+                .environment(\.appTheme, AppThemePalette(mode: themeMode))
+                .environment(\.colorScheme, themeMode.colorScheme)
+                .environment(\.dynamicTypeSize, textSize)
+                .frame(width: width))
+            controller.loadViewIfNeeded()
+            let first = controller.sizeThatFits(in: CGSize(width: width, height: 600))
+            let second = controller.sizeThatFits(in: CGSize(width: width, height: 1_800))
+            XCTAssertTrue(first.width.isFinite && first.height.isFinite)
+            XCTAssertEqual(first.width, width, accuracy: 1)
+            XCTAssertGreaterThan(first.height, 0)
+            XCTAssertEqual(first.height, second.height, accuracy: 1, "Natural settings height depends on a tall proposal")
+            return first
+        }
+        for themeMode in AppThemeMode.allCases {
+            for width: CGFloat in [284, 320, 538, 698, 760] {
+                var heights: [CGFloat] = []
+                for textSize in [DynamicTypeSize.large, .xxxLarge, .accessibility3] {
+                    for isImporting in [false, true] {
+                        let appearance = AnyView(SettingsAppearanceSection(
+                            themeMode: themeMode, wallpaperData: Data(), selectedItem: .constant(nil),
+                            isImporting: isImporting, availableWidth: width, showsPreview: width == 320,
+                            toggleTheme: { actionCount += 1 }, clearWallpaper: { actionCount += 1 }
+                        ))
+                        _ = measure(appearance, width: width, textSize: textSize, themeMode: themeMode)
+                    }
+                    let size = measure(AnyView(SettingsRuntimeSection(availableWidth: width)),
+                                       width: width, textSize: textSize, themeMode: themeMode)
+                    heights.append(size.height)
+                }
+                XCTAssertGreaterThan(heights[2], heights[0], "Larger text must grow the actual runtime section")
+            }
+        }
+        XCTAssertEqual(actionCount, 0)
+        XCTAssertEqual(optimizer.switches, initialSwitches)
+        XCTAssertEqual(optimizer.deploymentReadiness, initialReadiness)
+        XCTAssertGreaterThanOrEqual(SettingsIconActionLayoutPolicy.iconButtonSize, 44)
+    }
+
     func testWorkbenchChatPresentationPreservesSessionAndExportData() {
         let inference = InferenceEngine()
         let originalMessages = inference.messages
@@ -389,7 +522,7 @@ final class LocalGemmaTests: XCTestCase {
                     workbenchNormalizedText(recognizedText).contains(workbenchNormalizedText(marker)),
                     "Missing production content in \(attachmentName). OCR: \(recognizedText)"
                 )
-                evidence.append([
+                var capture: [String: Any] = [
                     "attachmentName": attachmentName,
                     "evidenceKind": "uihostingcontroller-production-view",
                     "captureMethod": "UIView.drawHierarchy",
@@ -408,7 +541,17 @@ final class LocalGemmaTests: XCTestCase {
                     "chatLayoutMode": "split",
                     "imageWidth": Double(image.size.width),
                     "imageHeight": Double(image.size.height)
-                ])
+                ]
+                if workspace == .settings {
+                    let settingsPlan = SettingsWorkspaceLayoutPolicy.resolve(forContainerWidth: paneWidth, dynamicTypeSize: .large)
+                    XCTAssertEqual(settingsPlan.mode, .columns)
+                    capture["settingsLayoutMode"] = "columns"
+                    capture["settingsContentWidth"] = Double(settingsPlan.contentWidth)
+                    capture["settingsPreferenceWidth"] = Double(settingsPlan.preferenceWidth)
+                    capture["settingsRuntimeWidth"] = Double(settingsPlan.runtimeWidth)
+                    capture["settingsColumnSpacing"] = Double(SettingsSectionsLayoutPolicy.columnSpacing)
+                }
+                evidence.append(capture)
             }
         }
         XCTAssertEqual(inference.sessions, originalSessions)
@@ -1523,7 +1666,7 @@ final class LocalGemmaTests: XCTestCase {
 
         for width in [CGFloat(250), OptimizationToggleGridLayoutPolicy.twoColumnThreshold + 28] {
             let renderer = ImageRenderer(
-                content: OptimizationToggleGrid(items: initialSwitches, toggle: { _ in })
+                content: OptimizationToggleGrid(items: initialSwitches, availableWidth: width, toggle: { _ in })
                     .environment(\.appTheme, AppThemePalette(mode: .light))
                     .environment(\.colorScheme, .light)
                     .environment(\.dynamicTypeSize, .large)
@@ -7889,7 +8032,7 @@ final class LocalGemmaTests: XCTestCase {
     func testSettingsWorkspaceLayoutPolicyConstrainsWideSettingsContent() {
         XCTAssertEqual(SettingsWorkspaceLayoutPolicy.horizontalPadding, 18)
         XCTAssertEqual(SettingsWorkspaceLayoutPolicy.minimumReadableWidth, 320)
-        XCTAssertEqual(SettingsWorkspaceLayoutPolicy.maximumContentWidth, 760)
+        XCTAssertEqual(SettingsWorkspaceLayoutPolicy.maximumContentWidth, 1_104)
         XCTAssertGreaterThanOrEqual(
             SettingsWorkspaceLayoutPolicy.maximumContentWidth,
             OptimizationToggleGridLayoutPolicy.twoColumnThreshold
@@ -7902,7 +8045,7 @@ final class LocalGemmaTests: XCTestCase {
         XCTAssertEqual(SettingsWorkspaceLayoutPolicy.contentWidth(forContainerWidth: 320), 284)
         XCTAssertEqual(SettingsWorkspaceLayoutPolicy.contentWidth(forContainerWidth: 390), 354)
         XCTAssertEqual(SettingsWorkspaceLayoutPolicy.contentWidth(forContainerWidth: 834), 760)
-        XCTAssertEqual(SettingsWorkspaceLayoutPolicy.contentWidth(forContainerWidth: 1_200), 760)
+        XCTAssertEqual(SettingsWorkspaceLayoutPolicy.contentWidth(forContainerWidth: 1_200), 1_104)
         XCTAssertEqual(SettingsWorkspaceLayoutPolicy.contentWidth(forContainerWidth: -1), 320)
         XCTAssertEqual(SettingsWorkspaceLayoutPolicy.contentWidth(forContainerWidth: .nan), 320)
     }
@@ -8273,6 +8416,61 @@ final class LocalGemmaTests: XCTestCase {
             accessibilityImage?.size.height ?? 0,
             largeImage?.size.height ?? 0
         )
+    }
+}
+
+@MainActor
+private final class SettingsSectionsPlanStore: ObservableObject {
+    @Published var plan: SettingsSectionsLayoutPlan
+
+    init(plan: SettingsSectionsLayoutPlan) {
+        self.plan = plan
+    }
+}
+
+@MainActor
+private final class SettingsSectionsIdentityRecorder {
+    struct Observation {
+        let token: UUID
+        let plan: SettingsSectionsLayoutPlan
+    }
+
+    var observations: [String: [Observation]] = [:]
+    var appearances: [String: Int] = [:]
+    var disappearances: [String: Int] = [:]
+
+    func record(role: String, token: UUID, plan: SettingsSectionsLayoutPlan, isAppearance: Bool) {
+        observations[role, default: []].append(Observation(token: token, plan: plan))
+        if isAppearance { appearances[role, default: 0] += 1 }
+    }
+}
+
+private struct SettingsSectionsIdentityHarness: View {
+    @ObservedObject var store: SettingsSectionsPlanStore
+    let recorder: SettingsSectionsIdentityRecorder
+
+    var body: some View {
+        SettingsSectionsShell(plan: store.plan) {
+            SettingsSectionIdentityProbe(role: "preferences", plan: store.plan, recorder: recorder)
+        } runtime: {
+            SettingsSectionIdentityProbe(role: "runtime", plan: store.plan, recorder: recorder)
+        }
+    }
+}
+
+private struct SettingsSectionIdentityProbe: View {
+    @State private var token = UUID()
+    let role: String
+    let plan: SettingsSectionsLayoutPlan
+    let recorder: SettingsSectionsIdentityRecorder
+
+    var body: some View {
+        Color.clear.frame(height: 44)
+            .onAppear { recorder.record(role: role, token: token, plan: plan, isAppearance: true) }
+            .onChange(of: plan) { _, newPlan in
+                recorder.record(role: role, token: token, plan: newPlan, isAppearance: false)
+            }
+            .onDisappear { recorder.disappearances[role, default: 0] += 1 }
     }
 }
 

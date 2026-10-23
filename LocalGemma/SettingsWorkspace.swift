@@ -5,8 +5,7 @@ import UIKit
 import UniformTypeIdentifiers
 
 struct SettingsWorkspace: View {
-    @EnvironmentObject private var optimizer: DeviceOptimizer
-    @Environment(\.appTheme) private var theme
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var selectedWallpaperItem: PhotosPickerItem?
     @State private var isImportingWallpaper = false
     @State private var wallpaperImportError: String?
@@ -20,8 +19,9 @@ struct SettingsWorkspace: View {
     var body: some View {
         GeometryReader { proxy in
             ScrollView {
-                let contentWidth = SettingsWorkspaceLayoutPolicy.contentWidth(
-                    forContainerWidth: proxy.size.width
+                let plan = SettingsWorkspaceLayoutPolicy.resolve(
+                    forContainerWidth: proxy.size.width,
+                    dynamicTypeSize: dynamicTypeSize
                 )
 
                 VStack(alignment: .leading, spacing: 16) {
@@ -31,41 +31,22 @@ struct SettingsWorkspace: View {
                         subtitle: "让工作空间，更适合你。外观、设备策略与隐私，一目了然。"
                     )
 
-                    ThemePreferencePanel(themeMode: themeMode, toggleTheme: toggleTheme)
-                    WallpaperPreferencePanel(
-                        wallpaperData: wallpaperData,
-                        selectedItem: $selectedWallpaperItem,
-                        isImporting: isImportingWallpaper,
-                        panelContentWidth: SettingsPreferenceRowLayoutPolicy.panelContentWidth(
-                            forPanelWidth: contentWidth
-                        ),
-                        clearWallpaper: clearWallpaper
-                    )
-
-                    SectionHeader(
-                        eyebrow: "APPLE SILICON",
-                        title: "芯片部署优化",
-                        subtitle: "Apple Silicon 运行计划与模拟预算，非实时设备性能测量。"
-                    )
-
-                    ChipReadinessCard(
-                        progress: optimizer.deploymentReadiness,
-                        thermalState: optimizer.thermalState,
-                        privacyGuardEnabled: optimizer.isOfflinePrivacyGuardEnabled,
-                        panelContentWidth: ChipReadinessLayoutPolicy.panelContentWidth(
-                            forPanelWidth: contentWidth
+                    SettingsSectionsShell(plan: plan) {
+                        SettingsAppearanceSection(
+                            themeMode: themeMode,
+                            wallpaperData: wallpaperData,
+                            selectedItem: $selectedWallpaperItem,
+                            isImporting: isImportingWallpaper,
+                            availableWidth: plan.preferenceWidth,
+                            showsPreview: plan.mode == .columns,
+                            toggleTheme: toggleTheme,
+                            clearWallpaper: clearWallpaper
                         )
-                    )
-
-                    OptimizerMetricGrid(metrics: optimizer.metrics)
-
-                    OptimizationToggleGrid(
-                        items: optimizer.switches,
-                        border: theme.border,
-                        toggle: { optimizer.toggle($0) }
-                    )
+                    } runtime: {
+                        SettingsRuntimeSection(availableWidth: plan.runtimeWidth)
+                    }
                 }
-                .frame(width: contentWidth, alignment: .leading)
+                .frame(width: plan.contentWidth, alignment: .leading)
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.horizontal, SettingsWorkspaceLayoutPolicy.horizontalPadding)
                 .padding(.top, WorkbenchPresentationPolicy.pageTopInset)
@@ -115,25 +96,6 @@ struct SettingsWorkspace: View {
         } message: {
             Text(wallpaperImportError ?? "")
         }
-    }
-}
-
-enum SettingsWorkspaceLayoutPolicy {
-    static let horizontalPadding: CGFloat = 18
-    static let minimumReadableWidth: CGFloat = 320
-    static let maximumContentWidth: CGFloat = 760
-
-    static func contentWidth(forContainerWidth containerWidth: CGFloat) -> CGFloat {
-        guard containerWidth.isFinite, containerWidth > 0 else {
-            return minimumReadableWidth
-        }
-
-        let paddedWidth = max(containerWidth - horizontalPadding * 2, 0)
-        guard paddedWidth >= minimumReadableWidth else {
-            return paddedWidth
-        }
-
-        return min(paddedWidth, maximumContentWidth)
     }
 }
 
@@ -550,10 +512,13 @@ struct OptimizerDashboard: View {
                             )
                         )
 
-                        OptimizerMetricGrid(metrics: optimizer.metrics)
+                        OptimizerMetricGrid(
+                            metrics: optimizer.metrics, availableWidth: max(geometry.size.width - 36, 0)
+                        )
 
                         OptimizationToggleGrid(
                             items: optimizer.switches,
+                            availableWidth: max(geometry.size.width - 36, 0),
                             titleColor: .white,
                             toggle: { optimizer.toggle($0) }
                         )
@@ -801,12 +766,10 @@ struct OptimizerMetricCard: View {
 
 struct OptimizerMetricGrid: View {
     let metrics: [OptimizerMetric]
+    let availableWidth: CGFloat
 
     var body: some View {
-        ViewThatFits(in: .horizontal) {
-            metricGrid(columnCount: OptimizerMetricGridLayoutPolicy.maxColumnCount)
-            metricGrid(columnCount: 1)
-        }
+        metricGrid(columnCount: OptimizerMetricGridLayoutPolicy.columnCount(for: availableWidth))
     }
 
     private func metricGrid(columnCount: Int) -> some View {
@@ -949,6 +912,7 @@ struct OptimizationToggleGrid: View {
     @Environment(\.appTheme) private var theme
 
     let items: [OptimizationSwitch]
+    let availableWidth: CGFloat
     var titleColor: Color?
     var border: Color = Color.primary.opacity(0.12)
     let toggle: (OptimizationSwitch) -> Void
@@ -961,10 +925,9 @@ struct OptimizationToggleGrid: View {
                 .lineLimit(OptimizationToggleTextLayoutPolicy.gridTitleLineLimit)
                 .fixedSize(horizontal: false, vertical: true)
 
-            ViewThatFits(in: .horizontal) {
-                toggleGrid(columnCount: OptimizationToggleGridLayoutPolicy.maxColumnCount)
-                toggleGrid(columnCount: 1)
-            }
+            toggleGrid(columnCount: OptimizationToggleGridLayoutPolicy.columnCount(
+                for: max(availableWidth - WorkbenchVisualStylePolicy.panelPadding * 2, 0)
+            ))
         }
         .panelStyle(border: border)
     }

@@ -675,3 +675,15 @@ v3.4 `3911a3f` / run `39805938317` attempt `1` 已实际核对137/137 Success、
 - 宽屏亮暗模型动作约110pt，图标/文字连续、scan/import紧邻，无原515pt空条；窄屏及readiness自然增长不退化。本轮呈现/布局回归限定PASS，不声称Mac GUI、真机、完整辅助技术、真实推理或签名发布通过。Metal toolchain搜索路径、未依赖AppIntents的metadata及Actions Node版本迁移警告仍有记录，不作虚假清零。
 
 本验收记录是文档-only追加，不改Swift、工程、脚本或workflow。本地仅静态结构/链接/计数与diff检查；没有本地Xcode/Swift/UI执行。文档提交本身仍由main push触发新的完整云端run，结论必须再对齐其精确SHA，不能把上述代码run称作新的文档run。
+
+## v3.5 设置工作台双栏回归
+
+实施基线是最新`fc3d4a9` / run `39830013497` attempt1，完整包已下载核对138唯一Success、JUnit8/0failure/error/1 optional skip和三份xcresult（Data/refs 3/3、3/3、1068/1068）。这不是新代码的执行结果。本轮新增3项到141，原138项保留；设置整体宽度旧断言按新1104pt上限更新，既有toggle真实生产渲染补显式宽度参数。
+
+- `testSettingsWorkspaceColumnsUseRealPaneWidthAndDynamicType`：所有DynamicTypeSize × 非法/窄宽/881.99/882/1042/4000，有限归零、单栏760上限、双栏320+24+至少538/最多760和守恒；918pt pane阈值、1366−288真实pane的1042/320/698、toggle扣28pt后仍可双列，大字回退。
+- `testSettingsSectionsShellPreservesBothSectionIdentities`：真实foreground scene挂载生产shell，8组宽度/字号layout plan顺序切换；两节点的@State UUID各唯一、每次plan都被观察且各只appear一次、不disappear。条件expectation有界3秒，退出detach并恢复原key window；不sleep、不重试、不访问私有层级。
+- `testSettingsSectionsReportNaturalHeightAndPreserveLocalState`：真实appearance/runtime section，亮暗 × 284/320/538/698/760pt × large/xxxLarge/accessibility3，偏好含导入中/普通态，公开UIHostingController.sizeThatFits的600/1800pt提议应得到同一自然高度，大字运行section严格增长；动作未调用、optimizer开关/准备度不变。旧readiness和动作自然高度矩阵不削弱。
+
+宽屏宿主仍为真实1078×1024pt，设置provenance与exporter新增columns/1042/320/24/698守恒门禁；同一28图、OCR/hash、三份完整xcresult、JUnit8阶段及review小包不减。本轮云端要实际核对设置亮暗双栏、iPhone与iPad窄pane单栏、大字不裁剪和运行开关完整可达，不以尺寸或OCR单独宣布视觉通过。宿主图不是Mac GUI。
+
+本地只跑diff/plutil/YAML/bash-n/Python AST、141唯一方法/文档链接/fence/预存prompt hash和范围检查；不运行Swift/Probe/Fast、Xcode、XCTest、Simulator、ImageRenderer、Vision或Catalyst。完整执行及本轮图片验收等待本提交自己的main云端run。

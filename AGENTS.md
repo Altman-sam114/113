@@ -94,6 +94,7 @@ git remote -v
 - `HeaderActionLayoutPolicy` 控制全局 Header 主题切换和打开模型工作区两个图标动作的最小触控目标；这些全局入口必须保持至少 44pt，且不得改变主题切换、工作区切换、模型胶囊状态、辅助语义、模型文件或 runtime 状态流。
 - `HeaderTitleTextLayoutPolicy` 控制顶部 Header eyebrow 和主标题的 Dynamic Type 文本策略；eyebrow 使用语义字体并保持单行，主标题使用语义标题字体并允许两行，避免 iPad split view、Mac Catalyst 窄窗口和较大文字设置下压缩或截断，且不得改变 Header 图标动作触控目标、主题切换、工作区切换、模型胶囊状态、辅助语义、模型文件或 runtime 状态流。
 - `SettingsWorkspaceLayoutPolicy` 控制设置页整体内容宽度；iPhone 和窄 split view 必须保持原有可用宽度，iPad/Mac 超宽窗口必须让标题、外观、壁纸、芯片准备度、优化指标和运行策略开关整体居中并限制最大宽度，且不得改变主题切换、相册读取、本地压缩、恢复系统背景、optimizer toggle、局部网格策略、图标触控目标或辅助语义。
+- v3.5 的 `SettingsSectionsLayoutPolicy` / `SettingsSectionsShell` 在真实 pane 扣除两侧 18pt 后，普通字号内容达到 `320 + 24 + (510 + 28) = 882pt` 才并列偏好与运行计划；整体最大 1104pt，运行列最多 760pt。窄宽和 `.xxxLarge` 以上回退最多 760pt 单栏，同一 AnyLayout 的两个同序节点保留 picker/导入/错误和 optimizer 身份；局部网格只用真实列宽，toggle 先扣 28pt panel padding。
 - `SettingsIconActionLayoutPolicy` 控制设置页外观主题切换、相册壁纸选择和恢复系统背景三个图标动作的最小触控目标；这些 iPhone、iPad split view 和 Mac Catalyst 设置入口必须保持至少 44pt，且不得改变主题切换、相册读取、本地压缩、恢复系统背景、禁用状态或辅助语义。
 - `SettingsPreferenceTextLayoutPolicy` 控制设置页外观模式与壁纸偏好行标题/状态文本的 Dynamic Type 排版；标题与状态使用语义字体并允许两行，避免 iPad split view、Mac Catalyst 窄窗口和较大文字设置下压缩或截断，且不得改变主题切换、相册读取、本地压缩、恢复系统背景、图标 44pt 触控目标、辅助语义、设置页整体宽度、模型文件或 runtime 状态流。
 - `SettingsPreferenceRowLayoutMode`、`SettingsPreferenceRowLayoutPlan` 与 `SettingsPreferenceRowLayoutPolicy` 控制壁纸偏好行的真实 panel content width 响应式布局；调用侧从外框宽度扣除两侧共享 `14pt` panel padding，`270pt` 及以上普通字号横排，窄宽、`.xxxLarge` 及以上 Dynamic Type、NaN/infinity/非正宽度 stacked；`AnyLayout` 保持预览、文案、两个动作的同一生产子树，stacked 内容在 layout 外自然垂直增长，且不得改变 44pt 触控目标、PhotosPicker/清除禁用状态、辅助语义或壁纸状态流。
@@ -485,3 +486,11 @@ v3.4.1 仅改测试/证据和文档，不改生产代码：真实 foreground sce
 v3.4.1 `37e3b3b` / run `39816180114` attempt1已核对完整包、137/137、三份xcresult和28图，宿主截图修复通过；新图暴露模型库双栏文件动作卡约515pt过高。v3.4.2只移除`ArtifactActionButton` label中的竖向Spacer，并在padding后使用`.fixedSize(horizontal:false,vertical:true)`让内容报告自然高度；不以固定最大高度/缩字/裁剪解决。86pt minimum、12pt padding、8pt spacing、两行语义文字、44pt、配色/动作/辅助语义、模型双栏/状态/verified均不变。新增公开`UIHostingController.sizeThatFits`压力回归，总计138项；600/1400pt提议不得改变同宽同字自然高度，大字允许增长。所有执行只在云端，仍不新增或启动子智能体。
 
 代码提交`1601bd63bd2527e10fd01a44d006d09842299bdc` / run `39825340832` attempt1的完整包已下载验收：138唯一Success、JUnit8/0失败/1 optional skip、三份xcresult成功，28图回归确认宽屏动作约110pt自然高度。结论仅为v3.4 UI呈现/布局回归PASS；默认模拟runtime、真实Mac GUI/pointer、真机/完整辅助技术及签名发布仍未验收。该结论绑定上述代码SHA，不自动覆盖后续文档或代码提交；后续main仍须对应的新run和产物核对。
+
+## v3.5 设置工作台双栏（2026-10-23，待自身云端验收）
+
+最新文档基线 `fc3d4a9` / run `39830013497` attempt1 的完整包已核对138唯一Success、JUnit8、三份xcresult，设置实图仍为长单列。单一Agent串行实施本轮，不开子智能体；AITRANS只读参考语义token和间距，无修改。
+
+`SettingsSections.swift` 加入app target并集中纯值plan、稳定shell、外观/芯片生产section。真实1078pt pane得到1042pt内容、320pt偏好、24pt间距和698pt运行计划；普通字号882pt内容/918pt pane开始双栏，`.xxxLarge`及以上单栏。双栏偏好区增加无命中、辅助树隐藏的当前主题/壁纸缩略示意；本地图片说明不暗示云端服务。PhotosPicker/导入中/错误状态仍归原SettingsWorkspace，44pt和metadata不变。指标与策略grid改用明确实际宽度，toggle扣panel padding，dashboard同步调用。
+
+新增阈值/大字、双节点identity、真实section自然高度3项至141，宽屏provenance/exporter锁住设置真实列宽；原28图、严格focus/identity、8阶段、三份完整xcresult均保留。所有Swift/构建/测试/图片只在云端；本地仅静态检查。尚未接真实runtime、原生macOS、Mac GUI/pointer或签名发布，不宣称发布就绪。

@@ -114,6 +114,15 @@ def main():
                            + capture["chatSurfaceWidth"] - 1078) > 0.01
                 ):
                     raise RuntimeError(f"Incorrect real chat pane allocation: {name}")
+                if capture["workspace"] == "settings" and (
+                    capture.get("settingsLayoutMode") != "columns"
+                    or capture.get("settingsContentWidth") != 1042
+                    or capture.get("settingsPreferenceWidth") != 320
+                    or capture.get("settingsRuntimeWidth") != 698
+                    or capture.get("settingsColumnSpacing") != 24
+                    or capture["settingsContentWidth"] + 36 != capture["workspacePaneWidth"]
+                ):
+                    raise RuntimeError(f"Incorrect real settings column allocation: {name}")
             elif capture["evidenceKind"] != "uihostingcontroller-production-component":
                 raise RuntimeError(f"Unknown production snapshot source: {name}")
             captures.append({

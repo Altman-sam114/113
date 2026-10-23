@@ -495,3 +495,11 @@ v3.4.1 run `39816180114` 的137项及证据修复已核对；新宽屏图暴露�
 新增公开sizeThatFits压力回归将源码基线增至138，直接在600/1400pt高度提议下比较同宽同字的生产Button/Panel自然高度，并用真实1078pt pane推导控制列宽。完整云端138项、16全屏图+12宿主图和三份xcresult门禁保持，待本提交自己的结果后复判。
 
 验收绑定代码`1601bd6` / run `39825340832` attempt1：完整结果包核对138/138、三份xcresult及28图回归，模型动作自然高度修复通过。本轮生产流已确认，不代表原生macOS/真实Mac GUI/真实推理或签名发布完成；后续文档提交仍需新run对齐，而不改变这些生产数据流。
+
+## v3.5 设置页真实列宽与稳定子树
+
+`SettingsWorkspace` 保留原相册选择/导入中/错误状态与动作闭包，只读取真实 pane 和 DynamicTypeSize。`SettingsWorkspaceLayoutPolicy.resolve` 扣两侧各18pt；`SettingsSectionsLayoutPolicy` 在普通字号内容882pt时并列同一偏好、运行计划section，320pt偏好 + 24pt间距 + 至少538pt运行列，最大1104pt。538由运行策略510pt内容和28pt panel padding派生；窄宽或`.xxxLarge`以上统一stacked、最大760pt。非法section宽度归零，原workspace非法宽度320pt安全兜底不变。
+
+`SettingsSectionsShell` 只切换AnyLayout算法，两个直接子节点始终同序；不重建PhotosPicker或运行策略控件。双栏中无状态的主题/壁纸缩略示意禁用命中且隐藏辅助树，窄宽不展示，不改照片数据；静态本地说明不读取或猜测runtime。外观和readiness panel都从各自真实列宽扣除28pt，而不是继续用整个页面宽度。
+
+`SettingsRuntimeSection -> OptimizerMetricGrid / OptimizationToggleGrid` 明确传入实际列宽，直接按共享policy选列数；toggle先扣自身panel padding再使用510pt阈值，dashboard同步同一API。optimizer状态、顺序、metadata、44pt与模型verified gate均不变。新增3项到141，宽屏provenance/exporter锁住1042/320/24/698；保留16+12图和全部云端门禁，未本机运行Swift或UI。
