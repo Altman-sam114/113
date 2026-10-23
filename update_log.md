@@ -4581,3 +4581,8 @@ v3.0 云端 run `36260394187` 的四组布局测试仍沿用旧侧栏宽度，�
 v3.5 `a28ac41` / run `39885347849` attempt1 的结果包为140/141成功，唯一失败是首次composer request已消费但实际UITextInput未聚焦；设置三项新增测试、iOS/Catalyst构建及28图成功，整轮退回。测试宿主由600x120pt改用已有foreground scene的真实bounds，先以普通container建立key/visible窗口，再以公开child containment挂载带预存request的原生产ComposerBar；内容随可用宽度收缩、最多560pt。保持2秒有界条件、首次/离页/重进严格first-responder及清理断言，增加窗口与宿主尺寸诊断，不改生产同步焦点、设置状态或runtime/verified边界。
 
 单Agent串行，无子智能体；本地仅diff/工程/YAML/结构检查，141项及全部构建运行截图只交GitHub Actions。最新SHA自身manifest、JUnit、完整三份xcresult和28图须复判，不提前宣称通过或发布就绪。
+
+
+## v3.5.2 云端模拟器截图正文门禁（2026-10-23，待自身云端验收）
+
+人工复看v3.5完整包发现iPhone亮色设置图空白、iPad暗色聊天图为桌面，旧固定3秒采集不能作为通过证据。`Tools/ValidateWorkbenchScreenshot.swift`作为独立CLI仅在真实GitHub Actions编译运行，公开Vision OCR要求目标工作区正文marker；`capture_workbench.py`在launch后有界5次/每次2秒采集并验证，失败使必选visual失败，manifest保留识别全文、marker、次数、PNG尺寸和SHA-256。原16模拟器图、12宿主图、141项及三份xcresult不减少；OCR后仍需人眼检查。无生产UI/状态/runtime/verified变更，AITRANS不修改，无子智能体，本地仅静态检查。

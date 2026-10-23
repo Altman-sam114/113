@@ -541,3 +541,22 @@ flowchart TD
     Lifecycle --> Cleanup[移除child和window / 恢复原key window]
     Cleanup --> Cloud[云端141项 + 三份xcresult + 28图复判]
 ```
+
+
+## v3.5.2 模拟器正文门禁
+
+读图说明：launch返回只代表系统接受请求，真实截图必须出现对应页面正文，避免把桌面或空白记为成功。
+
+```mermaid
+flowchart TD
+    %% 独立验证CLI仅在真实云端编译
+    Cloud[GitHub Actions] --> Tool[编译Vision截图验证CLI]
+    Tool --> Launch[原App launch到指定工作区和主题]
+    %% 每轮重新采集，最多五次，不降低marker要求
+    Launch --> Shot[等待2秒 / 真实simctl截图]
+    Shot --> OCR{目标正文marker被识别?}
+    OCR -- 否且未满5次 --> Shot
+    OCR -- 否且已满5次 --> Fail[必选visual失败 / 保留诊断]
+    OCR -- 是 --> Manifest[识别全文 + marker + 次数 + 尺寸 + hash]
+    Manifest --> Review[原16张矩阵 / 完整包人工看图复判]
+```
