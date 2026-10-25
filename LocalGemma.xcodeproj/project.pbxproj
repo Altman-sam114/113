@@ -19,6 +19,7 @@
 		1B0000010000000000000019 /* WorkbenchTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B0000100000000000000019 /* WorkbenchTheme.swift */; };
 		1B000001000000000000001A /* WorkbenchComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B000010000000000000001A /* WorkbenchComponents.swift */; };
 		1B000001000000000000001B /* SettingsSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B000010000000000000001B /* SettingsSections.swift */; };
+		1B000001000000000000001C /* CompactWorkbench.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B000010000000000000001C /* CompactWorkbench.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -47,6 +48,7 @@
 		1B0000100000000000000019 /* WorkbenchTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkbenchTheme.swift; sourceTree = "<group>"; };
 		1B000010000000000000001A /* WorkbenchComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkbenchComponents.swift; sourceTree = "<group>"; };
 		1B000010000000000000001B /* SettingsSections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsSections.swift; sourceTree = "<group>"; };
+		1B000010000000000000001C /* CompactWorkbench.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompactWorkbench.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -82,6 +84,7 @@
 				1A0000100000000000000001 /* AppState.swift */,
 				1A0000100000000000000002 /* ContentView.swift */,
 				1B000010000000000000001A /* WorkbenchComponents.swift */,
+				1B000010000000000000001C /* CompactWorkbench.swift */,
 				1B0000100000000000000019 /* WorkbenchTheme.swift */,
 				1B0000100000000000000018 /* SettingsWorkspace.swift */,
 				1B000010000000000000001B /* SettingsSections.swift */,
@@ -217,6 +220,7 @@
 				1B0000010000000000000019 /* WorkbenchTheme.swift in Sources */,
 				1B0000010000000000000018 /* SettingsWorkspace.swift in Sources */,
 				1B000001000000000000001B /* SettingsSections.swift in Sources */,
+				1B000001000000000000001C /* CompactWorkbench.swift in Sources */,
 				1B0000010000000000000017 /* ModelWorkspace.swift in Sources */,
 				1B0000010000000000000016 /* ComposerBar.swift in Sources */,
 				1B0000010000000000000015 /* PromptWorkspace.swift in Sources */,

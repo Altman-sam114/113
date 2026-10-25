@@ -56,15 +56,16 @@ def main():
                 raise RuntimeError(f"Invalid attachment export path: {filename}")
             suggested_name = attachment.get("suggestedHumanReadableName", "")
             exported.append((suggested_name, source, test_identifier))
-            for name in ["workbench-wide-provenance", "workbench-readiness-provenance"]:
+            for name in ["workbench-wide-provenance", "workbench-readiness-provenance",
+                         "workbench-compact-provenance"]:
                 if attachment_name_matches(suggested_name, name):
                     document = json.loads(source.read_text(encoding="utf-8"))
                     documents.append((name, document, test_identifier))
 
     if {name for name, _document, _test in documents} != {
-        "workbench-wide-provenance", "workbench-readiness-provenance"
-    } or len(documents) != 2:
-        raise RuntimeError("Expected exactly two production-render provenance attachments")
+        "workbench-wide-provenance", "workbench-readiness-provenance", "workbench-compact-provenance"
+    } or len(documents) != 3:
+        raise RuntimeError("Expected exactly three production-render provenance attachments")
 
     captures = []
     for _name, document, exported_test in documents:
@@ -123,6 +124,16 @@ def main():
                     or capture["settingsContentWidth"] + 36 != capture["workspacePaneWidth"]
                 ):
                     raise RuntimeError(f"Incorrect real settings column allocation: {name}")
+            elif capture["evidenceKind"] == "uihostingcontroller-compact-production-composition":
+                marker = {"chat": "想聊点什么", "models": "MODEL LIBRARY",
+                          "prompts": "PROMPTS", "settings": "SETTINGS"}[capture["workspace"]]
+                normalize = lambda text: "".join(c for c in text.upper() if c.isalnum())
+                if (capture.get("requiredTextMarker") != marker
+                        or normalize(marker) not in normalize(capture.get("recognizedText", ""))
+                        or capture.get("viewportWidth") != 320
+                        or capture.get("viewportHeight") != 640
+                        or width != 320 or height != 640):
+                    raise RuntimeError(f"Invalid small-phone production composition: {name}")
             elif capture["evidenceKind"] != "uihostingcontroller-production-component":
                 raise RuntimeError(f"Unknown production snapshot source: {name}")
             captures.append({
@@ -145,9 +156,14 @@ def main():
         for theme in ["light", "dark"]
         for size in ["large", "accessibility3"]
     }
-    if (len(captures) != 12
+    expected_compact = {
+        f"workbench-compact-{theme}-{workspace}"
+        for theme in ["light", "dark"]
+        for workspace in ["chat", "models", "prompts", "settings"]
+    }
+    if (len(captures) != 20
             or {capture["attachmentName"] for capture in captures}
-            != expected_wide | expected_readiness):
+            != expected_wide | expected_readiness | expected_compact):
         raise RuntimeError("Incomplete or duplicate production-render capture matrix")
     for theme in ["light", "dark"]:
         hashes = [capture["sha256"] for capture in captures
@@ -155,6 +171,11 @@ def main():
                   and capture["theme"] == theme]
         if len(hashes) != 4 or len(set(hashes)) != 4:
             raise RuntimeError(f"Repeated/blank wide workspace snapshots: {theme}")
+        compact_hashes = [capture["sha256"] for capture in captures
+                          if capture["evidenceKind"] == "uihostingcontroller-compact-production-composition"
+                          and capture["theme"] == theme]
+        if len(compact_hashes) != 4 or len(set(compact_hashes)) != 4:
+            raise RuntimeError(f"Repeated/blank compact workspace snapshots: {theme}")
     manifest = {
         "commitSha": os.environ["GITHUB_SHA"],
         "runId": os.environ["GITHUB_RUN_ID"],
@@ -168,6 +189,7 @@ def main():
         "sourceAttachmentIndex": "attachments/manifest.json",
         "wideWorkspaceCaptureCount": 8,
         "readinessComponentCaptureCount": 4,
+        "compactCompositionCaptureCount": 8,
         "captureCount": len(captures),
         "captures": captures,
     }

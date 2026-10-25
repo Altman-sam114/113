@@ -57,7 +57,17 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
 case "$LOCAL_SIMULATOR_UDID" in FAC4325D*) ;; *) exit 1 ;; esac
 ```
 
-当前测试基线：
+当前测试基线（v3.6）：
+
+- 源码144个唯一方法，保留v3.5.2原141项。基线`63a9766` / run`39892914886` attempt1完整包已下载，核对141项Passed、JUnit8/0失败/1 optional skip、三份xcresult成功与Data/refs完整、28图hash；两张旧空白/桌面问题对应的新图已实际复看。不是整产品发布验收，v3.6仍需自己的云端结果。
+- 新增`testCompactWorkbenchPolicyKeepsNavigationReachableAndRuntimeHonest`，覆盖原根plan映射、底栏编辑真值表、四入口别名/原快捷键、文件三态、中文策略映射、状态不变与verified门禁。
+- 新增`testCompactWorkbenchControlsPreserveNaturalSizingAndState`，使用公开UIHostingController.sizeThatFits，覆盖284/320/366/394pt、亮暗、large/xxxLarge/accessibility3、八个真实手机控件；600/1600pt提议不得注入空白，header大字自然增高，动作闭包和状态不变。
+- 新增`testCompactWorkbenchProductionPagesProduceSmallPhoneEvidence`，真实云端UIKit宿主绘制320×640pt四页亮暗8图，包含生产手机header/页面/bottom navigation。中文聊天标题与原页面marker通过公开Vision OCR识别。keepAlways图与独立compact provenance严格标注组件组合，不冒充完整Simulator截图。
+- 原严格composer焦点测试新增编辑回调/底栏呈现，首次、离页和重进同时要求真实UITextInput first responder、原request消费以及isEditing真值；不放宽2秒条件，不重试/直接设first responder。
+- exporter保留原8wide+4readiness并要求新增8compact、三份provenance、20个唯一PNG及来源/OCR/尺寸/hash；compact同主题四页hash必须不同。原16张全屏模拟器图仍必选，iPhone聊天正文marker改为真实可见“想聊点什么”，不新增测试专用生产文案。JUnit8阶段/三份完整xcresult/review小包契约不减。
+- 本地仅静态检查，所有Swift/SwiftC、Probe/Fast、iOS/Catalyst build、XCTest、Vision、UIKit/ImageRenderer和模拟器采集只在云端。下列历史基线保留作追溯，不代表当前144项已执行。
+
+历史测试基线：
 
 - `LocalGemmaTests.swift` 当前包含138个`test...`方法；v3.4新增6项、v3.4.2新增1项。最近已验收代码提交`1601bd6` / run `39825340832` attempt1为138/138，完整结果包和28图回归已核对，呈现/布局修复限定通过；不是发布或Mac GUI验收。新增契约和产物见文末小节；既有严格焦点与 identity 不弱化、不跳过。
 - v2.75 新增 `testChipReadinessLayoutPolicyAdaptsToCardWidthAndAccessibilityDynamicType`，锁住 `354pt` 真实 panel 内容宽度边界、普通字号横排、Accessibility Dynamic Type 无条件 stacked、NaN/Infinity/非正宽度回退、纯值 plan、`DeviceOptimizer`/隐私状态不变，以及 `86pt` slot / `66pt` diameter；生产 `ChipReadinessCard` 的 `ImageRenderer` 覆盖亮暗主题、`382pt` 外框（扣除两侧 `14pt` panel padding 后为 `354pt` 内容）、窄外框与 Accessibility 字号 stacked，只断言图像非 nil、宽度误差不超过 1pt、高度合理，不做像素/私有层级/截图断言。测试函数数从 119 增至 120；本地只做轻量检查，完整 iOS/Catalyst build、LogicSmoke、120 项 XCTest 和结果包待本轮 push 后 GitHub Actions 执行。

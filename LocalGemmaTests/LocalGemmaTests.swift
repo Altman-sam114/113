@@ -7,6 +7,171 @@ import XCTest
 
 @MainActor
 final class LocalGemmaTests: XCTestCase {
+    func testCompactWorkbenchPolicyKeepsNavigationReachableAndRuntimeHonest() {
+        XCTAssertEqual(CompactWorkbenchPolicy.minimumTouchTarget, 44)
+        XCTAssertGreaterThanOrEqual(CompactWorkbenchPolicy.navigationItemHeight, 44)
+        XCTAssertEqual(CompactWorkbenchPolicy.surfaceCornerRadius, 20)
+        for size in [CGSize(width: 320, height: 568), CGSize(width: 699, height: 900),
+                     CGSize(width: 700, height: 900), CGSize(width: 1_366, height: 1_024)] {
+            let plan = WorkspaceRootLayoutPolicy.resolve(for: size)
+            let compact = CompactWorkbenchPolicy.usesCompactChrome(for: plan)
+            XCTAssertEqual(compact, plan.mode == .portrait)
+            for tab in WorkspaceTab.allCases {
+                for editing in [true, false] {
+                    XCTAssertEqual(CompactWorkbenchPolicy.showsNavigation(
+                        isCompact: compact, selectedTab: tab, isEditing: editing
+                    ), compact && (tab != .chat || !editing))
+                }
+                XCTAssertFalse(CompactWorkbenchPolicy.title(for: tab).isEmpty)
+            }
+        }
+        XCTAssertEqual(WorkspaceTab.allCases.map(CompactWorkbenchPolicy.title), ["对话", "模型", "模板", "设置"])
+        XCTAssertEqual(WorkspaceTab.allCases.map(\.shortcutKey), ["1", "2", "3", "4"])
+        XCTAssertEqual(CompactWorkbenchPolicy.fileStatus(.missing), "尚未导入")
+        XCTAssertEqual(CompactWorkbenchPolicy.fileStatus(.staged), "待校验")
+        XCTAssertEqual(CompactWorkbenchPolicy.fileStatus(.verified), "已校验")
+        let catalog = ModelCatalog(autoScanLocalArtifacts: false)
+        let optimizer = DeviceOptimizer()
+        let switches = optimizer.switches
+        let models = catalog.models
+        XCTAssertEqual(CompactWorkbenchPolicy.modelTitle(models[0]), "Gemma 1.5B")
+        XCTAssertEqual(switches.map(CompactWorkbenchPolicy.toggleTitle),
+                       ["图执行预热", "分页缓存", "自适应生成长度", "离线隐私保护"])
+        let unknown = OptimizationSwitch(title: "Future strategy", subtitle: "Local", isEnabled: false)
+        XCTAssertEqual(CompactWorkbenchPolicy.toggleTitle(unknown), unknown.title)
+        XCTAssertEqual(optimizer.switches, switches)
+        XCTAssertEqual(catalog.models, models)
+        for availability in [ArtifactAvailability.missing, .staged, .verified] {
+            XCTAssertEqual(LocalRuntimePlanner.preparationReport(for: models[0], availability: availability).canRunRealWeights,
+                           availability == .verified)
+        }
+    }
+
+    func testCompactWorkbenchControlsPreserveNaturalSizingAndState() {
+        let catalog = ModelCatalog(autoScanLocalArtifacts: false)
+        let inference = InferenceEngine()
+        let optimizer = DeviceOptimizer()
+        let sessions = inference.sessions
+        let switches = optimizer.switches
+        let validation = catalog.validation(for: catalog.selectedModel)
+        var actions = 0
+        for themeMode in AppThemeMode.allCases {
+            for width: CGFloat in [284, 320, 366, 394] {
+                var headerHeights: [CGFloat] = []
+                for textSize in [DynamicTypeSize.large, .xxxLarge, .accessibility3] {
+                    let controls: [AnyView] = [
+                        AnyView(CompactWorkbenchHeader(
+                            model: catalog.selectedModel, isSimulated: true, themeMode: themeMode,
+                            openSummary: { actions += 1 }, toggleTheme: { actions += 1 }
+                        )),
+                        AnyView(CompactWorkspaceNavigation(selection: .constant(.chat))),
+                        AnyView(CompactSessionToolbar(
+                            title: "A long local conversation title with 中文", showHistory: { actions += 1 },
+                            create: { actions += 1 }, export: { actions += 1 }
+                        )),
+                        AnyView(CompactModelFilesPanel(
+                            validation: validation, download: { actions += 1 }, uninstall: { actions += 1 },
+                            scan: { actions += 1 }, importFiles: { actions += 1 }
+                        )),
+                        AnyView(SettingsRuntimeSection(availableWidth: width)),
+                        AnyView(PromptTemplateCard(template: PromptTemplateLibrary.defaultTemplates[0],
+                                                  isGenerating: false, apply: { actions += 1 }, send: { actions += 1 })),
+                        AnyView(ChatWelcomeView(availableWidth: width, apply: { _ in actions += 1 })),
+                        AnyView(ComposerBar(text: .constant("输入消息"), isGenerating: false, isChatActive: false,
+                                            focusRequest: .initial, clearFocusRequest: {},
+                                            send: { actions += 1 }, stop: { actions += 1 }))
+                    ]
+                    for (index, control) in controls.enumerated() {
+                        let host = UIHostingController(rootView: control
+                            .environmentObject(optimizer)
+                            .environment(\.compactWorkbench, true)
+                            .environment(\.appTheme, AppThemePalette(mode: themeMode))
+                            .environment(\.colorScheme, themeMode.colorScheme)
+                            .environment(\.dynamicTypeSize, textSize)
+                            .frame(width: width))
+                        host.loadViewIfNeeded()
+                        let small = host.sizeThatFits(in: CGSize(width: width, height: 600))
+                        let tall = host.sizeThatFits(in: CGSize(width: width, height: 1_600))
+                        XCTAssertTrue(small.width.isFinite && small.height.isFinite)
+                        XCTAssertEqual(small.width, width, accuracy: 1)
+                        XCTAssertGreaterThan(small.height, 0)
+                        XCTAssertEqual(small.height, tall.height, accuracy: 1,
+                                       "Compact control \(index) must not absorb unused vertical space")
+                        if index == 0 { headerHeights.append(small.height) }
+                        if textSize == .large && index == 0 { XCTAssertLessThan(small.height, 100) }
+                        if textSize == .large && index == 2 { XCTAssertLessThanOrEqual(small.height, 56) }
+                    }
+                }
+                XCTAssertGreaterThan(headerHeights[2], headerHeights[0])
+            }
+        }
+        XCTAssertEqual(actions, 0)
+        XCTAssertEqual(inference.sessions, sessions)
+        XCTAssertEqual(optimizer.switches, switches)
+    }
+
+    func testCompactWorkbenchProductionPagesProduceSmallPhoneEvidence() async throws {
+        let size = CGSize(width: 320, height: 640)
+        let catalog = ModelCatalog(autoScanLocalArtifacts: false)
+        let inference = InferenceEngine()
+        let optimizer = DeviceOptimizer()
+        let sessions = inference.sessions
+        let switches = optimizer.switches
+        var evidence: [[String: Any]] = []
+        for themeMode in AppThemeMode.allCases {
+            let pages: [(WorkspaceTab, AnyView)] = [
+                (.chat, AnyView(ChatWorkspace(isActive: false))),
+                (.models, AnyView(ModelLibraryView())),
+                (.prompts, AnyView(PromptTemplatesWorkspace(openChat: { _ in }))),
+                (.settings, AnyView(SettingsWorkspace(themeMode: themeMode, wallpaperData: Data(), toggleTheme: {},
+                                                     setWallpaperData: { _ in }, clearWallpaper: {})))
+            ]
+            for (workspace, page) in pages {
+                let content = AnyView(VStack(spacing: 0) {
+                    CompactWorkbenchHeader(model: catalog.selectedModel, isSimulated: true, themeMode: themeMode,
+                                           openSummary: {}, toggleTheme: {})
+                    page.frame(maxWidth: .infinity, maxHeight: .infinity)
+                    CompactWorkspaceNavigation(selection: .constant(workspace))
+                }
+                    .environmentObject(catalog).environmentObject(inference).environmentObject(optimizer)
+                    .environment(\.compactWorkbench, true)
+                    .environment(\.appTheme, AppThemePalette(mode: themeMode))
+                    .environment(\.colorScheme, themeMode.colorScheme)
+                    .environment(\.dynamicTypeSize, .large)
+                    .frame(width: size.width, height: size.height)
+                    .background(AppThemePalette(mode: themeMode).canvas))
+                let image = try await captureWorkbenchView(content, size: size, themeMode: themeMode)
+                let name = "workbench-compact-\(themeMode.rawValue)-\(workspace.rawValue)"
+                keepWorkbenchImage(image, name: name)
+                let marker: String
+                switch workspace {
+                case .chat: marker = "想聊点什么"
+                case .models: marker = "MODEL LIBRARY"
+                case .prompts: marker = "PROMPTS"
+                case .settings: marker = "SETTINGS"
+                }
+                let recognized = try workbenchRecognizedText(in: image)
+                XCTAssertTrue(workbenchNormalizedText(recognized).contains(workbenchNormalizedText(marker)),
+                              "Small phone content missing in \(name): \(recognized)")
+                evidence.append([
+                    "attachmentName": name, "evidenceKind": "uihostingcontroller-compact-production-composition",
+                    "captureMethod": "UIView.drawHierarchy", "workspace": workspace.rawValue,
+                    "theme": themeMode.rawValue, "dynamicTypeSize": "large",
+                    "requiredTextMarker": marker, "recognizedText": recognized,
+                    "imageWidth": Double(image.size.width), "imageHeight": Double(image.size.height),
+                    "viewportWidth": Double(size.width), "viewportHeight": Double(size.height)
+                ])
+            }
+        }
+        XCTAssertEqual(inference.sessions, sessions)
+        XCTAssertEqual(optimizer.switches, switches)
+        XCTAssertEqual(evidence.count, 8)
+        try keepWorkbenchProvenance([
+            "captures": evidence,
+            "testIdentifier": "LocalGemmaTests/testCompactWorkbenchProductionPagesProduceSmallPhoneEvidence()"
+        ], name: "workbench-compact-provenance")
+    }
+
     func testSettingsWorkspaceColumnsUseRealPaneWidthAndDynamicType() {
         XCTAssertEqual(SettingsSectionsLayoutPolicy.preferenceColumnWidth, 320)
         XCTAssertEqual(SettingsSectionsLayoutPolicy.columnSpacing, 24)
@@ -640,7 +805,7 @@ final class LocalGemmaTests: XCTestCase {
     private func workbenchRecognizedText(in image: UIImage) throws -> String {
         let request = VNRecognizeTextRequest()
         request.recognitionLevel = .accurate
-        request.recognitionLanguages = ["en-US"]
+        request.recognitionLanguages = ["en-US", "zh-Hans"]
         request.usesLanguageCorrection = false
         let cgImage = try XCTUnwrap(image.cgImage)
         try VNImageRequestHandler(cgImage: cgImage, options: [:]).perform([request])
@@ -4733,6 +4898,7 @@ final class LocalGemmaTests: XCTestCase {
             diagnostic: diagnostic,
             condition: {
                 focusStore.focusRequest == .initial
+                    && focusStore.isEditing
                     && self.firstResponder(in: controller.view) is any UITextInput
             }
         ) else { return }
@@ -4750,6 +4916,7 @@ final class LocalGemmaTests: XCTestCase {
             diagnostic: diagnostic,
             condition: {
                 focusStore.focusRequest == .initial
+                    && !focusStore.isEditing
                     && self.firstResponder(in: controller.view) == nil
             }
         ) else { return }
@@ -4765,6 +4932,7 @@ final class LocalGemmaTests: XCTestCase {
             diagnostic: diagnostic,
             condition: {
                 focusStore.focusRequest == .initial
+                    && focusStore.isEditing
                     && self.firstResponder(in: controller.view) is any UITextInput
             }
         ) else { return }
@@ -8725,6 +8893,7 @@ private final class WorkbenchEvidenceHostingController: UIHostingController<AnyV
 
 private final class ComposerFocusLifecycleStore: ObservableObject {
     @Published var text = ""
+    @Published var isEditing = false
     @Published var isChatActive: Bool
     @Published var focusRequest: ComposerFocusRequest
 
@@ -8747,8 +8916,17 @@ private struct ComposerFocusLifecycleHarness: View {
                 store.focusRequest = .initial
             },
             send: {},
-            stop: {}
+            stop: {},
+            editingChanged: { store.isEditing = $0 }
         )
+        .environment(\.compactWorkbench, true)
+        .safeAreaInset(edge: .bottom) {
+            if CompactWorkbenchPolicy.showsNavigation(
+                isCompact: true, selectedTab: .chat, isEditing: store.isEditing
+            ) {
+                CompactWorkspaceNavigation(selection: .constant(.chat))
+            }
+        }
         .frame(maxWidth: 560)
         .padding(.horizontal, 18)
     }

@@ -9,23 +9,29 @@ struct ChatWorkspace: View {
     @EnvironmentObject private var inference: InferenceEngine
     @Environment(\.appTheme) private var theme
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.compactWorkbench) private var isCompact
     @State private var exportPayload: ExportPayload?
+    @State private var isShowingHistory = false
+    @State private var pendingHistoryFocus: ComposerFocusReason?
 
     let isActive: Bool
     let composerFocusRequest: ComposerFocusRequest
     let requestComposerFocus: (ComposerFocusReason) -> Void
     let clearComposerFocusRequest: () -> Void
+    let composerEditingChanged: (Bool) -> Void
 
     init(
         isActive: Bool = true,
         composerFocusRequest: ComposerFocusRequest = .initial,
         requestComposerFocus: @escaping (ComposerFocusReason) -> Void = { _ in },
-        clearComposerFocusRequest: @escaping () -> Void = {}
+        clearComposerFocusRequest: @escaping () -> Void = {},
+        composerEditingChanged: @escaping (Bool) -> Void = { _ in }
     ) {
         self.isActive = isActive
         self.composerFocusRequest = composerFocusRequest
         self.requestComposerFocus = requestComposerFocus
         self.clearComposerFocusRequest = clearComposerFocusRequest
+        self.composerEditingChanged = composerEditingChanged
     }
 
     var body: some View {
@@ -47,42 +53,54 @@ struct ChatWorkspace: View {
                 : AnyLayout(VStackLayout(spacing: 0))
 
             workspaceLayout {
-                SessionBar(
-                    sessions: inference.sessions,
-                    activeSessionID: inference.activeSessionID,
-                    layout: sessionLayout,
-                    availableWidth: sessionBarPlan.availableWidth,
-                    create: {
-                        inference.createSession()
-                        requestComposerFocus(.createSession)
-                    },
-                    select: { session in
-                        inference.selectSession(session)
-                        requestComposerFocus(.selectSession)
-                    },
-                    delete: { session in
-                        inference.deleteSession(session)
-                    },
-                    export: prepareExport
-                )
-                .padding(.horizontal, sessionHorizontalPadding)
-                .padding(.vertical, usesSessionSidebar ? 14 : 0)
-                .padding(.top, usesSessionSidebar ? 0 : 8)
-                .frame(width: usesSessionSidebar ? paneLayout.sessionSidebarWidth : nil)
-                .background {
-                    if usesSessionSidebar {
-                        Rectangle().fill(theme.surface)
+                if isCompact {
+                    CompactSessionToolbar(
+                        title: inference.activeSessionTitle,
+                        showHistory: { isShowingHistory = true },
+                        create: {
+                            inference.createSession()
+                            requestComposerFocus(.createSession)
+                        },
+                        export: prepareExport
+                    )
+                } else {
+                    SessionBar(
+                        sessions: inference.sessions,
+                        activeSessionID: inference.activeSessionID,
+                        layout: sessionLayout,
+                        availableWidth: sessionBarPlan.availableWidth,
+                        create: {
+                            inference.createSession()
+                            requestComposerFocus(.createSession)
+                        },
+                        select: { session in
+                            inference.selectSession(session)
+                            requestComposerFocus(.selectSession)
+                        },
+                        delete: { session in
+                            inference.deleteSession(session)
+                        },
+                        export: prepareExport
+                    )
+                    .padding(.horizontal, sessionHorizontalPadding)
+                    .padding(.vertical, usesSessionSidebar ? 14 : 0)
+                    .padding(.top, usesSessionSidebar ? 0 : 8)
+                    .frame(width: usesSessionSidebar ? paneLayout.sessionSidebarWidth : nil)
+                    .background {
+                        if usesSessionSidebar {
+                            Rectangle().fill(theme.surface)
+                        }
                     }
-                }
-                .overlay(alignment: .trailing) {
-                    if usesSessionSidebar {
-                        Rectangle()
-                            .fill(theme.border)
-                            .frame(width: WorkbenchVisualStylePolicy.hairlineWidth)
+                    .overlay(alignment: .trailing) {
+                        if usesSessionSidebar {
+                            Rectangle()
+                                .fill(theme.border)
+                                .frame(width: WorkbenchVisualStylePolicy.hairlineWidth)
+                        }
                     }
                 }
 
-                chatSurface(showsHeading: sessionBarPlan.showsWorkspaceHeading)
+                chatSurface(showsHeading: !isCompact && sessionBarPlan.showsWorkspaceHeading)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
@@ -90,6 +108,24 @@ struct ChatWorkspace: View {
             ExportSessionView(payload: payload)
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $isShowingHistory, onDismiss: finishHistorySelection) {
+            CompactSessionHistory(
+                sessions: inference.sessions, activeSessionID: inference.activeSessionID,
+                select: { session in
+                    inference.selectSession(session)
+                    pendingHistoryFocus = .selectSession
+                    isShowingHistory = false
+                },
+                delete: { inference.deleteSession($0) },
+                create: {
+                    inference.createSession()
+                    pendingHistoryFocus = .createSession
+                    isShowingHistory = false
+                }
+            )
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
         }
         .modifier(
             SessionCommandFocusModifier(
@@ -142,18 +178,28 @@ struct ChatWorkspace: View {
                         availability: selectedValidation.availability
                     )
                 },
-                stop: inference.stop
+                stop: inference.stop,
+                editingChanged: composerEditingChanged
             )
             .frame(maxWidth: ComposerBarLayoutPolicy.maximumContentWidth)
             .frame(maxWidth: .infinity, alignment: .center)
             .padding(.horizontal, ComposerBarLayoutPolicy.horizontalPadding)
-            .padding(.top, 12)
-            .padding(.bottom, 8)
-            Label("模拟预览 · 内容在本机生成", systemImage: "lock")
-                .font(.caption)
-                .foregroundStyle(theme.secondaryText)
-                .padding(.bottom, ComposerBarLayoutPolicy.bottomPadding)
+            .padding(.top, isCompact ? 8 : 12)
+            .padding(.bottom, ComposerBarLayoutPolicy.bottomPadding)
+            if !isCompact {
+                Label("模拟预览 · 内容在本机生成", systemImage: "lock")
+                    .font(.caption)
+                    .foregroundStyle(theme.secondaryText)
+                    .padding(.bottom, ComposerBarLayoutPolicy.bottomPadding)
+            }
         }
+    }
+
+    private func finishHistorySelection() {
+        let reason = pendingHistoryFocus
+        pendingHistoryFocus = nil
+        guard isActive, let reason else { return }
+        requestComposerFocus(reason)
     }
 
     private func prepareExport() {
@@ -932,6 +978,7 @@ struct SessionChip: View {
 
 struct ChatTranscript: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.compactWorkbench) private var isCompact
 
     let messages: [ChatMessage]
     let isGenerating: Bool
@@ -952,6 +999,7 @@ struct ChatTranscript: View {
                 ScrollView {
                     if presentation == .welcome, let applyStarter {
                         ChatWelcomeView(availableWidth: trackWidth, apply: applyStarter)
+                            .frame(minHeight: isCompact ? max(geometry.size.height - 20, 0) : nil)
                             .padding(.vertical, ChatTranscriptVerticalLayoutPolicy.verticalPadding)
                     } else {
                         let verticalLayout = ChatTranscriptVerticalLayoutPolicy.resolve(
@@ -981,6 +1029,7 @@ struct ChatTranscript: View {
                     }
                 }
                 .scrollIndicators(.hidden)
+                .scrollDismissesKeyboard(.interactively)
                 .accessibilityElement(children: .contain)
                 .accessibilityLabel(
                     presentation == .welcome
@@ -1341,6 +1390,7 @@ struct ChatBubble: View {
     @Environment(\.appTheme) private var theme
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.compactWorkbench) private var isCompact
     @State private var didCopy = false
     let message: ChatMessage
     let availableWidth: CGFloat
@@ -1376,10 +1426,14 @@ struct ChatBubble: View {
                             for: placeholderPresentation
                         ) {
                             GenerationIndicatorView(reduceMotion: reduceMotion)
+                        } else if placeholderPresentation == .cancelled {
+                            Text("已停止")
+                                .font(.footnote)
+                                .foregroundStyle(theme.secondaryText)
                         }
                     } else {
                         Text(message.text)
-                            .font(.body.weight(.medium))
+                            .font(.body)
                             .lineSpacing(ChatBubbleTextLayoutPolicy.bodyLineSpacing)
                             .foregroundStyle(message.role == .system ? theme.secondaryText : theme.primaryText)
                             .fixedSize(horizontal: false, vertical: true)
@@ -1399,16 +1453,18 @@ struct ChatBubble: View {
                 .accessibilityIdentifier(ChatMessageAccessibilityMetadata.identifier(for: message))
 
                 HStack(spacing: 4) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "number")
-                            .font(.caption.weight(.bold))
-                        Text("\(message.tokens) tokens")
-                            .font(.caption.weight(.semibold))
-                            .lineLimit(textLayoutPlan.metadataLineLimit)
-                            .fixedSize(horizontal: false, vertical: true)
+                    if !isCompact {
+                        HStack(spacing: 4) {
+                            Image(systemName: "number")
+                                .font(.caption.weight(.bold))
+                            Text("\(message.tokens) tokens")
+                                .font(.caption.weight(.semibold))
+                                .lineLimit(textLayoutPlan.metadataLineLimit)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .foregroundStyle(theme.tertiaryText)
+                        .accessibilityHidden(true)
                     }
-                    .foregroundStyle(theme.tertiaryText)
-                    .accessibilityHidden(true)
 
                     Button {
                         guard let payload = ChatMessageCopyActionPolicy.payload(
@@ -1467,7 +1523,7 @@ struct ChatBubble: View {
             .background(bubbleBackground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .stroke(roleTint.opacity(message.role == .system ? 0.12 : 0.32), lineWidth: 1)
+                    .stroke(theme.subtleBorder, lineWidth: 1)
             }
             .frame(
                 maxWidth: ChatBubbleLayoutPolicy.maxWidth(
@@ -1495,7 +1551,7 @@ struct ChatBubble: View {
         case .user:
             return "你"
         case .assistant:
-            return "本地模型"
+            return "助手"
         case .system:
             return "状态"
         }
@@ -1504,11 +1560,11 @@ struct ChatBubble: View {
     private var roleTint: Color {
         switch message.role {
         case .user:
-            return .green
+            return theme.secondaryText
         case .assistant:
-            return .cyan
+            return theme.accent
         case .system:
-            return .orange
+            return theme.warning
         }
     }
 
@@ -1519,9 +1575,9 @@ struct ChatBubble: View {
     private var bubbleBackground: some ShapeStyle {
         switch message.role {
         case .user:
-            return LinearGradient(colors: [theme.success.opacity(theme.isDark ? 0.28 : 0.16), theme.accent.opacity(theme.isDark ? 0.18 : 0.14)], startPoint: .topLeading, endPoint: .bottomTrailing)
+            return LinearGradient(colors: [theme.accent.opacity(theme.isDark ? 0.14 : 0.09), theme.accent.opacity(theme.isDark ? 0.09 : 0.05)], startPoint: .topLeading, endPoint: .bottomTrailing)
         case .assistant:
-            return LinearGradient(colors: [theme.surface, theme.accent.opacity(theme.isDark ? 0.08 : 0.1)], startPoint: .topLeading, endPoint: .bottomTrailing)
+            return LinearGradient(colors: [theme.surface, theme.surface], startPoint: .topLeading, endPoint: .bottomTrailing)
         case .system:
             return LinearGradient(colors: [theme.warning.opacity(0.12), theme.surface], startPoint: .topLeading, endPoint: .bottomTrailing)
         }

@@ -88,6 +88,7 @@ struct SettingsSectionsShell<Preferences: View, Runtime: View>: View {
 
 struct SettingsAppearanceSection: View {
     @Environment(\.appTheme) private var theme
+    @Environment(\.compactWorkbench) private var isCompact
 
     let themeMode: AppThemeMode
     let wallpaperData: Data
@@ -112,16 +113,18 @@ struct SettingsAppearanceSection: View {
                 panelContentWidth: SettingsPreferenceRowLayoutPolicy.panelContentWidth(forPanelWidth: availableWidth),
                 clearWallpaper: clearWallpaper
             )
-            Label {
-                Text("相册图片仅在本机压缩保存。恢复系统背景不会修改原始照片。")
-                    .fixedSize(horizontal: false, vertical: true)
-            } icon: {
-                Image(systemName: "lock.shield")
-                    .foregroundStyle(theme.accent)
+            if !isCompact {
+                Label {
+                    Text("相册图片仅在本机压缩保存。恢复系统背景不会修改原始照片。")
+                        .fixedSize(horizontal: false, vertical: true)
+                } icon: {
+                    Image(systemName: "lock.shield")
+                        .foregroundStyle(theme.accent)
+                }
+                .font(.caption)
+                .foregroundStyle(theme.secondaryText)
+                .accessibilityElement(children: .combine)
             }
-            .font(.caption)
-            .foregroundStyle(theme.secondaryText)
-            .accessibilityElement(children: .combine)
         }
         .fixedSize(horizontal: false, vertical: true)
     }
@@ -130,15 +133,51 @@ struct SettingsAppearanceSection: View {
 struct SettingsRuntimeSection: View {
     @EnvironmentObject private var optimizer: DeviceOptimizer
     @Environment(\.appTheme) private var theme
+    @Environment(\.compactWorkbench) private var isCompact
+    @State private var showsDeviceDetails = false
 
     let availableWidth: CGFloat
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            SettingsSectionHeading(
-                eyebrow: "02 / APPLE SILICON", title: "芯片运行计划",
-                subtitle: "Apple Silicon 运行计划与模拟预算，非实时设备性能测量。"
-            )
+            if isCompact {
+                OptimizationToggleGrid(
+                    items: optimizer.switches, availableWidth: availableWidth, border: theme.border,
+                    toggle: { optimizer.toggle($0) }
+                )
+                DisclosureGroup(isExpanded: $showsDeviceDetails) {
+                    deviceDetails.padding(.top, 12)
+                } label: {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("设备与性能预算")
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(theme.primaryText)
+                        Text("模拟数据，非实测性能")
+                            .font(.caption)
+                            .foregroundStyle(theme.secondaryText)
+                    }
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(minHeight: 44)
+                }
+                .tint(theme.secondaryText)
+                .accessibilityIdentifier("compact-device-details")
+            } else {
+                SettingsSectionHeading(
+                    eyebrow: "02 / APPLE SILICON", title: "芯片运行计划",
+                    subtitle: "Apple Silicon 运行计划与模拟预算，非实时设备性能测量。"
+                )
+                deviceDetails
+                OptimizationToggleGrid(
+                    items: optimizer.switches, availableWidth: availableWidth, border: theme.border,
+                    toggle: { optimizer.toggle($0) }
+                )
+            }
+        }
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var deviceDetails: some View {
+        VStack(spacing: 16) {
             ChipReadinessCard(
                 progress: optimizer.deploymentReadiness,
                 thermalState: optimizer.thermalState,
@@ -146,28 +185,26 @@ struct SettingsRuntimeSection: View {
                 panelContentWidth: ChipReadinessLayoutPolicy.panelContentWidth(forPanelWidth: availableWidth)
             )
             OptimizerMetricGrid(metrics: optimizer.metrics, availableWidth: availableWidth)
-            OptimizationToggleGrid(
-                items: optimizer.switches, availableWidth: availableWidth, border: theme.border,
-                toggle: { optimizer.toggle($0) }
-            )
         }
-        .fixedSize(horizontal: false, vertical: true)
     }
 }
 
 private struct SettingsSectionHeading: View {
     @Environment(\.appTheme) private var theme
+    @Environment(\.compactWorkbench) private var isCompact
     let eyebrow: String
     let title: String
     var subtitle: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(eyebrow)
-                .font(.caption2.monospaced().weight(.medium))
-                .tracking(0.8)
-                .foregroundStyle(theme.accent)
-                .fixedSize(horizontal: false, vertical: true)
+            if !isCompact {
+                Text(eyebrow)
+                    .font(.caption2.monospaced().weight(.medium))
+                    .tracking(0.8)
+                    .foregroundStyle(theme.accent)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             Text(title)
                 .font(.title3.weight(.semibold))
                 .foregroundStyle(theme.primaryText)

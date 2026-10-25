@@ -245,7 +245,7 @@ struct AppBackground: View {
                     )
                 }
 
-                if showsDecoration {
+                if showsDecoration && geometry.size.width >= 700 {
                     WorkbenchGridBackground(theme: theme)
                 }
             }
@@ -331,21 +331,25 @@ private struct WorkbenchUtilityModifier: ViewModifier {
 
 private struct WorkbenchPanelModifier: ViewModifier {
     @Environment(\.appTheme) private var theme
+    @Environment(\.compactWorkbench) private var isCompact
 
     let border: Color?
 
     func body(content: Content) -> some View {
+        let cornerRadius = isCompact
+            ? CompactWorkbenchPolicy.surfaceCornerRadius : WorkbenchVisualStylePolicy.panelCornerRadius
+
         content
             .padding(WorkbenchVisualStylePolicy.panelPadding)
             .background {
                 ZStack {
                     RoundedRectangle(
-                        cornerRadius: WorkbenchVisualStylePolicy.panelCornerRadius,
+                        cornerRadius: cornerRadius,
                         style: .continuous
                     )
                     .fill(theme.surface)
                     RoundedRectangle(
-                        cornerRadius: WorkbenchVisualStylePolicy.panelCornerRadius,
+                        cornerRadius: cornerRadius,
                         style: .continuous
                     )
                     .fill(
@@ -373,7 +377,7 @@ private struct WorkbenchPanelModifier: ViewModifier {
             }
             .overlay {
                 RoundedRectangle(
-                    cornerRadius: WorkbenchVisualStylePolicy.panelCornerRadius,
+                    cornerRadius: cornerRadius,
                     style: .continuous
                 )
                 .inset(by: WorkbenchVisualStylePolicy.hairlineWidth)
@@ -397,7 +401,7 @@ private struct WorkbenchPanelModifier: ViewModifier {
             }
             .overlay {
                 RoundedRectangle(
-                    cornerRadius: WorkbenchVisualStylePolicy.panelCornerRadius,
+                    cornerRadius: cornerRadius,
                     style: .continuous
                 )
                 .stroke(

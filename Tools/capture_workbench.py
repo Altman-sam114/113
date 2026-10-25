@@ -52,12 +52,13 @@ for family in ["iPhone", "iPad"]:
                 "-appThemeMode", theme)
             filename = f"{family}-{theme}-{workspace}.png"
             path = output / filename
+            marker = "想聊点什么" if family == "iPhone" and workspace == "chat" else markers[workspace]
             # Launch acknowledgement is not proof that the requested page is on screen.
             for capture_attempt in range(1, 6):
                 time.sleep(2)
                 sim("io", udid, "screenshot", str(path))
                 validation = subprocess.run(
-                    [str(validator), str(path), markers[workspace]], text=True, capture_output=True
+                    [str(validator), str(path), marker], text=True, capture_output=True
                 )
                 if validation.returncode == 0:
                     content = json.loads(validation.stdout)

@@ -1,0 +1,364 @@
+import SwiftUI
+
+private struct CompactWorkbenchKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    var compactWorkbench: Bool {
+        get { self[CompactWorkbenchKey.self] }
+        set { self[CompactWorkbenchKey.self] = newValue }
+    }
+}
+
+enum CompactWorkbenchPolicy {
+    static let minimumTouchTarget: CGFloat = 44
+    static let navigationItemHeight: CGFloat = 56
+    static let surfaceCornerRadius: CGFloat = 20
+
+    static func usesCompactChrome(for plan: WorkspaceRootLayoutPlan) -> Bool {
+        plan.chrome == .topNavigation
+    }
+
+    static func showsNavigation(isCompact: Bool, selectedTab: WorkspaceTab, isEditing: Bool) -> Bool {
+        isCompact && (selectedTab != .chat || !isEditing)
+    }
+
+    static func title(for tab: WorkspaceTab) -> String {
+        switch tab {
+        case .chat: return "对话"
+        case .models: return "模型"
+        case .prompts: return "模板"
+        case .settings: return "设置"
+        }
+    }
+
+    static func modelTitle(_ model: LocalModel) -> String {
+        model.name.hasSuffix(" Local") ? String(model.name.dropLast(6)) : model.name
+    }
+
+    static func fileStatus(_ availability: ArtifactAvailability) -> String {
+        switch availability {
+        case .missing: return "尚未导入"
+        case .staged: return "待校验"
+        case .verified: return "已校验"
+        }
+    }
+
+    static func installTitle(_ state: ModelInstallState) -> String {
+        switch state {
+        case .ready: return "已准备"
+        case .simulated: return "模拟"
+        case .notDownloaded: return "未安装"
+        }
+    }
+
+    static func toggleTitle(_ item: OptimizationSwitch) -> String {
+        switch item.title {
+        case "Metal graph prewarm": return "图执行预热"
+        case "Paged KV cache": return "分页缓存"
+        case "Adaptive token budget": return "自适应生成长度"
+        case "Offline privacy guard": return "离线隐私保护"
+        default: return item.title
+        }
+    }
+}
+
+struct CompactWorkbenchHeader: View {
+    @Environment(\.appTheme) private var theme
+    let model: LocalModel
+    let isSimulated: Bool
+    let themeMode: AppThemeMode
+    let openSummary: () -> Void
+    let toggleTheme: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Button(action: openSummary) {
+                HStack(spacing: 10) {
+                    Image(systemName: "sparkle")
+                        .font(.title2.weight(.medium))
+                        .foregroundStyle(theme.accent)
+                        .frame(width: 34, height: 34)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(CompactWorkbenchPolicy.modelTitle(model))
+                            .font(.headline.weight(.semibold))
+                            .foregroundStyle(theme.primaryText)
+                            .lineLimit(2)
+                        Text(isSimulated ? "模拟预览" : "本地运行")
+                            .font(.caption)
+                            .foregroundStyle(theme.secondaryText)
+                    }
+                    .fixedSize(horizontal: false, vertical: true)
+                    Image(systemName: "chevron.down")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(theme.secondaryText)
+                }
+                .frame(minHeight: CompactWorkbenchPolicy.minimumTouchTarget, alignment: .leading)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("当前模型，\(model.name)")
+            .accessibilityValue(isSimulated ? "本地模拟预览，未执行真实推理" : "本地运行")
+            .accessibilityHint("打开当前模型运行摘要；只展示本地状态，不下载权重或启动真实 runtime。")
+            .accessibilityInputLabels(["当前模型", "模型摘要", model.name])
+            .accessibilityIdentifier("compact-model-summary")
+
+            Spacer(minLength: 0)
+            Button(action: toggleTheme) {
+                Image(systemName: themeMode.icon)
+                    .frame(width: 44, height: 44)
+            }
+            .buttonStyle(WorkbenchIconButtonStyle())
+            .accessibilityLabel(HeaderActionAccessibilityMetadata.themeToggleLabel(themeMode: themeMode))
+            .accessibilityValue(HeaderActionAccessibilityMetadata.themeToggleValue(themeMode: themeMode))
+            .accessibilityHint(HeaderActionAccessibilityMetadata.themeToggleHint(themeMode: themeMode))
+            .accessibilityInputLabels(HeaderActionAccessibilityMetadata.themeToggleInputLabels(themeMode: themeMode))
+            .accessibilityIdentifier(HeaderActionAccessibilityMetadata.headerThemeToggleIdentifier)
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 8)
+    }
+}
+
+struct CompactWorkspaceNavigation: View {
+    @Environment(\.appTheme) private var theme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Binding var selection: WorkspaceTab
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 4) {
+            ForEach(WorkspaceTab.allCases) { tab in
+                Button {
+                    withAnimation(AppMotionAccessibilityPolicy.animation(
+                        .spring(response: 0.3, dampingFraction: 0.82),
+                        for: .workspaceNavigation, reduceMotion: reduceMotion
+                    )) {
+                        selection = tab
+                    }
+                } label: {
+                    VStack(spacing: 5) {
+                        Image(systemName: tab.icon)
+                            .font(.body.weight(.medium))
+                            .frame(height: 22)
+                        Text(CompactWorkbenchPolicy.title(for: tab))
+                            .font(.caption.weight(selection == tab ? .semibold : .regular))
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: CompactWorkbenchPolicy.navigationItemHeight)
+                    .foregroundStyle(selection == tab ? theme.accent : theme.secondaryText)
+                    .background {
+                        if selection == tab {
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(theme.accent.opacity(theme.isDark ? 0.10 : 0.07))
+                        }
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .keyboardShortcut(KeyEquivalent(tab.shortcutKey), modifiers: [.command])
+                .accessibilityLabel(WorkspaceNavigationAccessibilityMetadata.label(for: tab))
+                .accessibilityValue(WorkspaceNavigationAccessibilityMetadata.value(isSelected: selection == tab))
+                .accessibilityHint(WorkspaceNavigationAccessibilityMetadata.hint(for: tab))
+                .accessibilityInputLabels(WorkspaceNavigationAccessibilityMetadata.inputLabels(for: tab)
+                    + [CompactWorkbenchPolicy.title(for: tab)])
+                .accessibilityAddTraits(selection == tab ? .isSelected : [])
+                .accessibilityIdentifier(WorkspaceNavigationAccessibilityMetadata.compactIdentifier(for: tab))
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.top, 8)
+        .padding(.bottom, 4)
+        .background(theme.surface.ignoresSafeArea(edges: .bottom))
+        .overlay(alignment: .top) { theme.subtleBorder.frame(height: 0.5) }
+    }
+}
+
+struct CompactSessionToolbar: View {
+    @Environment(\.appTheme) private var theme
+    let title: String
+    let showHistory: () -> Void
+    let create: () -> Void
+    let export: () -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Button(action: showHistory) {
+                HStack(spacing: 8) {
+                    Image(systemName: "clock.arrow.circlepath")
+                    Text(title)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                    Image(systemName: "chevron.down")
+                        .font(.caption2)
+                }
+                .font(.subheadline)
+                .frame(minHeight: 44, alignment: .leading)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(theme.secondaryText)
+            .accessibilityLabel("会话记录")
+            .accessibilityValue("当前会话，\(title)")
+            .accessibilityHint("打开本机会话列表，可选择或删除会话，不会发送到云端服务。")
+            .accessibilityInputLabels(["会话记录", "历史会话", title])
+            .accessibilityIdentifier("compact-session-history")
+
+            Spacer(minLength: 0)
+            sessionAction(.exportSession, icon: "square.and.arrow.up", action: export)
+            sessionAction(.createSession, icon: "square.and.pencil", action: create)
+        }
+        .padding(.horizontal, 18)
+    }
+
+    private func sessionAction(_ item: SessionCommandAction, icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.body)
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(theme.primaryText)
+        .accessibilityLabel(SessionBarActionAccessibilityMetadata.label(for: item))
+        .accessibilityValue(SessionBarActionAccessibilityMetadata.value(for: item))
+        .accessibilityHint(SessionBarActionAccessibilityMetadata.hint(for: item))
+        .accessibilityInputLabels(SessionBarActionAccessibilityMetadata.inputLabels(for: item))
+        .accessibilityIdentifier(SessionBarActionAccessibilityMetadata.identifier(for: item))
+    }
+}
+
+struct CompactSessionHistory: View {
+    @Environment(\.appTheme) private var theme
+    @Environment(\.dismiss) private var dismiss
+    let sessions: [ChatSession]
+    let activeSessionID: UUID
+    let select: (ChatSession) -> Void
+    let delete: (ChatSession) -> Void
+    let create: () -> Void
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                LazyVStack(spacing: 10) {
+                    ForEach(sessions) { session in
+                        SessionChip(
+                            session: session, isActive: session.id == activeSessionID, layout: .vertical,
+                            select: { select(session) }, delete: { delete(session) }
+                        )
+                    }
+                }
+                .padding(18)
+            }
+            .background(theme.canvas)
+            .navigationTitle("会话记录")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button(action: create) {
+                        Image(systemName: "square.and.pencil").frame(width: 44, height: 44)
+                    }
+                    .accessibilityLabel(SessionBarActionAccessibilityMetadata.label(for: .createSession))
+                    .accessibilityHint(SessionBarActionAccessibilityMetadata.hint(for: .createSession))
+                    .accessibilityInputLabels(SessionBarActionAccessibilityMetadata.inputLabels(for: .createSession))
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { dismiss() } label: {
+                        Image(systemName: "xmark").frame(width: 44, height: 44)
+                    }
+                    .accessibilityLabel("关闭会话记录")
+                }
+            }
+        }
+        .tint(theme.accent)
+    }
+}
+
+struct CompactModelFilesPanel: View {
+    @Environment(\.appTheme) private var theme
+    let validation: ArtifactValidationResult
+    let download: () -> Void
+    let uninstall: () -> Void
+    let scan: () -> Void
+    let importFiles: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                Text("模型文件")
+                    .font(.headline)
+                    .foregroundStyle(theme.primaryText)
+                Spacer(minLength: 0)
+                Text(CompactWorkbenchPolicy.fileStatus(validation.availability))
+                    .font(.caption)
+                    .foregroundStyle(theme.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            fileAction(.importFiles, title: "导入模型文件", icon: "square.and.arrow.down", action: importFiles)
+                .frame(maxWidth: .infinity, minHeight: 48)
+                .foregroundStyle(theme.inverseText)
+                .background(theme.accent, in: RoundedRectangle(cornerRadius: 13))
+
+            HStack(spacing: 12) {
+                fileAction(.scan, title: "扫描本地", icon: "folder", action: scan)
+                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                Menu {
+                    fileAction(.download, title: "模拟暂存", icon: "shippingbox", action: download)
+                    Button(role: .destructive, action: uninstall) {
+                        Label("卸载模型", systemImage: "trash")
+                    }
+                    .modifier(CompactArtifactAccessibility(action: .uninstall, availability: validation.availability))
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .frame(width: 44, height: 44)
+                        .background(theme.chipSurface, in: RoundedRectangle(cornerRadius: 12))
+                }
+                .accessibilityLabel("更多文件操作")
+                .accessibilityHint("可模拟暂存或打开卸载确认，不会联网下载权重。")
+                .accessibilityIdentifier("compact-model-files-more")
+            }
+            .foregroundStyle(theme.secondaryText)
+        }
+        .panelStyle()
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(ModelArtifactPanelAccessibilityMetadata.label)
+        .accessibilityValue(ModelArtifactPanelAccessibilityMetadata.value(validation: validation))
+        .accessibilityHint(ModelArtifactPanelAccessibilityMetadata.hint)
+        .accessibilityInputLabels(ModelArtifactPanelAccessibilityMetadata.inputLabels)
+        .accessibilityIdentifier(ModelArtifactPanelAccessibilityMetadata.identifier)
+    }
+
+    private func fileAction(
+        _ action: ModelDeploymentControlAccessibilityMetadata.ArtifactAction,
+        title: String, icon: String, action perform: @escaping () -> Void
+    ) -> some View {
+        Button(action: perform) {
+            Label(title, systemImage: icon)
+                .font(.subheadline.weight(.semibold))
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .frame(maxWidth: .infinity, minHeight: 44, alignment: .center)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .modifier(CompactArtifactAccessibility(action: action, availability: validation.availability))
+    }
+}
+
+private struct CompactArtifactAccessibility: ViewModifier {
+    let action: ModelDeploymentControlAccessibilityMetadata.ArtifactAction
+    let availability: ArtifactAvailability
+
+    func body(content: Content) -> some View {
+        content
+            .accessibilityLabel(ModelDeploymentControlAccessibilityMetadata.artifactActionLabel(action))
+            .accessibilityValue(ModelDeploymentControlAccessibilityMetadata.artifactActionValue(action, availability: availability))
+            .accessibilityHint(ModelDeploymentControlAccessibilityMetadata.artifactActionHint(action, availability: availability))
+            .accessibilityInputLabels(ModelDeploymentControlAccessibilityMetadata.artifactActionInputLabels(action)
+                + (action == .importFiles ? ["导入模型文件"] : action == .download ? ["模拟暂存"] : []))
+            .accessibilityIdentifier(ModelDeploymentControlAccessibilityMetadata.artifactActionIdentifier(action))
+    }
+}

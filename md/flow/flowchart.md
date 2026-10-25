@@ -1,5 +1,38 @@
 # 项目核心流程图
 
+## v3.6 iPhone 优先的界面流
+
+读图说明：手机新呈现只读取原状态和根布局计划，四页 shell 始终唯一。抽屉关闭与输入焦点严格串行，参数与预算渐进展开；所有执行仍在云端。
+
+```mermaid
+flowchart TD
+    %% 不引入第二套根断点，不重建四页
+    Root[原根布局 plan] --> Compact{topNavigation?}
+    Compact -- 是 --> Header[单行模型栏 / 运行摘要 sheet]
+    Compact -- 否 --> Sidebar[原大屏 sidebar]
+    Header --> Pages[同一个 WorkspacePagesShell]
+    Sidebar --> Pages
+    Pages --> Nav[手机底部四入口 / 44pt以上]
+    %% 只读编辑反馈控制底栏，原同步聚焦保持
+    Focus[原 ComposerBar FocusState] --> Editing[编辑状态向上传递]
+    Editing --> NavRule[仅活动聊天编辑时收起底栏]
+    NavRule --> Nav
+    Focus --> Dismiss[键盘完成 / 记录交互式收键盘]
+    %% sheet 关闭后才请求聚焦，不跨越活动态边界
+    Pages --> History[会话抽屉 / 原SessionChip]
+    History --> Select[原选择或新建 / 保存UI focus reason]
+    Select --> Closed[sheet onDismiss / 清reason]
+    Closed --> Active{聊天仍active?}
+    Active -- 是 --> Request[原requestComposerFocus同步路由]
+    Active -- 否 --> None[不请求焦点]
+    %% 渐进披露不改模型文件与runtime门禁
+    Pages --> Files[Files导入与扫描优先 / 更多菜单]
+    Files --> Confirm[原卸载确认 / verified gate保持]
+    Pages --> Detail[模型参数与模拟设备预算按需展开]
+    Pages --> Cloud[云端144项 / 16模拟器图 / 20宿主图]
+    Cloud --> Review[精确SHA-run-attempt完整包和实际图片复判]
+```
+
 本文是 `md/flow/flow.md` 的 Mermaid 可视化版本。每张图前先给人工读图说明，图中节点使用中文注释，方便快速理解当前真实逻辑。
 
 ## 1. App 启动与全局状态

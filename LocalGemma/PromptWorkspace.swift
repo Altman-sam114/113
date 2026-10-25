@@ -8,6 +8,7 @@ struct PromptTemplatesWorkspace: View {
     @EnvironmentObject private var catalog: ModelCatalog
     @EnvironmentObject private var inference: InferenceEngine
     @Environment(\.appTheme) private var theme
+    @Environment(\.compactWorkbench) private var isCompact
     @State private var selectedCategory: PromptTemplateCategory?
 
     let openChat: (ComposerFocusReason) -> Void
@@ -22,7 +23,7 @@ struct PromptTemplatesWorkspace: View {
                 VStack(alignment: .leading, spacing: 16) {
                     SectionHeader(
                         eyebrow: "PROMPTS",
-                        title: "灵感，从这里开始",
+                        title: isCompact ? "模板" : "灵感，从这里开始",
                         subtitle: "精选提示词，帮你把问题问得更好。选择模板，继续你的对话。"
                     )
 
@@ -56,7 +57,7 @@ struct PromptTemplatesWorkspace: View {
                 )
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.horizontal, PromptTemplatesWorkspaceLayoutPolicy.horizontalPadding)
-                .padding(.top, WorkbenchPresentationPolicy.pageTopInset)
+                .padding(.top, isCompact ? 16 : WorkbenchPresentationPolicy.pageTopInset)
                 .padding(.bottom, 28)
             }
             .scrollIndicators(.hidden)
@@ -89,6 +90,7 @@ enum PromptTemplatesWorkspaceLayoutPolicy {
 }
 
 struct PromptTemplateGrid: View {
+    @Environment(\.compactWorkbench) private var isCompact
     let templates: [PresetPromptTemplate]
     let availableWidth: CGFloat
     let isGenerating: Bool
@@ -97,13 +99,14 @@ struct PromptTemplateGrid: View {
 
     var body: some View {
         templateGrid(
-            columnCount: PromptTemplateGridLayoutPolicy.columnCount(for: availableWidth)
+            columnCount: isCompact ? 1 : PromptTemplateGridLayoutPolicy.columnCount(for: availableWidth)
         )
     }
 
     private func templateGrid(columnCount: Int) -> some View {
         LazyVGrid(
-            columns: PromptTemplateGridLayoutPolicy.columns(forColumnCount: columnCount),
+            columns: isCompact ? [GridItem(.flexible(minimum: 0))]
+                : PromptTemplateGridLayoutPolicy.columns(forColumnCount: columnCount),
             alignment: .leading,
             spacing: PromptTemplateGridLayoutPolicy.spacing
         ) {
@@ -116,7 +119,7 @@ struct PromptTemplateGrid: View {
                 )
             }
         }
-        .frame(minWidth: PromptTemplateGridLayoutPolicy.minimumWidth(forColumnCount: columnCount))
+        .frame(minWidth: isCompact ? 0 : PromptTemplateGridLayoutPolicy.minimumWidth(forColumnCount: columnCount))
     }
 }
 
@@ -294,6 +297,7 @@ struct PromptCategoryFlowLayout: Layout {
 
 struct PromptTemplateCard: View {
     @Environment(\.appTheme) private var theme
+    @Environment(\.compactWorkbench) private var isCompact
 
     let template: PresetPromptTemplate
     let isGenerating: Bool
@@ -323,38 +327,42 @@ struct PromptTemplateCard: View {
                         .foregroundStyle(theme.primaryText)
                         .lineLimit(PromptTemplateTextLayoutPolicy.titleLineLimit)
                         .fixedSize(horizontal: false, vertical: true)
-                    Text(template.subtitle)
-                        .font(.subheadline)
-                        .bold()
-                        .foregroundStyle(theme.tertiaryText)
-                        .lineLimit(PromptTemplateTextLayoutPolicy.subtitleLineLimit)
-                        .fixedSize(horizontal: false, vertical: true)
+                    if !isCompact {
+                        Text(template.subtitle)
+                            .font(.subheadline)
+                            .bold()
+                            .foregroundStyle(theme.tertiaryText)
+                            .lineLimit(PromptTemplateTextLayoutPolicy.subtitleLineLimit)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
 
                 Spacer(minLength: 0)
 
-                Text(template.category.title)
-                    .font(.caption)
-                    .bold()
-                    .foregroundStyle(categoryTint)
-                    .lineLimit(PromptTemplateTextLayoutPolicy.categoryLineLimit)
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 4)
-                    .background(categoryTint.opacity(0.10), in: Capsule())
+                if !isCompact {
+                    Text(template.category.title)
+                        .font(.caption)
+                        .bold()
+                        .foregroundStyle(categoryTint)
+                        .lineLimit(PromptTemplateTextLayoutPolicy.categoryLineLimit)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 4)
+                        .background(categoryTint.opacity(0.10), in: Capsule())
+                }
             }
 
             Text(template.prompt)
-                .font(.callout)
+                .font(isCompact ? .subheadline : .callout)
                 .lineSpacing(PromptTemplateTextLayoutPolicy.bodyLineSpacing)
                 .foregroundStyle(theme.secondaryText)
-                .lineLimit(PromptTemplateTextLayoutPolicy.promptLineLimit)
+                .lineLimit(isCompact ? 2 : PromptTemplateTextLayoutPolicy.promptLineLimit)
                 .fixedSize(horizontal: false, vertical: true)
 
-            Spacer(minLength: 0)
+            if !isCompact { Spacer(minLength: 0) }
 
             HStack(spacing: PromptTemplateActionLayoutPolicy.spacing) {
                 Button(action: apply) {
-                    Label("填入", systemImage: "text.cursor")
+                    Label(isCompact ? "使用模板" : "填入", systemImage: "text.cursor")
                         .font(.subheadline)
                         .bold()
                         .foregroundStyle(secondary.foreground)
@@ -379,6 +387,7 @@ struct PromptTemplateCard: View {
                 )
                 .accessibilityInputLabels(
                     PromptTemplateActionAccessibilityMetadata.inputLabels(for: .apply, template: template)
+                        + (isCompact ? ["使用模板"] : [])
                 )
                 .accessibilityIdentifier(
                     PromptTemplateActionAccessibilityMetadata.identifier(for: .apply, template: template)
@@ -417,7 +426,7 @@ struct PromptTemplateCard: View {
         .foregroundStyle(theme.primaryText)
         .padding(PromptTemplateActionLayoutPolicy.cardPadding)
         .frame(maxWidth: .infinity, alignment: .topLeading)
-        .frame(minHeight: PromptTemplateTextLayoutPolicy.minimumCardHeight, alignment: .topLeading)
+        .frame(minHeight: isCompact ? 0 : PromptTemplateTextLayoutPolicy.minimumCardHeight, alignment: .topLeading)
         .background(templateBackground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 16, style: .continuous)

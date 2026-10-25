@@ -8,12 +8,14 @@ struct ModelLibraryView: View {
     @EnvironmentObject private var catalog: ModelCatalog
     @Environment(\.appTheme) private var theme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.compactWorkbench) private var isCompact
     var isModal = false
     @State private var importTargetModel: LocalModel?
     @State private var pendingUninstallModel: LocalModel?
     @State private var isShowingFileImporter = false
     @State private var operationErrorTitle = "操作失败"
     @State private var operationErrorMessage: String?
+    @State private var showsModelDetails = false
 
     var body: some View {
         ZStack {
@@ -31,7 +33,7 @@ struct ModelLibraryView: View {
                     )
                         .frame(width: contentWidth, alignment: .topLeading)
                         .padding(.horizontal, ModelLibraryWorkspaceLayoutPolicy.horizontalPadding)
-                        .padding(.top, WorkbenchPresentationPolicy.pageTopInset)
+                        .padding(.top, isCompact ? 16 : WorkbenchPresentationPolicy.pageTopInset)
                         .padding(.bottom, 28)
                         .frame(maxWidth: .infinity, alignment: .center)
                 }
@@ -145,7 +147,40 @@ struct ModelLibraryView: View {
                 subtitle: "模型与文件，一处管理。导入本地文件，查看校验与运行准备状态。"
             )
 
-            if layoutMode == .twoColumn {
+            if isCompact {
+                ModelSelectorPanel(
+                    models: catalog.models, selectedModelID: selectedModelID, selectedModel: model,
+                    validation: validation, deploymentState: deploymentState
+                )
+                CompactModelFilesPanel(
+                    validation: validation,
+                    download: { catalog.simulateDownload(for: model) },
+                    uninstall: { requestUninstall(model) },
+                    scan: { catalog.refreshArtifactStatus(for: model) },
+                    importFiles: {
+                        importTargetModel = model
+                        isShowingFileImporter = true
+                    }
+                )
+                DeploymentPowerButton(
+                    model: model, validation: validation, deploymentState: deploymentState,
+                    toggle: { catalog.toggleDeployment(for: model) }
+                )
+                DisclosureGroup(isExpanded: $showsModelDetails) {
+                    ModelDetailColumn(
+                        model: model, validation: validation, report: report,
+                        panelContentWidth: ModelDetailRowLayoutPolicy.panelContentWidth(forPanelWidth: size.width)
+                    )
+                    .padding(.top, 12)
+                } label: {
+                    Label("参数与运行计划", systemImage: "slider.horizontal.3")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(theme.primaryText)
+                        .frame(minHeight: 44)
+                }
+                .tint(theme.secondaryText)
+                .accessibilityIdentifier("compact-model-details")
+            } else if layoutMode == .twoColumn {
                 let controlColumnWidth = layoutMode.controlColumnWidth(for: size)
                 let detailColumnWidth = ModelDetailColumnLayoutPolicy.width(
                     for: size,
@@ -282,6 +317,8 @@ enum ModelSelectorTextLayoutPolicy {
 
 struct ModelSelectorPanel: View {
     @Environment(\.appTheme) private var theme
+    @Environment(\.compactWorkbench) private var isCompact
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     let models: [LocalModel]
     @Binding var selectedModelID: UUID
@@ -290,17 +327,23 @@ struct ModelSelectorPanel: View {
     let deploymentState: ModelDeploymentState
 
     var body: some View {
+        let badgesLayout = isCompact && dynamicTypeSize >= .xxxLarge
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+            : AnyLayout(HStackLayout(spacing: 8))
+
         VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 10) {
-                Label("选择模型", systemImage: "slider.horizontal.3")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(theme.primaryText)
+            if !isCompact {
+                HStack(spacing: 10) {
+                    Label("选择模型", systemImage: "slider.horizontal.3")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(theme.primaryText)
 
-                Spacer()
+                    Spacer()
 
-                Text("\(models.count) 个候选")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(theme.tertiaryText)
+                    Text("\(models.count) 个候选")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(theme.tertiaryText)
+                }
             }
 
             Picker(selection: $selectedModelID) {
@@ -355,7 +398,7 @@ struct ModelSelectorPanel: View {
             )
             .accessibilityIdentifier(ModelDeploymentControlAccessibilityMetadata.modelSelectorIdentifier)
 
-            HStack(spacing: 8) {
+            badgesLayout {
                 StatusBadge(
                     state: selectedModel.installState,
                     exposesAccessibility: ModelStatusBadgeAccessibilityPresentationPolicy
@@ -372,6 +415,12 @@ struct ModelSelectorPanel: View {
                         .exposesIndependentBadge(for: .modelSelector)
                 )
             }
+            if isCompact {
+                Text("\(selectedModel.parameterCount) · \(selectedModel.quantization) · \(selectedModel.sizeOnDisk)")
+                    .font(.caption.monospaced())
+                    .foregroundStyle(theme.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .panelStyle(border: theme.accent.opacity(0.24))
     }
@@ -379,12 +428,13 @@ struct ModelSelectorPanel: View {
 
 struct AvailabilityBadge: View {
     @Environment(\.appTheme) private var theme
+    @Environment(\.compactWorkbench) private var isCompact
 
     let availability: ArtifactAvailability
     var exposesAccessibility: Bool = true
 
     var body: some View {
-        Text(availability.title)
+        Text(isCompact ? CompactWorkbenchPolicy.fileStatus(availability) : availability.title)
             .modifier(
                 ModelStatusBadgeAppearanceModifier(
                     style: ModelStatusBadgeStylePolicy.style(
@@ -404,12 +454,13 @@ struct AvailabilityBadge: View {
 
 struct DeploymentBadge: View {
     @Environment(\.appTheme) private var theme
+    @Environment(\.compactWorkbench) private var isCompact
 
     let state: ModelDeploymentState
     var exposesAccessibility: Bool = true
 
     var body: some View {
-        Text(state.title)
+        Text(isCompact ? state.localizedTitle : state.title)
             .modifier(
                 ModelStatusBadgeAppearanceModifier(
                     style: ModelStatusBadgeStylePolicy.style(
@@ -438,6 +489,7 @@ enum ModelDeploymentPowerTextLayoutPolicy {
 
 struct DeploymentPowerButton: View {
     @Environment(\.appTheme) private var theme
+    @Environment(\.compactWorkbench) private var isCompact
 
     let model: LocalModel
     let validation: ArtifactValidationResult
@@ -457,17 +509,17 @@ struct DeploymentPowerButton: View {
                     Circle()
                         .fill(palette.iconSurface)
                     Image(systemName: isRunning ? "stop.fill" : "power")
-                        .font(.system(size: 25, weight: .semibold))
+                        .font(isCompact ? .title3.weight(.medium) : .title.weight(.semibold))
                 }
-                .frame(width: 58, height: 58)
+                .frame(width: isCompact ? 40 : 58, height: isCompact ? 40 : 58)
 
                 VStack(alignment: .leading, spacing: ModelDeploymentPowerTextLayoutPolicy.verticalSpacing) {
-                    Text(isRunning ? "关闭模型部署" : "启动模型部署")
-                        .font(.title3.weight(.semibold))
+                    Text(isCompact ? (isRunning ? "停止部署预览" : "启动部署预览") : (isRunning ? "关闭模型部署" : "启动模型部署"))
+                        .font(isCompact ? .headline : .title3.weight(.semibold))
                         .lineLimit(ModelDeploymentPowerTextLayoutPolicy.titleLineLimit)
                         .fixedSize(horizontal: false, vertical: true)
-                    Text(deploymentSubtitle)
-                        .font(.footnote.weight(.bold))
+                    Text(isCompact ? "仅模拟，不执行真实推理" : deploymentSubtitle)
+                        .font(.footnote)
                         .lineLimit(ModelDeploymentPowerTextLayoutPolicy.subtitleLineLimit)
                         .fixedSize(horizontal: false, vertical: true)
                         .foregroundStyle(theme.secondaryText)
@@ -476,7 +528,7 @@ struct DeploymentPowerButton: View {
                 Spacer(minLength: 0)
 
                 Image(systemName: isRunning ? "pause.circle.fill" : "play.circle.fill")
-                    .font(.system(size: 26, weight: .bold))
+                    .font(isCompact ? .title3 : .title2)
                     .opacity(0.84)
             }
             .foregroundStyle(palette.foreground)

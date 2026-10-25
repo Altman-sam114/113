@@ -212,81 +212,71 @@ struct ChatWorkspaceHeading: View {
 struct ChatWelcomeView: View {
     @Environment(\.appTheme) private var theme
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.compactWorkbench) private var isCompact
     let availableWidth: CGFloat
     let apply: (PresetPromptTemplate) -> Void
 
     var body: some View {
         let contentWidth = WorkbenchPresentationPolicy.welcomeContentWidth(for: availableWidth)
 
-        VStack(alignment: .leading, spacing: 16) {
-            HStack(spacing: 10) {
-                Image(systemName: "cpu")
-                    .font(.title3.weight(.medium))
-                    .foregroundStyle(theme.accent)
-                    .frame(width: 42, height: 42)
-                    .background(theme.accent.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 10)
-                            .stroke(theme.accent.opacity(0.2), lineWidth: 1)
-                    }
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("ON-DEVICE WORKSPACE")
-                        .font(.caption2.weight(.medium).monospaced())
-                        .tracking(0.8)
-                    Text("本地模拟 · 无云端推理")
-                        .font(.caption)
-                }
-                .foregroundStyle(theme.secondaryText)
-                .fixedSize(horizontal: false, vertical: true)
+        VStack(alignment: isCompact ? .center : .leading, spacing: 24) {
+            if isCompact && !dynamicTypeSize.isAccessibilitySize {
+                CompactIntelligenceMark()
             }
-            .accessibilityHidden(true)
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text("让想法，在此发生。")
-                    .font(.title.weight(.semibold))
+            VStack(alignment: isCompact ? .center : .leading, spacing: 10) {
+                if !isCompact {
+                    Text("ON-DEVICE WORKSPACE")
+                        .font(.caption.monospaced())
+                        .tracking(1.2)
+                        .foregroundStyle(theme.accent)
+                }
+                Text("想聊点什么？")
+                    .font(.largeTitle.weight(.semibold))
                     .foregroundStyle(theme.primaryText)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityAddTraits(.isHeader)
-                Text("从一个问题开始，探索私密的端侧工作空间。")
-                    .font(.subheadline)
-                    .lineSpacing(2)
-                    .foregroundStyle(theme.secondaryText)
-                    .fixedSize(horizontal: false, vertical: true)
+                if !isCompact {
+                    Text("从一个问题开始。")
+                        .font(.subheadline)
+                        .foregroundStyle(theme.secondaryText)
+                }
             }
+            .multilineTextAlignment(isCompact ? .center : .leading)
 
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), alignment: .topLeading),
                                     count: WorkbenchPresentationPolicy.starterColumnCount(
                                         width: contentWidth, expandedText: dynamicTypeSize >= .xxxLarge)),
-                      alignment: .leading, spacing: 8) {
+                      alignment: .leading, spacing: 10) {
                 ForEach(Array(PromptTemplateLibrary.defaultTemplates.prefix(2))) { template in
                     Button { apply(template) } label: {
-                        HStack(spacing: 10) {
+                        HStack(spacing: 12) {
                             Image(systemName: template.icon)
                                 .font(.body)
                                 .foregroundStyle(theme.accent)
-                                .frame(width: 28, height: 28)
-                                .background(theme.accent.opacity(0.08), in: RoundedRectangle(cornerRadius: 6))
-                            VStack(alignment: .leading, spacing: 2) {
+                                .frame(width: 36, height: 36)
+                                .background(theme.accent.opacity(0.08), in: RoundedRectangle(cornerRadius: 11))
+                            VStack(alignment: .leading, spacing: 3) {
                                 Text(template.title)
                                     .font(.subheadline.weight(.medium))
-                                    .fixedSize(horizontal: false, vertical: true)
                                     .foregroundStyle(theme.primaryText)
-                                Text(template.subtitle)
-                                    .font(.caption)
-                                    .foregroundStyle(theme.secondaryText)
-                                    .fixedSize(horizontal: false, vertical: true)
+                                if !isCompact {
+                                    Text(template.subtitle)
+                                        .font(.caption)
+                                        .foregroundStyle(theme.secondaryText)
+                                }
                             }
+                            .fixedSize(horizontal: false, vertical: true)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             Image(systemName: "arrow.up.left")
                                 .font(.caption)
                                 .foregroundStyle(theme.secondaryText)
                         }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 10)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 12)
                         .frame(maxWidth: .infinity, minHeight: WorkbenchPresentationPolicy.minimumActionHeight,
                                alignment: .leading)
-                        .background(theme.surface, in: RoundedRectangle(cornerRadius: 8))
-                        .overlay { RoundedRectangle(cornerRadius: 8).stroke(theme.border, lineWidth: 1) }
+                        .background(theme.surface, in: RoundedRectangle(cornerRadius: 16))
+                        .overlay { RoundedRectangle(cornerRadius: 16).stroke(theme.subtleBorder, lineWidth: 1) }
                     }
                     .buttonStyle(.plain)
                     .hoverEffect(.highlight)
@@ -297,16 +287,38 @@ struct ChatWelcomeView: View {
                     .accessibilityIdentifier("welcome.apply.\(template.id)")
                 }
             }
-
-            Label("模拟预览，尚未接入真实模型推理。", systemImage: "info.circle")
-                .font(.caption)
-                .foregroundStyle(theme.secondaryText)
-                .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(.vertical, 12)
+        .padding(.vertical, isCompact ? 16 : 12)
         .frame(width: contentWidth, alignment: .leading)
         .fixedSize(horizontal: false, vertical: true)
         .frame(maxWidth: .infinity)
+    }
+}
+
+private struct CompactIntelligenceMark: View {
+    @Environment(\.appTheme) private var theme
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(RadialGradient(colors: [theme.accent.opacity(0.12), .clear],
+                                     center: .center, startRadius: 8, endRadius: 58))
+            Circle()
+                .stroke(theme.accent.opacity(0.16), lineWidth: 1)
+                .frame(width: 86, height: 86)
+            Ellipse()
+                .stroke(theme.secondaryAccent.opacity(0.35), lineWidth: 1)
+                .frame(width: 110, height: 42)
+                .rotationEffect(.degrees(-35))
+            Image(systemName: "sparkle")
+                .font(.system(size: 38, weight: .light))
+                .foregroundStyle(LinearGradient(colors: [theme.accent, theme.secondaryAccent],
+                                                startPoint: .topLeading, endPoint: .bottomTrailing))
+            Circle().fill(theme.accent).frame(width: 5, height: 5).offset(x: 40, y: -17)
+        }
+        .frame(width: 116, height: 116)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }
 

@@ -6,6 +6,7 @@ import UniformTypeIdentifiers
 
 struct SettingsWorkspace: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.compactWorkbench) private var isCompact
     @State private var selectedWallpaperItem: PhotosPickerItem?
     @State private var isImportingWallpaper = false
     @State private var wallpaperImportError: String?
@@ -27,7 +28,7 @@ struct SettingsWorkspace: View {
                 VStack(alignment: .leading, spacing: 16) {
                     SectionHeader(
                         eyebrow: "SETTINGS",
-                        title: "偏好设置",
+                        title: isCompact ? "设置" : "偏好设置",
                         subtitle: "让工作空间，更适合你。外观、设备策略与隐私，一目了然。"
                     )
 
@@ -49,7 +50,7 @@ struct SettingsWorkspace: View {
                 .frame(width: plan.contentWidth, alignment: .leading)
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.horizontal, SettingsWorkspaceLayoutPolicy.horizontalPadding)
-                .padding(.top, WorkbenchPresentationPolicy.pageTopInset)
+                .padding(.top, isCompact ? 16 : WorkbenchPresentationPolicy.pageTopInset)
                 .padding(.bottom, 28)
             }
             .scrollIndicators(.hidden)
@@ -991,6 +992,7 @@ enum OptimizationToggleRowLayoutPolicy {
 
 struct OptimizationToggleRow: View {
     @Environment(\.appTheme) private var theme
+    @Environment(\.compactWorkbench) private var isCompact
 
     let item: OptimizationSwitch
     let toggle: () -> Void
@@ -1006,17 +1008,19 @@ struct OptimizationToggleRow: View {
                     alignment: .leading,
                     spacing: OptimizationToggleTextLayoutPolicy.rowVerticalSpacing
                 ) {
-                    Text(item.title)
+                    Text(isCompact ? CompactWorkbenchPolicy.toggleTitle(item) : item.title)
                         .font(.subheadline.weight(.bold))
                         .foregroundStyle(theme.primaryText)
                         .lineLimit(OptimizationToggleTextLayoutPolicy.rowTitleLineLimit)
                         .fixedSize(horizontal: false, vertical: true)
-                    Text(item.subtitle)
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(theme.secondaryText)
-                        .lineLimit(OptimizationToggleTextLayoutPolicy.subtitleLineLimit)
-                        .lineSpacing(OptimizationToggleTextLayoutPolicy.subtitleLineSpacing)
-                        .fixedSize(horizontal: false, vertical: true)
+                    if !isCompact {
+                        Text(item.subtitle)
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(theme.secondaryText)
+                            .lineLimit(OptimizationToggleTextLayoutPolicy.subtitleLineLimit)
+                            .lineSpacing(OptimizationToggleTextLayoutPolicy.subtitleLineSpacing)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
 
                 Spacer()
@@ -1029,7 +1033,8 @@ struct OptimizationToggleRow: View {
         .accessibilityLabel(OptimizationToggleAccessibilityMetadata.label(for: item))
         .accessibilityValue(OptimizationToggleAccessibilityMetadata.value(for: item))
         .accessibilityHint(OptimizationToggleAccessibilityMetadata.hint(for: item))
-        .accessibilityInputLabels(OptimizationToggleAccessibilityMetadata.inputLabels(for: item))
+        .accessibilityInputLabels(OptimizationToggleAccessibilityMetadata.inputLabels(for: item)
+            + (isCompact ? [CompactWorkbenchPolicy.toggleTitle(item)] : []))
         .accessibilityAddTraits(item.isEnabled ? .isSelected : [])
         .accessibilityIdentifier(OptimizationToggleAccessibilityMetadata.identifier(for: item))
     }

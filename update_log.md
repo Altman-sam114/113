@@ -16,7 +16,7 @@
 - 平台：SwiftUI iOS App，Swift 6.0，iOS deployment target 17.0，当前 app/test target 支持 iPhone、iPad 和 Mac Catalyst build-for-testing，并提供项目内 Mac Catalyst 本地 build/run 脚本入口；尚未创建原生 macOS target。
 - 当前默认模型：`Gemma 1.5B Local`
 - 当前推理：本地模拟 runtime，不下载模型权重，不执行真实模型推理。
-- 当前核心测试：`LocalGemmaTests.swift` 中141个XCTest方法；实施基线`fc3d4a9` / run `39830013497` attempt1已实际核对138/138及完整结果包。v3.5设置自适应双栏和新增3项等待自身云端验收，仍非整产品发布验收。
+- 当前核心测试：`LocalGemmaTests.swift` 中144个XCTest方法；实施基线`63a9766` / run `39892914886` attempt1完整包已核对141/141、JUnit8和三份xcresult。v3.6手机优先界面与新增3项等待自身云端验收，仍非整产品发布验收。
 - 当前核心文档入口：`AGENTS.md`、`md/flow/flow.md`、`md/flow/flowchart.md`、`md/test/test.md`、`md/prompt/README.md`、`README.md`。
 - 当前协作验证：默认 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载未加密 CI 结果包验收；本地仓库当前已配置 `origin` remote，最终验收仍以最新 `origin/main` 对应的 GitHub Actions run 和结果包为准；文档已预留未来 `agentx:` 主控 Agent A -> Agent B -> Agent C 多轮循环的规则。
 
@@ -4586,3 +4586,21 @@ v3.5 `a28ac41` / run `39885347849` attempt1 的结果包为140/141成功，唯�
 ## v3.5.2 云端模拟器截图正文门禁（2026-10-23，待自身云端验收）
 
 人工复看v3.5完整包发现iPhone亮色设置图空白、iPad暗色聊天图为桌面，旧固定3秒采集不能作为通过证据。`Tools/ValidateWorkbenchScreenshot.swift`作为独立CLI仅在真实GitHub Actions编译运行，公开Vision OCR要求目标工作区正文marker；`capture_workbench.py`在launch后有界5次/每次2秒采集并验证，失败使必选visual失败，manifest保留识别全文、marker、次数、PNG尺寸和SHA-256。原16模拟器图、12宿主图、141项及三份xcresult不减少；OCR后仍需人眼检查。无生产UI/状态/runtime/verified变更，AITRANS不修改，无子智能体，本地仅静态检查。
+
+## v3.6 / iPhone 优先的轻量界面（2026-10-25，待自身云端验收）
+
+同一Agent串行完成A/B/C职责，不开子智能体。A提示词：`md/prompt/v3（工作台重构）/v3.6（iPhone优先的轻量界面）.md`。AITRANS只读参考手机四入口和语义间距，不修改参考项目；六份预存未跟踪prompt保留，不提交。
+
+实施基线`63a97661a5ce1f5862b83ceabe3e1a839dd5c97d` / run`39892914886` attempt1的完整125.8MB包已实际下载至`/private/tmp/localgemma-c-review-39892914886/full`。核对manifest身份、141个唯一Passed、JUnit8/0失败/1 optional skip；用zstd读取三份xcresult根的succeeded并确认Data/refs3/3、3/3、918/918。28张PNG逐一hash一致，复看iPhone聊天/模型/设置和此前异常的iPad暗聊天正文，两张旧空白/桌面问题在本包解除。此为构建/截图修复基线，不是整产品发布验收。
+
+核心变更：
+
+- 新增并注册CompactWorkbench.swift，复用原根portrait选择，手机单行模型栏和底部四入口替代多层顶部chrome；模型摘要按需打开。所有页仍在同一四槽shell，编辑仅收起底栏。
+- 会话抽屉复用原SessionChip选择/删除，工具栏保留新建/导出；抽屉dismiss且聊天仍active后才请求原焦点路由。composer改为单表面，原TextField/同步focus/1...4行/Command+Return/48pt保持，增加完成与拖动收键盘。欢迎区静态轨道和短标题，不再堆叠重复说明；原seed/消息/导出保持，停止空占位补可见“已停止”。
+- 模型页优先Files导入与扫描，模拟暂存/卸载进入更多菜单且沿用确认，参数按需展开；手机状态徽章中文化且大字堆叠。设置优先偏好与中文运行开关，设备模拟预算按需展开并保留非实测标识。模板手机单列填满，预览两行但原payload不改。
+- 手机panel20pt圆角、背景去网格、聊天去彩色角色边框/可见token噪声；元数据仍在辅助语义，复制44pt不变。大屏原布局和8pt panel契约保持，未改AppState、模型文件、runtime或verified gate。
+- 新增3项至144，保留原141名称，严格focus增加编辑回调真值。原16模拟器+12宿主图不减，新增8张320×640pt生产组件组合图；exporter要求3份provenance/20宿主PNG、OCR/尺寸/hash与同主题差异。组合图不是完整Simulator截图。
+
+本地仅静态轻量检查；所有Swift/SwiftC、Probe/Fast、iOS/Catalyst、XCTest、Vision、UIKit/ImageRenderer与Simulator执行只在GitHub Actions，不设置云端环境冒充执行。新SHA自己的构建/144项/36图和完整结果包仍需复判，不预写通过，不宣称真实推理或签名发布就绪。
+
+实际本地检查：`git diff --check`、`plutil -lint LocalGemma.xcodeproj/project.pbxproj`、`bash -n script/build_and_run.sh`、Ruby YAML解析均通过（Ruby仅既有PATH权限warning）；Python AST、144唯一测试/保留原141名称、8份文档fence/版本、CompactWorkbench target注册和AppState/入口/LogicSmoke无diff检查通过。push前确认main、HEAD与origin/main一致、origin为Altman-sam114/113、活动账号Altman-sam114。未执行任何本地Swift或UI。

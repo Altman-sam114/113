@@ -6,6 +6,7 @@ import UniformTypeIdentifiers
 
 struct ComposerBar: View {
     @Environment(\.appTheme) private var theme
+    @Environment(\.compactWorkbench) private var isCompact
     @FocusState private var focusedField: ComposerFocusedField?
 
     @Binding var text: String
@@ -15,21 +16,25 @@ struct ComposerBar: View {
     let clearFocusRequest: () -> Void
     let send: () -> Void
     let stop: () -> Void
+    var editingChanged: (Bool) -> Void = { _ in }
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 10) {
             HStack(alignment: .bottom, spacing: 10) {
-                Image(systemName: "bubble.left.and.text.bubble.right.fill")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(theme.accent)
-                    .frame(width: 24, height: 24)
-                    .padding(.bottom, 10)
-                    .accessibilityHidden(true)
+                if !isCompact {
+                    Image(systemName: "sparkle")
+                        .font(.body)
+                        .foregroundStyle(theme.accent)
+                        .frame(width: 24, height: 24)
+                        .padding(.bottom, 10)
+                        .accessibilityHidden(true)
+                }
 
-                TextField("问本地模型任何问题", text: $text, axis: .vertical)
+                TextField("输入消息", text: $text, axis: .vertical)
                     .textFieldStyle(.plain)
                     .font(ComposerInputTextLayoutPolicy.semanticFont)
                     .foregroundStyle(theme.primaryText)
+                    .tint(theme.accent)
                     .lineLimit(ComposerInputTextLayoutPolicy.minimumLineCount...ComposerInputTextLayoutPolicy.maximumLineCount)
                     .lineSpacing(ComposerInputTextLayoutPolicy.lineSpacing)
                     .fixedSize(
@@ -44,25 +49,6 @@ struct ComposerBar: View {
                     .accessibilityIdentifier(ComposerInputMetadata.textFieldIdentifier)
             }
             .padding(.horizontal, 13)
-            .background(theme.recessedSurface, in: RoundedRectangle(cornerRadius: 17, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 17, style: .continuous)
-                    .stroke(
-                        inputFieldBorderColor,
-                        lineWidth: ComposerFocusGlowStylePolicy.lineWidth(isFocused: isInputFocused)
-                    )
-                    .shadow(
-                        color: theme.accent.opacity(
-                            ComposerFocusGlowStylePolicy.glowOpacity(
-                                isFocused: isInputFocused,
-                                isDark: theme.isDark
-                            )
-                        ),
-                        radius: ComposerFocusGlowStylePolicy.glowRadius,
-                        x: 0,
-                        y: 0
-                    )
-            }
 
             Button {
                 isGenerating ? stop() : send()
@@ -105,9 +91,32 @@ struct ComposerBar: View {
         .background(theme.surface, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .stroke(isGenerating ? theme.success.opacity(0.32) : theme.accent.opacity(0.18), lineWidth: 1)
+                .stroke(
+                    inputFieldBorderColor,
+                    lineWidth: ComposerFocusGlowStylePolicy.lineWidth(isFocused: isInputFocused)
+                )
         }
+        .shadow(
+            color: theme.accent.opacity(ComposerFocusGlowStylePolicy.glowOpacity(
+                isFocused: isInputFocused, isDark: theme.isDark
+            )),
+            radius: ComposerFocusGlowStylePolicy.glowRadius
+        )
         .onAppear(perform: updateFocus)
+        .onChange(of: isInputFocused) { _, isFocused in
+            editingChanged(isFocused)
+        }
+        .onDisappear { editingChanged(false) }
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                if isChatActive {
+                    Spacer()
+                    Button("完成") { focusedField = nil }
+                        .accessibilityLabel("收起键盘")
+                        .accessibilityInputLabels(["完成", "收起键盘"])
+                }
+            }
+        }
         .onChange(
             of: ComposerFocusLifecycleID(
                 isChatActive: isChatActive,
@@ -156,7 +165,7 @@ struct ComposerBar: View {
     }
 
     private var actionBaseColor: Color {
-        isGenerating ? Color.red : theme.accent
+        isGenerating ? theme.danger : theme.accent
     }
 
     private var actionFillGradient: LinearGradient {

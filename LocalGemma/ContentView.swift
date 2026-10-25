@@ -538,6 +538,7 @@ struct ContentView: View {
 
     @State private var selectedTab: WorkspaceTab = ContentView.initialTab
     @State private var composerFocusRequest = ComposerFocusRequest.initial
+    @State private var isComposerEditing = false
     @AppStorage("appThemeMode") private var themeModeStorage = AppThemeMode.dark.rawValue
     @AppStorage("customWallpaperImageData") private var wallpaperImageData: Data = Data()
 
@@ -562,6 +563,16 @@ struct ContentView: View {
                         )
                     } content: {
                         workspacePages(themeMode: themeMode)
+                            .environment(\.compactWorkbench, CompactWorkbenchPolicy.usesCompactChrome(for: layoutPlan))
+                            .safeAreaInset(edge: .bottom, spacing: 0) {
+                                if CompactWorkbenchPolicy.showsNavigation(
+                                    isCompact: CompactWorkbenchPolicy.usesCompactChrome(for: layoutPlan),
+                                    selectedTab: selectedTab,
+                                    isEditing: isComposerEditing
+                                ) {
+                                    tabPicker
+                                }
+                            }
                     }
                 }
             }
@@ -674,22 +685,12 @@ struct ContentView: View {
     ) -> some View {
         switch layoutPlan.chrome {
         case .topNavigation:
-            VStack(spacing: 0) {
-                headerView(
-                    themeMode: themeMode,
-                    selectedValidation: selectedValidation,
-                    capsuleAvailableWidth: ModelCapsuleLayoutPolicy.availableWidth(
-                        forChromeWidth: rootSize.width
-                    ),
-                    layoutMode: layoutPlan.mode
-                )
-                    .padding(.horizontal, 18)
-                    .padding(.top, 4)
-
-                tabPicker
-                    .padding(.horizontal, 18)
-                    .padding(.top, 6)
-            }
+            headerView(
+                themeMode: themeMode,
+                selectedValidation: selectedValidation,
+                capsuleAvailableWidth: ModelCapsuleLayoutPolicy.availableWidth(forChromeWidth: rootSize.width),
+                layoutMode: layoutPlan.mode
+            )
         case .compactSidebar, .detailedSidebar:
             sidebarChrome(
                 themeMode: themeMode,
@@ -762,7 +763,8 @@ struct ContentView: View {
                 isActive: selectedTab == .chat,
                 composerFocusRequest: composerFocusRequest,
                 requestComposerFocus: requestComposerFocus,
-                clearComposerFocusRequest: clearComposerFocusRequest
+                clearComposerFocusRequest: clearComposerFocusRequest,
+                composerEditingChanged: { isComposerEditing = $0 }
             )
         } models: {
             ModelLibraryView()
@@ -794,99 +796,7 @@ struct ContentView: View {
     }
 
     private var tabPicker: some View {
-        let theme = currentTheme
-
-        return HStack(spacing: WorkbenchVisualStylePolicy.compactNavigationSpacing) {
-            ForEach(WorkspaceTab.allCases) { tab in
-                Button {
-                    withAnimation(
-                        AppMotionAccessibilityPolicy.animation(
-                            .spring(response: 0.3, dampingFraction: 0.82),
-                            for: .workspaceNavigation,
-                            reduceMotion: reduceMotion
-                        )
-                    ) {
-                        selectWorkspace(tab)
-                    }
-                } label: {
-                    Label(tab.title, systemImage: tab.icon)
-                        .font(.subheadline.weight(.semibold))
-                        .labelStyle(.titleOnly)
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
-                        .frame(minHeight: WorkspaceNavigationActionLayoutPolicy.compactTabMinHeight)
-                        .background {
-                            RoundedRectangle(
-                                cornerRadius: WorkbenchVisualStylePolicy.controlCornerRadius,
-                                style: .continuous
-                            )
-                            .fill(
-                                selectedTab == tab
-                                    ? theme.accent.opacity(
-                                        WorkbenchVisualStylePolicy.selectedSurfaceOpacity(
-                                            isDark: theme.isDark
-                                        )
-                                    )
-                                    : Color.clear
-                            )
-                        }
-                        .overlay(alignment: .bottom) {
-                            if WorkbenchVisualStylePolicy.usesSelectionIndicator(
-                                isSelected: selectedTab == tab
-                            ) {
-                                RoundedRectangle(cornerRadius: 1, style: .continuous)
-                                    .fill(theme.accent)
-                                    .frame(
-                                        width: WorkbenchVisualStylePolicy.compactSelectionIndicatorWidth,
-                                        height: WorkbenchVisualStylePolicy.compactSelectionIndicatorHeight
-                                    )
-                                    .padding(.bottom, 4)
-                                    .accessibilityHidden(true)
-                            }
-                        }
-                        .foregroundStyle(selectedTab == tab ? theme.primaryText : theme.secondaryText)
-                }
-                .buttonStyle(.plain)
-                .contentShape(Rectangle())
-                .keyboardShortcut(KeyEquivalent(tab.shortcutKey), modifiers: [.command])
-                .accessibilityLabel(WorkspaceNavigationAccessibilityMetadata.label(for: tab))
-                .accessibilityValue(
-                    WorkspaceNavigationAccessibilityMetadata.value(isSelected: selectedTab == tab)
-                )
-                .accessibilityHint(WorkspaceNavigationAccessibilityMetadata.hint(for: tab))
-                .accessibilityInputLabels(WorkspaceNavigationAccessibilityMetadata.inputLabels(for: tab))
-                .accessibilityAddTraits(selectedTab == tab ? .isSelected : [])
-                .accessibilityIdentifier(WorkspaceNavigationAccessibilityMetadata.compactIdentifier(for: tab))
-            }
-        }
-        .padding(WorkbenchVisualStylePolicy.compactNavigationInset)
-        .background {
-            ZStack {
-                RoundedRectangle(
-                    cornerRadius: WorkbenchVisualStylePolicy.controlCornerRadius,
-                    style: .continuous
-                )
-                .fill(theme.surface)
-                RoundedRectangle(
-                    cornerRadius: WorkbenchVisualStylePolicy.controlCornerRadius,
-                    style: .continuous
-                )
-                .fill(
-                    theme.recessedSurface.opacity(
-                        WorkbenchVisualStylePolicy.sidebarTintOpacity(isDark: theme.isDark)
-                    )
-                )
-            }
-        }
-        .overlay {
-            RoundedRectangle(
-                cornerRadius: WorkbenchVisualStylePolicy.controlCornerRadius,
-                style: .continuous
-            )
-            .stroke(theme.border, lineWidth: WorkbenchVisualStylePolicy.hairlineWidth)
-        }
+        CompactWorkspaceNavigation(selection: workspaceSelection)
     }
 
     private func sidebarTabPicker(isDetailed: Bool) -> some View {
@@ -2804,6 +2714,7 @@ enum ComposerInputTextLayoutPolicy {
 
 struct HeaderView: View {
     @Environment(\.appTheme) private var theme
+    @State private var isShowingSummary = false
 
     let model: LocalModel
     let readiness: Double
@@ -2821,34 +2732,59 @@ struct HeaderView: View {
     let showModels: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            WorkbenchBrandHeader(themeMode: themeMode, isSidebar: layoutMode.usesSidebar,
-                                 toggleTheme: toggleTheme, showModels: showModels)
-            if !layoutMode.usesSidebar {
-                DisclosureGroup {
+        Group {
+            if layoutMode.usesSidebar {
+                WorkbenchBrandHeader(themeMode: themeMode, isSidebar: true,
+                                     toggleTheme: toggleTheme, showModels: showModels)
+            } else {
+                CompactWorkbenchHeader(
+                    model: model, isSimulated: isSimulated, themeMode: themeMode,
+                    openSummary: { isShowingSummary = true }, toggleTheme: toggleTheme
+                )
+            }
+        }
+        .sheet(isPresented: $isShowingSummary) {
+            NavigationStack {
+                ScrollView {
                     ModelCapsule(
                         model: model, readiness: readiness, tokensPerSecond: tokensPerSecond,
                         memoryUsageMB: memoryUsageMB, backend: backend, availability: availability,
                         deploymentState: deploymentState, isGenerating: isGenerating,
                         isSimulated: isSimulated, availableWidth: capsuleAvailableWidth,
-                        layoutMode: layoutMode
+                        layoutMode: .portrait
                     )
-                    .padding(.top, 8)
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "cpu").foregroundStyle(theme.accent)
-                        Text(model.name).foregroundStyle(theme.primaryText)
-                        Spacer(minLength: 4)
-                        Text(isSimulated ? "SIM" : "REAL")
-                            .font(.caption.monospaced())
-                            .foregroundStyle(theme.accent)
+                    .padding(18)
+                    Button {
+                        isShowingSummary = false
+                        showModels()
+                    } label: {
+                        Label("管理模型", systemImage: "square.stack.3d.up")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity, minHeight: 48)
                     }
-                    .font(.subheadline.weight(.medium))
-                    .frame(minHeight: 44)
+                    .buttonStyle(.bordered)
+                    .padding(.horizontal, 18)
+                    .accessibilityLabel(HeaderActionAccessibilityMetadata.modelLibraryLabel)
+                    .accessibilityValue(HeaderActionAccessibilityMetadata.modelLibraryValue)
+                    .accessibilityHint(HeaderActionAccessibilityMetadata.modelLibraryHint)
+                    .accessibilityInputLabels(HeaderActionAccessibilityMetadata.modelLibraryInputLabels + ["管理模型"])
+                    .accessibilityIdentifier(HeaderActionAccessibilityMetadata.modelLibraryIdentifier)
                 }
-                .tint(theme.secondaryText)
-                .accessibilityLabel("当前模型，展开运行摘要")
+                .background(theme.canvas)
+                .navigationTitle("运行摘要")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button { isShowingSummary = false } label: {
+                            Image(systemName: "xmark").frame(width: 44, height: 44)
+                        }
+                        .accessibilityLabel("关闭运行摘要")
+                    }
+                }
             }
+            .tint(theme.accent)
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
         }
     }
 }
@@ -3258,12 +3194,13 @@ struct HeaderMetricChip: View {
 
 struct StatusBadge: View {
     @Environment(\.appTheme) private var theme
+    @Environment(\.compactWorkbench) private var isCompact
 
     let state: ModelInstallState
     var exposesAccessibility: Bool = false
 
     var body: some View {
-        Text(state.title)
+        Text(isCompact ? CompactWorkbenchPolicy.installTitle(state) : state.title)
             .modifier(
                 ModelStatusBadgeAppearanceModifier(
                     style: ModelStatusBadgeStylePolicy.style(
@@ -3388,6 +3325,7 @@ struct ReadinessRing: View {
 
 struct SectionHeader: View {
     @Environment(\.appTheme) private var theme
+    @Environment(\.compactWorkbench) private var isCompact
 
     let eyebrow: String
     let title: String
@@ -3401,16 +3339,18 @@ struct SectionHeader: View {
                 .tracking(SectionHeaderTextLayoutPolicy.eyebrowTracking)
                 .lineLimit(SectionHeaderTextLayoutPolicy.eyebrowLineLimit)
             Text(title)
-                .font(.largeTitle.weight(.semibold))
+                .font(isCompact ? .title.weight(.semibold) : .largeTitle.weight(.semibold))
                 .foregroundStyle(theme.primaryText)
                 .lineLimit(SectionHeaderTextLayoutPolicy.titleLineLimit)
                 .fixedSize(horizontal: false, vertical: true)
-            Text(subtitle)
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(theme.secondaryText)
-                .lineLimit(SectionHeaderTextLayoutPolicy.subtitleLineLimit)
-                .lineSpacing(SectionHeaderTextLayoutPolicy.subtitleLineSpacing)
-                .fixedSize(horizontal: false, vertical: true)
+            if !isCompact && !subtitle.isEmpty {
+                Text(subtitle)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(theme.secondaryText)
+                    .lineLimit(SectionHeaderTextLayoutPolicy.subtitleLineLimit)
+                    .lineSpacing(SectionHeaderTextLayoutPolicy.subtitleLineSpacing)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.bottom, 8)

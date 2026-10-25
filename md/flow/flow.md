@@ -1,5 +1,15 @@
 # 项目核心流程文档
 
+## v3.6 当前手机优先呈现
+
+根 `WorkspaceRootLayoutPolicy` 的 topNavigation 仍是唯一窄屏选择。`HeaderView` 展示 CompactWorkbenchHeader；原唯一 WorkspacePagesShell 通过只读 compactWorkbench 环境采用手机呈现，外侧 safeAreaInset 挂底部四入口。`ComposerBar` 将真实 FocusState 的编辑变化向上传到 ContentView；只在活动聊天编辑时收起底栏，不重建页面或改写输入。键盘完成同步清 focus，记录拖动交互式收键盘；原 request/active 同步消费与隐藏页释放规则保持。
+
+ChatWorkspace 的会话工具打开 CompactSessionHistory；列表复用真实 SessionChip，选择/新建仍调用原 InferenceEngine，保存仅 UI 用的 pending focus reason。sheet onDismiss 先清 reason，仅当 isActive 才调用既有 requestComposerFocus，无异步延迟。模型栏点按展示原 ModelCapsule；管理模型仍经 selectedTab 路由。欢迎内容仍不改 seed/会话/导出，手机去除重复说明，短真实 transcript 的底部定位不变。
+
+模型页手机保留选择器、三态徽章和原 catalog 动作，优先 Files 导入/本地扫描，更多菜单包含模拟暂存与卸载确认；参数/完整 validation/runtime 计划进入 disclosure。设置父级继续拥有 PhotosPicker、导入/错误状态，中文开关只是 title 映射，准备度与模拟预算按需展开。模板手机单列填满内容宽度，预览两行但原 prompt payload 不改。大屏原布局保持。AppState、文件管理、runtime、verified gate、网络和权重均不改。
+
+144项、原28图及新增8张320×640pt组合宿主图均仅云端执行；exporter要求三份provenance/20宿主图，组合图不等于全屏模拟器图。精确新SHA/run/attempt结果包与人眼复判是通过条件，本地仅静态检查。
+
 一句话总览：本项目是一个 SwiftUI iOS 原型，通过本地模拟 runtime 和严格 artifact 校验流程，验证 iPhone、iPad 与 Mac Catalyst build/run 基线下端侧部署 Gemma 1.5B 的 UI、状态管理、文件导入、模型卸载确认弹层辅助语义、模型文件 utility 动态排版、会话导出、导出会话正文动态排版、导出弹层分享/复制辅助语义、导出弹层分享/复制 44pt 触控目标、导出弹层整体宽屏内容宽度策略、顶部模型胶囊整体辅助语义、模型概要面板与详情右栏/行级辅助语义、模型概要标签与校验摘要动态排版、取消生成占位生命周期、模型详情行窄宽堆叠布局、模型页整体宽屏内容宽度策略、模型详情右栏最大阅读宽度策略、模型文件工作流面板辅助语义、模型部署控件 44pt 触控目标、模型状态徽章辅助语义、全局 Header 图标动作 44pt 触控目标、Header 标题动态排版策略、设置页整体宽屏内容宽度策略、设置页图标动作 44pt 触控目标、设置偏好行响应式布局、会话栏操作 44pt 触控目标、会话 chip 动作语义、会话侧栏视觉层级、会话侧栏信息密度、聊天消息气泡与聊天记录容器辅助语义、单条消息复制与本地反馈、生成中状态脉冲指示、聊天记录居中阅读轨道、聊天气泡与 composer 宽屏输入宽度策略、composer 发送/停止 44pt 触控目标、工作区导航辅助语义、工作区导航 44pt 触控目标、头部主题与模型库入口辅助语义、运行策略开关辅助语义、运行策略开关宽屏网格、运行策略开关行 44pt 触控目标、芯片准备度辅助语义、优化指标卡辅助语义、优化指标卡文本动态排版策略、优化指标网格宽度策略、共享 SectionHeader 动态排版策略、提示词页整体宽屏内容宽度策略、提示词模板宽屏布局策略、提示词模板文本动态排版策略、提示词分类筛选换行布局策略、提示词分类文本动态排版策略、提示词模板动作辅助语义与 44pt 触控目标、壁纸控件辅助语义、大屏布局和 Apple Silicon 运行计划；协作流程默认采用 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载结果包验收。
 
 v2.64 的顶部模型胶囊还会按真实 chrome 可用宽度切换堆叠/横向概要与 1/2/3 列指标，避免 iPhone、iPad 和 Mac Catalyst 窄侧栏截断。
