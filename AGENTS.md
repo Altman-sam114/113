@@ -1,5 +1,11 @@
 # AGENTS.md
 
+## v3.9.1 代码验收基线
+
+`ee3a211607eb30b601acfe4a42d20aca7fb97889` / run`40635105796` attempt1完整包已下载并独立核对ZIP SHA-256 `3ba25c333828d07e69adc4a835bda3d41b7525012e90ad0a8c88a9b59a4cccc7`：157唯一Success、0 XCTest skip，严格focus2.972s，JUnit10/0失败/1 optional skip，4份xcresult根succeeded且Data/refs配对（3、3、3、908）。12个Python夹具、Swift6 LogicSmoke、iOS/Catalyst/unsigned Release及实际资源成功。38图已看：新增亮暗导入中320×640图逐张原尺寸打开，原36通过无裁切联系表复看，20宿主PNG与基线逐字节相同，16模拟器正文在排除状态栏后像素相同，无新遮挡/缺页；宿主图不是全屏Simulator、真机或完整辅助技术证据。完整包/图/独立记录在`/private/tmp/localgemma-c-review-40635105796/`。
+
+此结论只绑定上述代码SHA，不自动覆盖后续文档提交；后续main仍须自身新run核对。仅本轮导入事务与UI回归通过，整体目标继续；崩溃/断电耐久、遗留候选回收、会话恢复、真实runtime、真机/完整辅助技术与签名发布尚未完成。继续单Agent、云端执行，AITRANS只读。
+
 ## v3.9.1 云端并发边界修复
 
 v3.9 `5b44803` / run`40633857029` attempt1完整失败包已核对：Swift6拒绝MainActor裸FileManager跨actor，iOS/Catalyst/Release编译失败、XCTest未运行、无有效新截图，不能称157项或事务已通过。v3.9.1用受锁封装`ArtifactFileAccess`限制FileManager完整操作借用，不给Foundation全局补Sendable、不降Swift检查。LogicSmoke显式Swift6；截图在已知构建失败/无可执行文件时立即写失败manifest，不再反复安装无效App，必选视觉仍失败而非skip/通过。新增4个Python静态夹具，合计12个；157 Swift/38图/4份provenance/4份xcresult/JUnit10不减，新SHA仍须自身云端验收。其余v3.9边界保持。

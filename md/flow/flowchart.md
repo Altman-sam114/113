@@ -13,6 +13,8 @@ flowchart TD
     Cloud[云端Swift6 LogicSmoke / Xcode] --> Build{实际构建成功且App可执行文件完整?}
     Build -- 否 --> Failure[视觉失败manifest / 零张有效图 / 必选仍失败]
     Build -- 是 --> Capture[原16模拟器图 + 22宿主图 / 完整包复判]
+    %% 验收仅绑定实际代码身份，不自动覆盖后续提交或发布
+    Capture --> Accepted[ee3a211 / run40635105796 attempt1<br/>157/157与38图已复判 / 后续SHA须新run]
     Worker --> Cloud
 ```
 

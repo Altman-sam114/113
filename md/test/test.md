@@ -1,5 +1,13 @@
 # 测试规范
 
+## v3.9.1 代码验收结果
+
+代码`ee3a211607eb30b601acfe4a42d20aca7fb97889` / run`40635105796` attempt1，完整artifact `localgemma-ci-v3.9.1-main-ee3a211-run40635105796-attempt1`（97500545字节）已下载并对原ZIP独立算SHA-256，与API `3ba25c333828d07e69adc4a835bda3d41b7525012e90ad0a8c88a9b59a4cccc7`一致。结构化tree/summary、源码名称与原始SQLite逐一匹配157唯一Success，0 failure/skip/retry；新10项全部成功，后台/真实进度截图用例7.737s，严格focus2.972s。JUnit10/0失败/1 optional Codex skip；4份xcresult根succeeded、Data/refs为3/3、3/3、3/3、908/908。12个Python小夹具、Swift6 LogicSmoke、iOS/Catalyst与实际unsigned Release资源均成功；App archive CRC与6项实际资源hash已独立匹配。
+
+38图尺寸/hash/provenance完整；新增2张导入中图原尺寸打开，原36以无裁切联系表逐图复看，20宿主PNG与v3.8字节相同，16模拟器正文排除iPhone顶部150px/iPad100px状态栏后像素相同。无新遮挡/缺页；滚动边缘的部分行不视为永久不可达，也不声称已实际点按/完整辅助技术或真机通过。23m14s中新增事务用例约8s，其余时间主要云端既有测试/截图；iPad暗模型首张OCR空白后有界第2次采集正文成功，未重试XCTest。完整包/联系表/记录在`/private/tmp/localgemma-c-review-40635105796/`。
+
+结论仅绑定上述代码；验收回录文档或后续main仍必须自己的SHA/run/attempt结果核对，不能自动继承绿色。整体目标继续，发布缺口不变。
+
 ## v3.9.1 云端失败回归
 
 `5b44803` / run`40633857029` attempt1完整包确认：Swift6四处裸FileManager跨actor错误，iOS/Catalyst/Release失败，XCTest因build失败未执行，JUnit10含5失败/2skip，无有效新图。CLI此前未指定Swift6不能充当Xcode并发门禁；本轮显式`-swift-version 6`并用受锁FileAccess，不改/skip/重试157项。

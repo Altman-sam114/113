@@ -16,7 +16,7 @@
 - 平台：SwiftUI iOS App，Swift 6.0，iOS deployment target 17.0，当前 app/test target 支持 iPhone、iPad 和 Mac Catalyst build-for-testing，并提供项目内 Mac Catalyst 本地 build/run 脚本入口；尚未创建原生 macOS target。
 - 当前默认模型：`Gemma 1.5B Local`
 - 当前推理：本地模拟 runtime，不下载模型权重，不执行真实模型推理。
-- 当前核心测试：`LocalGemmaTests.swift`中157个唯一XCTest方法，原147名称保留，新增10项后台事务/取消/响应与手机进度回归。已核对v3.8 `a525a8a` / run`40629860257` attempt1的147/147与36图；v3.9须自身新SHA完整云端验收，不是整产品发布验收。
+- 当前核心测试：`LocalGemmaTests.swift`中157个唯一XCTest方法，原147名称保留。代码v3.9.1 `ee3a211` / run`40635105796` attempt1完整包已核对157/157、12个Python夹具与38图；后续文档/main仍须自身精确SHA云端验收，不是整产品发布验收。
 - 当前核心文档入口：`AGENTS.md`、`md/flow/flow.md`、`md/flow/flowchart.md`、`md/test/test.md`、`md/prompt/README.md`、`README.md`。
 - 当前协作验证：按用户最新要求单Agent按模块推进，不开子智能体、不再采用ABC前置队列；main直推、GitHub Actions完整云端重验证、同一Agent下载完整包并看图。最终验收以最新origin/main的SHA/run/attempt为准，本地不编译、不运行UI。
 
@@ -4669,3 +4669,13 @@ v3.5 `a28ac41` / run `39885347849` attempt1 的结果包为140/141成功，唯�
 失败build留下仅含资源的.app目录，原capture随后反复安装额外耗约6分钟。本轮新增纯Python capture输入检查，已知build失败或缺Info/可执行文件时先写精确身份与expected16的失败manifest，立即非零退出，不启动Simulator或编译validator；正常时原16+22/38图、4份provenance和JUnit10/4份xcresult全保留。新增4项小文件夹具，与原8资源项合计12并由静态阶段discover全部执行；不运行App。
 
 本地实际12项Python夹具0.025s全部通过；git diff --check、工程plutil、脚本bash和Ruby YAML通过（仅既有PATH warning）。AST/workflow shell/157名称/保护范围与六份旧prompt hash提交前核对；未本地运行Swift/Xcode/UI。执行记录`md/prompt/v3（工作台重构）/v3.9.1（文件访问隔离与云端快速失败）.md`，单Agent，无子智能体，AITRANS未修改。修复SHA自身完整云端结果仍待验收，未声明整个目标或发布通过。
+
+## v3.9.1 代码云端验收回录（2026-10-28，仅本轮事务/UI回归）
+
+代码`ee3a211607eb30b601acfe4a42d20aca7fb97889` / run`40635105796` attempt1全部必选成功，23m14s。完整artifact `localgemma-ci-v3.9.1-main-ee3a211-run40635105796-attempt1`的97500545字节原ZIP已独立算SHA-256 `3ba25c333828d07e69adc4a835bda3d41b7525012e90ad0a8c88a9b59a4cccc7`，与API一致，保存于`/private/tmp/localgemma-c-review-40635105796/`。
+
+summary/tree/源码名称和原始SQLite严格匹配157唯一Success、0 skipped/retry，新增10项全部成功；真实后台导入/进度图用例7.737s，取消后状态用例0.014s，原严格focus2.972s。12个Python静态夹具/Swift6 LogicSmoke成功，JUnit10/0 failure/error/1 optional Codex skip；4份完整xcresult根succeeded，Data/refs为3/3、3/3、3/3、908/908，实际unsigned iPhoneOS Release资源与App zip CRC/6项hash独立校验成功，signingVerified仍false。
+
+38张图的身份/尺寸/hash与4份provenance齐全。2张新增导入中320×640图原尺寸打开，原36图以无裁切联系表逐图复看；20宿主PNG与已验v3.8逐字节相同，16模拟器正文去状态栏后像素相同（iPhone顶部150px/iPad100px）。没有新遮挡/缺页，进度和44pt取消不挤压文件主操作/底栏；部分长页在滚动边缘截断属既有viewport，不声称实际点按或真机/完整辅助技术通过。iPad暗模型首轮OCR空白在第2次有界截图得到正文；没有重试或skip XCTest。
+
+结论：本轮后台事务导入与轻量iPhone进度回归PASS。此结论绑定上述代码SHA，后续验收文档提交仍要触发并核对自身run，不能自动当新main已通过；本次回录只改文档，本地仅diff/文档结构链接/计数与静态检查，不运行Swift/UI。默认模拟runtime、会话恢复、崩溃/断电耐久/遗留候选回收、真机/完整辅助技术、Mac GUI/pointer、签名分发缺口保留，整个目标继续。

@@ -1,5 +1,9 @@
 # 项目核心流程文档
 
+## v3.9.1 已核对的数据流基线
+
+事务/后台/取消流已在代码`ee3a211` / run`40635105796` attempt1自身完整包中验收：157唯一Success（严格focus2.972s）、12个Python夹具、38图、4份xcresult与unsigned资源通过。新2图显示真实后台复制状态，其他36图正文像素/字节回归一致，并实际看图；没有新增UI层级或生产focus变化。只覆盖该代码SHA，后续文档提交仍须新run，不自动成为签名/真机/真实runtime验收。原始包和独立核对在`/private/tmp/localgemma-c-review-40635105796/`。
+
 ## v3.9.1 文件访问隔离与失败快报
 
 `ModelCatalog`不再持有或跨actor发送裸FileManager，只持有`ArtifactFileAccess`；后者用锁限制worker对完整store操作的借用，内部实例不向外暴露，store自身读写锁仍保留。不放宽Swift6或给Foundation增加全局Sendable。云端LogicSmoke明确Swift6；capture在编译validator或接触Simulator前检查build outcome与实际App的Info/可执行文件，失败写含精确身份、expected16、空captures和原因的manifest并非零退出，不能标通过或跳过必选门禁。4个新Python夹具只测小文件输入，不运行App；157项/38图与完整包仍待修复SHA云端。
