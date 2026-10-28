@@ -1,5 +1,26 @@
 # 项目核心流程图
 
+## v3.8 单Agent模块迭代与发布包门禁
+
+读图说明：不再依赖A/B/C队列或子智能体，由同一Agent集成模块后提交云端。新增发布资源和未签名device包检查与原147项/36图并存；任何必选失败均继续修复，而不是宣布发布完成。
+
+```mermaid
+flowchart TD
+    %% 用户最新要求单Agent按模块推进
+    Work[同一Agent / UI 文件可靠性 发布资源 测试模块] --> Static[静态检查 / 28槽图标 / 8个Python夹具]
+    Static --> Push[main提交 / 精确SHA]
+    %% 所有Swift与UI只在云端执行
+    Push --> Existing[原iOS与Catalyst构建 / 147 XCTest / 36图]
+    Push --> Release[云端unsigned iPhoneOS Release构建]
+    Release --> Bundle[实际.app / arm64 / 图标 / 隐私 / 版本]
+    Existing --> Evidence[完整结果包 / JUnit10 / 4份xcresult / 人眼复判]
+    Bundle --> Evidence
+    %% 未签名构建不能代替真机与签名发布
+    Evidence --> Verdict{所有必选门禁通过?}
+    Verdict -- 否 --> Work
+    Verdict -- 是 --> Next[核对仍未完成的导入可靠性 / runtime / 真机 / 签名门禁]
+```
+
 ## v3.7 iPhone 单头界面与云端门禁
 
 读图说明：根窄屏 chrome 保留零高槽位，聊天自己呈现唯一集成头部，其他页面直接显示标题与内容；四页身份不变。隐藏聊天同步关闭模态，历史关闭后仍受活动态焦点门禁约束。用户允许按文件分工并行，但所有编译、运行与图片验证仍在云端，最新结果包不通过就退回修复。

@@ -1,5 +1,15 @@
 # 测试规范
 
+## v3.8 当前验收要求
+
+147项XCTest名称不变，原36张图、20宿主PNG/3provenance和3份xcresult不减。v3.7 `f0b5fd4` / run `40624916743` attempt1实际146/147：新手机三项及全部视觉通过，严格focus失败；已读完整包与原始日志，不用旧绿色状态覆盖。本轮生产focus代码不改，测试宿主对齐NavigationStack、底部composer和页面级底栏，条件已满足先同步判断，其余仍2秒；增加editing/请求事件，保留首次/隐藏/重入/清理全部断言。XCTest云端锁定明确UDID、关闭并行克隆，仍完整执行一次，不增加测试重试。
+
+新增8项纯Python资源/验证器回归：28槽不透明icon、合法device夹具、Simulator拒绝、iPad图标声明缺失、隐私契约变化、非arm64、空Assets.car、损坏PNG。这些仅解析源文件和临时小夹具，不运行App，不能当作实际Release包通过。可本地执行：`PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s Tools/tests -p test_release_bundle.py -v`；`python3 Tools/verify_release_bundle.py --source-only`。静态素材生成不是Swift/ImageRenderer或模拟器运行。
+
+云端新增两个必选阶段：`unsignedIPhoneOSReleaseBuild`、`releaseBundleResources`，JUnit由8增10且旧阶段不减，只有原optional Codex environment允许skip。完整包新增`LocalGemma-release-build.xcresult`、`release-build.log`、`release-bundle.log`、`release-bundle.json`、`release-source.json`、`LocalGemma-unsigned-iphoneos.app.zip`。bundle JSON必须绑定精确SHA/run/attempt/branch，检查iPhoneOS而非Simulator、arm64 Mach-O、最低17.0、两设备族/图标声明、版本/照片说明、非空Assets.car、实际图标与精确PrivacyInfo；签名验证明确false。原三份xcresult和147结构化名称/36图仍独立核对，不能被新包检查替代。
+
+执行方式以最新人工要求为准：单Agent按模块推进，不新开子智能体、不走ABC队列。所有Swift编译、设备构建、XCTest与图片生成仍在云端。v3.8尚未跑自身云端，未预写通过。
+
 本文指导 Agent A、Agent B、Agent C 和 Agent X 为 `Local Gemma iOS Prototype` 选择本地轻量检查、云端重验证、结果包下载和验收方式。
 
 ## v3.7 当前测试与证据基线

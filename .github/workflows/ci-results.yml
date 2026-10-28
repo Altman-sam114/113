@@ -84,6 +84,10 @@ jobs:
             echo
             echo "## Ruby YAML parse for ci-results workflow"
             ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"' || status=1
+            echo
+            echo "## Release source resources and verifier regression fixtures"
+            python3 Tools/verify_release_bundle.py --source-only --output "$CI_RESULTS_DIR/release-source.json" || status=1
+            PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s Tools/tests -p 'test_release_bundle.py' -v || status=1
           } >"$log" 2>&1
           if [ "$status" -eq 0 ]; then
             echo success > "$CI_RESULTS_DIR/outcomes/static"
@@ -245,14 +249,13 @@ jobs:
             exit 0
           fi
 
-          simulator_name="$(
-            xcrun simctl list devices available |
-              sed -n 's/^[[:space:]]*\(iPhone [^(]*\) (.*/\1/p' |
-              head -n 1 |
-              sed 's/[[:space:]]*$//'
-          )"
+          simulator_id="$(xcrun simctl list devices available --json | python3 -c '
+          import json, sys
+          devices = [d for group in json.load(sys.stdin)["devices"].values() for d in group]
+          print(next((d["udid"] for d in devices if d["name"].startswith("iPhone")), ""))
+          ')"
 
-          if [ -z "$simulator_name" ]; then
+          if [ -z "$simulator_id" ]; then
             echo "Skipping XCTest because no available iPhone simulator was found on the runner." > "$log"
             echo skipped > "$CI_RESULTS_DIR/outcomes/test"
             echo "not-run-no-iphone-simulator" > "$CI_RESULTS_DIR/test-destination.txt"
@@ -260,7 +263,7 @@ jobs:
             exit 0
           fi
 
-          destination="platform=iOS Simulator,name=$simulator_name"
+          destination="platform=iOS Simulator,id=$simulator_id"
           echo "$destination" > "$CI_RESULTS_DIR/test-destination.txt"
           status=0
           xcodebuild \
@@ -269,6 +272,7 @@ jobs:
             -configuration Debug \
             -sdk iphonesimulator \
             -destination "$destination" \
+            -parallel-testing-enabled NO \
             -derivedDataPath "$DERIVED_DATA_PATH" \
             -resultBundlePath "$CI_RESULTS_DIR/LocalGemma-tests.xcresult" \
             CODE_SIGNING_ALLOWED=NO \
@@ -309,6 +313,53 @@ jobs:
           cat "$CI_RESULTS_DIR/visual-capture.log"
           exit 0
 
+      - name: Unsigned iPhoneOS Release build
+        run: |
+          set -u
+          log="$CI_RESULTS_DIR/release-build.log"
+          status=0
+          xcodebuild \
+            -project "$XCODE_PROJECT" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath .derivedData-release-ci \
+            -resultBundlePath "$CI_RESULTS_DIR/LocalGemma-release-build.xcresult" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
+            build >"$log" 2>&1 || status=$?
+          if [ "$status" -eq 0 ]; then
+            echo success > "$CI_RESULTS_DIR/outcomes/release-build"
+          else
+            echo failure > "$CI_RESULTS_DIR/outcomes/release-build"
+          fi
+          cat "$log"
+          exit 0
+
+      - name: Verify unsigned Release bundle
+        run: |
+          set -u
+          log="$CI_RESULTS_DIR/release-bundle.log"
+          status=0
+          app=".derivedData-release-ci/Build/Products/Release-iphoneos/LocalGemma.app"
+          if [ "$(cat "$CI_RESULTS_DIR/outcomes/release-build")" = "success" ]; then
+            python3 Tools/verify_release_bundle.py --app "$app" \
+              --output "$CI_RESULTS_DIR/release-bundle.json" >"$log" 2>&1 || status=$?
+            if [ "$status" -eq 0 ]; then
+              ditto -c -k --keepParent "$app" "$CI_RESULTS_DIR/LocalGemma-unsigned-iphoneos.app.zip" >>"$log" 2>&1 || status=$?
+            fi
+          else
+            echo "Release bundle verification cannot pass without its device build." >"$log"
+            status=1
+          fi
+          if [ "$status" -eq 0 ]; then
+            echo success > "$CI_RESULTS_DIR/outcomes/release-bundle"
+          else
+            echo failure > "$CI_RESULTS_DIR/outcomes/release-bundle"
+          fi
+          cat "$log"
+          exit 0
+
       - name: Generate manifest, JUnit, and failure summary
         run: |
           set -euo pipefail
@@ -335,6 +386,8 @@ jobs:
               "logic": read_text(outcomes_dir / "logic", "skipped"),
               "build": read_text(outcomes_dir / "build", "skipped"),
               "test": read_text(outcomes_dir / "test", "skipped"),
+              "releaseBuild": read_text(outcomes_dir / "release-build", "skipped"),
+              "releaseBundle": read_text(outcomes_dir / "release-bundle", "skipped"),
               "macCatalyst": read_text(outcomes_dir / "mac-catalyst", "skipped"),
               "macRunScript": read_text(outcomes_dir / "mac-run-script", "skipped"),
               "codexRunEnvironment": read_text(
@@ -371,6 +424,8 @@ jobs:
               ("logicSmoke", outcomes["logic"], "Tools/LogicSmoke.swift"),
               ("xcodeBuildForTesting", outcomes["build"], "xcodebuild build-for-testing"),
               ("xctestWithoutBuilding", outcomes["test"], test_destination),
+              ("unsignedIPhoneOSReleaseBuild", outcomes["releaseBuild"], "generic/platform=iOS, Release, unsigned"),
+              ("releaseBundleResources", outcomes["releaseBundle"], "release-bundle.json + unsigned device app archive"),
               (
                   "macCatalystBuildForTesting",
                   outcomes["macCatalyst"],
@@ -436,6 +491,8 @@ jobs:
               f"- Build: {outcomes['build']}",
               f"- XCTest: {outcomes['test']}",
               f"- XCTest destination: {test_destination}",
+              f"- Unsigned iPhoneOS Release build: {outcomes['releaseBuild']}",
+              f"- Release bundle resource verification: {outcomes['releaseBundle']}",
               f"- Mac baseline kind: mac-catalyst",
               f"- Mac Catalyst build: {outcomes['macCatalyst']}",
               f"- Mac Catalyst destination: {mac_catalyst_destination}",
@@ -450,6 +507,8 @@ jobs:
               "logic",
               "build",
               "test",
+              "releaseBuild",
+              "releaseBundle",
               "macCatalyst",
               "macRunScript",
           ]
@@ -520,6 +579,12 @@ jobs:
               "logicSmokeOutcome": outcomes["logic"],
               "buildOutcome": outcomes["build"],
               "testOutcome": outcomes["test"],
+              "releaseBuildOutcome": outcomes["releaseBuild"],
+              "releaseBundleOutcome": outcomes["releaseBundle"],
+              "releaseBuildResultBundlePath": "ci-results/LocalGemma-release-build.xcresult",
+              "releaseBundleReportPath": "ci-results/release-bundle.json",
+              "unsignedDeviceAppArchivePath": "ci-results/LocalGemma-unsigned-iphoneos.app.zip",
+              "releaseSigningVerified": False,
               "macBaselineKind": "mac-catalyst",
               "macCatalystBuildOutcome": outcomes["macCatalyst"],
               "macCatalystDestination": mac_catalyst_destination,
@@ -546,6 +611,10 @@ jobs:
                   "ci-results/layout-renders/manifest.json",
                   "ci-results/xctest-summary.json",
                   "ci-results/xctest-tests.json",
+                  "ci-results/release-build.log",
+                  "ci-results/release-bundle.log",
+                  "ci-results/release-bundle.json",
+                  "ci-results/release-source.json",
               ],
           }
           (results_dir / "ci-artifact-manifest.json").write_text(
@@ -570,6 +639,8 @@ jobs:
              [ "$logic_outcome" != "success" ] ||
              [ "$build_outcome" != "success" ] ||
              [ "$test_outcome" != "success" ] ||
+             [ "$(cat "$CI_RESULTS_DIR/outcomes/release-build")" != "success" ] ||
+             [ "$(cat "$CI_RESULTS_DIR/outcomes/release-bundle")" != "success" ] ||
              [ "$mac_catalyst_outcome" != "success" ] ||
              [ "$mac_run_script_outcome" != "success" ] ||
              [ "$codex_run_environment_outcome" = "failure" ]; then

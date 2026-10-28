@@ -1,5 +1,17 @@
 # AGENTS.md
 
+## 当前 v3.8 执行与发布基础边界
+
+用户最新要求取消 A/B/C 串行角色流程，随后又要求后续不再多开子智能体。现有子智能体已全部停止；由同一 Agent 按界面、文件可靠性、发布资源、测试模块串行推进并统一提交，不再新建或续派子智能体。下文历史多 Agent/角色前置要求不再作为执行门槛。必要的代码审查、最新 SHA 云端结果包核对和看图不能省略。AITRANS 继续只读，所有 Swift/Xcode/Simulator/UIKit/Vision 执行仍只在云端。
+
+v3.7 `f0b5fd4` / run `40624916743` attempt1 实际为146/147成功：三项新手机布局测试、iOS/Catalyst、36图与OCR导出成功，唯一严格composer焦点回归失败。原始控制台先观察到真实UITextInput responder=true，随后键盘XPC中断且第二次等待时失焦；不能写成整个版本通过，也不能据此断言生产从未聚焦。
+
+v3.8 保持147个Swift测试与生产同步focus不变，测试宿主改为与生产一致的NavigationStack、底部composer和页面级safeAreaInset；条件已满足时同步采样，否则保留2秒有界等待，增加editing/消费事件日志，首次/隐藏/重入真实responder断言不减。云端使用明确模拟器UDID和单测试worker，避免额外克隆与键盘环境竞争，不重试或skip测试。
+
+新增自有静态矢量风格AppIcon、28个iPhone/iPad/Catalyst/marketing槽位、无alpha PNG和生成源。Assets与PrivacyInfo进入App资源阶段，Debug/Release均指定AppIcon，bundle ID/team不变。隐私清单只声明实际AppStorage/UserDefaults使用理由CA92.1，无跟踪/离设备收集；size-only文件元数据不虚报时间戳或容量用途。新增云端未签名Release iPhoneOS构建、第4份xcresult、最终.app资源/Info.plist/arm64/隐私校验和unsigned app zip。原8阶段不减，JUnit增至10；验证器另有8项纯Python静态/小夹具回归。未签名device包不是可安装分发包或上架验收。
+
+导入替换非事务/大文件MainActor阻塞、会话重启恢复、真实runtime、真机/完整辅助技术与签名分发仍是后续门禁。本轮不偷改AppState或放宽verified；不得把发布资源检查或UI截图通过写成整个目标已完成。
+
 本文是本项目的入口记忆、总览、基本规则和多 Agent 云端迭代工作流。后续任何 Codex / Agent 进入项目后，先读本文，再读项目核心文档和相关源码。
 
 ## 当前 v3.7 手机呈现与协作边界

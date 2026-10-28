@@ -5073,9 +5073,10 @@ final class LocalGemmaTests: XCTestCase {
             "scene=\(scene.activationState), key=\(window.isKeyWindow), hidden=\(window.isHidden), "
                 + "attached=\(controller.view.window === window), appeared=\(controller.hasAppeared), "
                 + "windowFrame=\(window.frame), hostBounds=\(controller.view.bounds), "
-                + "active=\(focusStore.isChatActive), request=\(focusStore.focusRequest), "
+                + "active=\(focusStore.isChatActive), editing=\(focusStore.isEditing), request=\(focusStore.focusRequest), "
                 + "responder=\(self.firstResponder(in: controller.view) != nil), "
-                + "textInput=\(self.firstResponder(in: controller.view) is any UITextInput)"
+                + "textInput=\(self.firstResponder(in: controller.view) is any UITextInput), "
+                + "events=\(focusStore.events)"
         }
         window.makeKeyAndVisible()
         // Mount the pending request only after a full-size scene window can accept focus.
@@ -5358,6 +5359,10 @@ final class LocalGemmaTests: XCTestCase {
         file: StaticString = #filePath,
         line: UInt = #line
     ) async -> Bool {
+        if condition() {
+            print("[ComposerFocusLifecycle] \(description) already satisfied: \(diagnostic())")
+            return true
+        }
         let expectation = XCTNSPredicateExpectation(
             predicate: NSPredicate { _, _ in
                 // Awaited async fulfillment guarantees main-actor predicate evaluation; sync wait does not.
@@ -9106,10 +9111,16 @@ private final class ComposerFocusLifecycleStore: ObservableObject {
     @Published var isEditing = false
     @Published var isChatActive: Bool
     @Published var focusRequest: ComposerFocusRequest
+    private(set) var events: [String] = []
 
     init(isChatActive: Bool, focusRequest: ComposerFocusRequest) {
         self.isChatActive = isChatActive
         self.focusRequest = focusRequest
+    }
+
+    func record(_ event: String) {
+        events.append(event)
+        print("[ComposerFocusLifecycle] event: \(event)")
     }
 }
 
@@ -9117,27 +9128,40 @@ private struct ComposerFocusLifecycleHarness: View {
     @ObservedObject var store: ComposerFocusLifecycleStore
 
     var body: some View {
-        ComposerBar(
-            text: $store.text,
-            isGenerating: false,
-            isChatActive: store.isChatActive,
-            focusRequest: store.focusRequest,
-            clearFocusRequest: {
-                store.focusRequest = .initial
-            },
-            send: {},
-            stop: {},
-            editingChanged: { store.isEditing = $0 }
-        )
-        .environment(\.compactWorkbench, true)
-        .safeAreaInset(edge: .bottom) {
-            if CompactWorkbenchPolicy.showsNavigation(
-                isCompact: true, selectedTab: .chat, isEditing: store.isEditing
-            ) {
-                CompactWorkspaceNavigation(selection: .constant(.chat))
+        NavigationStack {
+            VStack(spacing: 0) {
+                Spacer(minLength: 0)
+                ComposerBar(
+                    text: $store.text,
+                    isGenerating: false,
+                    isChatActive: store.isChatActive,
+                    focusRequest: store.focusRequest,
+                    clearFocusRequest: {
+                        store.record("consume request \(store.focusRequest.sequence), active=\(store.isChatActive)")
+                        store.focusRequest = .initial
+                    },
+                    send: {},
+                    stop: {},
+                    editingChanged: {
+                        store.record("editing=\($0), active=\(store.isChatActive)")
+                        store.isEditing = $0
+                    }
+                )
+                .frame(maxWidth: ComposerBarLayoutPolicy.maximumContentWidth)
+                .padding(.horizontal, ComposerBarLayoutPolicy.horizontalPadding)
+                .padding(.top, 8)
+                .padding(.bottom, ComposerBarLayoutPolicy.bottomPadding)
             }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if CompactWorkbenchPolicy.showsNavigation(
+                    isCompact: true, selectedTab: .chat, isEditing: store.isEditing
+                ) {
+                    CompactWorkspaceNavigation(selection: .constant(.chat))
+                }
+            }
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar(.hidden, for: .navigationBar)
         }
-        .frame(maxWidth: 560)
-        .padding(.horizontal, 18)
+        .environment(\.compactWorkbench, true)
     }
 }

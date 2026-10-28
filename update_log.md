@@ -4624,3 +4624,19 @@ v3.5 `a28ac41` / run `39885347849` attempt1 的结果包为140/141成功，唯�
 实际本地静态预检由root完成：`git diff --check`、工程`plutil -lint`、run脚本`bash -n`、Ruby workflow YAML均通过；Tools Python AST、147唯一测试/原144名称保留、12个workflow shell块与1个embedded Python AST、六份预存prompt hash/未跟踪状态检查通过。`AppState.swift`/`LocalGemmaApp.swift`无diff；push前main与origin/main仍为`3adaef7`，活动GitHub账号`Altman-sam114`。A另检查本提示词结构/fence/路径，未运行Swift或构建。
 
 完整147项、iOS/Catalyst、Vision/宿主/模拟器截图以及最新SHA/run/attempt的完整结果包和人眼验收尚未完成，必须等待本轮提交自己的云端产物，不沿用历史绿色结果、不预写发布通过。真实模型推理、AppIcon/签名分发、真机/完整辅助技术、Mac GUI/pointer仍为独立发布缺口；本轮只能在实际通过后声明指定iPhone UI与回归范围通过。
+
+## v3.8 / 发布资源与焦点验收（2026-10-28，待自身云端验证）
+
+用户先取消ABC角色流程，随后明确后续不再多开子智能体。现有三位子智能体均已中断，没有新开或续派；停止时工作区无模块半成品，后续改动由root单独完成。发布资源/文件可靠性/测试按模块追踪，不再以角色文档串行等待。AITRANS未修改，六份预存prompt保持。
+
+实际基线是`f0b5fd4549e795e21da0890b3f3bd2ce19806581` / run `40624916743` attempt1，完整135.3MB包与27.4MB review已下载。manifest与main身份对齐；146/147、0 skipped，唯一严格composer focus回归失败；新手机三项、iOS/Catalyst/LogicSmoke、36图及中文OCR/宿主导出成功。原始日志先记录真实UITextInput=true，之后键盘XPC中断和第二次等待失焦，整个用例144.096s；不能简单宣称“初次从未聚焦”或整轮通过。root亲看本次iPhone暗聊天/设置与亮模型/模板，v3.7简化效果已呈现，但功能门禁仍不通过。
+
+本轮变更：
+- 不改生产同步focus，只让严格测试宿主与生产NavigationStack、底部输入、页面级safeAreaInset一致；已满足条件同步采样，其他原2秒等待/真实responder/隐藏/重入/清理不减。增加editing和request消费事件诊断。云端采用明确UDID及单worker，不通过skip或重试掩盖故障。
+- 新增自有矢量风格spark/orbit AppIcon源与生成脚本，28个iPhone/iPad/Catalyst/marketing槽位，PNG不透明RGB；Assets和PrivacyInfo真正注册App资源，两个配置指定AppIcon，未改bundleID/team。官方Required Reason API文档已核对：现AppStorage声明UserDefaults CA92.1，无跟踪或离设备收集；现size-only元数据没有新增时间戳/容量用途声明。
+- 新增标准库release-bundle验证器与8个静态/小夹具用例，校验源码图标与实际device包、精确privacy、版本/照片说明、arm64/平台、编译Assets与icon；签名验证明确false。
+- CI旧8阶段保留，新增unsigned iPhoneOS Release构建与bundle检查至JUnit10，产出第4份xcresult、结构化资源报告和未签名App压缩包。失败统一进manifest/summary/Evaluate，完整147项与36图仍必选。
+
+本地实际执行：8个Python静态/夹具测试全部通过（0.021s）、source-only资源检查、git diff --check、工程/隐私plutil、Ruby YAML、Tools AST、14个workflow shell块及内嵌Python解析通过。只有既有Ruby PATH权限warning；未执行任何本地Swift/Xcode/UI/Vision或模拟器。新SHA自己的147项/焦点、36图、Release实际包和4份xcresult还待云端，不预写通过。
+
+尚未修复的发布门禁：模型替换先删后复制导致失败可丢旧文件、大文件导入/hash同步MainActor阻塞、会话重启恢复、真实runtime与模型来源、真机/完整辅助技术、签名/分发。下一轮继续针对这些实际问题，不把本轮资源补齐等同整个目标完成。

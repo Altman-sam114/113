@@ -1,5 +1,15 @@
 # 项目核心流程文档
 
+## v3.8 当前执行与发布资源流
+
+当前由单一Agent按模块实现/集成/云端复判，不再强制A/B/C角色前置，也不再开启子智能体。生产iPhone数据流与v3.7一致；本轮不改AppState、runtime或verified。未解决的文件事务/主线程长I/O与会话持久化继续作为发布门禁，不因UI变美而忽略。
+
+Assets.xcassets和PrivacyInfo.xcprivacy通过明确PBXBuildFile进入App Resources，Debug/Release选择AppIcon。图标源为Tools/Assets/AppIcon.svg及确定性generate_app_icon.py，最终28槽PNG均RGB不透明。隐私声明仅AppStorage对应UserDefaults CA92.1，数据不离设备，无跟踪/收集；未来新增API/第三方依赖必须重新审计。
+
+CI保留现有完整链路，静态阶段追加source资源检查和8个Python夹具测试；XCTest以明确UDID、单worker执行全部147项。焦点宿主用生产同形NavigationStack/底部composer/页面safeAreaInset，先同步判断condition，再在未满足时走原2秒条件等待；日志记录editing与request消费，不调用becomeFirstResponder、不改生产同步focus、不skip。
+
+截图/原3份xcresult之外，新增generic iOS Release无签名构建，产出第4份xcresult；verify_release_bundle.py核对实际.app的iPhoneOS/arm64/版本/相册说明、两类图标声明、PNG/Assets.car与精确隐私契约，再生成带SHA/run/attempt的JSON与unsigned app zip。新两项均为必选，manifest/JUnit10/失败摘要/Evaluate统一判断；任一失败整轮退回。该证据不包含签名、真机安装或App Store批准。
+
 ## v3.7 当前手机优先呈现
 
 根 `WorkspaceRootLayoutPolicy` 的 topNavigation 仍是唯一窄屏选择。compact chrome 是零高、无命中且辅助隐藏的占位，`WorkspaceRootShell` 仍保持 chrome/content 同序两节点；原唯一 `WorkspacePagesShell` 通过只读 compactWorkbench 环境采用手机呈现，外侧 safeAreaInset 挂底部四入口。非聊天页面不再收到全局模型栏，公共 SectionHeader 只显示中文主标题；大屏 sidebar 与四页稳定身份保持。
