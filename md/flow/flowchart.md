@@ -1,5 +1,36 @@
 # 项目核心流程图
 
+## v3.10 会话恢复与精简手机历史
+
+读图说明：正常保存没有提示卡；恢复期间不允许seed或输入覆盖已有磁盘。历史搜索和预览仅展示层裁剪，不改原始正文，不接入真实runtime。
+
+```mermaid
+flowchart TD
+    %% 生产显式注入，测试默认内存隔离
+    App[生产App / InferenceEngine] --> Load[私有Store actor / 异步读与版本校验]
+    Load --> Valid{缺失或合法归档?}
+    Valid -- 合法 --> Restore[原始会话与ID时间 / 选择 / 分会话草稿]
+    Valid -- 缺失 --> Seed[保留新对话 / 不自动启动生成]
+    Valid -- 读取失败或未知版本 --> Protected[保护原文件 / 不自动写 / 一行修复入口]
+    Protected --> Confirm{明确确认修复?}
+    Confirm -- 否 --> Protected
+    Confirm -- 是 --> Backup[先备份原字节 / 失败不替换]
+    Backup --> Writer[单有序writer / 合并快照 / actor编码与原子写]
+    Restore --> Edit[同一composer / 逐会话草稿 / 原focus与导航]
+    Seed --> Edit
+    Edit --> Writer
+    Writer -- 写失败 --> Retry[保留内存最新快照 / 一行重试]
+    Retry -- 明确重试 --> Writer
+    Edit --> History[手机48pt搜索 / 标题短正文 / 44pt删除确认]
+    History --> Edit
+    Edit --> Background[退后台stop / 有限后台flush]
+    Background --> Writer
+    %% 宿主图不是完整模拟器或真机证据
+    Writer --> Cloud[精确SHA云端169项 / 42图 / 5provenance]
+    Cloud --> Review[JUnit10 / 4份xcresult / unsigned资源 / 完整包与看图]
+    Review --> Gates[仍需真实runtime / 故障耐久 / 真机辅助技术 / 签名发布]
+```
+
 ## v3.9.1 文件依赖隔离与失败快报
 
 读图说明：修复Swift6拒绝的裸FileManager跨域；构建失败不再浪费时间安装残缺App，视觉仍明确失败，不能缩减成功时的图矩阵。

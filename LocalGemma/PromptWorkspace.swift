@@ -36,10 +36,12 @@ struct PromptTemplatesWorkspace: View {
                         ),
                         isGenerating: inference.isGenerating,
                         apply: { template in
+                            guard !inference.conversationPersistenceState.blocksEditing else { return }
                             inference.applyTemplate(template)
                             openChat(.applyTemplate)
                         },
                         send: { template in
+                            guard !inference.conversationPersistenceState.blocksEditing else { return }
                             inference.useTemplate(
                                 template,
                                 model: model,
@@ -48,6 +50,7 @@ struct PromptTemplatesWorkspace: View {
                             openChat(.sendTemplate)
                         }
                     )
+                    .disabled(inference.conversationPersistenceState.blocksEditing)
                 }
                 .frame(
                     width: PromptTemplatesWorkspaceLayoutPolicy.contentWidth(

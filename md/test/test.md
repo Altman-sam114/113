@@ -1,5 +1,15 @@
 # 测试规范
 
+## v3.10 会话与手机历史门禁（待自身云端）
+
+源码169个唯一XCTest，保留入口157名称、严格真实responder/页面identity和文件事务断言；新增12项：归档原始正文/ID/时间/草稿round-trip；未知版本/重复/无效归属/负tokens拒绝；坏档保护与明确备份修复；磁盘失败与32MiB上限不覆盖旧字节；新engine恢复选择/逐会话草稿/停止占位；删除/reset/陈旧session保护；有界人工hold的恢复期动作拒绝；写失败后最新快照重试；60次输入合并单写；本机搜索/预览排除seed且不裁剪保存正文；亮暗×284/366pt×large/accessibility3行/错误自然高度；真实JSON落盘后新engine的历史图。异步断言先await取值，不在XCTest autoclosure中await，不用固定sleep凑测试，不重试或skip。
+
+`testRestoredConversationHistoryProducesPhoneEvidence`新增4张`workbench-history-{light|dark}-{large|accessibility3}`，同一生产history，320×640pt，`UIView.drawHierarchy`，OCR必须同时有“会话记录”标题和“部署讨论”正文，记录restoredFromDisk=true。预存中文简繁等价归一仅做字形对应，不替代正文门禁。exporter保留原4provenance/22PNG并要求history第5份与4图，总26宿主+16Simulator=42；重复/缺图/身份或尺寸不符仍失败。宿主图不是系统sheet交互、完整Simulator或真机证据，尺寸测量不等于真实点按/完整辅助技术。
+
+云端Swift6 LogicSmoke新纳入ConversationStore并实际写小归档、新engine恢复正文/选择/逐会话草稿与已停止导出，不编译UI；原12个Python夹具、JUnit10、4份完整xcresult和unsigned Release资源不减。新SHA完整ZIP必须独立对API digest、CRC/安全路径、manifest/源码名称/tree/SQLite/四份根状态、5provenance/42图及实际资源hash并人眼复判。入口`f347619` / run`40638042855` attempt1的157/157与38图仅是历史基线，不能当新版本通过。
+
+本地仅`git diff --check`、plutil、YAML/shell、Python AST/12个纯小夹具、169名称与target/文档结构/hash检查，不运行Swift、Xcode、Simulator、UIKit/Vision或ImageRenderer。强杀/断电、后台到期和多场景/系统故障交互仍需后续独立验收；本轮不冒称可上架。
+
 ## v3.9.1 代码验收结果
 
 代码`ee3a211607eb30b601acfe4a42d20aca7fb97889` / run`40635105796` attempt1，完整artifact `localgemma-ci-v3.9.1-main-ee3a211-run40635105796-attempt1`（97500545字节）已下载并对原ZIP独立算SHA-256，与API `3ba25c333828d07e69adc4a835bda3d41b7525012e90ad0a8c88a9b59a4cccc7`一致。结构化tree/summary、源码名称与原始SQLite逐一匹配157唯一Success，0 failure/skip/retry；新10项全部成功，后台/真实进度截图用例7.737s，严格focus2.972s。JUnit10/0失败/1 optional Codex skip；4份xcresult根succeeded、Data/refs为3/3、3/3、3/3、908/908。12个Python小夹具、Swift6 LogicSmoke、iOS/Catalyst与实际unsigned Release资源均成功；App archive CRC与6项实际资源hash已独立匹配。

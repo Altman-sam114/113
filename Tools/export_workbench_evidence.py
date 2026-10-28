@@ -57,16 +57,17 @@ def main():
             suggested_name = attachment.get("suggestedHumanReadableName", "")
             exported.append((suggested_name, source, test_identifier))
             for name in ["workbench-wide-provenance", "workbench-readiness-provenance",
-                         "workbench-compact-provenance", "workbench-import-provenance"]:
+                         "workbench-compact-provenance", "workbench-import-provenance",
+                         "workbench-history-provenance"]:
                 if attachment_name_matches(suggested_name, name):
                     document = json.loads(source.read_text(encoding="utf-8"))
                     documents.append((name, document, test_identifier))
 
     if {name for name, _document, _test in documents} != {
         "workbench-wide-provenance", "workbench-readiness-provenance", "workbench-compact-provenance",
-        "workbench-import-provenance"
-    } or len(documents) != 4:
-        raise RuntimeError("Expected exactly four production-render provenance attachments")
+        "workbench-import-provenance", "workbench-history-provenance"
+    } or len(documents) != 5:
+        raise RuntimeError("Expected exactly five production-render provenance attachments")
 
     captures = []
     for _name, document, exported_test in documents:
@@ -148,6 +149,19 @@ def main():
                         or capture.get("viewportWidth") != 320 or capture.get("viewportHeight") != 640
                         or width != 320 or height != 640):
                     raise RuntimeError(f"Invalid in-progress import composition: {name}")
+            elif capture["evidenceKind"] == "uihostingcontroller-history-production-composition":
+                normalized = "".join(c for c in capture.get("recognizedText", "").translate(
+                    str.maketrans("會話記錄討論", "会话记录讨论")) if c.isalnum())
+                if (capture.get("workspace") != "history"
+                        or capture.get("requiredTextMarker") != "会话记录"
+                        or capture.get("requiredBodyMarker") != "部署讨论"
+                        or "会话记录" not in normalized or "部署讨论" not in normalized
+                        or capture.get("restoredFromDisk") is not True
+                        or capture.get("dynamicTypeSize") not in ["large", "accessibility3"]
+                        or name != f"workbench-history-{capture['theme']}-{capture['dynamicTypeSize']}"
+                        or capture.get("viewportWidth") != 320 or capture.get("viewportHeight") != 640
+                        or width != 320 or height != 640):
+                    raise RuntimeError(f"Invalid restored conversation history composition: {name}")
             elif capture["evidenceKind"] != "uihostingcontroller-production-component":
                 raise RuntimeError(f"Unknown production snapshot source: {name}")
             captures.append({
@@ -176,9 +190,14 @@ def main():
         for workspace in ["chat", "models", "prompts", "settings"]
     }
     expected_import = {f"workbench-import-{theme}" for theme in ["light", "dark"]}
-    if (len(captures) != 22
+    expected_history = {
+        f"workbench-history-{theme}-{size}"
+        for theme in ["light", "dark"]
+        for size in ["large", "accessibility3"]
+    }
+    if (len(captures) != 26
             or {capture["attachmentName"] for capture in captures}
-            != expected_wide | expected_readiness | expected_compact | expected_import):
+            != expected_wide | expected_readiness | expected_compact | expected_import | expected_history):
         raise RuntimeError("Incomplete or duplicate production-render capture matrix")
     for theme in ["light", "dark"]:
         hashes = [capture["sha256"] for capture in captures
@@ -206,6 +225,7 @@ def main():
         "readinessComponentCaptureCount": 4,
         "compactCompositionCaptureCount": 8,
         "importCompositionCaptureCount": 2,
+        "historyCompositionCaptureCount": 4,
         "captureCount": len(captures),
         "captures": captures,
     }

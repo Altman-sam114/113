@@ -109,7 +109,7 @@ jobs:
               -swift-version 6 \
               -sdk "$(xcrun --sdk macosx --show-sdk-path)" \
               -module-cache-path .build/SwiftSmokeModuleCache \
-              LocalGemma/AppState.swift LocalGemma/ArtifactImport.swift Tools/LogicSmoke.swift \
+              LocalGemma/AppState.swift LocalGemma/ArtifactImport.swift LocalGemma/ConversationStore.swift Tools/LogicSmoke.swift \
               -o .build/logic-smoke || status=1
             if [ "$status" -eq 0 ]; then
               echo

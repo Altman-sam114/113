@@ -357,6 +357,41 @@ enum LogicSmoke {
         expect(engine.isGenerating == false, "reset conversation should stop generation")
         expect(engine.lastPreparationReport == nil, "reset conversation should clear preparation report")
 
+        let historyDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("LocalGemmaHistorySmoke-\(UUID().uuidString)", isDirectory: true)
+        do {
+            let historyFile = historyDirectory.appendingPathComponent("history-v1.json")
+            let persistent = InferenceEngine(conversationStorage: LocalConversationStore(fileURL: historyFile))
+            await persistent.waitForConversationRestore()
+            let firstID = persistent.activeSessionID
+            persistent.inputText = "保留本地对话"
+            persistent.send(using: catalog.selectedModel)
+            persistent.stop()
+            persistent.inputText = "  草稿 A\n保留换行  "
+            let first = persistent.sessions.first { $0.id == firstID }!
+            let secondID = persistent.createSession(title: "另一条对话")
+            persistent.inputText = "草稿 B"
+            persistent.selectSession(first)
+            let saved = await persistent.flushConversationHistory()
+            expect(saved, "conversation history should commit successfully")
+            let restored = InferenceEngine(conversationStorage: LocalConversationStore(fileURL: historyFile))
+            await restored.waitForConversationRestore()
+            expect(restored.sessions == persistent.sessions, "restart should preserve exact conversation records")
+            expect(restored.activeSessionID == firstID, "restart should restore active selection")
+            expect(restored.inputText == "  草稿 A\n保留换行  ", "restart should preserve untrimmed drafts")
+            expect(!restored.isGenerating && restored.lastPreparationReport == nil, "restart must not resume runtime or generation")
+            expect(restored.exportActiveSessionText().contains("（已停止）"), "stopped output must not export as generating")
+            if let second = restored.sessions.first(where: { $0.id == secondID }) {
+                restored.selectSession(second)
+                expect(restored.inputText == "草稿 B", "each conversation should keep its own draft")
+            } else {
+                failures.append("restart lost the second conversation")
+            }
+            let secondSaved = await restored.flushConversationHistory()
+            expect(secondSaved, "updated history selection should commit successfully")
+        }
+        try? FileManager.default.removeItem(at: historyDirectory)
+
         if failures.isEmpty {
             print("Logic smoke passed")
         } else {

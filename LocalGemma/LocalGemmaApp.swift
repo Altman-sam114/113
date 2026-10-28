@@ -3,7 +3,7 @@ import SwiftUI
 @main
 struct LocalGemmaApp: App {
     @StateObject private var catalog = ModelCatalog(autoScanLocalArtifacts: true)
-    @StateObject private var inferenceEngine = InferenceEngine()
+    @StateObject private var inferenceEngine = InferenceEngine(conversationStorage: LocalConversationStore.shared)
     @StateObject private var optimizer = DeviceOptimizer()
 
     var body: some Scene {
@@ -12,6 +12,7 @@ struct LocalGemmaApp: App {
                 .environmentObject(catalog)
                 .environmentObject(inferenceEngine)
                 .environmentObject(optimizer)
+                .modifier(ConversationLifecycleFlush(inference: inferenceEngine))
         }
         .commands {
             WorkspaceCommands()

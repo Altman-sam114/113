@@ -103,8 +103,8 @@ struct LocalModel: Identifiable, Equatable, Sendable {
     }
 }
 
-struct ChatMessage: Identifiable, Equatable, Sendable {
-    enum Role: Equatable, Sendable {
+struct ChatMessage: Identifiable, Codable, Equatable, Sendable {
+    enum Role: String, Codable, Equatable, Sendable {
         case user
         case assistant
         case system
@@ -125,7 +125,7 @@ struct ChatMessage: Identifiable, Equatable, Sendable {
     }
 }
 
-struct ChatSession: Identifiable, Equatable, Sendable {
+struct ChatSession: Identifiable, Codable, Equatable, Sendable {
     let id: UUID
     var title: String
     var messages: [ChatMessage]
@@ -1058,7 +1058,17 @@ final class InferenceEngine: ObservableObject {
     @Published var sessions: [ChatSession]
     @Published var activeSessionID: UUID
     @Published var messages: [ChatMessage]
-    @Published var inputText: String
+    @Published var inputText: String {
+        didSet {
+            guard !isApplyingArchive else { return }
+            guard !conversationPersistenceState.blocksEditing else {
+                inputText = oldValue
+                return
+            }
+            drafts[activeSessionID] = inputText
+            requestConversationSave()
+        }
+    }
     @Published var isGenerating: Bool
     @Published var currentTokensPerSecond: Double
     @Published var memoryUsageMB: Int
@@ -1066,12 +1076,21 @@ final class InferenceEngine: ObservableObject {
     @Published var lastPreparationReport: RuntimePreparationReport?
     @Published var lastResultWasSimulated: Bool
     @Published var currentBackend: ComputeBackend
+    @Published private(set) var conversationPersistenceState: ConversationPersistenceState
 
     private var generationTask: Task<Void, Never>?
     private let runtime: LocalInferenceRuntime
+    private let conversationStorage: (any ConversationStorage)?
+    private var drafts: [UUID: String] = [:]
+    private var restoreTask: Task<Void, Never>?
+    private var saveTask: Task<Void, Never>?
+    private var pendingArchive: ConversationArchive?
+    private var isApplyingArchive = false
 
-    init(runtime: LocalInferenceRuntime = SimulatedGemmaRuntime()) {
+    init(runtime: LocalInferenceRuntime = SimulatedGemmaRuntime(), conversationStorage: (any ConversationStorage)? = nil) {
         self.runtime = runtime
+        self.conversationStorage = conversationStorage
+        self.conversationPersistenceState = conversationStorage == nil ? .memoryOnly : .loading
         let initialSession = ChatSession(
             title: "新对话",
             messages: Self.defaultMessages()
@@ -1087,6 +1106,30 @@ final class InferenceEngine: ObservableObject {
         self.lastPreparationReport = nil
         self.lastResultWasSimulated = true
         self.currentBackend = .coreMLANE
+        if let conversationStorage {
+            restoreTask = Task { [weak self] in
+                do {
+                    let archive = try await conversationStorage.load()
+                    guard let self else { return }
+                    if let archive {
+                        try archive.validate()
+                        guard let active = archive.sessions.first(where: { $0.id == archive.activeSessionID }) else {
+                            throw ConversationStoreError.invalidArchive
+                        }
+                        self.isApplyingArchive = true
+                        self.sessions = archive.sessions
+                        self.activeSessionID = archive.activeSessionID
+                        self.messages = active.messages
+                        self.drafts = archive.drafts
+                        self.inputText = archive.drafts[archive.activeSessionID] ?? ""
+                        self.isApplyingArchive = false
+                    }
+                    self.conversationPersistenceState = .saved
+                } catch {
+                    self?.conversationPersistenceState = .readFailed
+                }
+            }
+        }
     }
 
     private static func defaultMessages() -> [ChatMessage] {
@@ -1114,7 +1157,8 @@ final class InferenceEngine: ObservableObject {
 
     func send(using model: LocalModel, availability: ArtifactAvailability = .missing) {
         let trimmed = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed.isEmpty == false, isGenerating == false else { return }
+        guard trimmed.isEmpty == false, isGenerating == false,
+              !conversationPersistenceState.blocksEditing else { return }
 
         inputText = ""
         messages.append(ChatMessage(role: .user, text: trimmed, tokens: estimateTokens(trimmed)))
@@ -1159,9 +1203,11 @@ final class InferenceEngine: ObservableObject {
         generationTask = nil
         isGenerating = false
         cpuLoad = 16
+        requestConversationSave()
     }
 
     func resetConversation() {
+        guard !conversationPersistenceState.blocksEditing else { return }
         stop()
         inputText = ""
         messages = Self.defaultMessages()
@@ -1174,24 +1220,25 @@ final class InferenceEngine: ObservableObject {
     }
 
     func usePrompt(_ prompt: String, model: LocalModel, availability: ArtifactAvailability = .missing) {
-        guard isGenerating == false else { return }
+        guard isGenerating == false, !conversationPersistenceState.blocksEditing else { return }
         inputText = prompt
         send(using: model, availability: availability)
     }
 
     func applyTemplate(_ template: PresetPromptTemplate) {
-        guard isGenerating == false else { return }
+        guard isGenerating == false, !conversationPersistenceState.blocksEditing else { return }
         inputText = template.prompt
     }
 
     func useTemplate(_ template: PresetPromptTemplate, model: LocalModel, availability: ArtifactAvailability = .missing) {
-        guard isGenerating == false else { return }
+        guard isGenerating == false, !conversationPersistenceState.blocksEditing else { return }
         inputText = template.prompt
         send(using: model, availability: availability)
     }
 
     @discardableResult
     func createSession(title: String? = nil) -> UUID {
+        guard !conversationPersistenceState.blocksEditing else { return activeSessionID }
         stop()
         let session = ChatSession(
             title: title ?? nextSessionTitle(),
@@ -1206,24 +1253,29 @@ final class InferenceEngine: ObservableObject {
         currentBackend = .coreMLANE
         currentTokensPerSecond = 36
         memoryUsageMB = 1840
+        requestConversationSave()
         return session.id
     }
 
     func selectSession(_ session: ChatSession) {
-        guard sessions.contains(where: { $0.id == session.id }) else { return }
+        guard !conversationPersistenceState.blocksEditing,
+              let current = sessions.first(where: { $0.id == session.id }) else { return }
         stop()
-        activeSessionID = session.id
-        messages = session.messages
-        inputText = ""
+        activeSessionID = current.id
+        messages = current.messages
+        inputText = drafts[current.id] ?? ""
+        requestConversationSave()
     }
 
     func deleteSession(_ session: ChatSession) {
+        guard !conversationPersistenceState.blocksEditing else { return }
         let wasActive = session.id == activeSessionID
         if wasActive {
             stop()
         }
 
         sessions.removeAll { $0.id == session.id }
+        drafts[session.id] = nil
         if sessions.isEmpty {
             createSession(title: "新对话")
             return
@@ -1232,8 +1284,9 @@ final class InferenceEngine: ObservableObject {
         if wasActive {
             activeSessionID = sessions[0].id
             messages = sessions[0].messages
-            inputText = ""
+            inputText = drafts[activeSessionID] ?? ""
         }
+        requestConversationSave()
     }
 
     func exportActiveSessionText(modelName: String? = nil) -> String {
@@ -1248,7 +1301,13 @@ final class InferenceEngine: ObservableObject {
 
         for message in session.messages {
             lines.append("## \(exportRoleTitle(for: message.role))")
-            lines.append(message.text.isEmpty ? "（生成中）" : message.text)
+            if !message.text.isEmpty {
+                lines.append(message.text)
+            } else if message.role == .assistant {
+                lines.append(isGenerating && message.id == messages.last?.id ? "（生成中）" : "（已停止）")
+            } else {
+                lines.append("（空消息）")
+            }
         }
 
         return lines.joined(separator: "\n\n")
@@ -1278,6 +1337,78 @@ final class InferenceEngine: ObservableObject {
             sessions[index].title = title
         } else if let titlePrompt, sessions[index].title.hasPrefix("新对话") {
             sessions[index].title = Self.sessionTitle(from: titlePrompt)
+        }
+        requestConversationSave()
+    }
+
+    func waitForConversationRestore() async {
+        await restoreTask?.value
+    }
+
+    @discardableResult
+    func flushConversationHistory() async -> Bool {
+        await waitForConversationRestore()
+        guard conversationStorage != nil else { return true }
+        guard conversationPersistenceState != .readFailed,
+              !conversationPersistenceState.blocksEditing else { return false }
+        pendingArchive = conversationArchive()
+        startConversationSave()
+        while let task = saveTask { await task.value }
+        return conversationPersistenceState == .saved
+    }
+
+    func repairConversationHistory() async {
+        guard conversationPersistenceState == .readFailed, let conversationStorage else { return }
+        let archive = conversationArchive()
+        conversationPersistenceState = .repairing
+        do {
+            try await conversationStorage.repair(with: archive)
+            pendingArchive = nil
+            conversationPersistenceState = .saved
+        } catch {
+            conversationPersistenceState = .readFailed
+        }
+    }
+
+    private func conversationArchive() -> ConversationArchive {
+        var snapshot = sessions
+        if let index = snapshot.firstIndex(where: { $0.id == activeSessionID }) {
+            snapshot[index].messages = messages
+        }
+        return ConversationArchive(sessions: snapshot, activeSessionID: activeSessionID, drafts: drafts)
+    }
+
+    private func requestConversationSave() {
+        guard conversationStorage != nil, !isApplyingArchive,
+              !conversationPersistenceState.blocksEditing else { return }
+        pendingArchive = conversationArchive()
+        guard conversationPersistenceState != .readFailed,
+              conversationPersistenceState != .writeFailed else { return }
+        startConversationSave()
+    }
+
+    private func startConversationSave() {
+        guard saveTask == nil, let conversationStorage else { return }
+        conversationPersistenceState = .saving
+        // One ordered writer coalesces typing/streaming snapshots without
+        // cancelling an in-flight disk commit or encoding on the UI executor.
+        saveTask = Task { [weak self] in
+            guard let self else { return }
+            while self.pendingArchive != nil {
+                try? await Task.sleep(for: .milliseconds(180))
+                guard let archive = self.pendingArchive else { break }
+                self.pendingArchive = nil
+                do {
+                    try await conversationStorage.save(archive)
+                } catch {
+                    if self.pendingArchive == nil { self.pendingArchive = archive }
+                    self.conversationPersistenceState = .writeFailed
+                    self.saveTask = nil
+                    return
+                }
+            }
+            self.conversationPersistenceState = .saved
+            self.saveTask = nil
         }
     }
 

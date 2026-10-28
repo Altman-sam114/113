@@ -7,6 +7,348 @@ import XCTest
 
 @MainActor
 final class LocalGemmaTests: XCTestCase {
+    func testConversationArchiveRoundTripsExactRecordsAndDrafts() throws {
+        let archive = conversationFixture()
+        try archive.validate()
+        let data = try JSONEncoder().encode(archive)
+        let restored = try JSONDecoder().decode(ConversationArchive.self, from: data)
+        XCTAssertEqual(restored, archive)
+        XCTAssertEqual(restored.sessions.map(\.id), archive.sessions.map(\.id))
+        XCTAssertEqual(restored.drafts[archive.activeSessionID], "  未发送草稿\n保留换行  ")
+        XCTAssertFalse(String(decoding: data, as: UTF8.self).contains("isGenerating"))
+    }
+
+    func testConversationArchiveRejectsUnsupportedDuplicateAndUnknownIdentity() throws {
+        let valid = conversationFixture()
+        var invalid = valid
+        invalid.version = 2
+        XCTAssertThrowsError(try invalid.validate())
+        invalid = valid
+        invalid.sessions.append(valid.sessions[0])
+        XCTAssertThrowsError(try invalid.validate())
+        invalid = valid
+        invalid.activeSessionID = UUID()
+        XCTAssertThrowsError(try invalid.validate())
+        invalid = valid
+        invalid.drafts[UUID()] = "orphan"
+        XCTAssertThrowsError(try invalid.validate())
+        invalid = valid
+        invalid.sessions[0].messages.append(invalid.sessions[0].messages[0])
+        XCTAssertThrowsError(try invalid.validate())
+        invalid = valid
+        invalid.sessions = []
+        XCTAssertThrowsError(try invalid.validate())
+        invalid = valid
+        invalid.sessions[0].messages[0].tokens = -1
+        XCTAssertThrowsError(try invalid.validate())
+        invalid = valid
+        invalid.sessions[0].updatedAt = Date(timeIntervalSinceReferenceDate: .infinity)
+        XCTAssertThrowsError(try invalid.validate())
+        try valid.validate()
+    }
+
+    func testConversationStorePreservesUnreadableAndRequiresExplicitRepair() async throws {
+        let directory = try conversationDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let file = directory.appendingPathComponent("history-v1.json")
+        let original = Data("{unreadable original bytes".utf8)
+        try original.write(to: file)
+        let store = LocalConversationStore(fileURL: file)
+        do { _ = try await store.load(); XCTFail("Corruption must be reported") } catch {}
+        do { try await store.save(conversationFixture()); XCTFail("Seed must not overwrite unreadable history") } catch {}
+        XCTAssertEqual(try Data(contentsOf: file), original)
+        let archive = conversationFixture()
+        try await store.repair(with: archive)
+        let backups = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
+            .filter { $0.lastPathComponent.hasPrefix("unreadable-") }
+        XCTAssertEqual(backups.count, 1)
+        XCTAssertEqual(try Data(contentsOf: XCTUnwrap(backups.first)), original)
+        let reloaded = try await LocalConversationStore(fileURL: file).load()
+        XCTAssertEqual(reloaded, archive)
+        var newer = archive
+        newer.version = 99
+        let unknown = try JSONEncoder().encode(newer)
+        try unknown.write(to: file, options: .atomic)
+        do { _ = try await store.load(); XCTFail("A newer schema must not be guessed") } catch {}
+        do { try await store.save(archive); XCTFail("Unsupported schema must stay protected") } catch {}
+        XCTAssertEqual(try Data(contentsOf: file), unknown)
+
+        let engine = InferenceEngine(conversationStorage: store)
+        await engine.waitForConversationRestore()
+        XCTAssertEqual(engine.conversationPersistenceState, .readFailed)
+        engine.inputText = "仍可继续编辑，但不覆盖原件"
+        await assertConversationFlush(engine, succeeds: false)
+        XCTAssertEqual(try Data(contentsOf: file), unknown)
+        await engine.repairConversationHistory()
+        XCTAssertEqual(engine.conversationPersistenceState, .saved)
+        let recovered = try await LocalConversationStore(fileURL: file).load()
+        XCTAssertEqual(recovered?.drafts[engine.activeSessionID], engine.inputText)
+        let allBackups = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
+            .filter { $0.lastPathComponent.hasPrefix("unreadable-") }
+        XCTAssertEqual(allBackups.count, 2)
+        XCTAssertTrue(try allBackups.map { try Data(contentsOf: $0) }.contains(unknown))
+    }
+
+    func testConversationStoreFailedAndOversizedWritesPreservePreviousBytes() async throws {
+        let directory = try conversationDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let file = directory.appendingPathComponent("history-v1.json")
+        let archive = conversationFixture()
+        let store = LocalConversationStore(fileURL: file)
+        let empty = try await store.load()
+        XCTAssertNil(empty)
+        try await store.save(archive)
+        let previous = try Data(contentsOf: file)
+        let failing = LocalConversationStore(fileURL: file, writer: { _, _ in throw CocoaError(.fileWriteOutOfSpace) })
+        _ = try await failing.load()
+        do { try await failing.save(archive); XCTFail("Disk failure must propagate") } catch {}
+        XCTAssertEqual(try Data(contentsOf: file), previous)
+        var oversized = archive
+        oversized.sessions[0].messages[0].text = String(repeating: "x", count: ConversationArchive.maximumBytes + 1)
+        do { try await store.save(oversized); XCTFail("Oversize must not silently truncate or overwrite") } catch {}
+        XCTAssertEqual(try Data(contentsOf: file), previous)
+    }
+
+    func testConversationEngineRestoresSelectionDraftsAndStoppedOutput() async throws {
+        let directory = try conversationDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let file = directory.appendingPathComponent("history-v1.json")
+        let engine = InferenceEngine(conversationStorage: LocalConversationStore(fileURL: file))
+        await engine.waitForConversationRestore()
+        let firstID = engine.activeSessionID
+        engine.inputText = "部署与隐私"
+        engine.send(using: ModelCatalog.defaultModels[0])
+        engine.stop()
+        engine.inputText = "  草稿 A\n下一行  "
+        let secondID = engine.createSession(title: "第二条对话")
+        engine.inputText = "草稿 B"
+        engine.selectSession(try XCTUnwrap(engine.sessions.first { $0.id == firstID }))
+        XCTAssertEqual(engine.inputText, "  草稿 A\n下一行  ")
+        let flushed = await engine.flushConversationHistory()
+        XCTAssertTrue(flushed)
+        let expected = engine.sessions
+        let restored = InferenceEngine(conversationStorage: LocalConversationStore(fileURL: file))
+        await restored.waitForConversationRestore()
+        XCTAssertEqual(restored.sessions, expected)
+        XCTAssertEqual(restored.activeSessionID, firstID)
+        XCTAssertEqual(restored.inputText, engine.inputText)
+        XCTAssertFalse(restored.isGenerating)
+        XCTAssertNil(restored.lastPreparationReport)
+        XCTAssertTrue(restored.lastResultWasSimulated)
+        let exported = restored.exportActiveSessionText()
+        XCTAssertTrue(exported.contains("部署与隐私"))
+        XCTAssertTrue(exported.contains("（已停止）"))
+        XCTAssertFalse(exported.contains("（生成中）"))
+        restored.selectSession(try XCTUnwrap(restored.sessions.first { $0.id == secondID }))
+        XCTAssertEqual(restored.inputText, "草稿 B")
+        await assertConversationFlush(restored)
+    }
+
+    func testConversationEngineDeleteResetAndStaleSelectionStayConsistent() async throws {
+        let storage = ConversationTestStorage()
+        let engine = InferenceEngine(conversationStorage: storage)
+        await engine.waitForConversationRestore()
+        let stale = try XCTUnwrap(engine.activeSession)
+        engine.inputText = "保留这条真实用户正文"
+        engine.send(using: ModelCatalog.defaultModels[0])
+        engine.stop()
+        let secondID = engine.createSession()
+        engine.inputText = "此草稿应删除"
+        engine.selectSession(stale)
+        XCTAssertTrue(engine.messages.contains { $0.text == "保留这条真实用户正文" }, "A stale UI value must not restore stale messages")
+        engine.deleteSession(try XCTUnwrap(engine.sessions.first { $0.id == secondID }))
+        await assertConversationFlush(engine)
+        let snapshotValue = await storage.lastSaved()
+        let snapshot = try XCTUnwrap(snapshotValue)
+        XCTAssertNil(snapshot.drafts[secondID])
+        XCTAssertEqual(snapshot.sessions.count, 1)
+        engine.inputText = "will reset"
+        engine.resetConversation()
+        XCTAssertEqual(engine.inputText, "")
+        await assertConversationFlush(engine)
+        let resetValue = await storage.lastSaved()
+        let reset = try XCTUnwrap(resetValue)
+        XCTAssertEqual(reset.drafts[reset.activeSessionID], "")
+        XCTAssertFalse(reset.sessions[0].messages.contains { $0.role == .user })
+        engine.deleteSession(try XCTUnwrap(engine.activeSession))
+        await assertConversationFlush(engine)
+        let replacementValue = await storage.lastSaved()
+        let replacement = try XCTUnwrap(replacementValue)
+        XCTAssertEqual(replacement.sessions.count, 1)
+        XCTAssertNotEqual(replacement.activeSessionID, reset.activeSessionID)
+        XCTAssertNil(replacement.drafts[reset.activeSessionID])
+        try replacement.validate()
+    }
+
+    func testConversationEngineDoesNotOverwriteWhileRestoring() async throws {
+        let archive = conversationFixture()
+        let storage = ConversationTestStorage(archive: archive, holdsLoad: true)
+        let engine = InferenceEngine(conversationStorage: storage)
+        await storage.waitForLoadEntry()
+        let seedID = engine.activeSessionID
+        XCTAssertEqual(engine.conversationPersistenceState, .loading)
+        engine.inputText = "must not overwrite an existing draft"
+        engine.send(using: ModelCatalog.defaultModels[0])
+        engine.createSession()
+        engine.resetConversation()
+        XCTAssertEqual(engine.activeSessionID, seedID)
+        XCTAssertEqual(engine.inputText, "")
+        XCTAssertFalse(engine.messages.contains { $0.role == .user })
+        await storage.releaseLoad()
+        await engine.waitForConversationRestore()
+        XCTAssertEqual(engine.activeSessionID, archive.activeSessionID)
+        XCTAssertEqual(engine.inputText, archive.drafts[archive.activeSessionID])
+        await assertConversationSaveCount(storage, 0)
+    }
+
+    func testConversationEngineRetriesLatestSnapshotAfterSaveFailure() async throws {
+        let storage = ConversationTestStorage(failsSave: true)
+        let engine = InferenceEngine(conversationStorage: storage)
+        await engine.waitForConversationRestore()
+        engine.inputText = "first draft"
+        await assertConversationFlush(engine, succeeds: false)
+        XCTAssertEqual(engine.conversationPersistenceState, .writeFailed)
+        engine.inputText = "  最新草稿\n不丢换行  "
+        await assertConversationSaveCount(storage, 1)
+        await storage.setSaveFailure(false)
+        await assertConversationFlush(engine)
+        let snapshotValue = await storage.lastSaved()
+        let snapshot = try XCTUnwrap(snapshotValue)
+        XCTAssertEqual(snapshot.drafts[engine.activeSessionID], engine.inputText)
+        XCTAssertEqual(engine.conversationPersistenceState, .saved)
+    }
+
+    func testConversationEngineCoalescesDraftWritesWithoutLosingLatest() async throws {
+        let storage = ConversationTestStorage()
+        let engine = InferenceEngine(conversationStorage: storage)
+        await engine.waitForConversationRestore()
+        for index in 0..<60 { engine.inputText = "draft \(index)" }
+        await assertConversationFlush(engine)
+        await assertConversationSaveCount(storage, 1)
+        let snapshotValue = await storage.lastSaved()
+        let snapshot = try XCTUnwrap(snapshotValue)
+        XCTAssertEqual(snapshot.drafts[engine.activeSessionID], "draft 59")
+        XCTAssertEqual(engine.activeSessionID, snapshot.activeSessionID)
+    }
+
+    func testConversationHistorySearchAndPreviewExcludeSeedNoise() {
+        let seed = InferenceEngine().sessions[0]
+        XCTAssertNil(ConversationHistoryPolicy.preview(seed))
+        XCTAssertFalse(ConversationHistoryPolicy.matches(seed, query: "模拟 iPhone"))
+        let session = conversationFixture().sessions[0]
+        XCTAssertEqual(ConversationHistoryPolicy.preview(session), "离线运行，记录仅保留在本机。")
+        XCTAssertTrue(ConversationHistoryPolicy.matches(session, query: "  部署  "))
+        XCTAssertTrue(ConversationHistoryPolicy.matches(session, query: "离线运行"))
+        XCTAssertFalse(ConversationHistoryPolicy.matches(session, query: "没有这个词"))
+        XCTAssertTrue(ConversationHistoryPolicy.matches(session, query: " \n "))
+        var long = session
+        long.messages.append(ChatMessage(role: .assistant, text: String(repeating: "中", count: 200)))
+        XCTAssertEqual(ConversationHistoryPolicy.preview(long)?.count, 80)
+        XCTAssertEqual(long.messages.last?.text.count, 200, "Presentation must not trim stored payloads")
+    }
+
+    func testConversationHistoryRowsAndNoticesGrowOnSmallPhones() {
+        let session = conversationFixture().sessions[0]
+        for theme in AppThemeMode.allCases {
+            for width: CGFloat in [284, 366] {
+                var heights: [CGFloat] = []
+                for type in [DynamicTypeSize.large, .accessibility3] {
+                    let row = AnyView(ConversationHistoryRow(session: session, isActive: true,
+                        select: { XCTFail("Sizing must not select") }, delete: { XCTFail("Sizing must not delete") }))
+                    let size = compactControlSize(row, width: width, textSize: type, themeMode: theme)
+                    XCTAssertEqual(size.width, width, accuracy: 1)
+                    XCTAssertGreaterThanOrEqual(size.height, 72)
+                    heights.append(size.height)
+                    for state in [ConversationPersistenceState.loading, .readFailed, .writeFailed, .repairing] {
+                        let notice = AnyView(ConversationPersistenceNotice(state: state, retry: {}, repair: {}))
+                        let noticeSize = compactControlSize(notice, width: width, textSize: type, themeMode: theme)
+                        XCTAssertGreaterThanOrEqual(noticeSize.height, 44)
+                        XCTAssertEqual(noticeSize.width, width, accuracy: 1)
+                    }
+                }
+                XCTAssertGreaterThan(heights[1], heights[0])
+            }
+        }
+    }
+
+    func testRestoredConversationHistoryProducesPhoneEvidence() async throws {
+        let directory = try conversationDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let file = directory.appendingPathComponent("history-v1.json")
+        let store = LocalConversationStore(fileURL: file)
+        _ = try await store.load()
+        let archive = conversationFixture()
+        try await store.save(archive)
+        let engine = InferenceEngine(conversationStorage: LocalConversationStore(fileURL: file))
+        await engine.waitForConversationRestore()
+        XCTAssertEqual(engine.sessions, archive.sessions)
+        var evidence: [[String: Any]] = []
+        let size = CGSize(width: 320, height: 640)
+        for theme in AppThemeMode.allCases {
+            for type in [DynamicTypeSize.large, .accessibility3] {
+                let typeName = type == .large ? "large" : "accessibility3"
+                let page = AnyView(CompactSessionHistory(sessions: engine.sessions, activeSessionID: engine.activeSessionID,
+                    persistenceState: engine.conversationPersistenceState, select: { _ in }, delete: { _ in }, create: {})
+                    .environment(\.appTheme, AppThemePalette(mode: theme))
+                    .environment(\.colorScheme, theme.colorScheme)
+                    .environment(\.dynamicTypeSize, type)
+                    .frame(width: size.width, height: size.height))
+                let image = try await captureWorkbenchView(page, size: size, themeMode: theme)
+                let name = "workbench-history-\(theme.rawValue)-\(typeName)"
+                keepWorkbenchImage(image, name: name)
+                let recognized = try workbenchRecognizedText(in: image, requiredMarker: "会话记录")
+                XCTAssertTrue(workbenchNormalizedText(recognized).contains(workbenchNormalizedText("会话记录")), recognized)
+                XCTAssertTrue(workbenchNormalizedText(recognized).contains(workbenchNormalizedText("部署讨论")), recognized)
+                evidence.append([
+                    "attachmentName": name, "evidenceKind": "uihostingcontroller-history-production-composition",
+                    "captureMethod": "UIView.drawHierarchy", "theme": theme.rawValue, "workspace": "history",
+                    "dynamicTypeSize": typeName, "requiredTextMarker": "会话记录", "requiredBodyMarker": "部署讨论",
+                    "recognizedText": recognized, "restoredFromDisk": true,
+                    "imageWidth": Double(image.size.width), "imageHeight": Double(image.size.height),
+                    "viewportWidth": 320, "viewportHeight": 640
+                ])
+            }
+        }
+        XCTAssertFalse(engine.isGenerating)
+        try keepWorkbenchProvenance([
+            "captures": evidence, "testIdentifier": "LocalGemmaTests/testRestoredConversationHistoryProducesPhoneEvidence()"
+        ], name: "workbench-history-provenance")
+    }
+
+    private func conversationFixture() -> ConversationArchive {
+        let session = ChatSession(title: "部署讨论", messages: [
+            ChatMessage(role: .system, text: "seed must not appear in history preview"),
+            ChatMessage(role: .user, text: "怎么在 iPhone 上运行？"),
+            ChatMessage(role: .assistant, text: "离线运行，记录仅保留在本机。")
+        ])
+        let other = ChatSession(title: "隐私评审与数据保护", messages: [
+            ChatMessage(role: .user, text: "检查本地对话的隐私边界。"),
+            ChatMessage(role: .assistant, text: "对话和草稿不会发送到外部服务。")
+        ])
+        return ConversationArchive(sessions: [session, other], activeSessionID: session.id,
+                                   drafts: [session.id: "  未发送草稿\n保留换行  "])
+    }
+
+    private func conversationDirectory() throws -> URL {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("ConversationTests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        return directory
+    }
+
+    private func assertConversationFlush(
+        _ engine: InferenceEngine, succeeds: Bool = true, file: StaticString = #filePath, line: UInt = #line
+    ) async {
+        let result = await engine.flushConversationHistory()
+        XCTAssertEqual(result, succeeds, file: file, line: line)
+    }
+
+    private func assertConversationSaveCount(
+        _ storage: ConversationTestStorage, _ expected: Int, file: StaticString = #filePath, line: UInt = #line
+    ) async {
+        let count = await storage.saveCount()
+        XCTAssertEqual(count, expected, file: file, line: line)
+    }
+
     func testArtifactImportReplacesWholeSetAndPreservesOtherModels() throws {
         let fixture = try ArtifactImportFixture()
         defer { fixture.clean() }
@@ -1248,6 +1590,12 @@ final class LocalGemmaTests: XCTestCase {
             .replacingOccurrences(of: "麼", with: "么")
             .replacingOccurrences(of: "導", with: "导")
             .replacingOccurrences(of: "觀", with: "观")
+            .replacingOccurrences(of: "會", with: "会")
+            .replacingOccurrences(of: "話", with: "话")
+            .replacingOccurrences(of: "記", with: "记")
+            .replacingOccurrences(of: "錄", with: "录")
+            .replacingOccurrences(of: "討", with: "讨")
+            .replacingOccurrences(of: "論", with: "论")
             .uppercased().filter { $0.isLetter || $0.isNumber }
     }
 
@@ -9336,6 +9684,54 @@ private struct WorkspacePageIdentityProbe: View {
                 recorder.recordDisappearance(tab: tab)
             }
     }
+}
+
+private actor ConversationTestStorage: ConversationStorage {
+    private let archive: ConversationArchive?
+    private var holdsLoad: Bool
+    private var failsSave: Bool
+    private var loadEntered = false
+    private var loadWaiters: [CheckedContinuation<Void, Never>] = []
+    private var releaseContinuation: CheckedContinuation<Void, Never>?
+    private var saved: ConversationArchive?
+    private var attempts = 0
+
+    init(archive: ConversationArchive? = nil, holdsLoad: Bool = false, failsSave: Bool = false) {
+        self.archive = archive
+        self.holdsLoad = holdsLoad
+        self.failsSave = failsSave
+    }
+
+    func load() async throws -> ConversationArchive? {
+        loadEntered = true
+        loadWaiters.forEach { $0.resume() }
+        loadWaiters.removeAll()
+        if holdsLoad {
+            await withCheckedContinuation { releaseContinuation = $0 }
+        }
+        return archive
+    }
+
+    func waitForLoadEntry() async {
+        if !loadEntered { await withCheckedContinuation { loadWaiters.append($0) } }
+    }
+
+    func releaseLoad() {
+        holdsLoad = false
+        releaseContinuation?.resume()
+        releaseContinuation = nil
+    }
+
+    func save(_ archive: ConversationArchive) throws {
+        attempts += 1
+        if failsSave { throw CocoaError(.fileWriteOutOfSpace) }
+        saved = archive
+    }
+
+    func repair(with archive: ConversationArchive) { saved = archive }
+    func lastSaved() -> ConversationArchive? { saved }
+    func saveCount() -> Int { attempts }
+    func setSaveFailure(_ value: Bool) { failsSave = value }
 }
 
 private struct ArtifactImportFixture: Sendable {

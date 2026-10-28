@@ -1,5 +1,15 @@
 # AGENTS.md
 
+## 当前 v3.10 会话恢复与手机历史
+
+继续单Agent串行实施/审查/提交/云端复判，不开子智能体，AITRANS只读，所有Swift/Xcode/Simulator/UIKit/Vision执行仅云端。入口基线`f347619944b3bf97d9adc652a051c52be2b31646` / run`40638042855` attempt1已核对157/157、12个Python夹具、38图、JUnit10、4份xcresult与unsigned资源；它不自动覆盖本轮新代码。
+
+生产App显式注入`LocalConversationStore.shared`，默认无注入的测试/预览仍为memory-only。版本化JSON保存原始会话/消息ID、时间、正文、当前选择和分会话草稿，不保存或恢复生成任务/真实runtime状态。私有actor执行读取/校验/编码/原子写，单有序写循环合并输入/流式快照；恢复期间禁止编辑与会话动作，避免初始seed覆盖磁盘。读取失败/未知版本保护原文件，只能明确确认后先备份再修复；写失败保留最新内存快照，显式重试，不截断正文。退后台停止本轮生成并请求有限后台flush，不冒称强杀/断电耐久已验收。
+
+手机历史改为48pt搜索行、标题/短正文、当前标记和独立44pt删除确认，不再复用桌面SessionChip堆叠模拟seed摘要。只搜本机标题/真实对话正文，预览排除seed/system且不修改保存正文。正常保存无提示卡；仅恢复或错误显示一行状态。历史dismiss后原同步focus路由、四页身份、composer 48pt、文件事务、默认模拟runtime和verified gate保持。
+
+源码169个唯一XCTest，保留原157名称与严格focus/identity；新增12项会话归档/文件保护/恢复/草稿/写失败/搜索/手机尺寸与真实磁盘恢复图。原38图不减，新增亮暗×large/accessibility3的4张320×640历史宿主图，总42图/26宿主/5份provenance，OCR同时要求“会话记录”和“部署讨论”。仍保留12个Python夹具、JUnit10、4份完整xcresult与unsigned Release资源。待本轮精确SHA自身云端全量结果及看图，不预写通过或发布就绪；历史图不是完整Simulator或真机，真实runtime、崩溃/断电、真机/完整辅助技术与签名发布仍独立门禁。
+
 ## v3.9.1 代码验收基线
 
 `ee3a211607eb30b601acfe4a42d20aca7fb97889` / run`40635105796` attempt1完整包已下载并独立核对ZIP SHA-256 `3ba25c333828d07e69adc4a835bda3d41b7525012e90ad0a8c88a9b59a4cccc7`：157唯一Success、0 XCTest skip，严格focus2.972s，JUnit10/0失败/1 optional skip，4份xcresult根succeeded且Data/refs配对（3、3、3、908）。12个Python夹具、Swift6 LogicSmoke、iOS/Catalyst/unsigned Release及实际资源成功。38图已看：新增亮暗导入中320×640图逐张原尺寸打开，原36通过无裁切联系表复看，20宿主PNG与基线逐字节相同，16模拟器正文在排除状态栏后像素相同，无新遮挡/缺页；宿主图不是全屏Simulator、真机或完整辅助技术证据。完整包/图/独立记录在`/private/tmp/localgemma-c-review-40635105796/`。

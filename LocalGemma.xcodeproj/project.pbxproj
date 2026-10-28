@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		1B0000010000000000000020 /* ConversationStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B0000100000000000000020 /* ConversationStore.swift */; };
+		1B0000010000000000000021 /* ConversationHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B0000100000000000000021 /* ConversationHistory.swift */; };
 		1B000001000000000000001F /* ArtifactImport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B000010000000000000001F /* ArtifactImport.swift */; };
 		1B000001000000000000001D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1A0000100000000000000004 /* Assets.xcassets */; };
 		1B000001000000000000001E /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 1B000010000000000000001E /* PrivacyInfo.xcprivacy */; };
@@ -36,6 +38,8 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		1B0000100000000000000020 /* ConversationStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationStore.swift; sourceTree = "<group>"; };
+		1B0000100000000000000021 /* ConversationHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationHistory.swift; sourceTree = "<group>"; };
 		1B000010000000000000001F /* ArtifactImport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtifactImport.swift; sourceTree = "<group>"; };
 		1B000010000000000000001E /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		1A0000100000000000000001 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
@@ -88,6 +92,8 @@
 			children = (
 				1A0000100000000000000001 /* AppState.swift */,
 				1B000010000000000000001F /* ArtifactImport.swift */,
+				1B0000100000000000000020 /* ConversationStore.swift */,
+				1B0000100000000000000021 /* ConversationHistory.swift */,
 				1A0000100000000000000002 /* ContentView.swift */,
 				1B000010000000000000001A /* WorkbenchComponents.swift */,
 				1B000010000000000000001C /* CompactWorkbench.swift */,
@@ -225,6 +231,8 @@
 			files = (
 				1A0000010000000000000001 /* AppState.swift in Sources */,
 				1B000001000000000000001F /* ArtifactImport.swift in Sources */,
+				1B0000010000000000000020 /* ConversationStore.swift in Sources */,
+				1B0000010000000000000021 /* ConversationHistory.swift in Sources */,
 				1A0000010000000000000002 /* ContentView.swift in Sources */,
 				1B000001000000000000001A /* WorkbenchComponents.swift in Sources */,
 				1B0000010000000000000019 /* WorkbenchTheme.swift in Sources */,

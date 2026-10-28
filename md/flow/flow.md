@@ -1,5 +1,15 @@
 # 项目核心流程文档
 
+## v3.10 本地会话与手机历史流
+
+生产`LocalGemmaApp`显式向`InferenceEngine`注入`LocalConversationStore.shared`；测试/预览未注入时仍memory-only，互不污染。启动异步load期间状态loading、同一composer和模板/会话动作不可用，不用延时focus。archive校验版本1、唯一会话/消息ID、当前选择、草稿归属与有限日期/非负tokens后，恢复原始records与逐会话草稿；不恢复任务、后端准备报告或自动生成。切换只按ID读取最新session，防止陈旧UI值回灌旧正文；删除同时清草稿，reset保持会话规则，空assistant导出按实际生成/已停止区分。
+
+MainActor只维护值快照，`LocalConversationStore`私有actor执行JSON读取/32MiB上限/校验/编码和`.atomic`写；原始字符串、空白/换行/时间与ID不截断。一个有序writer每180ms合并待写快照，不取消在途commit，前后台flush等待当前最新快照。写失败保留最新内存状态、显示短重试，后续编辑不反复自动重试；读失败/未知版本保护原文件且禁止自动写，明确确认后先copy原件再原子替换，失败仍保留原件。退后台先stop再有限后台flush，不能当作强杀/断电耐久证明。
+
+手机`CompactSessionHistory`独立生产文件，48pt搜索、短标题/正文与44pt删除确认取代桌面chip摘要；过滤只在本机标题和首条user之后的非system消息，预览排除seed并最多80字符，但存储/导出不裁剪。当前标记不重复显示规格或模拟声明。正常保存不占UI，只显示恢复/失败的一行；sheet选择/新建仍dismiss后仅聊天active才发原focus，四页/文件事务/runtime/verified不变。
+
+169项保留157名称；云端LogicSmoke同时包含store并测试实际落盘/新engine恢复。原38图加亮暗×large/accessibility3的4张320×640真实磁盘恢复历史宿主图为42，exporter要求26PNG/5provenance、标题与正文双OCR、restoredFromDisk与尺寸/hash。JUnit10、4份xcresult、12个Python夹具与unsigned资源不减。新SHA结果和人眼复判前不写通过；真机/签名/真实runtime与故障耐久仍单列。
+
 ## v3.9.1 已核对的数据流基线
 
 事务/后台/取消流已在代码`ee3a211` / run`40635105796` attempt1自身完整包中验收：157唯一Success（严格focus2.972s）、12个Python夹具、38图、4份xcresult与unsigned资源通过。新2图显示真实后台复制状态，其他36图正文像素/字节回归一致，并实际看图；没有新增UI层级或生产focus变化。只覆盖该代码SHA，后续文档提交仍须新run，不自动成为签名/真机/真实runtime验收。原始包和独立核对在`/private/tmp/localgemma-c-review-40635105796/`。
@@ -53,7 +63,7 @@ v2.64 的顶部模型胶囊还会按真实 chrome 可用宽度切换堆叠/横�
 1. App 启动。
 2. `LocalGemmaApp` 创建三个共享状态对象：
    - `ModelCatalog(autoScanLocalArtifacts: true)`
-   - `InferenceEngine()`
+   - `InferenceEngine(conversationStorage: LocalConversationStore.shared)`：生产从版本化本地JSON恢复会话与草稿；未注入存储的测试实例保持内存隔离。
    - `DeviceOptimizer()`
    - 并在 scene 层注册 `工作区` 和 `会话` command menu。
 3. `ContentView` 通过 `EnvironmentObject` 读取共享状态。

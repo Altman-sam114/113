@@ -77,6 +77,7 @@ struct ChatWorkspace: View {
                             sessionTitle: inference.activeSessionTitle,
                             showHistory: { isShowingHistory = true },
                             create: {
+                                guard !inference.conversationPersistenceState.blocksEditing else { return }
                                 inference.createSession()
                                 requestComposerFocus(.createSession)
                             },
@@ -90,6 +91,7 @@ struct ChatWorkspace: View {
                         layout: sessionLayout,
                         availableWidth: sessionBarPlan.availableWidth,
                         create: {
+                            guard !inference.conversationPersistenceState.blocksEditing else { return }
                             inference.createSession()
                             requestComposerFocus(.createSession)
                         },
@@ -145,6 +147,7 @@ struct ChatWorkspace: View {
         .sheet(isPresented: $isShowingHistory, onDismiss: finishHistorySelection) {
             CompactSessionHistory(
                 sessions: inference.sessions, activeSessionID: inference.activeSessionID,
+                persistenceState: inference.conversationPersistenceState,
                 select: { session in
                     inference.selectSession(session)
                     pendingHistoryFocus = .selectSession
@@ -155,7 +158,9 @@ struct ChatWorkspace: View {
                     inference.createSession()
                     pendingHistoryFocus = .createSession
                     isShowingHistory = false
-                }
+                },
+                retrySave: { Task { await inference.flushConversationHistory() } },
+                repair: { Task { await inference.repairConversationHistory() } }
             )
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
@@ -164,7 +169,7 @@ struct ChatWorkspace: View {
             SessionCommandFocusModifier(
                 route: SessionCommandFocusedRoute(
                     actions: SessionCommandFocusPolicy.focusedActions(
-                        isChatActive: isActive,
+                        isChatActive: isActive && !inference.conversationPersistenceState.blocksEditing,
                         actions: sessionCommandActions
                     )
                 )
@@ -182,6 +187,7 @@ struct ChatWorkspace: View {
     private var sessionCommandActions: SessionCommandActions {
         SessionCommandActions(
             createSession: {
+                guard !inference.conversationPersistenceState.blocksEditing else { return }
                 inference.createSession()
                 requestComposerFocus(.createSession)
             },
@@ -194,6 +200,10 @@ struct ChatWorkspace: View {
         let selectedValidation = catalog.validation(for: catalog.selectedModel)
 
         return VStack(spacing: 0) {
+            ConversationPersistenceNotice(state: inference.conversationPersistenceState,
+                retry: { Task { await inference.flushConversationHistory() } },
+                repair: { Task { await inference.repairConversationHistory() } })
+                .padding(.horizontal, 18)
             if showsHeading {
                 ChatWorkspaceHeading(title: inference.activeSessionTitle)
             }
@@ -201,6 +211,7 @@ struct ChatWorkspace: View {
                 messages: inference.messages,
                 isGenerating: inference.isGenerating,
                 applyStarter: { template in
+                    guard !inference.conversationPersistenceState.blocksEditing else { return }
                     inference.applyTemplate(template)
                     requestComposerFocus(.applyTemplate)
                 }
@@ -221,6 +232,7 @@ struct ChatWorkspace: View {
                 stop: inference.stop,
                 editingChanged: composerEditingChanged
             )
+            .disabled(inference.conversationPersistenceState.blocksEditing)
             .frame(maxWidth: ComposerBarLayoutPolicy.maximumContentWidth)
             .frame(maxWidth: .infinity, alignment: .center)
             .padding(.horizontal, ComposerBarLayoutPolicy.horizontalPadding)

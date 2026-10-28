@@ -16,7 +16,7 @@
 - 平台：SwiftUI iOS App，Swift 6.0，iOS deployment target 17.0，当前 app/test target 支持 iPhone、iPad 和 Mac Catalyst build-for-testing，并提供项目内 Mac Catalyst 本地 build/run 脚本入口；尚未创建原生 macOS target。
 - 当前默认模型：`Gemma 1.5B Local`
 - 当前推理：本地模拟 runtime，不下载模型权重，不执行真实模型推理。
-- 当前核心测试：`LocalGemmaTests.swift`中157个唯一XCTest方法，原147名称保留。代码v3.9.1 `ee3a211` / run`40635105796` attempt1完整包已核对157/157、12个Python夹具与38图；后续文档/main仍须自身精确SHA云端验收，不是整产品发布验收。
+- 当前核心测试：`LocalGemmaTests.swift`中169个唯一XCTest方法，原157名称保留；v3.10新增12项、42图待自身精确SHA云端验收。入口`f347619` / run`40638042855` attempt1已核对157/157、12个Python夹具与38图，不自动覆盖新代码，不是整产品发布验收。
 - 当前核心文档入口：`AGENTS.md`、`md/flow/flow.md`、`md/flow/flowchart.md`、`md/test/test.md`、`md/prompt/README.md`、`README.md`。
 - 当前协作验证：按用户最新要求单Agent按模块推进，不开子智能体、不再采用ABC前置队列；main直推、GitHub Actions完整云端重验证、同一Agent下载完整包并看图。最终验收以最新origin/main的SHA/run/attempt为准，本地不编译、不运行UI。
 
@@ -4679,3 +4679,15 @@ summary/tree/源码名称和原始SQLite严格匹配157唯一Success、0 skipped
 38张图的身份/尺寸/hash与4份provenance齐全。2张新增导入中320×640图原尺寸打开，原36图以无裁切联系表逐图复看；20宿主PNG与已验v3.8逐字节相同，16模拟器正文去状态栏后像素相同（iPhone顶部150px/iPad100px）。没有新遮挡/缺页，进度和44pt取消不挤压文件主操作/底栏；部分长页在滚动边缘截断属既有viewport，不声称实际点按或真机/完整辅助技术通过。iPad暗模型首轮OCR空白在第2次有界截图得到正文；没有重试或skip XCTest。
 
 结论：本轮后台事务导入与轻量iPhone进度回归PASS。此结论绑定上述代码SHA，后续验收文档提交仍要触发并核对自身run，不能自动当新main已通过；本次回录只改文档，本地仅diff/文档结构链接/计数与静态检查，不运行Swift/UI。默认模拟runtime、会话恢复、崩溃/断电耐久/遗留候选回收、真机/完整辅助技术、Mac GUI/pointer、签名分发缺口保留，整个目标继续。
+
+### v3.10 / 会话恢复与手机历史（2026-10-28，待自身云端）
+
+入口`f347619` / run`40638042855` attempt1完整包已核对157/157、12个Python夹具、38图、JUnit10、4份xcresult与unsigned资源。按最新单Agent要求不多开，AITRANS只读，本机不编译或运行Swift/UI。
+
+手机历史改为本机搜索、标题/短正文、当前标记与独立44pt删除确认，移除桌面chip重复seed预览；只裁剪显示，不改原始正文。新增`ConversationStore.swift`和`ConversationHistory.swift`并注册target。生产注入actor存储，保存原始会话ID/时间/正文、选择与逐会话草稿；启动恢复期间禁止编辑/模板/会话动作，不恢复生成任务或真实runtime。单有序写循环合并快照，读取失败/未知版本保护原件，明确修复先备份，写失败保留最新内存并重试。正常保存不增加提示卡，退后台stop并有限flush。旧同步focus/四页身份/文件事务/verified保持。
+
+新增12个XCTest，源码169且原157名称保留，涵盖归档/文件保护/恢复草稿/陈旧值/失败重试/合并/搜索与手机自然高度。云端LogicSmoke实际小档落盘恢复；原38图不减，新增4张320×640亮暗/large/accessibility3历史宿主图，总42/26宿主/5provenance，OCR要求标题和真实正文。原12个Python夹具、JUnit10、4份xcresult与unsigned资源不减。所有新结果仍待新SHA完整包与看图，不预写通过。
+
+本地轻量检查：`git diff --check`、工程`plutil -lint`、Ruby YAML解析/全部run脚本`bash -n`、7个Python AST、`PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s Tools/tests -p 'test_*.py' -v`的12/12、`verify_release_bundle.py --source-only`均通过；169/原157名称集合、新文件target/CLI注册、8份文档fence与6份既有未追踪prompt哈希检查通过。记录`/private/tmp/localgemma-v3.10-static.json`，未执行本地Swift或UI，不能替代待跑的云端构建测试。
+
+剩余：强杀/断电及后台到期耐久、大历史性能、模型遗留候选回收、真实runtime、真机/完整辅助技术、Mac GUI/pointer与签名分发。本轮普通重启恢复不代替故障恢复或发布验收，整体目标继续。

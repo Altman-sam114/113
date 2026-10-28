@@ -387,52 +387,6 @@ struct CompactSessionToolbar: View {
     }
 }
 
-struct CompactSessionHistory: View {
-    @Environment(\.appTheme) private var theme
-    @Environment(\.dismiss) private var dismiss
-    let sessions: [ChatSession]
-    let activeSessionID: UUID
-    let select: (ChatSession) -> Void
-    let delete: (ChatSession) -> Void
-    let create: () -> Void
-
-    var body: some View {
-        NavigationStack {
-            ScrollView {
-                LazyVStack(spacing: 10) {
-                    ForEach(sessions) { session in
-                        SessionChip(
-                            session: session, isActive: session.id == activeSessionID, layout: .vertical,
-                            select: { select(session) }, delete: { delete(session) }
-                        )
-                    }
-                }
-                .padding(18)
-            }
-            .background(theme.canvas)
-            .navigationTitle("会话记录")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button(action: create) {
-                        Image(systemName: "square.and.pencil").frame(width: 44, height: 44)
-                    }
-                    .accessibilityLabel(SessionBarActionAccessibilityMetadata.label(for: .createSession))
-                    .accessibilityHint(SessionBarActionAccessibilityMetadata.hint(for: .createSession))
-                    .accessibilityInputLabels(SessionBarActionAccessibilityMetadata.inputLabels(for: .createSession))
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button { dismiss() } label: {
-                        Image(systemName: "xmark").frame(width: 44, height: 44)
-                    }
-                    .accessibilityLabel("关闭会话记录")
-                }
-            }
-        }
-        .tint(theme.accent)
-    }
-}
-
 struct CompactModelFilesPanel: View {
     @Environment(\.appTheme) private var theme
     let validation: ArtifactValidationResult
