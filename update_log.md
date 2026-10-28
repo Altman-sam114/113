@@ -16,9 +16,9 @@
 - 平台：SwiftUI iOS App，Swift 6.0，iOS deployment target 17.0，当前 app/test target 支持 iPhone、iPad 和 Mac Catalyst build-for-testing，并提供项目内 Mac Catalyst 本地 build/run 脚本入口；尚未创建原生 macOS target。
 - 当前默认模型：`Gemma 1.5B Local`
 - 当前推理：本地模拟 runtime，不下载模型权重，不执行真实模型推理。
-- 当前核心测试：`LocalGemmaTests.swift` 中147个XCTest方法，原144保留并新增手机头部/设置行/模板行3项。v3.6 `3adaef7` / run `40169024104` 的review为143/144，唯一compact暗聊天中文OCR失败；v3.7承接预存识别修复，等待自身新SHA云端147项与36图验收，不是整产品发布验收。
+- 当前核心测试：`LocalGemmaTests.swift`中157个唯一XCTest方法，原147名称保留，新增10项后台事务/取消/响应与手机进度回归。已核对v3.8 `a525a8a` / run`40629860257` attempt1的147/147与36图；v3.9须自身新SHA完整云端验收，不是整产品发布验收。
 - 当前核心文档入口：`AGENTS.md`、`md/flow/flow.md`、`md/flow/flowchart.md`、`md/test/test.md`、`md/prompt/README.md`、`README.md`。
-- 当前协作验证：用户2026-10-28明确允许多Agent按文件所有权并行，root统一集成；默认 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载未加密 CI 结果包验收，A -> B -> C链路不可省略。最终验收以最新 `origin/main` 对应的SHA/run/attempt完整产物为准，本地不编译、不运行UI。
+- 当前协作验证：按用户最新要求单Agent按模块推进，不开子智能体、不再采用ABC前置队列；main直推、GitHub Actions完整云端重验证、同一Agent下载完整包并看图。最终验收以最新origin/main的SHA/run/attempt为准，本地不编译、不运行UI。
 
 ## 历史记录
 
@@ -4640,3 +4640,22 @@ v3.5 `a28ac41` / run `39885347849` attempt1 的结果包为140/141成功，唯�
 本地实际执行：8个Python静态/夹具测试全部通过（0.021s）、source-only资源检查、git diff --check、工程/隐私plutil、Ruby YAML、Tools AST、14个workflow shell块及内嵌Python解析通过。只有既有Ruby PATH权限warning；未执行任何本地Swift/Xcode/UI/Vision或模拟器。新SHA自己的147项/焦点、36图、Release实际包和4份xcresult还待云端，不预写通过。
 
 尚未修复的发布门禁：模型替换先删后复制导致失败可丢旧文件、大文件导入/hash同步MainActor阻塞、会话重启恢复、真实runtime与模型来源、真机/完整辅助技术、签名/分发。下一轮继续针对这些实际问题，不把本轮资源补齐等同整个目标完成。
+
+## v3.9 / 后台事务导入与轻量进度（2026-10-28，待自身云端验收）
+
+单Agent直接按模块实施，不开子智能体；执行记录`md/prompt/v3（工作台重构）/v3.9（后台事务导入与轻量进度）.md`。起点main=origin/main=`a525a8a`，承接AppState中206行store/hasher抽离的预存草稿，六份旧未跟踪prompt不变不提交；AITRANS未修改。
+
+基线run`40629860257` attempt1的完整包和独立记录在`/private/tmp/localgemma-c-review-40629860257/`，147/147、严格focus、JUnit10、4份xcresult与unsigned Release资源通过，36图交接复核无新遮挡或缺页。只作为本轮起点，不冒充新代码通过或整产品发布完成。
+
+核心变更：
+- 新增并注册`ArtifactImport.swift`，承接store/hasher并集中串行后台actor、取消commit锁门、进度纯值。文件按1MiB分块复制到同卷候选，完整性/真实SHA通过后一次rename交换整代；其他模型通过硬链接快照保留。失败或已接受取消保留旧代，原Files源不删除，hash不匹配拒绝提交，manual-import-required仍只staged。
+- Catalog的复制/hash/启动与手动扫描/卸载离开MainActor，只在主线程发布operation/result；文件操作互斥，模拟暂存不能覆盖进行中的状态。完成只apply原modelID，模型选择/四页导航保持可用，不改同步focus、会话或默认模拟runtime/verified。
+- 模型页只加一行进度与44pt取消，提交阶段拒绝取消且禁用入口，不增加阻塞层/冗长说明。失败用原错误路径，主动取消静默。卸载仍先确认，后台整代提交成功后才停止部署。
+- 新增10项至157，原147名称/严格断言保留，原扫描/卸载两项显式等待async完成；覆盖替换与其他文件保留、hash/read/commit失败、多个取消阶段/晚取消、重名/路径/软链接、非主线程工作与选中身份、取消状态和小屏动态字。LogicSmoke改async并加失败/取消字节保护。
+- 原36图不减；真实后台导入暂停期间额外生成2张亮暗320×640生产模型页宿主图，取消与导入正文OCR不可缺。exporter要求22宿主PNG/4provenance，总38图；JUnit10、完整4份xcresult和Release校验保留。宿主图不等于完整Simulator、真机或实际辅助交互。
+
+本地仅静态轻量检查；所有Swift/SwiftC、Xcode、UIKit/Vision、截图/模拟器与Catalyst仍只云端。实际预检结果在提交前补充；新SHA自己的157项、38图和完整结果包待验证，不预写通过。
+
+实际本地预检：`git diff --check`、工程/隐私`plutil -lint`、run脚本`bash -n`均退出0；Ruby YAML通过（仅既有PATH权限warning）。8个Python资源夹具0.022s全部通过，source-only资源检查成功；Tools AST、14个workflow shell块/1个内嵌Python AST、157唯一方法/原147名称保留、target注册、8份文档fence/版本、六份旧prompt hash及focus/根/聊天/入口/隐私保护范围通过。预检脚本初次将SHA256字段误当哈希执行，已修正为检查CryptoKit import/实际SHA256实例化后重跑通过；没有本地执行Swift或UI。push前main/HEAD/origin/main=`a525a8a`，origin为Altman-sam114/113，活动账号Altman-sam114。
+
+遗留发布门禁：会话重启恢复、崩溃/断电耐久与遗留候选回收、真实runtime/官方模型来源、真机/完整辅助技术、Mac GUI/pointer、签名分发。不能把普通失败/取消事务保护或unsigned device包称为全部发布准备完成。

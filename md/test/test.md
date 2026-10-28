@@ -1,5 +1,15 @@
 # 测试规范
 
+## v3.9 当前验收要求
+
+源码157个唯一XCTest方法，原147名称及严格focus/identity断言保留；两个原Catalog扫描/卸载用例改async，必须等待真实初始扫描完成，不移除旧断言。LogicSmoke入口改async并纳入`ArtifactImport.swift`，新增hash失败/取消保留旧字节检查；本地不执行Swift。
+
+新增10项：`testArtifactImportReplacesWholeSetAndPreservesOtherModels`、`testArtifactImportHashFailureKeepsPreviousGeneration`、`testArtifactImportReadFailureKeepsPreviousGeneration`、`testArtifactImportCancellationKeepsPreviousGeneration`、`testArtifactImportRejectsAmbiguousAndUnsafeSources`、`testArtifactImportCommitGateCannotReportLateCancellation`、`testArtifactImportAtomicCommitFailureKeepsPreviousGeneration`、`testArtifactImportCatalogRemainsResponsiveAndKeepsTargetIdentity`、`testArtifactImportCatalogCancellationKeepsValidationAndDeployment`、`testArtifactOperationRowKeepsPhoneActionsReachable`。覆盖整组替换/源与其他模型保留、复制后半段读失败、hash不匹配、准备/中途复制/校验前取消、重名/路径/软链接、真正原子rename失败、晚取消拒绝、后台非主线程、互斥/选中身份和取消后状态不变。手机行亮暗×284/366pt×全阶段×large/accessibility3测自然高度，取消不低于44pt，不以测量冒充实际点按。
+
+响应性用例在真实后台复制暂停时挂生产ModelLibraryView，额外导出亮暗2张320×640pt导入中宿主图。`workbench-import-provenance`绑定同一用例，OCR必须有取消与导入模型文件正文，标注实际importing/copying和非Simulator；exporter要求4份provenance与22唯一PNG。原16模拟器+20宿主不减，总38图；JUnit10、4份完整xcresult与Release包资源门禁不减。不重试/skip测试，不在本地运行UIKit/Vision。
+
+基线`a525a8a` / run`40629860257` attempt1已核对147/147、JUnit10、4份xcresult、unsigned资源及36图；新版本必须核对自身最新SHA/run/attempt完整包与全部图片，不能沿用旧绿色结果。崩溃/断电耐久和遗留候选回收、会话持久化、真实runtime、真机辅助技术、签名发布仍单列。单Agent，无子智能体，AITRANS只读；本地仅diff/plutil/YAML/AST/Python资源小夹具等静态检查。
+
 ## v3.8 当前验收要求
 
 147项XCTest名称不变，原36张图、20宿主PNG/3provenance和3份xcresult不减。v3.7 `f0b5fd4` / run `40624916743` attempt1实际146/147：新手机三项及全部视觉通过，严格focus失败；已读完整包与原始日志，不用旧绿色状态覆盖。本轮生产focus代码不改，测试宿主对齐NavigationStack、底部composer和页面级底栏，条件已满足先同步判断，其余仍2秒；增加editing/请求事件，保留首次/隐藏/重入/清理全部断言。XCTest云端锁定明确UDID、关闭并行克隆，仍完整执行一次，不增加测试重试。
@@ -176,7 +186,7 @@ bash -n script/build_and_run.sh
 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc \
   -sdk /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk \
   -module-cache-path .build/SwiftSmokeModuleCache \
-  LocalGemma/AppState.swift Tools/LogicSmoke.swift \
+  LocalGemma/AppState.swift LocalGemma/ArtifactImport.swift Tools/LogicSmoke.swift \
   -o .build/logic-smoke
 
 .build/logic-smoke

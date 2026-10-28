@@ -3,7 +3,7 @@ import Foundation
 @main
 enum LogicSmoke {
     @MainActor
-    static func main() {
+    static func main() async {
         var failures: [String] = []
 
         func expect(_ condition: @autoclosure () -> Bool, _ message: String) {
@@ -116,6 +116,31 @@ enum LogicSmoke {
             expect(FileManager.default.fileExists(atPath: importDestinationURL.appendingPathComponent(modelFileName).path), "manual import should copy model file")
             expect(FileManager.default.fileExists(atPath: importDestinationURL.appendingPathComponent(tokenizerFileName).path), "manual import should copy tokenizer file")
 
+            try Data("mismatched replacement".utf8).write(to: modelURL)
+            do {
+                _ = try ModelArtifactStore.importArtifacts(
+                    manifest: importManifest, sourceURLs: [modelURL, tokenizerURL], destinationDirectoryURL: importDestinationURL
+                )
+                failures.append("a mismatched replacement must not commit")
+            } catch {
+                expect(error as? ArtifactImportError == .hashMismatch, "mismatched replacement should report hash failure")
+            }
+            let previousModel = try Data(contentsOf: importDestinationURL.appendingPathComponent(modelFileName))
+            expect(previousModel == Data("abc".utf8), "failed import must preserve previous model bytes")
+            let cancelledImport = ArtifactImportControl()
+            cancelledImport.cancel()
+            do {
+                _ = try ModelArtifactStore.importArtifacts(
+                    manifest: importManifest, sourceURLs: [modelURL, tokenizerURL],
+                    destinationDirectoryURL: importDestinationURL, control: cancelledImport
+                )
+                failures.append("an accepted import cancellation must not commit")
+            } catch {
+                expect(error is CancellationError, "cancelled import should remain a cancellation")
+            }
+            let preservedModel = try Data(contentsOf: importDestinationURL.appendingPathComponent(modelFileName))
+            expect(preservedModel == previousModel, "cancelled import must preserve previous model bytes")
+
             let removalValidation = try ModelArtifactStore.removeArtifacts(
                 manifest: importManifest,
                 destinationDirectoryURL: importDestinationURL
@@ -216,6 +241,7 @@ enum LogicSmoke {
                 autoScanLocalArtifacts: true,
                 artifactDirectoryURL: autoScanURL
             )
+            await autoScanCatalog.waitForInitialArtifactScan()
             expect(autoScanCatalog.validation(for: autoScanCatalog.selectedModel).availability == .staged, "auto-scan should restore existing local artifacts")
             expect(autoScanCatalog.selectedModel.summary.contains("SHA-256"), "auto-scan should keep staged artifacts behind hash verification")
         } catch {

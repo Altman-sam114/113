@@ -1,5 +1,4 @@
 import Foundation
-import CryptoKit
 import SwiftUI
 
 enum ModelInstallState: String, CaseIterable, Identifiable, Sendable {
@@ -502,212 +501,6 @@ enum LocalArtifactValidator {
     }
 }
 
-enum ModelArtifactHasher {
-    static func sha256Hex(for url: URL, fileManager: FileManager = .default) -> String? {
-        var isDirectory = ObjCBool(false)
-        guard fileManager.fileExists(atPath: url.path, isDirectory: &isDirectory) else {
-            return nil
-        }
-
-        do {
-            var hasher = SHA256()
-            if isDirectory.boolValue {
-                try updateDirectoryHash(&hasher, directoryURL: url, fileManager: fileManager)
-            } else {
-                try updateHash(&hasher, withFileAt: url)
-            }
-            return hasher.finalize().map { String(format: "%02x", $0) }.joined()
-        } catch {
-            return nil
-        }
-    }
-
-    private static func updateDirectoryHash(
-        _ hasher: inout SHA256,
-        directoryURL: URL,
-        fileManager: FileManager
-    ) throws {
-        let keys: [URLResourceKey] = [.isRegularFileKey]
-        guard let enumerator = fileManager.enumerator(
-            at: directoryURL,
-            includingPropertiesForKeys: keys,
-            options: [.skipsHiddenFiles]
-        ) else {
-            return
-        }
-
-        let basePath = directoryURL.standardizedFileURL.path
-        let fileURLs = enumerator
-            .compactMap { $0 as? URL }
-            .filter { url in
-                (try? url.resourceValues(forKeys: Set(keys)).isRegularFile) == true
-            }
-            .sorted { $0.standardizedFileURL.path < $1.standardizedFileURL.path }
-
-        for fileURL in fileURLs {
-            let filePath = fileURL.standardizedFileURL.path
-            let relativePath: String
-            if filePath.hasPrefix(basePath + "/") {
-                relativePath = String(filePath.dropFirst(basePath.count + 1))
-            } else {
-                relativePath = fileURL.lastPathComponent
-            }
-            hasher.update(data: Data("path:\(relativePath)\n".utf8))
-            try updateHash(&hasher, withFileAt: fileURL)
-        }
-    }
-
-    private static func updateHash(_ hasher: inout SHA256, withFileAt url: URL) throws {
-        let handle = try FileHandle(forReadingFrom: url)
-        defer {
-            try? handle.close()
-        }
-
-        while true {
-            let chunk = handle.readData(ofLength: 1024 * 1024)
-            if chunk.isEmpty {
-                break
-            }
-            hasher.update(data: chunk)
-        }
-    }
-}
-
-enum ArtifactImportError: Error, Equatable {
-    case emptySelection
-    case missingRequiredFiles([String])
-
-    var message: String {
-        switch self {
-        case .emptySelection:
-            return "没有选择任何本地文件。"
-        case .missingRequiredFiles(let fileNames):
-            return "缺少必需文件：\(fileNames.joined(separator: ", "))。"
-        }
-    }
-}
-
-struct ModelArtifactStore {
-    static let localModelsDirectoryName = "LocalModels"
-
-    static func defaultDirectoryURL(fileManager: FileManager = .default) -> URL {
-        let baseURL = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
-            ?? fileManager.temporaryDirectory
-        return baseURL.appendingPathComponent(localModelsDirectoryName, isDirectory: true)
-    }
-
-    static func validate(
-        manifest: ModelArtifactManifest,
-        observedSHA256: String? = nil,
-        fileManager: FileManager = .default
-    ) -> ArtifactValidationResult {
-        validate(
-            manifest: manifest,
-            directoryURL: defaultDirectoryURL(fileManager: fileManager),
-            observedSHA256: observedSHA256,
-            fileManager: fileManager
-        )
-    }
-
-    static func validate(
-        manifest: ModelArtifactManifest,
-        directoryURL: URL,
-        observedSHA256: String? = nil,
-        fileManager: FileManager = .default
-    ) -> ArtifactValidationResult {
-        let fileStatuses = manifest.requiredFiles.map { fileName in
-            let url = directoryURL.appendingPathComponent(fileName)
-            var isDirectory = ObjCBool(false)
-            let exists = fileManager.fileExists(atPath: url.path, isDirectory: &isDirectory)
-            let attributes = exists ? try? fileManager.attributesOfItem(atPath: url.path) : nil
-            let byteCount = (attributes?[.size] as? NSNumber)?.int64Value
-            return ArtifactFileStatus(
-                fileName: fileName,
-                exists: exists,
-                byteCount: byteCount,
-                isDirectory: isDirectory.boolValue
-            )
-        }
-
-        let shouldHashModel = observedSHA256 == nil
-            && LocalArtifactValidator.isConcreteSHA256(manifest.expectedSHA256)
-            && fileStatuses.allSatisfy(\.exists)
-        let modelURL = directoryURL.appendingPathComponent(manifest.modelFileName)
-        let computedSHA256 = shouldHashModel ? ModelArtifactHasher.sha256Hex(for: modelURL, fileManager: fileManager) : nil
-
-        return LocalArtifactValidator.validate(
-            manifest: manifest,
-            fileStatuses: fileStatuses,
-            observedSHA256: observedSHA256 ?? computedSHA256
-        )
-    }
-
-    static func importArtifacts(
-        manifest: ModelArtifactManifest,
-        sourceURLs: [URL],
-        destinationDirectoryURL: URL = defaultDirectoryURL(),
-        fileManager: FileManager = .default
-    ) throws -> ArtifactValidationResult {
-        guard sourceURLs.isEmpty == false else {
-            throw ArtifactImportError.emptySelection
-        }
-
-        let sourcesByName = Dictionary(grouping: sourceURLs, by: \.lastPathComponent)
-        let missingFiles = manifest.requiredFiles.filter { sourcesByName[$0]?.first == nil }
-        guard missingFiles.isEmpty else {
-            throw ArtifactImportError.missingRequiredFiles(missingFiles)
-        }
-
-        try fileManager.createDirectory(
-            at: destinationDirectoryURL,
-            withIntermediateDirectories: true
-        )
-
-        for fileName in manifest.requiredFiles {
-            guard let sourceURL = sourcesByName[fileName]?.first else { continue }
-            let destinationURL = destinationDirectoryURL.appendingPathComponent(fileName)
-            let didAccess = sourceURL.startAccessingSecurityScopedResource()
-            defer {
-                if didAccess {
-                    sourceURL.stopAccessingSecurityScopedResource()
-                }
-            }
-
-            if sourceURL.standardizedFileURL.path != destinationURL.standardizedFileURL.path {
-                if fileManager.fileExists(atPath: destinationURL.path) {
-                    try fileManager.removeItem(at: destinationURL)
-                }
-                try fileManager.copyItem(at: sourceURL, to: destinationURL)
-            }
-        }
-
-        return validate(
-            manifest: manifest,
-            directoryURL: destinationDirectoryURL,
-            fileManager: fileManager
-        )
-    }
-
-    static func removeArtifacts(
-        manifest: ModelArtifactManifest,
-        destinationDirectoryURL: URL = defaultDirectoryURL(),
-        fileManager: FileManager = .default
-    ) throws -> ArtifactValidationResult {
-        for fileName in manifest.requiredFiles {
-            let url = destinationDirectoryURL.appendingPathComponent(fileName)
-            if fileManager.fileExists(atPath: url.path) {
-                try fileManager.removeItem(at: url)
-            }
-        }
-
-        return validate(
-            manifest: manifest,
-            directoryURL: destinationDirectoryURL,
-            fileManager: fileManager
-        )
-    }
-}
-
 struct AppleSiliconDeploymentProfile: Equatable, Sendable {
     let preferredChipClass: String
     let recommendedMemoryBudget: String
@@ -854,9 +647,14 @@ final class ModelCatalog: ObservableObject {
     @Published var models: [LocalModel]
     @Published private var artifactValidations: [UUID: ArtifactValidationResult]
     @Published private var deploymentStates: [UUID: ModelDeploymentState]
+    @Published private(set) var artifactOperation: ArtifactOperation?
 
     private let artifactDirectoryURL: URL
     private let fileManager: FileManager
+    private var importControl: ArtifactImportControl?
+    private var initialScanTask: Task<Void, Never>?
+
+    var isArtifactOperationInProgress: Bool { artifactOperation != nil }
 
     init(
         models: [LocalModel] = ModelCatalog.defaultModels,
@@ -887,7 +685,9 @@ final class ModelCatalog: ObservableObject {
         )
 
         if autoScanLocalArtifacts {
-            refreshAllArtifactStatuses()
+            initialScanTask = Task { [weak self] in
+                await self?.refreshAllArtifactStatuses()
+            }
         }
     }
 
@@ -945,35 +745,74 @@ final class ModelCatalog: ObservableObject {
         }
     }
 
-    func refreshArtifactStatus(for model: LocalModel) {
-        let validation = ModelArtifactStore.validate(
-            manifest: model.artifactManifest,
-            directoryURL: artifactDirectoryURL,
+    func waitForInitialArtifactScan() async {
+        await initialScanTask?.value
+    }
+
+    func refreshArtifactStatus(for model: LocalModel) async {
+        guard !isArtifactOperationInProgress else { return }
+        artifactOperation = ArtifactOperation(modelID: model.id, modelName: model.name, kind: .scanning)
+        defer { artifactOperation = nil }
+        let validation = await ArtifactIOWorker.shared.validate(
+            model: model, directory: artifactDirectoryURL,
             fileManager: fileManager
         )
         apply(validation: validation, to: model)
     }
 
-    func refreshAllArtifactStatuses() {
+    func refreshAllArtifactStatuses() async {
+        guard !isArtifactOperationInProgress else { return }
+        artifactOperation = ArtifactOperation(modelID: selectedModel.id, modelName: "本地模型", kind: .scanning)
+        defer { artifactOperation = nil }
         for model in models {
-            refreshArtifactStatus(for: model)
+            let validation = await ArtifactIOWorker.shared.validate(
+                model: model, directory: artifactDirectoryURL, fileManager: fileManager
+            )
+            apply(validation: validation, to: model)
         }
     }
 
-    func importArtifacts(for model: LocalModel, sourceURLs: [URL]) throws {
-        let validation = try ModelArtifactStore.importArtifacts(
-            manifest: model.artifactManifest,
-            sourceURLs: sourceURLs,
-            destinationDirectoryURL: artifactDirectoryURL,
-            fileManager: fileManager
-        )
+    func importArtifacts(for model: LocalModel, sourceURLs: [URL]) async throws {
+        guard !isArtifactOperationInProgress else { throw ArtifactImportError.operationInProgress }
+        let operation = ArtifactOperation(modelID: model.id, modelName: model.name, kind: .importing)
+        let control = ArtifactImportControl()
+        artifactOperation = operation
+        importControl = control
+        defer {
+            artifactOperation = nil
+            importControl = nil
+        }
+        let validation = try await withTaskCancellationHandler {
+            try await ArtifactIOWorker.shared.importArtifacts(
+                manifest: model.artifactManifest, sources: sourceURLs, destination: artifactDirectoryURL,
+                fileManager: fileManager, control: control
+            ) { [weak self] progress in
+                Task { @MainActor in
+                    guard let self, var current = self.artifactOperation, current.id == operation.id,
+                          progress.phase.rawValue >= current.progress.phase.rawValue else { return }
+                    if progress.phase == current.progress.phase,
+                       progress.completedBytes < current.progress.completedBytes { return }
+                    current.progress = progress
+                    self.artifactOperation = current
+                }
+            }
+        } onCancel: {
+            control.cancel()
+        }
         apply(validation: validation, to: model)
     }
 
-    func uninstallArtifacts(for model: LocalModel) throws {
-        let validation = try ModelArtifactStore.removeArtifacts(
-            manifest: model.artifactManifest,
-            destinationDirectoryURL: artifactDirectoryURL,
+    @discardableResult
+    func cancelArtifactImport() -> Bool {
+        importControl?.cancel() ?? false
+    }
+
+    func uninstallArtifacts(for model: LocalModel) async throws {
+        guard !isArtifactOperationInProgress else { throw ArtifactImportError.operationInProgress }
+        artifactOperation = ArtifactOperation(modelID: model.id, modelName: model.name, kind: .uninstalling)
+        defer { artifactOperation = nil }
+        let validation = try await ArtifactIOWorker.shared.remove(
+            model: model, directory: artifactDirectoryURL,
             fileManager: fileManager
         )
         stopDeployment(for: model)
@@ -986,6 +825,7 @@ final class ModelCatalog: ObservableObject {
     }
 
     func stageManualImportPreview(for model: LocalModel) {
+        guard !isArtifactOperationInProgress else { return }
         let validation = LocalArtifactValidator.validate(
             manifest: model.artifactManifest,
             presentFiles: Set(model.artifactManifest.requiredFiles)
@@ -999,6 +839,7 @@ final class ModelCatalog: ObservableObject {
     }
 
     func simulateDownload(for model: LocalModel) {
+        guard !isArtifactOperationInProgress else { return }
         let validation = LocalArtifactValidator.validate(
             manifest: model.artifactManifest,
             presentFiles: Set(model.artifactManifest.requiredFiles)

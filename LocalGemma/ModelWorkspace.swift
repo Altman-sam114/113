@@ -147,6 +147,10 @@ struct ModelLibraryView: View {
                 subtitle: "模型与文件，一处管理。导入本地文件，查看校验与运行准备状态。"
             )
 
+            if let operation = catalog.artifactOperation {
+                ArtifactOperationStatusRow(operation: operation) { catalog.cancelArtifactImport() }
+            }
+
             if isCompact {
                 ModelSelectorPanel(
                     models: catalog.models, selectedModelID: selectedModelID, selectedModel: model,
@@ -156,12 +160,13 @@ struct ModelLibraryView: View {
                     validation: validation,
                     download: { catalog.simulateDownload(for: model) },
                     uninstall: { requestUninstall(model) },
-                    scan: { catalog.refreshArtifactStatus(for: model) },
+                    scan: { Task { await catalog.refreshArtifactStatus(for: model) } },
                     importFiles: {
                         importTargetModel = model
                         isShowingFileImporter = true
                     }
                 )
+                .disabled(catalog.isArtifactOperationInProgress)
                 DeploymentPowerButton(
                     model: model, validation: validation, deploymentState: deploymentState,
                     toggle: { catalog.toggleDeployment(for: model) }
@@ -211,12 +216,13 @@ struct ModelLibraryView: View {
                             validation: validation,
                             download: { catalog.simulateDownload(for: model) },
                             uninstall: { requestUninstall(model) },
-                            scan: { catalog.refreshArtifactStatus(for: model) },
+                            scan: { Task { await catalog.refreshArtifactStatus(for: model) } },
                             importFiles: {
                                 importTargetModel = model
                                 isShowingFileImporter = true
                             }
                         )
+                        .disabled(catalog.isArtifactOperationInProgress)
                     }
                     .frame(width: controlColumnWidth)
 
@@ -250,12 +256,13 @@ struct ModelLibraryView: View {
                     validation: validation,
                     download: { catalog.simulateDownload(for: model) },
                     uninstall: { requestUninstall(model) },
-                    scan: { catalog.refreshArtifactStatus(for: model) },
+                    scan: { Task { await catalog.refreshArtifactStatus(for: model) } },
                     importFiles: {
                         importTargetModel = model
                         isShowingFileImporter = true
                     }
                 )
+                .disabled(catalog.isArtifactOperationInProgress)
 
                 ModelDetailColumn(
                     model: model,
@@ -282,11 +289,20 @@ struct ModelLibraryView: View {
 
         do {
             let urls = try result.get()
-            try catalog.importArtifacts(for: targetModel, sourceURLs: urls)
-        } catch let error as ArtifactImportError {
-            operationErrorTitle = "导入失败"
-            operationErrorMessage = error.message
+            // This operation belongs to the catalog, not the selected page's
+            // appearance task: navigating away must not cancel a file import.
+            Task {
+                do {
+                    try await catalog.importArtifacts(for: targetModel, sourceURLs: urls)
+                } catch is CancellationError {
+                    return
+                } catch {
+                    operationErrorTitle = "导入失败"
+                    operationErrorMessage = error.localizedDescription
+                }
+            }
         } catch {
+            if (error as? CocoaError)?.code == .userCancelled { return }
             operationErrorTitle = "导入失败"
             operationErrorMessage = error.localizedDescription
         }
@@ -297,12 +313,48 @@ struct ModelLibraryView: View {
     }
 
     private func uninstall(_ model: LocalModel) {
-        do {
-            try catalog.uninstallArtifacts(for: model)
-        } catch {
-            operationErrorTitle = "卸载失败"
-            operationErrorMessage = error.localizedDescription
+        Task {
+            do {
+                try await catalog.uninstallArtifacts(for: model)
+            } catch {
+                operationErrorTitle = "卸载失败"
+                operationErrorMessage = error.localizedDescription
+            }
         }
+    }
+}
+
+struct ArtifactOperationStatusRow: View {
+    @Environment(\.appTheme) private var theme
+    let operation: ArtifactOperation
+    let cancel: () -> Void
+
+    var body: some View {
+        HStack(spacing: 10) {
+            ProgressView()
+                .tint(theme.accent)
+                .accessibilityHidden(true)
+            Text(operation.title)
+                .font(.subheadline)
+                .foregroundStyle(theme.secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityLabel("\(operation.modelName)，\(operation.title)")
+                .accessibilityIdentifier("artifact-operation-progress")
+            if operation.kind == .importing {
+                Button("取消", action: cancel)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(theme.accent)
+                    .frame(minWidth: 44, minHeight: 44)
+                    .disabled(!operation.canCancel)
+                    .accessibilityLabel("取消导入")
+                    .accessibilityHint("取消尚未提交的导入，保留原模型文件。")
+                    .accessibilityInputLabels(["取消导入", "取消"])
+                    .accessibilityIdentifier("artifact-import-cancel")
+            }
+        }
+        .frame(minHeight: 44)
+        .accessibilityElement(children: .contain)
     }
 }
 

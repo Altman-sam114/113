@@ -7,6 +7,255 @@ import XCTest
 
 @MainActor
 final class LocalGemmaTests: XCTestCase {
+    func testArtifactImportReplacesWholeSetAndPreservesOtherModels() throws {
+        let fixture = try ArtifactImportFixture()
+        defer { fixture.clean() }
+        let result = try ModelArtifactStore.importArtifacts(
+            manifest: fixture.manifest, sourceURLs: fixture.sources, destinationDirectoryURL: fixture.destination
+        )
+        XCTAssertEqual(result.availability, .verified)
+        XCTAssertFalse(result.networkDownloadAllowed)
+        XCTAssertEqual(try Data(contentsOf: fixture.destination.appendingPathComponent("model.bin")), Data("abc".utf8))
+        XCTAssertEqual(try Data(contentsOf: fixture.destination.appendingPathComponent("tokenizer.model")), Data("new tokenizer".utf8))
+        XCTAssertEqual(try Data(contentsOf: fixture.otherModelFile), Data("other weights".utf8))
+        XCTAssertEqual(try Data(contentsOf: fixture.sources[0]), Data("abc".utf8))
+        XCTAssertEqual(try Data(contentsOf: fixture.sources[1]), Data("new tokenizer".utf8))
+        try fixture.assertNoCandidate()
+    }
+
+    func testArtifactImportHashFailureKeepsPreviousGeneration() throws {
+        let fixture = try ArtifactImportFixture()
+        defer { fixture.clean() }
+        try Data("wrong weights".utf8).write(to: fixture.sources[0])
+        XCTAssertThrowsError(try ModelArtifactStore.importArtifacts(
+            manifest: fixture.manifest, sourceURLs: fixture.sources, destinationDirectoryURL: fixture.destination
+        )) { XCTAssertEqual($0 as? ArtifactImportError, .hashMismatch) }
+        try fixture.assertOldGeneration()
+        try fixture.assertNoCandidate()
+    }
+
+    func testArtifactImportReadFailureKeepsPreviousGeneration() throws {
+        let fixture = try ArtifactImportFixture()
+        defer { fixture.clean() }
+        let missingSource = fixture.sources[1]
+        XCTAssertThrowsError(try ModelArtifactStore.importArtifacts(
+            manifest: fixture.manifest, sourceURLs: fixture.sources, destinationDirectoryURL: fixture.destination,
+            progress: { event in
+                if event.phase == .copying && event.completedBytes == 0 {
+                    try? FileManager.default.removeItem(at: missingSource)
+                }
+            }
+        ))
+        try fixture.assertOldGeneration()
+        try fixture.assertNoCandidate()
+    }
+
+    func testArtifactImportCancellationKeepsPreviousGeneration() throws {
+        for phase in [ArtifactImportProgress.Phase.preparing, .copying, .validating] {
+            let fixture = try ArtifactImportFixture()
+            defer { fixture.clean() }
+            if phase == .copying {
+                try Data(repeating: 65, count: 3 * 1024 * 1024).write(to: fixture.sources[0])
+            }
+            let control = ArtifactImportControl()
+            XCTAssertThrowsError(try ModelArtifactStore.importArtifacts(
+                manifest: fixture.manifest, sourceURLs: fixture.sources, destinationDirectoryURL: fixture.destination,
+                control: control, progress: { event in
+                    if event.phase == phase && (phase != .copying || event.completedBytes > 0) {
+                        control.cancel()
+                    }
+                }
+            )) { XCTAssertTrue($0 is CancellationError, "\(phase): \($0)") }
+            try fixture.assertOldGeneration()
+            try fixture.assertNoCandidate()
+        }
+    }
+
+    func testArtifactImportRejectsAmbiguousAndUnsafeSources() throws {
+        let fixture = try ArtifactImportFixture()
+        defer { fixture.clean() }
+        XCTAssertThrowsError(try ModelArtifactStore.importArtifacts(
+            manifest: fixture.manifest, sourceURLs: fixture.sources + [fixture.sources[0]],
+            destinationDirectoryURL: fixture.destination
+        )) { XCTAssertEqual($0 as? ArtifactImportError, .ambiguousSelection("model.bin")) }
+        let links = fixture.root.appendingPathComponent("Links", isDirectory: true)
+        try FileManager.default.createDirectory(at: links, withIntermediateDirectories: true)
+        let linkedModel = links.appendingPathComponent("model.bin")
+        try FileManager.default.createSymbolicLink(at: linkedModel, withDestinationURL: fixture.sources[0])
+        XCTAssertThrowsError(try ModelArtifactStore.importArtifacts(
+            manifest: fixture.manifest, sourceURLs: [linkedModel, fixture.sources[1]],
+            destinationDirectoryURL: fixture.destination
+        )) { XCTAssertEqual($0 as? ArtifactImportError, .unsafeFile("model.bin")) }
+        let unsafe = ModelArtifactManifest(
+            modelFileName: "../model.bin", tokenizerFileName: "tokenizer.model", fileFormat: "test",
+            storageDirectory: fixture.destination.path, expectedSHA256: "manual-import-required",
+            allowsNetworkDownload: false, importInstruction: ""
+        )
+        XCTAssertThrowsError(try ModelArtifactStore.importArtifacts(
+            manifest: unsafe, sourceURLs: fixture.sources, destinationDirectoryURL: fixture.destination
+        )) { XCTAssertEqual($0 as? ArtifactImportError, .unsafeFile("../model.bin")) }
+        try fixture.assertOldGeneration()
+        try fixture.assertNoCandidate()
+    }
+
+    func testArtifactImportCommitGateCannotReportLateCancellation() throws {
+        let fixture = try ArtifactImportFixture()
+        defer { fixture.clean() }
+        let cancelled = ArtifactImportControl()
+        XCTAssertTrue(cancelled.cancel())
+        XCTAssertThrowsError(try cancelled.beginCommit()) { XCTAssertTrue($0 is CancellationError) }
+        let control = ArtifactImportControl()
+        let result = try ModelArtifactStore.importArtifacts(
+            manifest: fixture.manifest, sourceURLs: fixture.sources, destinationDirectoryURL: fixture.destination,
+            control: control, progress: { event in
+                if event.phase == .committing { control.cancel() }
+            }
+        )
+        XCTAssertEqual(result.availability, .verified)
+        XCTAssertFalse(control.cancel(), "Cancellation cannot be accepted after the commit boundary")
+        XCTAssertEqual(try Data(contentsOf: fixture.destination.appendingPathComponent("model.bin")), Data("abc".utf8))
+        try fixture.assertNoCandidate()
+    }
+
+    func testArtifactImportAtomicCommitFailureKeepsPreviousGeneration() throws {
+        let fixture = try ArtifactImportFixture()
+        defer { fixture.clean() }
+        let manager = ArtifactCommitFailureFileManager(destination: fixture.destination)
+        XCTAssertThrowsError(try ModelArtifactStore.importArtifacts(
+            manifest: fixture.manifest, sourceURLs: fixture.sources, destinationDirectoryURL: fixture.destination,
+            fileManager: manager, progress: { event in
+                if event.phase == .committing { manager.failCommit() }
+            }
+        )) { XCTAssertTrue($0 is POSIXError, "A failed atomic rename must not fall back to deleting the old set") }
+        try fixture.assertOldGeneration()
+        try fixture.assertNoCandidate()
+    }
+
+    func testArtifactImportCatalogRemainsResponsiveAndKeepsTargetIdentity() async throws {
+        let fixture = try ArtifactImportFixture()
+        defer { fixture.clean() }
+        let entered = expectation(description: "Background worker is copying")
+        let manager = ArtifactHoldingFileManager(entered: entered)
+        defer { manager.release.signal() }
+        var model = ModelCatalog.defaultModels[0]
+        model.artifactManifest = fixture.manifest
+        let otherModel = ModelCatalog.defaultModels[1]
+        let catalog = ModelCatalog(models: [model, otherModel], artifactDirectoryURL: fixture.destination, fileManager: manager)
+        let original = catalog.validation(for: model)
+        let task = Task { try await catalog.importArtifacts(for: model, sourceURLs: fixture.sources) }
+        let result = await XCTWaiter.fulfillment(of: [entered], timeout: 3)
+        XCTAssertEqual(result, .completed)
+        XCTAssertFalse(manager.wasOnMainThread, "Copying must not occupy the UI executor")
+        let operationID = try XCTUnwrap(catalog.artifactOperation?.id)
+        XCTAssertEqual(catalog.artifactOperation?.modelID, model.id)
+        XCTAssertEqual(catalog.artifactOperation?.kind, .importing)
+        XCTAssertEqual(catalog.artifactOperation?.progress.phase, .copying)
+        var evidence: [[String: Any]] = []
+        let viewport = CGSize(width: 320, height: 640)
+        for themeMode in AppThemeMode.allCases {
+            let page = AnyView(VStack(spacing: 0) {
+                ModelLibraryView().frame(maxWidth: .infinity, maxHeight: .infinity)
+                CompactWorkspaceNavigation(selection: .constant(.models))
+            }
+                .environmentObject(catalog)
+                .environment(\.compactWorkbench, true)
+                .environment(\.appTheme, AppThemePalette(mode: themeMode))
+                .environment(\.colorScheme, themeMode.colorScheme)
+                .environment(\.dynamicTypeSize, .large)
+                .frame(width: viewport.width, height: viewport.height)
+                .background(AppThemePalette(mode: themeMode).canvas))
+            let image = try await captureWorkbenchView(page, size: viewport, themeMode: themeMode)
+            let name = "workbench-import-\(themeMode.rawValue)"
+            keepWorkbenchImage(image, name: name)
+            let recognized = try workbenchRecognizedText(in: image, requiredMarker: "取消")
+            XCTAssertTrue(workbenchNormalizedText(recognized).contains("取消"), recognized)
+            XCTAssertTrue(workbenchNormalizedText(recognized).contains("导入模型文件"), recognized)
+            XCTAssertEqual(catalog.artifactOperation?.id, operationID)
+            evidence.append([
+                "attachmentName": name, "evidenceKind": "uihostingcontroller-import-production-composition",
+                "captureMethod": "UIView.drawHierarchy", "workspace": "models", "theme": themeMode.rawValue,
+                "dynamicTypeSize": "large", "requiredTextMarker": "取消", "recognizedText": recognized,
+                "operationKind": "importing", "operationPhase": "copying", "usesRealBackgroundImport": true,
+                "imageWidth": Double(image.size.width), "imageHeight": Double(image.size.height),
+                "viewportWidth": 320, "viewportHeight": 640
+            ])
+        }
+        try keepWorkbenchProvenance([
+            "captures": evidence,
+            "testIdentifier": "LocalGemmaTests/testArtifactImportCatalogRemainsResponsiveAndKeepsTargetIdentity()"
+        ], name: "workbench-import-provenance")
+        catalog.select(otherModel)
+        catalog.simulateDownload(for: model)
+        await catalog.refreshArtifactStatus(for: otherModel)
+        do {
+            try await catalog.uninstallArtifacts(for: model)
+            XCTFail("A concurrent file mutation must be rejected")
+        } catch { XCTAssertEqual(error as? ArtifactImportError, .operationInProgress) }
+        XCTAssertEqual(catalog.artifactOperation?.id, operationID)
+        XCTAssertEqual(catalog.validation(for: model), original)
+        XCTAssertEqual(catalog.selectedModel.id, otherModel.id)
+        manager.release.signal()
+        try await task.value
+        XCTAssertNil(catalog.artifactOperation)
+        XCTAssertEqual(catalog.selectedModel.id, otherModel.id, "Finishing an import must not steal model selection")
+        XCTAssertEqual(catalog.validation(for: model).availability, .verified)
+        XCTAssertEqual(catalog.validation(for: otherModel).availability, .missing)
+        XCTAssertFalse(catalog.isDeploymentRunning(for: model))
+        try fixture.assertNoCandidate()
+    }
+
+    func testArtifactImportCatalogCancellationKeepsValidationAndDeployment() async throws {
+        let fixture = try ArtifactImportFixture()
+        defer { fixture.clean() }
+        let entered = expectation(description: "Cancellable background copy")
+        let manager = ArtifactHoldingFileManager(entered: entered)
+        defer { manager.release.signal() }
+        var model = ModelCatalog.defaultModels[0]
+        model.artifactManifest = fixture.manifest
+        let catalog = ModelCatalog(models: [model], artifactDirectoryURL: fixture.destination, fileManager: manager)
+        await catalog.refreshArtifactStatus(for: model)
+        catalog.startDeployment(for: model)
+        let validation = catalog.validation(for: model)
+        let selected = catalog.selectedModel
+        let task = Task { try await catalog.importArtifacts(for: model, sourceURLs: fixture.sources) }
+        let result = await XCTWaiter.fulfillment(of: [entered], timeout: 3)
+        XCTAssertEqual(result, .completed)
+        XCTAssertTrue(catalog.cancelArtifactImport())
+        manager.release.signal()
+        do {
+            try await task.value
+            XCTFail("Accepted cancellation must not complete an import")
+        } catch { XCTAssertTrue(error is CancellationError) }
+        XCTAssertNil(catalog.artifactOperation)
+        XCTAssertEqual(catalog.validation(for: model), validation)
+        XCTAssertEqual(catalog.selectedModel, selected)
+        XCTAssertTrue(catalog.isDeploymentRunning(for: model))
+        try fixture.assertOldGeneration()
+        try fixture.assertNoCandidate()
+    }
+
+    func testArtifactOperationRowKeepsPhoneActionsReachable() {
+        for theme in AppThemeMode.allCases {
+            for width: CGFloat in [284, 366] {
+                for phase in ArtifactImportProgress.Phase.allCases {
+                    var operation = ArtifactOperation(modelID: UUID(), modelName: "Gemma 1.5B", kind: .importing)
+                    operation.progress = ArtifactImportProgress(phase: phase, completedBytes: 50, totalBytes: 100)
+                    XCTAssertEqual(operation.canCancel, phase != .committing)
+                    var heights: [CGFloat] = []
+                    for textSize in [DynamicTypeSize.large, .accessibility3] {
+                        let view = AnyView(ArtifactOperationStatusRow(operation: operation, cancel: { XCTFail("Sizing must not run actions") }))
+                        let size = compactControlSize(view, width: width, textSize: textSize, themeMode: theme)
+                        XCTAssertEqual(size.width, width, accuracy: 1)
+                        XCTAssertGreaterThanOrEqual(size.height, 44)
+                        if textSize == .large { XCTAssertLessThanOrEqual(size.height, 64) }
+                        heights.append(size.height)
+                    }
+                    XCTAssertGreaterThanOrEqual(heights[1], heights[0])
+                }
+            }
+        }
+    }
+
     func testCompactChatHeaderReclaimsSpaceWithoutChangingRuntimeState() {
         for size in DynamicTypeSize.allCases {
             XCTAssertEqual(CompactWorkbenchPolicy.stacksHeaderControls(dynamicTypeSize: size), size >= .xxxLarge)
@@ -1463,7 +1712,7 @@ final class LocalGemmaTests: XCTestCase {
         XCTAssertEqual(catalog.deploymentState(for: qwen), .stopped)
     }
 
-    func testCatalogUninstallStopsDeploymentAndMarksModelUndownloaded() throws {
+    func testCatalogUninstallStopsDeploymentAndMarksModelUndownloaded() async throws {
         let directoryURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("LocalGemmaCatalogUninstall-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
@@ -1487,12 +1736,13 @@ final class LocalGemmaTests: XCTestCase {
             autoScanLocalArtifacts: true,
             artifactDirectoryURL: directoryURL
         )
+        await catalog.waitForInitialArtifactScan()
         XCTAssertEqual(catalog.validation(for: catalog.selectedModel).availability, .staged)
 
         catalog.startDeployment(for: catalog.selectedModel)
         XCTAssertTrue(catalog.isDeploymentRunning(for: catalog.selectedModel))
 
-        try catalog.uninstallArtifacts(for: catalog.selectedModel)
+        try await catalog.uninstallArtifacts(for: catalog.selectedModel)
 
         XCTAssertEqual(catalog.deploymentState(for: catalog.selectedModel), .stopped)
         XCTAssertEqual(catalog.validation(for: catalog.selectedModel).availability, .missing)
@@ -1507,7 +1757,7 @@ final class LocalGemmaTests: XCTestCase {
         }
     }
 
-    func testCatalogAutoScanRestoresExistingLocalArtifacts() throws {
+    func testCatalogAutoScanRestoresExistingLocalArtifacts() async throws {
         let directoryURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("LocalGemmaAutoScan-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
@@ -1531,7 +1781,7 @@ final class LocalGemmaTests: XCTestCase {
             autoScanLocalArtifacts: true,
             artifactDirectoryURL: directoryURL
         )
-
+        await catalog.waitForInitialArtifactScan()
         XCTAssertEqual(catalog.validation(for: catalog.selectedModel).availability, .staged)
         XCTAssertEqual(catalog.selectedModel.installState, .simulated)
         XCTAssertTrue(catalog.selectedModel.summary.contains("SHA-256"))
@@ -9085,6 +9335,95 @@ private struct WorkspacePageIdentityProbe: View {
             .onDisappear {
                 recorder.recordDisappearance(tab: tab)
             }
+    }
+}
+
+private struct ArtifactImportFixture: Sendable {
+    let root: URL
+    let destination: URL
+    let sources: [URL]
+    let manifest: ModelArtifactManifest
+
+    var otherModelFile: URL { destination.appendingPathComponent("other.mlmodelc/weights.bin") }
+
+    init() throws {
+        root = FileManager.default.temporaryDirectory.appendingPathComponent("LocalGemmaTransaction-\(UUID().uuidString)", isDirectory: true)
+        destination = root.appendingPathComponent("LocalModels", isDirectory: true)
+        let source = root.appendingPathComponent("Sources", isDirectory: true)
+        sources = [source.appendingPathComponent("model.bin"), source.appendingPathComponent("tokenizer.model")]
+        manifest = ModelArtifactManifest(
+            modelFileName: "model.bin", tokenizerFileName: "tokenizer.model", fileFormat: "test",
+            storageDirectory: destination.path,
+            expectedSHA256: "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+            allowsNetworkDownload: false, importInstruction: ""
+        )
+        try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: destination.appendingPathComponent("other.mlmodelc"), withIntermediateDirectories: true)
+        try Data("old model".utf8).write(to: destination.appendingPathComponent("model.bin"))
+        try Data("old tokenizer".utf8).write(to: destination.appendingPathComponent("tokenizer.model"))
+        try Data("other weights".utf8).write(to: otherModelFile)
+        try Data("abc".utf8).write(to: sources[0])
+        try Data("new tokenizer".utf8).write(to: sources[1])
+    }
+
+    func clean() { try? FileManager.default.removeItem(at: root) }
+
+    func assertOldGeneration(file: StaticString = #filePath, line: UInt = #line) throws {
+        XCTAssertEqual(try Data(contentsOf: destination.appendingPathComponent("model.bin")), Data("old model".utf8), file: file, line: line)
+        XCTAssertEqual(try Data(contentsOf: destination.appendingPathComponent("tokenizer.model")), Data("old tokenizer".utf8), file: file, line: line)
+        XCTAssertEqual(try Data(contentsOf: otherModelFile), Data("other weights".utf8), file: file, line: line)
+    }
+
+    func assertNoCandidate(file: StaticString = #filePath, line: UInt = #line) throws {
+        let names = try FileManager.default.contentsOfDirectory(atPath: root.path)
+        XCTAssertFalse(names.contains { $0.hasPrefix(".LocalModels-import-") }, file: file, line: line)
+    }
+}
+
+private final class ArtifactCommitFailureFileManager: FileManager, @unchecked Sendable {
+    private let target: String
+    private let lock = NSLock()
+    private var shouldFail = false
+
+    init(destination: URL) {
+        target = destination.path
+        super.init()
+    }
+
+    func failCommit() { lock.withLock { shouldFail = true } }
+
+    override func fileExists(atPath path: String) -> Bool {
+        if lock.withLock({ shouldFail && path == target }) { return false }
+        return super.fileExists(atPath: path)
+    }
+}
+
+private final class ArtifactHoldingFileManager: FileManager, @unchecked Sendable {
+    let release = DispatchSemaphore(value: 0)
+    private let entered: XCTestExpectation
+    private let lock = NSLock()
+    private var hasHeld = false
+    private var mainThread = false
+
+    var wasOnMainThread: Bool { lock.withLock { mainThread } }
+
+    init(entered: XCTestExpectation) {
+        self.entered = entered
+        super.init()
+    }
+
+    override func createFile(atPath path: String, contents data: Data?, attributes attr: [FileAttributeKey: Any]? = nil) -> Bool {
+        let hold = lock.withLock {
+            guard !hasHeld, path.contains("-import-") else { return false }
+            hasHeld = true
+            mainThread = Thread.isMainThread
+            return true
+        }
+        if hold {
+            entered.fulfill()
+            if release.wait(timeout: .now() + 20) == .timedOut { return false }
+        }
+        return super.createFile(atPath: path, contents: data, attributes: attr)
     }
 }
 

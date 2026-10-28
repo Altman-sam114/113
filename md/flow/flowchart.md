@@ -1,5 +1,32 @@
 # 项目核心流程图
 
+## v3.9 后台事务与可取消进度
+
+读图说明：界面只显示一行进度，文件操作与导航互不阻塞；接受的取消和失败都不能替换旧文件。所有构建与图像验证仍只在云端，原36图继续保留。
+
+```mermaid
+flowchart TD
+    %% Catalog拥有跨页面操作，只在MainActor发布状态
+    Files[Files选择 / 原目标modelID] --> Catalog[Catalog operation/control / 文件操作互斥]
+    Catalog --> Worker[串行ArtifactIOWorker / 离开UI线程]
+    Catalog --> Row[一行进度 / 44pt取消 / 导航和模型选择可用]
+    %% 候选始终与旧代隔离，其他模型不重复复制权重
+    Worker --> Candidate[同卷私有候选 / 其他模型硬链接快照]
+    Candidate --> Copy[1MiB分块复制 / 逐块取消检查]
+    Copy --> Validate[完整性与SHA校验 / placeholder只staged]
+    Row -- 取消 --> Gate{取消与commit共用锁门}
+    Validate --> Gate
+    Gate -- 已接受取消 --> Keep[保留旧代 / 清理候选 / 不改validation或部署]
+    Gate -- 校验成功且未取消 --> Commit[一次原子rename交换 / commit期间拒绝取消]
+    Copy -- 失败 --> Keep
+    Validate -- 失败 --> Keep
+    Commit -- 失败 --> Keep
+    Commit -- 成功 --> Apply[只更新原目标 / 不抢选中 / 清理旧代]
+    %% 构建/真实responder/原图矩阵不减项
+    Apply --> Cloud[精确SHA云端157项 / 38图 / JUnit10 / 4份xcresult]
+    Cloud --> Review[完整包与图片复判 / 不是签名发布验收]
+```
+
 ## v3.8 单Agent模块迭代与发布包门禁
 
 读图说明：不再依赖A/B/C队列或子智能体，由同一Agent集成模块后提交云端。新增发布资源和未签名device包检查与原147项/36图并存；任何必选失败均继续修复，而不是宣布发布完成。

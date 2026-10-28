@@ -57,15 +57,16 @@ def main():
             suggested_name = attachment.get("suggestedHumanReadableName", "")
             exported.append((suggested_name, source, test_identifier))
             for name in ["workbench-wide-provenance", "workbench-readiness-provenance",
-                         "workbench-compact-provenance"]:
+                         "workbench-compact-provenance", "workbench-import-provenance"]:
                 if attachment_name_matches(suggested_name, name):
                     document = json.loads(source.read_text(encoding="utf-8"))
                     documents.append((name, document, test_identifier))
 
     if {name for name, _document, _test in documents} != {
-        "workbench-wide-provenance", "workbench-readiness-provenance", "workbench-compact-provenance"
-    } or len(documents) != 3:
-        raise RuntimeError("Expected exactly three production-render provenance attachments")
+        "workbench-wide-provenance", "workbench-readiness-provenance", "workbench-compact-provenance",
+        "workbench-import-provenance"
+    } or len(documents) != 4:
+        raise RuntimeError("Expected exactly four production-render provenance attachments")
 
     captures = []
     for _name, document, exported_test in documents:
@@ -135,6 +136,18 @@ def main():
                         or capture.get("viewportHeight") != 640
                         or width != 320 or height != 640):
                     raise RuntimeError(f"Invalid small-phone production composition: {name}")
+            elif capture["evidenceKind"] == "uihostingcontroller-import-production-composition":
+                normalized = "".join(c for c in capture.get("recognizedText", "").translate(
+                    str.maketrans("點麼導觀", "点么导观")) if c.isalnum())
+                if (capture.get("workspace") != "models"
+                        or capture.get("requiredTextMarker") != "取消"
+                        or "取消" not in normalized or "导入模型文件" not in normalized
+                        or capture.get("usesRealBackgroundImport") is not True
+                        or capture.get("operationKind") != "importing"
+                        or capture.get("operationPhase") != "copying"
+                        or capture.get("viewportWidth") != 320 or capture.get("viewportHeight") != 640
+                        or width != 320 or height != 640):
+                    raise RuntimeError(f"Invalid in-progress import composition: {name}")
             elif capture["evidenceKind"] != "uihostingcontroller-production-component":
                 raise RuntimeError(f"Unknown production snapshot source: {name}")
             captures.append({
@@ -162,9 +175,10 @@ def main():
         for theme in ["light", "dark"]
         for workspace in ["chat", "models", "prompts", "settings"]
     }
-    if (len(captures) != 20
+    expected_import = {f"workbench-import-{theme}" for theme in ["light", "dark"]}
+    if (len(captures) != 22
             or {capture["attachmentName"] for capture in captures}
-            != expected_wide | expected_readiness | expected_compact):
+            != expected_wide | expected_readiness | expected_compact | expected_import):
         raise RuntimeError("Incomplete or duplicate production-render capture matrix")
     for theme in ["light", "dark"]:
         hashes = [capture["sha256"] for capture in captures
@@ -191,6 +205,7 @@ def main():
         "wideWorkspaceCaptureCount": 8,
         "readinessComponentCaptureCount": 4,
         "compactCompositionCaptureCount": 8,
+        "importCompositionCaptureCount": 2,
         "captureCount": len(captures),
         "captures": captures,
     }

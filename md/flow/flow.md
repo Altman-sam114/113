@@ -1,5 +1,15 @@
 # 项目核心流程文档
 
+## v3.9 当前后台文件流
+
+单Agent集成，无子智能体；所有执行只在云端。入口抽离草稿承接到已注册的`ArtifactImport.swift`，不恢复旧的先删后复制实现。`ModelLibraryView`用非appearance绑定的Task调用Catalog异步API，生命周期不随页隐藏取消；Catalog持有唯一operation/control，MainActor只更新状态，`ArtifactIOWorker`串行执行复制/hash/扫描/卸载。启动扫描异步恢复，测试与CLI通过`waitForInitialArtifactScan()`等待实际完成，不能继续假定init已完成磁盘扫描。
+
+导入预检文件名/重名/类型/软链接并持有security scope；私有同卷候选中对其他模型创建只读期硬链接快照，目标文件按1MiB分块复制并同步写出。候选必须完整、真实SHA匹配才可提交；manual-import-required只staged，不绕过verified。取消逐块检查；`beginCommit`与取消同锁，接受的取消不能进入提交。一次`renamex_np(RENAME_SWAP)`交换已有整代目录，首次使用`RENAME_EXCL`；不支持/失败直接报错，不删除旧代fallback。普通退出清理私有候选/交换后的旧代，不删除用户Files源；未声明断电持久化或遗留候选回收已完成。
+
+扫描与卸载共享store锁，不能混读新旧文件或并发丢其他模型；卸载仍先确认，后台构造剔除目标的快照再整体提交，成功后才停止部署。导入期间文件动作互斥，导航/模型选择保持可用，结果只apply到原modelID。模型页只新增进度与44pt取消，commit阶段取消禁用；不改焦点、会话、默认模拟runtime或verified gate。
+
+157项保留原147；原36图加2张真实后台导入中320×640宿主图为38，exporter要求22宿主PNG/4provenance及进度取消正文。JUnit10、4份xcresult、unsigned Release检查保留；本轮待精确SHA自身云端结果，不沿用基线`a525a8a`/run`40629860257`的147/147与36图结论。
+
 ## v3.8 当前执行与发布资源流
 
 当前由单一Agent按模块实现/集成/云端复判，不再强制A/B/C角色前置，也不再开启子智能体。生产iPhone数据流与v3.7一致；本轮不改AppState、runtime或verified。未解决的文件事务/主线程长I/O与会话持久化继续作为发布门禁，不因UI变美而忽略。
@@ -80,7 +90,7 @@ v2.64 的顶部模型胶囊还会按真实 chrome 可用宽度切换堆叠/横�
 ### App 启动
 
 - `LocalGemmaApp` 是入口。
-- `ModelCatalog` 会自动扫描本地 artifact。
+- `ModelCatalog` 会在后台自动扫描本地 artifact，完成后在MainActor发布结果；初始化不等待长I/O。
 - 如果文件缺失，Gemma 默认保持 `simulated`。
 - 如果文件存在但 hash 未验证，状态为 `staged`。
 - 如果 concrete SHA-256 匹配，状态为 `verified`。
@@ -92,7 +102,7 @@ v2.64 的顶部模型胶囊还会按真实 chrome 可用宽度切换堆叠/横�
 - `startDeployment` 会停止其他模型，只让一个模型运行。
 - `toggleDeployment` 在 running / stopped 之间切换。
 - `simulateDownload` 只模拟 staged，不联网下载。
-- `importArtifacts` 从 Files picker 复制用户选择的本地文件。
+- `importArtifacts` 将Files选择交后台worker，在候选中复制/校验后原子整组替换；失败或提交前取消保留旧代，完成只更新原目标模型。
 - 用户点卸载后先进入确认弹层；取消只关闭弹层且不调用 `ModelCatalog.uninstallArtifacts`，确认后才调用 `uninstallArtifacts` 删除 App 托管目录中的 manifest 必需文件，并停止部署。
 
 ### 推理

@@ -1,5 +1,15 @@
 # AGENTS.md
 
+## 当前 v3.9 后台事务导入边界
+
+继续单Agent按模块推进，不开子智能体，AITRANS只读，所有Swift/构建/运行/图像仅云端。已核对基线`a525a8a` / run`40629860257` attempt1完整包：147/147、JUnit10、4份xcresult及unsigned Release资源成功；交接36图已复核，无新遮挡/缺页。这不是整产品发布验收。
+
+承接入口已有AppState中文件存储段的未提交抽离，将`ModelArtifactStore`/hasher与新后台worker集中在`ArtifactImport.swift`并注册target/LogicSmoke。Files导入在私有同卷候选目录中分块复制，校验成功后以一次`renamex_np`交换整代目录；其他模型通过硬链接快照保留，不先删旧文件，不接受失败swap后的删除式fallback。取消与commit共用锁门：提交前接受取消必保留旧代，提交后拒绝取消且UI禁用该入口；真实SHA不匹配是导入失败，placeholder仍仅staged。普通失败/取消清理候选，原Files源不删除。
+
+Catalog在MainActor只发布状态，复制/hash/启动扫描/手动扫描/卸载均交串行actor。导入期间仅互斥文件操作，四页/模型选择仍可切换，完成只更新原目标不抢选中态；生产同步focus/runtime/verified不改。模型页只新增一行进度与44pt取消，较大文字自然增长，不加阻塞层或冗长说明。
+
+源码157项，原147名称/严格focus与identity保留；新增10项覆盖原子替换、hash/read/commit失败、取消阶段/提交边界、路径/重名/软链接、后台响应/目标身份、取消状态不变及手机尺寸。云端保留原36图，新增2张真实后台导入暂停期间的320×640宿主图，总38图/22宿主PNG/4份provenance；仍是宿主组合，不冒充Simulator或真机。新SHA自身完整结果包、图片与4份xcresult须验收，不预写通过。会话重启恢复、崩溃/断电耐久与遗留候选回收、真实runtime、真机/完整辅助技术、签名分发仍单列门禁。
+
 ## 当前 v3.8 执行与发布基础边界
 
 用户最新要求取消 A/B/C 串行角色流程，随后又要求后续不再多开子智能体。现有子智能体已全部停止；由同一 Agent 按界面、文件可靠性、发布资源、测试模块串行推进并统一提交，不再新建或续派子智能体。下文历史多 Agent/角色前置要求不再作为执行门槛。必要的代码审查、最新 SHA 云端结果包核对和看图不能省略。AITRANS 继续只读，所有 Swift/Xcode/Simulator/UIKit/Vision 执行仍只在云端。
