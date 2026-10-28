@@ -270,7 +270,7 @@ private struct ChatStarterCard: View {
         Button(action: apply) {
             HStack(spacing: isCompact ? 8 : 12) {
                 Image(systemName: template.icon)
-                    .font(.body)
+                    .font(.system(size: 20, weight: .medium))
                     .foregroundStyle(theme.accent)
                     .frame(width: isCompact ? 28 : 36, height: 36)
                     .accessibilityHidden(true)

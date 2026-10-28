@@ -88,8 +88,10 @@ final class LocalGemmaTests: XCTestCase {
                 }
                 let welcome = AnyView(ChatWelcomeView(availableWidth: width, apply: { _ in actions += 1 }))
                 let normal = compactControlSize(welcome, width: width, textSize: .large, themeMode: theme)
-                let expanded = compactControlSize(welcome, width: width, textSize: .accessibility3, themeMode: theme)
-                XCTAssertGreaterThan(expanded.height, normal.height)
+                for type in [DynamicTypeSize.xxxLarge, .accessibility3, .accessibility5] {
+                    let expanded = compactControlSize(welcome, width: width, textSize: type, themeMode: theme)
+                    XCTAssertGreaterThan(expanded.height, normal.height)
+                }
             }
         }
         XCTAssertEqual(actions, 0)
@@ -137,12 +139,18 @@ final class LocalGemmaTests: XCTestCase {
                 if workspace == .chat {
                     XCTAssertTrue(workbenchNormalizedText(recognized).contains(workbenchNormalizedText("润色文字")), recognized)
                 }
+                if collection == .everyday && workspace == .prompts {
+                    XCTAssertTrue(workbenchNormalizedText(recognized).contains("保留原意"),
+                                  "Expanded text must retain the complete first subtitle: \(recognized)")
+                }
                 evidence.append([
                     "attachmentName": name, "evidenceKind": "uihostingcontroller-task-production-composition",
                     "captureMethod": "UIView.drawHierarchy", "workspace": workspace.rawValue,
                     "theme": theme.rawValue, "dynamicTypeSize": type == .large ? "large" : "accessibility3",
                     "templateCollection": collection.rawValue, "context": context,
                     "requiredTextMarker": marker, "recognizedText": recognized,
+                    "requiredBodyMarker": context == "everyday-accessibility3" ? "保留原意"
+                        : (workspace == .chat ? "润色文字" : "部署方案"),
                     "imageWidth": Double(image.size.width), "imageHeight": Double(image.size.height),
                     "viewportWidth": Double(size.width), "viewportHeight": Double(size.height)
                 ])

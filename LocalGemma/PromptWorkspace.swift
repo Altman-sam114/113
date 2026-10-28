@@ -514,7 +514,13 @@ struct CompactPromptCollectionPicker: View {
         HStack(spacing: 4) {
             ForEach(CompactPromptCollection.allCases) { collection in
                 Button { selection = collection } label: {
-                    Label(collection.title, systemImage: collection.icon)
+                    Label {
+                        Text(collection.title)
+                    } icon: {
+                        Image(systemName: collection.icon)
+                            .font(.system(size: 16, weight: .medium))
+                            .accessibilityHidden(true)
+                    }
                         .font(.subheadline.weight(.semibold))
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
@@ -555,7 +561,7 @@ struct CompactPromptTemplateRow: View {
             Button(action: apply) {
                 HStack(spacing: 10) {
                     Image(systemName: template.icon)
-                        .font(.body.weight(.semibold))
+                        .font(.system(size: 18, weight: .semibold))
                         .foregroundStyle(theme.categoryTint(for: template.category))
                         .frame(width: 34, height: 34)
                         .background(theme.chipSurface, in: RoundedRectangle(cornerRadius: 10))
@@ -574,7 +580,7 @@ struct CompactPromptTemplateRow: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     if template.requiresInput {
                         Image(systemName: "arrow.up.left")
-                            .font(.body.weight(.medium))
+                            .font(.system(size: 14, weight: .medium))
                             .foregroundStyle(theme.accent)
                             .accessibilityHidden(true)
                     }
@@ -595,7 +601,7 @@ struct CompactPromptTemplateRow: View {
             if PromptTemplateInteractionPolicy.showsDirectSend(for: template) {
                 Button(action: send) {
                     Image(systemName: "paperplane")
-                        .font(.body.weight(.semibold))
+                        .font(.system(size: 18, weight: .semibold))
                         .foregroundStyle(theme.accent)
                         .frame(width: PromptTemplateActionLayoutPolicy.sendButtonSize,
                                height: PromptTemplateActionLayoutPolicy.sendButtonSize)

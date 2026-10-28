@@ -4725,3 +4725,11 @@ AppState在rollback时用既有内部旗标抑制observer重入，loading仍拒�
 首页从部署/隐私工程示例改为润色、总结、翻译与行动计划四个日常入口；普通手机宽度 260pt 起为两列，`.xxxLarge` 以上单列并移除装饰标记，语义文字自然增长。模板页将六类筛选收为日常/进阶一行，原六个技术模板和桌面分类保留。需要原文的四个模板只填入完整提示词并走原同步焦点，不提供直接发送按钮；模拟预览、会话/文件/runtime/verified 和四页身份不改。
 
 本轮仅静态读取 AITRANS 的主题令牌，不修改其文件，不开子智能体。进场 main/origin/main 为 `4c52b22`，已有截图 readiness/指纹代码、制度文档和历史 prompt 均保留且不混入本轮提交。源码新增 3 个直接 XCTest，完整云端预期 172 项（原169保留）；原42图不减，新增6张320×640生产宿主图/第6份provenance，总48图。新增4个Python夹具校验任务正文/分组/字号/尺寸/名称与简繁映射。新SHA的云端构建、测试、完整结果包与人眼看图仍待实际执行，不提前宣称通过或整个发布目标完成。
+
+## v3.11.1 / 手机大字装饰与完整副标题（2026-10-28，待修复 SHA 云端）
+
+`d3ba678e2e2785350ca584a8fc8bd85027cc555c` / run `40691750090` attempt1全部自动阶段成功，28m56s。完整artifact `localgemma-ci-v3.11-main-d3ba678-run40691750090-attempt1` 135231066字节，独立/API SHA-256 `69e0671d4fac4f5d75817172254014ed51f5f7528d4bc54117eff4112b360e8f`与安全路径/CRC通过。summary/tree/SQLite严格172唯一Success、0 failure/skip/重启；16 Python、Swift6 smoke、JUnit10仅optional Codex skip、4份xcresult根succeeded且Data/refs为3/3、3/3、3/3、945/945；unsigned arm64包CRC/资源hash/Info/隐私通过，仍未签名。首个单流下载无有效进展后中止，以精确Range断点续传，只请求缺失字节并核对整个原ZIP，不拿review小包替代。
+
+48图/6provenance身份/尺寸/hash齐全，8张无裁切联系表全部复看（6张任务图为320pt原尺寸）。普通iPhone入口清楚；AX3装饰图标/箭头随字号变大，挤占阅读宽度，使“润色文字”副标题省略，欢迎图标挤文字，因此没有宣布完整视觉通过。iPad light prompts另出现变淡/未稳定采集现象，已有readiness修复仍未提交，不以本轮绿色掩盖。原ZIP、离线核对与看图记录在 `/private/tmp/localgemma-c-review-40691750090/`。
+
+据实际图修复：只将手机底栏、模板分组/任务图标、填入/发送符号和欢迎装饰收为18/16/14/20pt固定装饰字号，语义文本继续Dynamic Type、自然增高和既有行数；不缩小44pt/56pt命中，不改focus、模板payload、会话、runtime或verified。原新增尺寸测试扩至欢迎`.xxxLarge`/AX3/AX5；同一6图新增requiredBodyMarker，日常AX3必须完整OCR“保留原意”，夹具新增省略正文拒绝。仍172方法/16Python/48图/6provenance，未删断言或放宽容差；新修复SHA必须重新云端，不能继承d3ba678结论。全目标继续，真实runtime/真机辅助技术/故障耐久与签名分发门禁保留。

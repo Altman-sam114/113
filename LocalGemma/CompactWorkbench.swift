@@ -287,8 +287,9 @@ struct CompactWorkspaceNavigation: View {
                 } label: {
                     VStack(spacing: 5) {
                         Image(systemName: tab.icon)
-                            .font(.body.weight(.medium))
+                            .font(.system(size: 18, weight: .medium))
                             .frame(width: 42, height: 24)
+                            .accessibilityHidden(true)
                             .background {
                                 if selection == tab {
                                     Capsule().fill(theme.accent.opacity(theme.isDark ? 0.12 : 0.08))

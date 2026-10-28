@@ -16,7 +16,9 @@ class TaskEvidenceTests(unittest.TestCase):
         return {
             "context": context, "theme": theme, "workspace": workspace,
             "templateCollection": collection, "dynamicTypeSize": size,
-            "requiredTextMarker": marker, "recognizedText": marker + " 润色文字",
+            "requiredTextMarker": marker, "recognizedText": marker + " 润色文字 保留原意",
+            "requiredBodyMarker": "保留原意" if context == "everyday-accessibility3"
+                else ("润色文字" if workspace == "chat" else "部署方案"),
             "viewportWidth": 320, "viewportHeight": 640,
         }
 
@@ -39,12 +41,17 @@ class TaskEvidenceTests(unittest.TestCase):
         capture["recognizedText"] = "想聊点什么"
         with self.assertRaises(RuntimeError):
             self.validate(capture)
+        capture = self.fixture()
+        capture["recognizedText"] = "润色文字 表达自然，保..."
+        with self.assertRaises(RuntimeError):
+            self.validate(capture)
 
     def test_wrong_context_size_or_collection_cannot_pass(self):
         for key, value in [
             ("context", "unknown"), ("theme", "unknown"), ("workspace", "models"),
             ("templateCollection", "technical"), ("dynamicTypeSize", "large"),
             ("requiredTextMarker", "模板"), ("viewportWidth", 390), ("viewportHeight", 844),
+            ("requiredBodyMarker", "任意文字"),
         ]:
             capture = self.fixture()
             capture[key] = value

@@ -28,18 +28,18 @@ def attachment_name_matches(suggested_name, expected_name):
 
 def validate_task_capture(capture, width, height, name):
     contexts = {
-        "welcome-accessibility3": ("chat", "everyday", "accessibility3", "想聊点什么"),
-        "everyday-accessibility3": ("prompts", "everyday", "accessibility3", "润色文字"),
-        "technical-large": ("prompts", "technical", "large", "部署方案"),
+        "welcome-accessibility3": ("chat", "everyday", "accessibility3", "想聊点什么", "润色文字"),
+        "everyday-accessibility3": ("prompts", "everyday", "accessibility3", "润色文字", "保留原意"),
+        "technical-large": ("prompts", "technical", "large", "部署方案", "部署方案"),
     }
     expected = contexts.get(capture.get("context"))
     normalized = "".join(c for c in capture.get("recognizedText", "").translate(
         str.maketrans("點麼潤", "点么润")) if c.isalnum())
     actual = tuple(capture.get(key) for key in [
-        "workspace", "templateCollection", "dynamicTypeSize", "requiredTextMarker"])
+        "workspace", "templateCollection", "dynamicTypeSize", "requiredTextMarker", "requiredBodyMarker"])
     if (expected is None or actual != expected
             or expected[3] not in normalized
-            or (expected[0] == "chat" and "润色文字" not in normalized)
+            or expected[4] not in normalized
             or capture.get("theme") not in ["light", "dark"]
             or name != f"workbench-tasks-{capture['theme']}-{capture['context']}"
             or capture.get("viewportWidth") != 320 or capture.get("viewportHeight") != 640
