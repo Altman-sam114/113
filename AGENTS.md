@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## v3.10.1 搜索状态矩阵最新修正（待自身新SHA）
+
+`2cf7b63` / run`40646708156` attempt1完整98498647字节ZIP独立digest `3c93dde127ef497504743ffb82bfe5fecbde6e1338231250f50635fac7bef4ff`匹配API，SQLite169唯一中168成功/1失败；同一手机尺寸用例的亮暗×两宽4个AX3断言为60pt/61.667pt，1pt容差未通过，不是4次重试。42图等成功不抵消失败。搜索现在增加相对`.body`缩放的22pt最小文字槽（不是固定高度/缩字），清除明确plain且44pt；保留1pt等高断言，并扩展全部DynamicTypeSize的中文/英文query矩阵。169方法与42图等不减，最终新SHA须重新完整云端，不沿用下文5e绿色；其余单Agent/云端/只读/模拟边界不变。
+
 ## v3.10.1 已验收代码基线与搜索收尾
 
 `5e0eec3e5dca6d9ea71df9a80d66a28826f18f67` / run`40643812543` attempt1完整99467041字节ZIP已独立匹配API SHA-256 `7bb9bc7d1b133e5f53296fc14d5a1fbe84bc28d5f95ca526d725b8775009cffc`：169唯一Success/0 failure/skip/重启，恢复期64次拒绝0.0015s、严格focus4.923s、真实磁盘恢复图12.085s。JUnit10仅optional Codex skip，12个Python与Swift6 smoke、iOS/Catalyst/unsigned资源成功；4份xcresult根succeeded且refs/Data配对3/3、3/3、3/3、906/906。42图均看，4历史原尺寸/全部6张无裁切联系表无新遮挡或缺页；对入口f347619的21/22宿主字节相同，另1仅进度spinner区域变化，16模拟器正文排除状态栏像素一致。完整包与记录在`/private/tmp/localgemma-c-review-40643812543/`。

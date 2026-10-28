@@ -2,6 +2,8 @@
 
 ## v3.10.1 输入保护与历史大字修复
 
+最后搜索收尾`2cf7b63` / run`40646708156`完整包实际168/169：同一尺寸测试4个AX3矩阵断言测得空/有query为60/61.667pt，不能用5e基线覆盖。生产搜索用相对body缩放22pt的最小文字槽、plain 44pt清除，仍由真实字号自然增高，不固定上限或压缩文字；原1pt断言扩展全部DynamicTypeSize、中英文query。169方法/42图等不减，新SHA待云端。
+
 核心代码`5e0eec3` / run`40643812543` attempt1完整包/169唯一Success与42图已复判，4份xcresult/unsigned资源成功；恢复期64次拒绝不再崩溃。基线完整包与独立hash/SQLite/图像记录在`/private/tmp/localgemma-c-review-40643812543/`，只绑定该SHA。后续搜索收尾仍须新SHA云端。
 
 history继续拥有query，搜索子树抽为无服务依赖的`ConversationHistorySearchField`；6pt垂直padding只挂TextField，不把44pt清除按钮撑到56pt，48pt最小行高与大字自然增长并存，空/有查询不会跳高。现有尺寸测试增同宽同字号的两态等高断言，169方法/42图等门禁不减，未改变本地过滤、草稿/记录、focus或runtime。

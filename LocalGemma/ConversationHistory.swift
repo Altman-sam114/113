@@ -101,6 +101,7 @@ struct CompactSessionHistory: View {
 
 struct ConversationHistorySearchField: View {
     @Environment(\.appTheme) private var theme
+    @ScaledMetric(relativeTo: .body) private var lineMinimumHeight: CGFloat = 22
     @Binding var query: String
 
     var body: some View {
@@ -114,6 +115,8 @@ struct ConversationHistorySearchField: View {
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
                 .foregroundStyle(theme.primaryText)
+                // Reserve a scalable line slot for placeholder/content font fallbacks.
+                .frame(minHeight: lineMinimumHeight)
                 .padding(.vertical, 6)
                 .accessibilityLabel("搜索对话")
                 .accessibilityHint("仅搜索本机对话标题和正文，不会联网。")
@@ -124,6 +127,7 @@ struct ConversationHistorySearchField: View {
                         .font(.system(size: 16))
                         .frame(width: 44, height: 44)
                 }
+                .buttonStyle(.plain)
                 .foregroundStyle(theme.secondaryText)
                 .accessibilityLabel("清除搜索")
             }

@@ -1,5 +1,11 @@
 # 测试规范
 
+## v3.10.1 搜索字体/控件高度回归（待最终新SHA）
+
+`2cf7b63` / run`40646708156` attempt1完整98498647字节ZIP独立SHA-256 `3c93dde127ef497504743ffb82bfe5fecbde6e1338231250f50635fac7bef4ff`匹配API，安全路径/CRC通过。summary/SQLite169唯一中168 Success/1 Failure，唯一手机尺寸用例内亮暗×284/366的4个AX3断言分别60/61.667pt，未过原1pt容差；不是测试重试，不能凭42图或旧5e绿色称通过。
+
+修生产`@ScaledMetric(relativeTo: .body)`22pt最低文字槽（不是固定行高或缩字），清除buttonStyle plain/44pt，仍48pt最小整行/6pt文字padding。原1pt等高断言不放宽，扩展到DynamicTypeSize.allCases×亮暗×两宽，空query分别对中文“部署”和英文“Gemma 1.5B”；自然高度/最小48pt/原行和notice断言保留。169方法名、42图/5provenance、12Python、JUnit10/4xcresult/unsigned门禁不减，新SHA必须重新云端全量与看图。
+
 ## v3.10.1 核心修复验收与最后搜索回归
 
 `5e0eec3e5dca6d9ea71df9a80d66a28826f18f67` / run`40643812543` attempt1完整99467041字节ZIP独立SHA-256 `7bb9bc7d1b133e5f53296fc14d5a1fbe84bc28d5f95ca526d725b8775009cffc`与API匹配，安全路径/CRC通过。summary/tree/源码/SQLite严格169唯一Success、0 failure/skip/进程重启，恢复期64次拒绝0.0015s，严格focus4.923s，实际磁盘恢复图12.085s。JUnit10仅optional Codex skip，12Python/Swift6 smoke/iOS/Catalyst/unsigned资源成功，4份xcresult根succeeded且Data/refs 3、3、3、906配对；App zip CRC/资源hash/实际arm64/Info/隐私再核对。
