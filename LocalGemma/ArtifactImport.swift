@@ -382,24 +382,43 @@ struct ModelArtifactStore {
     }
 }
 
+// FileManager is not Sendable in every target SDK. Keep this one instance
+// behind a lock; only the worker can borrow it for a complete store operation.
+final class ArtifactFileAccess: @unchecked Sendable {
+    private let manager: FileManager
+    private let lock = NSLock()
+
+    init(_ manager: FileManager) { self.manager = manager }
+
+    fileprivate func perform<T>(_ operation: (FileManager) throws -> T) rethrows -> T {
+        try lock.withLock { try operation(manager) }
+    }
+}
+
 actor ArtifactIOWorker {
     static let shared = ArtifactIOWorker()
 
     func importArtifacts(
-        manifest: ModelArtifactManifest, sources: [URL], destination: URL, fileManager: FileManager,
+        manifest: ModelArtifactManifest, sources: [URL], destination: URL, fileAccess: ArtifactFileAccess,
         control: ArtifactImportControl, progress: @Sendable (ArtifactImportProgress) -> Void
     ) throws -> ArtifactValidationResult {
-        try ModelArtifactStore.importArtifacts(manifest: manifest, sourceURLs: sources,
-            destinationDirectoryURL: destination, fileManager: fileManager, control: control, progress: progress)
+        try fileAccess.perform { manager in
+            try ModelArtifactStore.importArtifacts(manifest: manifest, sourceURLs: sources,
+                destinationDirectoryURL: destination, fileManager: manager, control: control, progress: progress)
+        }
     }
 
-    func validate(model: LocalModel, directory: URL, fileManager: FileManager) -> ArtifactValidationResult {
-        ModelArtifactStore.validate(manifest: model.artifactManifest, directoryURL: directory, fileManager: fileManager)
+    func validate(model: LocalModel, directory: URL, fileAccess: ArtifactFileAccess) -> ArtifactValidationResult {
+        fileAccess.perform { manager in
+            ModelArtifactStore.validate(manifest: model.artifactManifest, directoryURL: directory, fileManager: manager)
+        }
     }
 
-    func remove(model: LocalModel, directory: URL, fileManager: FileManager) throws -> ArtifactValidationResult {
-        try ModelArtifactStore.removeArtifacts(manifest: model.artifactManifest,
-                                               destinationDirectoryURL: directory, fileManager: fileManager)
+    func remove(model: LocalModel, directory: URL, fileAccess: ArtifactFileAccess) throws -> ArtifactValidationResult {
+        try fileAccess.perform { manager in
+            try ModelArtifactStore.removeArtifacts(manifest: model.artifactManifest,
+                                                   destinationDirectoryURL: directory, fileManager: manager)
+        }
     }
 }
 

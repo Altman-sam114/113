@@ -1,5 +1,9 @@
 # 项目核心流程文档
 
+## v3.9.1 文件访问隔离与失败快报
+
+`ModelCatalog`不再持有或跨actor发送裸FileManager，只持有`ArtifactFileAccess`；后者用锁限制worker对完整store操作的借用，内部实例不向外暴露，store自身读写锁仍保留。不放宽Swift6或给Foundation增加全局Sendable。云端LogicSmoke明确Swift6；capture在编译validator或接触Simulator前检查build outcome与实际App的Info/可执行文件，失败写含精确身份、expected16、空captures和原因的manifest并非零退出，不能标通过或跳过必选门禁。4个新Python夹具只测小文件输入，不运行App；157项/38图与完整包仍待修复SHA云端。
+
 ## v3.9 当前后台文件流
 
 单Agent集成，无子智能体；所有执行只在云端。入口抽离草稿承接到已注册的`ArtifactImport.swift`，不恢复旧的先删后复制实现。`ModelLibraryView`用非appearance绑定的Task调用Catalog异步API，生命周期不随页隐藏取消；Catalog持有唯一operation/control，MainActor只更新状态，`ArtifactIOWorker`串行执行复制/hash/扫描/卸载。启动扫描异步恢复，测试与CLI通过`waitForInitialArtifactScan()`等待实际完成，不能继续假定init已完成磁盘扫描。

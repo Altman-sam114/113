@@ -3,9 +3,11 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import plistlib
 import subprocess
 import struct
 import time
+from workbench_capture_preflight import validate_capture_input
 
 if os.environ.get("GITHUB_ACTIONS") != "true":
     raise SystemExit("Cloud-only UI capture requires GITHUB_ACTIONS=true")
@@ -25,6 +27,17 @@ def sim(*args, attempts=3):
 
 output = Path(os.environ["CI_RESULTS_DIR"]) / "visuals"
 output.mkdir(parents=True, exist_ok=True)
+app = Path(os.environ["DERIVED_DATA_PATH"]) / "Build/Products/Debug-iphonesimulator/LocalGemma.app"
+try:
+    build = (Path(os.environ["CI_RESULTS_DIR"]) / "outcomes/build").read_text().strip()
+    validate_capture_input(app, build)
+except (RuntimeError, OSError, ValueError, plistlib.InvalidFileException) as error:
+    (output / "manifest.json").write_text(json.dumps({
+        "commitSha": os.environ["GITHUB_SHA"], "runId": os.environ["GITHUB_RUN_ID"],
+        "runAttempt": os.environ["GITHUB_RUN_ATTEMPT"], "captures": [],
+        "expectedCaptureCount": 16, "failures": [str(error)],
+    }, indent=2))
+    raise RuntimeError(f"Production capture input is invalid: {error}") from error
 validator = Path(".build/validate-workbench-screenshot")
 validator.parent.mkdir(parents=True, exist_ok=True)
 subprocess.run([
@@ -38,7 +51,6 @@ compact_markers = {
     "chat": "想聊点什么", "models": "导入模型文件",
     "prompts": "部署方案", "settings": "外观模式",
 }
-app = Path(os.environ["DERIVED_DATA_PATH"]) / "Build/Products/Debug-iphonesimulator/LocalGemma.app"
 devices = json.loads(sim("list", "devices", "available", "--json"))["devices"]
 available = [d for group in devices.values() for d in group]
 records = []

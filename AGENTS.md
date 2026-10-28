@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## v3.9.1 云端并发边界修复
+
+v3.9 `5b44803` / run`40633857029` attempt1完整失败包已核对：Swift6拒绝MainActor裸FileManager跨actor，iOS/Catalyst/Release编译失败、XCTest未运行、无有效新截图，不能称157项或事务已通过。v3.9.1用受锁封装`ArtifactFileAccess`限制FileManager完整操作借用，不给Foundation全局补Sendable、不降Swift检查。LogicSmoke显式Swift6；截图在已知构建失败/无可执行文件时立即写失败manifest，不再反复安装无效App，必选视觉仍失败而非skip/通过。新增4个Python静态夹具，合计12个；157 Swift/38图/4份provenance/4份xcresult/JUnit10不减，新SHA仍须自身云端验收。其余v3.9边界保持。
+
 ## 当前 v3.9 后台事务导入边界
 
 继续单Agent按模块推进，不开子智能体，AITRANS只读，所有Swift/构建/运行/图像仅云端。已核对基线`a525a8a` / run`40629860257` attempt1完整包：147/147、JUnit10、4份xcresult及unsigned Release资源成功；交接36图已复核，无新遮挡/缺页。这不是整产品发布验收。

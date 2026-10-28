@@ -4659,3 +4659,13 @@ v3.5 `a28ac41` / run `39885347849` attempt1 的结果包为140/141成功，唯�
 实际本地预检：`git diff --check`、工程/隐私`plutil -lint`、run脚本`bash -n`均退出0；Ruby YAML通过（仅既有PATH权限warning）。8个Python资源夹具0.022s全部通过，source-only资源检查成功；Tools AST、14个workflow shell块/1个内嵌Python AST、157唯一方法/原147名称保留、target注册、8份文档fence/版本、六份旧prompt hash及focus/根/聊天/入口/隐私保护范围通过。预检脚本初次将SHA256字段误当哈希执行，已修正为检查CryptoKit import/实际SHA256实例化后重跑通过；没有本地执行Swift或UI。push前main/HEAD/origin/main=`a525a8a`，origin为Altman-sam114/113，活动账号Altman-sam114。
 
 遗留发布门禁：会话重启恢复、崩溃/断电耐久与遗留候选回收、真实runtime/官方模型来源、真机/完整辅助技术、Mac GUI/pointer、签名分发。不能把普通失败/取消事务保护或unsigned device包称为全部发布准备完成。
+
+## v3.9.1 / 文件访问隔离与云端快速失败（2026-10-28，待自身云端验收）
+
+`5b44803c8c589ac939129a8710469e1d8c6497be` / run`40633857029` attempt1实际失败，9m12s。完整artifact `localgemma-ci-v3.9-main-5b44803-run40633857029-attempt1`（132322字节，API digest `cfc064781be73d3e216c8321861b923e305652c319b2fa9b4d0f25941e4dd8e0`）已下载至`/private/tmp/localgemma-c-review-40633857029/full`。manifest身份匹配，JUnit10为5失败/2skip；3份构建xcresult原始根均failed，XCTest因build失败未执行，无有效新图。static与旧默认语言模式的LogicSmoke成功不能抵消Xcode失败。
+
+根因是iOS/Catalyst/Release的Swift6编译器在Catalog的4处调用拒绝MainActor裸FileManager跨actor。修复为私有实例/锁保护的`ArtifactFileAccess`，worker只借用完整store操作，Catalog不保留裸实例；不向Foundation全局加Sendable，不降级Swift6。原157个Swift方法与事务/取消/焦点/identity断言保留。LogicSmoke显式`-swift-version 6`。
+
+失败build留下仅含资源的.app目录，原capture随后反复安装额外耗约6分钟。本轮新增纯Python capture输入检查，已知build失败或缺Info/可执行文件时先写精确身份与expected16的失败manifest，立即非零退出，不启动Simulator或编译validator；正常时原16+22/38图、4份provenance和JUnit10/4份xcresult全保留。新增4项小文件夹具，与原8资源项合计12并由静态阶段discover全部执行；不运行App。
+
+本地实际12项Python夹具0.025s全部通过；git diff --check、工程plutil、脚本bash和Ruby YAML通过（仅既有PATH warning）。AST/workflow shell/157名称/保护范围与六份旧prompt hash提交前核对；未本地运行Swift/Xcode/UI。执行记录`md/prompt/v3（工作台重构）/v3.9.1（文件访问隔离与云端快速失败）.md`，单Agent，无子智能体，AITRANS未修改。修复SHA自身完整云端结果仍待验收，未声明整个目标或发布通过。

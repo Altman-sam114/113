@@ -1,5 +1,21 @@
 # 项目核心流程图
 
+## v3.9.1 文件依赖隔离与失败快报
+
+读图说明：修复Swift6拒绝的裸FileManager跨域；构建失败不再浪费时间安装残缺App，视觉仍明确失败，不能缩减成功时的图矩阵。
+
+```mermaid
+flowchart TD
+    %% 原始FileManager只在封装内借用，完整操作受锁保护
+    Catalog[MainActor Catalog / operation] --> Access[受锁ArtifactFileAccess / Sendable边界]
+    Access --> Worker[串行worker / 完整store操作]
+    %% 编译/运行仍只在云端，不用降级语言或忽略并发诊断
+    Cloud[云端Swift6 LogicSmoke / Xcode] --> Build{实际构建成功且App可执行文件完整?}
+    Build -- 否 --> Failure[视觉失败manifest / 零张有效图 / 必选仍失败]
+    Build -- 是 --> Capture[原16模拟器图 + 22宿主图 / 完整包复判]
+    Worker --> Cloud
+```
+
 ## v3.9 后台事务与可取消进度
 
 读图说明：界面只显示一行进度，文件操作与导航互不阻塞；接受的取消和失败都不能替换旧文件。所有构建与图像验证仍只在云端，原36图继续保留。

@@ -650,7 +650,7 @@ final class ModelCatalog: ObservableObject {
     @Published private(set) var artifactOperation: ArtifactOperation?
 
     private let artifactDirectoryURL: URL
-    private let fileManager: FileManager
+    private let fileAccess: ArtifactFileAccess
     private var importControl: ArtifactImportControl?
     private var initialScanTask: Task<Void, Never>?
 
@@ -664,7 +664,7 @@ final class ModelCatalog: ObservableObject {
     ) {
         let resolvedModels = models.isEmpty ? ModelCatalog.defaultModels : models
         self.artifactDirectoryURL = artifactDirectoryURL
-        self.fileManager = fileManager
+        self.fileAccess = ArtifactFileAccess(fileManager)
         self.models = resolvedModels
         self.selectedModel = resolvedModels[0]
         self.artifactValidations = Dictionary(
@@ -755,7 +755,7 @@ final class ModelCatalog: ObservableObject {
         defer { artifactOperation = nil }
         let validation = await ArtifactIOWorker.shared.validate(
             model: model, directory: artifactDirectoryURL,
-            fileManager: fileManager
+            fileAccess: fileAccess
         )
         apply(validation: validation, to: model)
     }
@@ -766,7 +766,7 @@ final class ModelCatalog: ObservableObject {
         defer { artifactOperation = nil }
         for model in models {
             let validation = await ArtifactIOWorker.shared.validate(
-                model: model, directory: artifactDirectoryURL, fileManager: fileManager
+                model: model, directory: artifactDirectoryURL, fileAccess: fileAccess
             )
             apply(validation: validation, to: model)
         }
@@ -785,7 +785,7 @@ final class ModelCatalog: ObservableObject {
         let validation = try await withTaskCancellationHandler {
             try await ArtifactIOWorker.shared.importArtifacts(
                 manifest: model.artifactManifest, sources: sourceURLs, destination: artifactDirectoryURL,
-                fileManager: fileManager, control: control
+                fileAccess: fileAccess, control: control
             ) { [weak self] progress in
                 Task { @MainActor in
                     guard let self, var current = self.artifactOperation, current.id == operation.id,
@@ -813,7 +813,7 @@ final class ModelCatalog: ObservableObject {
         defer { artifactOperation = nil }
         let validation = try await ArtifactIOWorker.shared.remove(
             model: model, directory: artifactDirectoryURL,
-            fileManager: fileManager
+            fileAccess: fileAccess
         )
         stopDeployment(for: model)
         apply(

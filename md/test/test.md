@@ -1,5 +1,11 @@
 # 测试规范
 
+## v3.9.1 云端失败回归
+
+`5b44803` / run`40633857029` attempt1完整包确认：Swift6四处裸FileManager跨actor错误，iOS/Catalyst/Release失败，XCTest因build失败未执行，JUnit10含5失败/2skip，无有效新图。CLI此前未指定Swift6不能充当Xcode并发门禁；本轮显式`-swift-version 6`并用受锁FileAccess，不改/skip/重试157项。
+
+新增`Tools/tests/test_capture_preflight.py`四个纯小夹具：合法成功输入、失败build即使有残缺目录也拒绝、空/缺可执行文件、缺Info/非法路径名。与原8资源夹具共12个，由`PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s Tools/tests -p 'test_*.py' -v`本地静态与云端静态阶段共同执行，不启动App。生产capture失败必须先写精确SHA/run/attempt、expected16与失败原因后非零退出，不能跳过后伪称截图通过。157项/38图/4份provenance/4份xcresult/JUnit10契约保持，修复版待自身最新SHA云端全量结果与看图。
+
 ## v3.9 当前验收要求
 
 源码157个唯一XCTest方法，原147名称及严格focus/identity断言保留；两个原Catalog扫描/卸载用例改async，必须等待真实初始扫描完成，不移除旧断言。LogicSmoke入口改async并纳入`ArtifactImport.swift`，新增hash失败/取消保留旧字节检查；本地不执行Swift。
