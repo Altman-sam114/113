@@ -12,8 +12,8 @@ enum WorkbenchPresentationPolicy {
     static let heroMaximumWidth: CGFloat = 680
     static let minimumActionHeight: CGFloat = 44
 
-    static func starterColumnCount(width: CGFloat, expandedText: Bool) -> Int {
-        guard width.isFinite, width >= 480, !expandedText else { return 1 }
+    static func starterColumnCount(width: CGFloat, expandedText: Bool, isCompact: Bool = false) -> Int {
+        guard width.isFinite, width >= (isCompact ? 260 : 480), !expandedText else { return 1 }
         return 2
     }
 
@@ -220,7 +220,7 @@ struct ChatWelcomeView: View {
         let contentWidth = WorkbenchPresentationPolicy.welcomeContentWidth(for: availableWidth)
 
         VStack(alignment: isCompact ? .center : .leading, spacing: isCompact ? 18 : 24) {
-            if isCompact && !dynamicTypeSize.isAccessibilitySize {
+            if isCompact && dynamicTypeSize < .xxxLarge {
                 CompactIntelligenceMark()
             }
             VStack(alignment: isCompact ? .center : .leading, spacing: 10) {
@@ -245,46 +245,11 @@ struct ChatWelcomeView: View {
 
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), alignment: .topLeading),
                                     count: WorkbenchPresentationPolicy.starterColumnCount(
-                                        width: contentWidth, expandedText: dynamicTypeSize >= .xxxLarge)),
+                                        width: contentWidth, expandedText: dynamicTypeSize >= .xxxLarge,
+                                        isCompact: isCompact)),
                       alignment: .leading, spacing: 10) {
-                ForEach(Array(PromptTemplateLibrary.defaultTemplates.prefix(2))) { template in
-                    Button { apply(template) } label: {
-                        HStack(spacing: 12) {
-                            Image(systemName: template.icon)
-                                .font(.body)
-                                .foregroundStyle(theme.accent)
-                                .frame(width: 36, height: 36)
-                                .background(theme.accent.opacity(0.08), in: RoundedRectangle(cornerRadius: 11))
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text(template.title)
-                                    .font(.subheadline.weight(.medium))
-                                    .foregroundStyle(theme.primaryText)
-                                if !isCompact {
-                                    Text(template.subtitle)
-                                        .font(.caption)
-                                        .foregroundStyle(theme.secondaryText)
-                                }
-                            }
-                            .fixedSize(horizontal: false, vertical: true)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            Image(systemName: "arrow.up.left")
-                                .font(.caption)
-                                .foregroundStyle(theme.secondaryText)
-                        }
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, isCompact ? 10 : 12)
-                        .frame(maxWidth: .infinity, minHeight: WorkbenchPresentationPolicy.minimumActionHeight,
-                               alignment: .leading)
-                        .background(theme.surface, in: RoundedRectangle(cornerRadius: 16))
-                        .overlay { RoundedRectangle(cornerRadius: 16).stroke(theme.subtleBorder, lineWidth: 1) }
-                    }
-                    .buttonStyle(.plain)
-                    .hoverEffect(.highlight)
-                    .accessibilityLabel(PromptTemplateActionAccessibilityMetadata.label(for: .apply, template: template))
-                    .accessibilityValue(PromptTemplateActionAccessibilityMetadata.value(for: .apply, isGenerating: false))
-                    .accessibilityHint(PromptTemplateActionAccessibilityMetadata.hint(for: .apply, template: template))
-                    .accessibilityInputLabels(PromptTemplateActionAccessibilityMetadata.inputLabels(for: .apply, template: template))
-                    .accessibilityIdentifier("welcome.apply.\(template.id)")
+                ForEach(PromptTemplateLibrary.everydayTemplates) { template in
+                    ChatStarterCard(template: template, apply: { apply(template) })
                 }
             }
         }
@@ -292,6 +257,57 @@ struct ChatWelcomeView: View {
         .frame(width: contentWidth, alignment: .leading)
         .fixedSize(horizontal: false, vertical: true)
         .frame(maxWidth: .infinity)
+    }
+}
+
+private struct ChatStarterCard: View {
+    @Environment(\.appTheme) private var theme
+    @Environment(\.compactWorkbench) private var isCompact
+    let template: PresetPromptTemplate
+    let apply: () -> Void
+
+    var body: some View {
+        Button(action: apply) {
+            HStack(spacing: isCompact ? 8 : 12) {
+                Image(systemName: template.icon)
+                    .font(.body)
+                    .foregroundStyle(theme.accent)
+                    .frame(width: isCompact ? 28 : 36, height: 36)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(template.title)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(theme.primaryText)
+                        .lineLimit(2)
+                    if !isCompact {
+                        Text(template.subtitle)
+                            .font(.caption)
+                            .foregroundStyle(theme.secondaryText)
+                    }
+                }
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                if !isCompact {
+                    Image(systemName: "arrow.up.left")
+                        .font(.caption)
+                        .foregroundStyle(theme.secondaryText)
+                }
+            }
+            .padding(.horizontal, isCompact ? 10 : 14)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, minHeight: WorkbenchPresentationPolicy.minimumActionHeight,
+                   alignment: .leading)
+            .background(theme.surface, in: RoundedRectangle(cornerRadius: 16))
+            .overlay { RoundedRectangle(cornerRadius: 16).stroke(theme.subtleBorder, lineWidth: 1) }
+            .contentShape(RoundedRectangle(cornerRadius: 16))
+        }
+        .buttonStyle(.plain)
+        .hoverEffect(.highlight)
+        .accessibilityLabel(PromptTemplateActionAccessibilityMetadata.label(for: .apply, template: template))
+        .accessibilityValue(PromptTemplateActionAccessibilityMetadata.value(for: .apply, isGenerating: false))
+        .accessibilityHint(PromptTemplateActionAccessibilityMetadata.hint(for: .apply, template: template))
+        .accessibilityInputLabels(PromptTemplateActionAccessibilityMetadata.inputLabels(for: .apply, template: template))
+        .accessibilityIdentifier("welcome.apply.\(template.id)")
     }
 }
 
@@ -324,7 +340,7 @@ private struct CompactIntelligenceMark: View {
 
 enum ChatWelcomeAccessibilityMetadata {
     static let label = "本地工作区欢迎页"
-    static let value = "当前为本地模拟预览，可选择部署方案或隐私评审模板。模板只填入输入框并聚焦，不自动发送；尚未接入真实模型推理。"
+    static let value = "当前为本地模拟预览，可选择润色文字、总结要点、中英互译或行动计划。模板只填入输入框并聚焦，不自动发送；尚未接入真实模型推理。"
     static let hint = "浏览本地欢迎内容或选择起始模板；不会发送 prompt，不会下载模型权重，不会启动真实 runtime，不会发送到云端服务，也不会绕过 artifact verified 门禁。"
     static let inputLabels = ["欢迎页", "本地工作区欢迎页", "开始本地会话"]
 }

@@ -26,6 +26,27 @@ def attachment_name_matches(suggested_name, expected_name):
             or suggested_name.startswith(expected_name + "."))
 
 
+def validate_task_capture(capture, width, height, name):
+    contexts = {
+        "welcome-accessibility3": ("chat", "everyday", "accessibility3", "想聊点什么"),
+        "everyday-accessibility3": ("prompts", "everyday", "accessibility3", "润色文字"),
+        "technical-large": ("prompts", "technical", "large", "部署方案"),
+    }
+    expected = contexts.get(capture.get("context"))
+    normalized = "".join(c for c in capture.get("recognizedText", "").translate(
+        str.maketrans("點麼潤", "点么润")) if c.isalnum())
+    actual = tuple(capture.get(key) for key in [
+        "workspace", "templateCollection", "dynamicTypeSize", "requiredTextMarker"])
+    if (expected is None or actual != expected
+            or expected[3] not in normalized
+            or (expected[0] == "chat" and "润色文字" not in normalized)
+            or capture.get("theme") not in ["light", "dark"]
+            or name != f"workbench-tasks-{capture['theme']}-{capture['context']}"
+            or capture.get("viewportWidth") != 320 or capture.get("viewportHeight") != 640
+            or width != 320 or height != 640):
+        raise RuntimeError(f"Invalid everyday task production composition: {name}")
+
+
 def main():
     if os.environ.get("GITHUB_ACTIONS") != "true":
         raise SystemExit("Cloud-only evidence export requires GITHUB_ACTIONS=true")
@@ -58,16 +79,16 @@ def main():
             exported.append((suggested_name, source, test_identifier))
             for name in ["workbench-wide-provenance", "workbench-readiness-provenance",
                          "workbench-compact-provenance", "workbench-import-provenance",
-                         "workbench-history-provenance"]:
+                         "workbench-history-provenance", "workbench-tasks-provenance"]:
                 if attachment_name_matches(suggested_name, name):
                     document = json.loads(source.read_text(encoding="utf-8"))
                     documents.append((name, document, test_identifier))
 
     if {name for name, _document, _test in documents} != {
         "workbench-wide-provenance", "workbench-readiness-provenance", "workbench-compact-provenance",
-        "workbench-import-provenance", "workbench-history-provenance"
-    } or len(documents) != 5:
-        raise RuntimeError("Expected exactly five production-render provenance attachments")
+        "workbench-import-provenance", "workbench-history-provenance", "workbench-tasks-provenance"
+    } or len(documents) != 6:
+        raise RuntimeError("Expected exactly six production-render provenance attachments")
 
     captures = []
     for _name, document, exported_test in documents:
@@ -128,9 +149,9 @@ def main():
                     raise RuntimeError(f"Incorrect real settings column allocation: {name}")
             elif capture["evidenceKind"] == "uihostingcontroller-compact-production-composition":
                 marker = {"chat": "想聊点什么", "models": "导入模型文件",
-                          "prompts": "部署方案", "settings": "外观模式"}[capture["workspace"]]
+                          "prompts": "润色文字", "settings": "外观模式"}[capture["workspace"]]
                 normalize = lambda text: "".join(c for c in text.translate(
-                    str.maketrans("點麼導觀", "点么导观")).upper() if c.isalnum())
+                    str.maketrans("點麼導觀潤", "点么导观润")).upper() if c.isalnum())
                 if (capture.get("requiredTextMarker") != marker
                         or normalize(marker) not in normalize(capture.get("recognizedText", ""))
                         or capture.get("viewportWidth") != 320
@@ -139,7 +160,7 @@ def main():
                     raise RuntimeError(f"Invalid small-phone production composition: {name}")
             elif capture["evidenceKind"] == "uihostingcontroller-import-production-composition":
                 normalized = "".join(c for c in capture.get("recognizedText", "").translate(
-                    str.maketrans("點麼導觀", "点么导观")) if c.isalnum())
+                    str.maketrans("點麼導觀潤", "点么导观润")) if c.isalnum())
                 if (capture.get("workspace") != "models"
                         or capture.get("requiredTextMarker") != "取消"
                         or "取消" not in normalized or "导入模型文件" not in normalized
@@ -162,6 +183,8 @@ def main():
                         or capture.get("viewportWidth") != 320 or capture.get("viewportHeight") != 640
                         or width != 320 or height != 640):
                     raise RuntimeError(f"Invalid restored conversation history composition: {name}")
+            elif capture["evidenceKind"] == "uihostingcontroller-task-production-composition":
+                validate_task_capture(capture, width, height, name)
             elif capture["evidenceKind"] != "uihostingcontroller-production-component":
                 raise RuntimeError(f"Unknown production snapshot source: {name}")
             captures.append({
@@ -195,9 +218,14 @@ def main():
         for theme in ["light", "dark"]
         for size in ["large", "accessibility3"]
     }
-    if (len(captures) != 26
+    expected_tasks = {
+        f"workbench-tasks-{theme}-{context}"
+        for theme in ["light", "dark"]
+        for context in ["welcome-accessibility3", "everyday-accessibility3", "technical-large"]
+    }
+    if (len(captures) != 32
             or {capture["attachmentName"] for capture in captures}
-            != expected_wide | expected_readiness | expected_compact | expected_import | expected_history):
+            != expected_wide | expected_readiness | expected_compact | expected_import | expected_history | expected_tasks):
         raise RuntimeError("Incomplete or duplicate production-render capture matrix")
     for theme in ["light", "dark"]:
         hashes = [capture["sha256"] for capture in captures
@@ -226,6 +254,7 @@ def main():
         "compactCompositionCaptureCount": 8,
         "importCompositionCaptureCount": 2,
         "historyCompositionCaptureCount": 4,
+        "taskCompositionCaptureCount": 6,
         "captureCount": len(captures),
         "captures": captures,
     }

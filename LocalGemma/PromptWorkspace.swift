@@ -10,13 +10,22 @@ struct PromptTemplatesWorkspace: View {
     @Environment(\.appTheme) private var theme
     @Environment(\.compactWorkbench) private var isCompact
     @State private var selectedCategory: PromptTemplateCategory?
+    @State private var selectedCollection: CompactPromptCollection
 
     let openChat: (ComposerFocusReason) -> Void
+
+    init(
+        initialCollection: CompactPromptCollection = .everyday,
+        openChat: @escaping (ComposerFocusReason) -> Void
+    ) {
+        _selectedCollection = State(initialValue: initialCollection)
+        self.openChat = openChat
+    }
 
     var body: some View {
         let model = catalog.selectedModel
         let validation = catalog.validation(for: model)
-        let templates = PromptTemplateLibrary.templates(in: selectedCategory)
+        let templates = isCompact ? selectedCollection.templates : PromptTemplateLibrary.templates(in: selectedCategory)
 
         GeometryReader { proxy in
             ScrollView {
@@ -27,7 +36,11 @@ struct PromptTemplatesWorkspace: View {
                         subtitle: "精选提示词，帮你把问题问得更好。选择模板，继续你的对话。"
                     )
 
-                    PromptCategorySelector(selectedCategory: $selectedCategory)
+                    if isCompact {
+                        CompactPromptCollectionPicker(selection: $selectedCollection)
+                    } else {
+                        PromptCategorySelector(selectedCategory: $selectedCategory)
+                    }
 
                     PromptTemplateGrid(
                         templates: templates,
@@ -408,34 +421,36 @@ struct PromptTemplateCard: View {
                     PromptTemplateActionAccessibilityMetadata.identifier(for: .apply, template: template)
                 )
 
-                Button(action: send) {
-                    Label("发送", systemImage: "paperplane.fill")
-                        .labelStyle(.iconOnly)
-                        .font(.body)
-                        .bold()
-                        .frame(
-                            width: PromptTemplateActionLayoutPolicy.sendButtonSize,
-                            height: PromptTemplateActionLayoutPolicy.sendButtonSize
-                        )
-                        .background(primary.prominentFill, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        .foregroundStyle(primary.prominentForeground)
+                if PromptTemplateInteractionPolicy.showsDirectSend(for: template) {
+                    Button(action: send) {
+                        Label("发送", systemImage: "paperplane.fill")
+                            .labelStyle(.iconOnly)
+                            .font(.body)
+                            .bold()
+                            .frame(
+                                width: PromptTemplateActionLayoutPolicy.sendButtonSize,
+                                height: PromptTemplateActionLayoutPolicy.sendButtonSize
+                            )
+                            .background(primary.prominentFill, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            .foregroundStyle(primary.prominentForeground)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(
+                        PromptTemplateActionAccessibilityMetadata.label(for: .send, template: template)
+                    )
+                    .accessibilityValue(
+                        PromptTemplateActionAccessibilityMetadata.value(for: .send, isGenerating: isGenerating)
+                    )
+                    .accessibilityHint(
+                        PromptTemplateActionAccessibilityMetadata.hint(for: .send, template: template)
+                    )
+                    .accessibilityInputLabels(
+                        PromptTemplateActionAccessibilityMetadata.inputLabels(for: .send, template: template)
+                    )
+                    .accessibilityIdentifier(
+                        PromptTemplateActionAccessibilityMetadata.identifier(for: .send, template: template)
+                    )
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel(
-                    PromptTemplateActionAccessibilityMetadata.label(for: .send, template: template)
-                )
-                .accessibilityValue(
-                    PromptTemplateActionAccessibilityMetadata.value(for: .send, isGenerating: isGenerating)
-                )
-                .accessibilityHint(
-                    PromptTemplateActionAccessibilityMetadata.hint(for: .send, template: template)
-                )
-                .accessibilityInputLabels(
-                    PromptTemplateActionAccessibilityMetadata.inputLabels(for: .send, template: template)
-                )
-                .accessibilityIdentifier(
-                    PromptTemplateActionAccessibilityMetadata.identifier(for: .send, template: template)
-                )
             }
         }
         .foregroundStyle(theme.primaryText)
@@ -465,6 +480,65 @@ enum CompactPromptPresentationPolicy {
     static func summary(for template: PresetPromptTemplate) -> String {
         template.subtitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             ? template.prompt : template.subtitle
+    }
+}
+
+enum PromptTemplateInteractionPolicy {
+    static func showsDirectSend(for template: PresetPromptTemplate) -> Bool {
+        !template.requiresInput
+    }
+}
+
+enum CompactPromptCollection: String, CaseIterable, Identifiable {
+    case everyday
+    case technical
+
+    var id: String { rawValue }
+    var title: String { self == .everyday ? "日常" : "进阶" }
+    var icon: String { self == .everyday ? "sparkles" : "terminal" }
+    var templates: [PresetPromptTemplate] {
+        self == .everyday ? PromptTemplateLibrary.everydayTemplates : PromptTemplateLibrary.technicalTemplates
+    }
+    var accessibilityHint: String {
+        "显示\(title)模板。只筛选本机内容，不填入或发送提示词，不下载权重，也不启动真实 runtime。"
+    }
+    var inputLabels: [String] { ["\(title)模板", "筛选\(title)", "显示\(title)模板"] }
+    var accessibilityIdentifier: String { "prompt-collection-\(rawValue)" }
+}
+
+struct CompactPromptCollectionPicker: View {
+    @Environment(\.appTheme) private var theme
+    @Binding var selection: CompactPromptCollection
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(CompactPromptCollection.allCases) { collection in
+                Button { selection = collection } label: {
+                    Label(collection.title, systemImage: collection.icon)
+                        .font(.subheadline.weight(.semibold))
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, minHeight: CompactWorkbenchPolicy.minimumTouchTarget)
+                        .padding(.vertical, 2)
+                        .foregroundStyle(selection == collection ? theme.accent : theme.secondaryText)
+                        .background {
+                            if selection == collection {
+                                Capsule().fill(theme.surface)
+                            }
+                        }
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("\(collection.title)模板")
+                .accessibilityValue(PromptCategoryAccessibilityMetadata.value(isSelected: selection == collection))
+                .accessibilityHint(collection.accessibilityHint)
+                .accessibilityInputLabels(collection.inputLabels)
+                .accessibilityIdentifier(collection.accessibilityIdentifier)
+                .accessibilityAddTraits(selection == collection ? .isSelected : [])
+            }
+        }
+        .padding(4)
+        .background(theme.chipSurface, in: Capsule())
     }
 }
 
@@ -498,6 +572,12 @@ struct CompactPromptTemplateRow: View {
                     }
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    if template.requiresInput {
+                        Image(systemName: "arrow.up.left")
+                            .font(.body.weight(.medium))
+                            .foregroundStyle(theme.accent)
+                            .accessibilityHidden(true)
+                    }
                 }
                 .padding(.vertical, 14)
                 .frame(maxWidth: .infinity, minHeight: CompactPromptPresentationPolicy.rowMinimumHeight,
@@ -512,21 +592,23 @@ struct CompactPromptTemplateRow: View {
                 + ["使用模板", template.title])
             .accessibilityIdentifier(PromptTemplateActionAccessibilityMetadata.identifier(for: .apply, template: template))
 
-            Button(action: send) {
-                Image(systemName: "arrow.up")
-                    .font(.body.weight(.semibold))
-                    .foregroundStyle(theme.accent)
-                    .frame(width: PromptTemplateActionLayoutPolicy.sendButtonSize,
-                           height: PromptTemplateActionLayoutPolicy.sendButtonSize)
-                    .background(theme.chipSurface, in: RoundedRectangle(cornerRadius: 13))
-                    .contentShape(Rectangle())
+            if PromptTemplateInteractionPolicy.showsDirectSend(for: template) {
+                Button(action: send) {
+                    Image(systemName: "paperplane")
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(theme.accent)
+                        .frame(width: PromptTemplateActionLayoutPolicy.sendButtonSize,
+                               height: PromptTemplateActionLayoutPolicy.sendButtonSize)
+                        .background(theme.chipSurface, in: RoundedRectangle(cornerRadius: 13))
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(PromptTemplateActionAccessibilityMetadata.label(for: .send, template: template))
+                .accessibilityValue(PromptTemplateActionAccessibilityMetadata.value(for: .send, isGenerating: isGenerating))
+                .accessibilityHint(PromptTemplateActionAccessibilityMetadata.hint(for: .send, template: template))
+                .accessibilityInputLabels(PromptTemplateActionAccessibilityMetadata.inputLabels(for: .send, template: template))
+                .accessibilityIdentifier(PromptTemplateActionAccessibilityMetadata.identifier(for: .send, template: template))
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel(PromptTemplateActionAccessibilityMetadata.label(for: .send, template: template))
-            .accessibilityValue(PromptTemplateActionAccessibilityMetadata.value(for: .send, isGenerating: isGenerating))
-            .accessibilityHint(PromptTemplateActionAccessibilityMetadata.hint(for: .send, template: template))
-            .accessibilityInputLabels(PromptTemplateActionAccessibilityMetadata.inputLabels(for: .send, template: template))
-            .accessibilityIdentifier(PromptTemplateActionAccessibilityMetadata.identifier(for: .send, template: template))
         }
         .padding(.horizontal, 14)
         .frame(maxWidth: .infinity, alignment: .leading)

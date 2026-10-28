@@ -49,7 +49,7 @@ markers = {
 }
 compact_markers = {
     "chat": "想聊点什么", "models": "导入模型文件",
-    "prompts": "部署方案", "settings": "外观模式",
+    "prompts": "润色文字", "settings": "外观模式",
 }
 devices = json.loads(sim("list", "devices", "available", "--json"))["devices"]
 available = [d for group in devices.values() for d in group]

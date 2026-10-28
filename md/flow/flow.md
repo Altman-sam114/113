@@ -76,6 +76,8 @@ v2.64 的顶部模型胶囊还会按真实 chrome 可用宽度切换堆叠/横�
 
 ## 当前核心数据流
 
+手机欢迎页只读取 `PromptTemplateLibrary.everydayTemplates`，通过原 `applyTemplate` 与同步 composer focus 路由填入完整提示词。`PromptTemplatesWorkspace` 局部保存日常/进阶选择；两组来自同一值目录，不访问磁盘或网络。`requiresInput` 只决定模板卡片是否展示直接发送入口，日常任务必须先填入并补充内容；技术模板的填入/本地模拟发送、原桌面分类、会话和 runtime/verified 状态流不变。
+
 1. App 启动。
 2. `LocalGemmaApp` 创建三个共享状态对象：
    - `ModelCatalog(autoScanLocalArtifacts: true)`

@@ -7,6 +7,156 @@ import XCTest
 
 @MainActor
 final class LocalGemmaTests: XCTestCase {
+    func testEverydayTemplatesSeparateEditableTasksFromTechnicalExamples() {
+        let everyday = PromptTemplateLibrary.everydayTemplates
+        let technical = PromptTemplateLibrary.technicalTemplates
+        let all = PromptTemplateLibrary.defaultTemplates
+        XCTAssertEqual(everyday.map(\.id), ["everyday-polish", "everyday-summary", "everyday-translate", "everyday-plan"])
+        XCTAssertEqual(technical.map(\.id), ["iphone-deployment-plan", "offline-privacy-review", "ane-metal-optimization",
+                                           "technical-summary", "product-copy", "runtime-debug-checklist"])
+        XCTAssertEqual(all, everyday + technical)
+        XCTAssertEqual(Set(all.map(\.id)).count, 10)
+        XCTAssertEqual(PromptTemplateLibrary.templates(in: nil), all)
+        XCTAssertEqual(CompactPromptCollection.allCases, [.everyday, .technical])
+        XCTAssertEqual(CompactPromptCollection.everyday.templates, everyday)
+        XCTAssertEqual(CompactPromptCollection.technical.templates, technical)
+        XCTAssertEqual(Set(CompactPromptCollection.allCases.map(\.accessibilityIdentifier)).count, 2)
+        for collection in CompactPromptCollection.allCases {
+            XCTAssertTrue(collection.accessibilityHint.contains("不填入或发送"))
+            XCTAssertTrue(collection.accessibilityHint.contains("不下载权重"))
+            XCTAssertFalse(collection.inputLabels.isEmpty)
+        }
+        let inference = InferenceEngine()
+        let sessions = inference.sessions
+        for template in everyday {
+            XCTAssertTrue(template.requiresInput)
+            XCTAssertFalse(PromptTemplateInteractionPolicy.showsDirectSend(for: template))
+            XCTAssertTrue(template.prompt.hasSuffix("\n\n"), "Leave a clear insertion point for the user's content")
+            inference.applyTemplate(template)
+            XCTAssertEqual(inference.inputText, template.prompt)
+            XCTAssertFalse(inference.isGenerating)
+            XCTAssertTrue(inference.lastResultWasSimulated)
+            XCTAssertEqual(inference.sessions, sessions)
+        }
+        for template in technical {
+            XCTAssertFalse(template.requiresInput)
+            XCTAssertTrue(PromptTemplateInteractionPolicy.showsDirectSend(for: template))
+        }
+        for category in PromptTemplateCategory.allCases {
+            XCTAssertEqual(PromptTemplateLibrary.templates(in: category), all.filter { $0.category == category })
+        }
+        XCTAssertTrue(ChatWelcomeAccessibilityMetadata.value.contains("不自动发送"))
+        for template in everyday {
+            XCTAssertTrue(ChatWelcomeAccessibilityMetadata.value.contains(template.title))
+        }
+    }
+
+    func testPhoneTaskControlsReflowWithoutInvokingActions() {
+        for width: CGFloat in [0, -1, .nan, .infinity, 248, 259.99] {
+            XCTAssertEqual(WorkbenchPresentationPolicy.starterColumnCount(
+                width: width, expandedText: false, isCompact: true), 1)
+        }
+        for width: CGFloat in [260, 284, 354, 366, 680] {
+            XCTAssertEqual(WorkbenchPresentationPolicy.starterColumnCount(
+                width: width, expandedText: false, isCompact: true), 2)
+            XCTAssertEqual(WorkbenchPresentationPolicy.starterColumnCount(
+                width: width, expandedText: true, isCompact: true), 1)
+        }
+        var actions = 0
+        for theme in AppThemeMode.allCases {
+            for width: CGFloat in [284, 366] {
+                for collection in CompactPromptCollection.allCases {
+                    let normal = compactControlSize(AnyView(CompactPromptCollectionPicker(selection: .constant(collection))),
+                                                    width: width, textSize: .large, themeMode: theme)
+                    XCTAssertLessThanOrEqual(normal.height, 60, "Phone collections should occupy one compact row")
+                    for type in [DynamicTypeSize.xxxLarge, .accessibility3, .accessibility5] {
+                        let expanded = compactControlSize(AnyView(CompactPromptCollectionPicker(selection: .constant(collection))),
+                                                          width: width, textSize: type, themeMode: theme)
+                        XCTAssertGreaterThanOrEqual(expanded.height, normal.height)
+                    }
+                }
+                for template in PromptTemplateLibrary.everydayTemplates {
+                    var heights: [CGFloat] = []
+                    for type in [DynamicTypeSize.large, .accessibility3] {
+                        let row = PromptTemplateCard(template: template, isGenerating: false,
+                                                     apply: { actions += 1 }, send: { actions += 1 })
+                        let size = compactControlSize(AnyView(row), width: width, textSize: type, themeMode: theme)
+                        XCTAssertGreaterThanOrEqual(size.height, CompactPromptPresentationPolicy.rowMinimumHeight)
+                        heights.append(size.height)
+                    }
+                    XCTAssertGreaterThan(heights[1], heights[0])
+                }
+                let welcome = AnyView(ChatWelcomeView(availableWidth: width, apply: { _ in actions += 1 }))
+                let normal = compactControlSize(welcome, width: width, textSize: .large, themeMode: theme)
+                let expanded = compactControlSize(welcome, width: width, textSize: .accessibility3, themeMode: theme)
+                XCTAssertGreaterThan(expanded.height, normal.height)
+            }
+        }
+        XCTAssertEqual(actions, 0)
+        XCTAssertGreaterThanOrEqual(CompactWorkbenchPolicy.minimumTouchTarget, 44)
+    }
+
+    func testEverydayTaskProductionViewsProducePhoneEvidence() async throws {
+        let size = CGSize(width: 320, height: 640)
+        let catalog = ModelCatalog(autoScanLocalArtifacts: false)
+        let inference = InferenceEngine()
+        let optimizer = DeviceOptimizer()
+        let sessions = inference.sessions
+        var actions = 0
+        var evidence: [[String: Any]] = []
+        let cases: [(String, WorkspaceTab, CompactPromptCollection, DynamicTypeSize, String)] = [
+            ("welcome-accessibility3", .chat, .everyday, .accessibility3, "想聊点什么"),
+            ("everyday-accessibility3", .prompts, .everyday, .accessibility3, "润色文字"),
+            ("technical-large", .prompts, .technical, .large, "部署方案")
+        ]
+        for theme in AppThemeMode.allCases {
+            for (context, workspace, collection, type, marker) in cases {
+                let page: AnyView
+                if workspace == .chat {
+                    page = AnyView(ChatWorkspace(isActive: false, themeMode: theme,
+                                                 readiness: optimizer.deploymentReadiness))
+                } else {
+                    page = AnyView(PromptTemplatesWorkspace(initialCollection: collection, openChat: { _ in actions += 1 }))
+                }
+                let content = AnyView(VStack(spacing: 0) {
+                    page.frame(maxWidth: .infinity, maxHeight: .infinity)
+                    CompactWorkspaceNavigation(selection: .constant(workspace))
+                }
+                    .environmentObject(catalog).environmentObject(inference).environmentObject(optimizer)
+                    .environment(\.compactWorkbench, true)
+                    .environment(\.appTheme, AppThemePalette(mode: theme))
+                    .environment(\.colorScheme, theme.colorScheme)
+                    .environment(\.dynamicTypeSize, type)
+                    .frame(width: size.width, height: size.height)
+                    .background(AppThemePalette(mode: theme).canvas))
+                let image = try await captureWorkbenchView(content, size: size, themeMode: theme)
+                let name = "workbench-tasks-\(theme.rawValue)-\(context)"
+                keepWorkbenchImage(image, name: name)
+                let recognized = try workbenchRecognizedText(in: image, requiredMarker: marker)
+                XCTAssertTrue(workbenchNormalizedText(recognized).contains(workbenchNormalizedText(marker)), recognized)
+                if workspace == .chat {
+                    XCTAssertTrue(workbenchNormalizedText(recognized).contains(workbenchNormalizedText("润色文字")), recognized)
+                }
+                evidence.append([
+                    "attachmentName": name, "evidenceKind": "uihostingcontroller-task-production-composition",
+                    "captureMethod": "UIView.drawHierarchy", "workspace": workspace.rawValue,
+                    "theme": theme.rawValue, "dynamicTypeSize": type == .large ? "large" : "accessibility3",
+                    "templateCollection": collection.rawValue, "context": context,
+                    "requiredTextMarker": marker, "recognizedText": recognized,
+                    "imageWidth": Double(image.size.width), "imageHeight": Double(image.size.height),
+                    "viewportWidth": Double(size.width), "viewportHeight": Double(size.height)
+                ])
+            }
+        }
+        XCTAssertEqual(actions, 0)
+        XCTAssertEqual(inference.sessions, sessions)
+        XCTAssertFalse(inference.isGenerating)
+        XCTAssertEqual(evidence.count, 6)
+        try keepWorkbenchProvenance([
+            "captures": evidence, "testIdentifier": "LocalGemmaTests/testEverydayTaskProductionViewsProducePhoneEvidence()"
+        ], name: "workbench-tasks-provenance")
+    }
+
     func testConversationArchiveRoundTripsExactRecordsAndDrafts() throws {
         let archive = conversationFixture()
         try archive.validate()
@@ -675,8 +825,8 @@ final class LocalGemmaTests: XCTestCase {
         XCTAssertEqual(inference.sessions, sessions)
         XCTAssertTrue(inference.lastResultWasSimulated)
 
-        let pageMarkers = ["想聊点什么", "导入模型文件", "部署方案", "外观模式"]
-        let recognizedForms = ["想聊點什麼？", "導入 模型 文件", "部署\n方案", "外觀模式"]
+        let pageMarkers = ["想聊点什么", "导入模型文件", "部署方案", "外观模式", "润色文字"]
+        let recognizedForms = ["想聊點什麼？", "導入 模型 文件", "部署\n方案", "外觀模式", "潤色 文字"]
         for (marker, recognized) in zip(pageMarkers, recognizedForms) {
             XCTAssertEqual(workbenchNormalizedText(marker), workbenchNormalizedText(recognized))
             XCTAssertFalse(workbenchNormalizedText("Gemma 1.5B 对话 模型 模板 设置")
@@ -967,7 +1117,7 @@ final class LocalGemmaTests: XCTestCase {
                 switch workspace {
                 case .chat: marker = "想聊点什么"
                 case .models: marker = "导入模型文件"
-                case .prompts: marker = "部署方案"
+                case .prompts: marker = "润色文字"
                 case .settings: marker = "外观模式"
                 }
                 let recognized = try workbenchRecognizedText(in: image, requiredMarker: marker)
@@ -1624,6 +1774,7 @@ final class LocalGemmaTests: XCTestCase {
             .replacingOccurrences(of: "麼", with: "么")
             .replacingOccurrences(of: "導", with: "导")
             .replacingOccurrences(of: "觀", with: "观")
+            .replacingOccurrences(of: "潤", with: "润")
             .replacingOccurrences(of: "會", with: "会")
             .replacingOccurrences(of: "話", with: "话")
             .replacingOccurrences(of: "記", with: "记")

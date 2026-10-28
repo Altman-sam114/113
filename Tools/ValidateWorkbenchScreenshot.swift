@@ -13,6 +13,7 @@ func normalized(_ text: String) -> String {
         .replacingOccurrences(of: "麼", with: "么")
         .replacingOccurrences(of: "導", with: "导")
         .replacingOccurrences(of: "觀", with: "观")
+        .replacingOccurrences(of: "潤", with: "润")
     return String(canonical.uppercased().filter { $0.isLetter || $0.isNumber })
 }
 

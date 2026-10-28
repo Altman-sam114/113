@@ -216,10 +216,51 @@ struct PresetPromptTemplate: Identifiable, Equatable, Sendable {
     let category: PromptTemplateCategory
     let icon: String
     let prompt: String
+    let requiresInput: Bool
+
+    init(
+        id: String, title: String, subtitle: String, category: PromptTemplateCategory,
+        icon: String, prompt: String, requiresInput: Bool = false
+    ) {
+        self.id = id
+        self.title = title
+        self.subtitle = subtitle
+        self.category = category
+        self.icon = icon
+        self.prompt = prompt
+        self.requiresInput = requiresInput
+    }
 }
 
 enum PromptTemplateLibrary {
-    static let defaultTemplates: [PresetPromptTemplate] = [
+    static let everydayTemplates: [PresetPromptTemplate] = [
+        PresetPromptTemplate(
+            id: "everyday-polish", title: "润色文字", subtitle: "表达自然，保留原意",
+            category: .writing, icon: "pencil.and.outline",
+            prompt: "请润色下面的文字，保留原意，让表达更自然、简洁。直接给出修改后的版本：\n\n",
+            requiresInput: true
+        ),
+        PresetPromptTemplate(
+            id: "everyday-summary", title: "总结要点", subtitle: "长文变成清晰重点",
+            category: .writing, icon: "text.alignleft",
+            prompt: "请总结下面的内容：先用一句话概括，再列出关键要点。只依据原文，不补充未经证实的信息：\n\n",
+            requiresInput: true
+        ),
+        PresetPromptTemplate(
+            id: "everyday-translate", title: "中英互译", subtitle: "准确翻译，自然表达",
+            category: .writing, icon: "character.bubble",
+            prompt: "请将下面的中文翻译成英文，或将英文翻译成简体中文。保留原文的语气和格式，直接给出译文：\n\n",
+            requiresInput: true
+        ),
+        PresetPromptTemplate(
+            id: "everyday-plan", title: "行动计划", subtitle: "把想法拆成下一步",
+            category: .product, icon: "checklist",
+            prompt: "请根据下面的目标和限制，整理一份简洁可执行的行动计划，列出优先级和第一步。信息不足时先问必要的问题：\n\n",
+            requiresInput: true
+        )
+    ]
+
+    static let technicalTemplates: [PresetPromptTemplate] = [
         PresetPromptTemplate(
             id: "iphone-deployment-plan",
             title: "部署方案",
@@ -269,6 +310,8 @@ enum PromptTemplateLibrary {
             prompt: "请给我一份本地模型无法启动时的排障清单，覆盖模型文件、tokenizer、SHA-256 校验、后端选择、内存预算和模拟回退。"
         )
     ]
+
+    static let defaultTemplates = everydayTemplates + technicalTemplates
 
     static func templates(in category: PromptTemplateCategory?) -> [PresetPromptTemplate] {
         guard let category else {
