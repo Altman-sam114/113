@@ -1062,7 +1062,10 @@ final class InferenceEngine: ObservableObject {
         didSet {
             guard !isApplyingArchive else { return }
             guard !conversationPersistenceState.blocksEditing else {
+                // @Published re-enters didSet during rollback as well.
+                isApplyingArchive = true
                 inputText = oldValue
+                isApplyingArchive = false
                 return
             }
             drafts[activeSessionID] = inputText

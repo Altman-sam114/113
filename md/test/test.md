@@ -1,5 +1,11 @@
 # 测试规范
 
+## v3.10.1 云端崩溃回归（待自身新SHA）
+
+`01c1000` / run`40642098350` attempt1完整100983923字节ZIP独立SHA-256 `8a9ef4fec7af55f84d4fab971731f9939c514d9b29429132ac6644b4c2a9be16`与API一致，169方法中168成功、1真实SIGSEGV。ips写明栈溢出，`inputText.didset/setter`重复；Xcode在崩溃后启动剩余测试不等于失败用例重试成功。42图/5provenance、12个Python、LogicSmoke和三个平台构建/unsigned资源成功不改变整轮失败。
+
+生产rollback用内部旗标阻止Published重入，不放开loading编辑。原失败测试增强64次非法输入加apply/use template/usePrompt，继续断言空seed未覆盖、真实archive草稿恢复和0次保存。169方法不减，不延时/skip/测试重试。实际看图另修大字装饰抢宽，仍由原亮暗/284/366pt/large/accessibility3自然高度与320×640四图/OCR检查；44pt删除、语义正文和旧严格focus不改。修复必须自身新SHA完整包/看图，不能沿用失败包图片宣称整体通过。
+
 ## v3.10 会话与手机历史门禁（待自身云端）
 
 保护用例额外使用POSIX 000目录模拟真实不可访问：load必须报错而非缺失，恢复700权限后未重新load的save仍拒绝，旧字节不变。只接受明确NoSuchFile为缺失，不用`fileExists`误判授权；169方法数不变，不跳过权限断言。

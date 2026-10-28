@@ -1,5 +1,11 @@
 # AGENTS.md
 
+## 当前 v3.10.1 恢复保护与大字历史修复
+
+`01c1000` / run`40642098350` attempt1完整包已独立核对ZIP digest：168/169，唯一`testConversationEngineDoesNotOverwriteWhileRestoring`因真实栈溢出崩溃，ips明确`inputText.didset/setter`反复递归。其余168、42图/OCR、iOS/Catalyst/unsigned与12个Python成功不能抵消失败。`@Published`回写oldValue也重入didSet，现用既有内部输入抑制旗标包住rollback，保留恢复期拒绝动作/原草稿保护；同一测试增强为64次拒绝加模板/发送，不删断言、不重试/skip。
+
+实看历史大字图发现装饰图标占用文字宽度，`.xxxLarge`以上隐藏无语义气泡，搜索/勾选/删除装饰保持小尺寸但触控仍44pt；搜索行随正文自然增高。标题/短预览继续语义Dynamic Type，删除补齐原metadata value。169项/42图/5provenance/4份xcresult/JUnit10/12夹具不减；v3.10.1待自身新SHA全量云端与看图。所有单Agent/云端/AITRANS只读/模拟与verified边界不变。
+
 ## 当前 v3.10 会话恢复与手机历史
 
 本轮自审补充：不以`fileExists == false`判断归档缺失，只接受明确NoSuchFile错误；权限/保护失败即使随后恢复访问也不能静默获得覆盖授权，非普通归档拒绝读取。现有保护测试追加真实受限目录夹具，169名称不变，仍待最终新SHA云端验收。

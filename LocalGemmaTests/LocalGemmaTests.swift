@@ -200,7 +200,13 @@ final class LocalGemmaTests: XCTestCase {
         await storage.waitForLoadEntry()
         let seedID = engine.activeSessionID
         XCTAssertEqual(engine.conversationPersistenceState, .loading)
-        engine.inputText = "must not overwrite an existing draft"
+        for index in 0..<64 {
+            engine.inputText = "must not overwrite an existing draft \(index)"
+            XCTAssertEqual(engine.inputText, "")
+        }
+        engine.applyTemplate(PromptTemplateLibrary.defaultTemplates[0])
+        engine.useTemplate(PromptTemplateLibrary.defaultTemplates[0], model: ModelCatalog.defaultModels[0])
+        engine.usePrompt("must not send during restore", model: ModelCatalog.defaultModels[0])
         engine.send(using: ModelCatalog.defaultModels[0])
         engine.createSession()
         engine.resetConversation()

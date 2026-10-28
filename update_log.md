@@ -4693,3 +4693,9 @@ summary/tree/源码名称和原始SQLite严格匹配157唯一Success、0 skipped
 剩余：强杀/断电及后台到期耐久、大历史性能、模型遗留候选回收、真实runtime、真机/完整辅助技术、Mac GUI/pointer与签名分发。本轮普通重启恢复不代替故障恢复或发布验收，整体目标继续。
 
 同轮自审补充：初始`01c1000`云端已开始，未提前验收。发现`fileExists`可能把权限失败误判为缺失，改为只有明确NoSuchFile才授权缺失，非普通文件拒绝；真实POSIX 000目录fixture要求load报错且恢复权限后也不能直接save覆盖。此修复重新绑定最终新SHA全量云端，169方法/42图/原门禁不减，不把早期编译成功当最终通过。
+
+### v3.10.1 / 修复云端恢复保护重入与大字历史（2026-10-28，待自身云端）
+
+已下载`01c1000` / run`40642098350` attempt1完整100983923字节包，独立ZIP SHA-256与API `8a9ef4fec7af55f84d4fab971731f9939c514d9b29429132ac6644b4c2a9be16`一致、安全路径/CRC通过。实际168/169，恢复期间拒绝输入的测试SIGSEGV。ips明确Published oldValue回写递归栈溢出；Xcode恢复剩余用例不是失败项通过，不以42图/5provenance、12Python/Swift6、iOS/Catalyst/unsigned成功抵消失败。
+
+AppState在rollback时用既有内部旗标抑制observer重入，loading仍拒绝输入/发送/模板；同一失败用例增强64次拒绝及模板/发送，保留原草稿/seed/0写入断言，不重试/skip。实看首轮历史亮暗/大字图，`.xxxLarge`以上隐藏装饰气泡、缩小纯装饰符号，搜索自然增长，语义正文/44pt/原metadata与focus保持。169/42图等原门禁不减，新SHA须重新完整云端验收，不提前称通过或整目标完成。

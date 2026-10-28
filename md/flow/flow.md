@@ -1,5 +1,11 @@
 # 项目核心流程文档
 
+## v3.10.1 输入保护与历史大字修复
+
+云端`01c1000` / run`40642098350`完整包实际168/169，ips确认`@Published inputText`在loading的oldValue回写重入didSet而栈溢出。rollback现在以既有内部输入旗标抑制嵌套observer，只恢复oldValue、不写draft/启动writer；恢复期模板/发送仍拒绝，同一测试改为64次尝试，不放宽断言。原169名称和42图等全链路不减，新SHA待云端。
+
+根据实际历史宿主大字图，`.xxxLarge`以上移除装饰气泡，搜索/勾选/删除符号采用小装饰尺寸，搜索框给语义正文增加垂直空间，按钮44pt和选择/删除metadata/原focus保持。正文排版不缩字，不修改records或verified；这不是新根布局断点或额外页面树。
+
 ## v3.10 本地会话与手机历史流
 
 “归档缺失”只来自明确NoSuchFile，不能使用`fileExists`的权限不明false；访问失败继续readFailed/禁止写，恢复访问也须重新成功load或明确备份修复。读取拒绝非普通文件，防止把目录/链接作为归档。

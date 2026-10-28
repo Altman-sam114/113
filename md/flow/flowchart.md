@@ -1,13 +1,14 @@
 # 项目核心流程图
 
-## v3.10 会话恢复与精简手机历史
+## v3.10.1 会话恢复与精简手机历史
 
 读图说明：正常保存没有提示卡；恢复期间不允许seed或输入覆盖已有磁盘。历史搜索和预览仅展示层裁剪，不改原始正文，不接入真实runtime。
 
 ```mermaid
 flowchart TD
     %% 生产显式注入，测试默认内存隔离
-    App[生产App / InferenceEngine] --> Load[私有Store actor / 异步读与版本校验]
+    App[生产App / InferenceEngine] --> Loading[loading拒绝输入 / 内部旗标抑制rollback重入]
+    Loading --> Load[私有Store actor / 异步读与版本校验]
     Load --> Valid{缺失或合法归档?}
     Valid -- 合法 --> Restore[原始会话与ID时间 / 选择 / 分会话草稿]
     Valid -- 明确NoSuchFile缺失 --> Seed[保留新对话 / 不自动启动生成]
@@ -21,7 +22,7 @@ flowchart TD
     Edit --> Writer
     Writer -- 写失败 --> Retry[保留内存最新快照 / 一行重试]
     Retry -- 明确重试 --> Writer
-    Edit --> History[手机48pt搜索 / 标题短正文 / 44pt删除确认]
+    Edit --> History[手机搜索自然长高 / 标题短正文 / 44pt删除确认<br/>大字隐藏装饰气泡 / 不缩正文]
     History --> Edit
     Edit --> Background[退后台stop / 有限后台flush]
     Background --> Writer

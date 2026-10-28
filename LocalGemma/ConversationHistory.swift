@@ -40,7 +40,10 @@ struct CompactSessionHistory: View {
                 ConversationPersistenceNotice(state: persistenceState, retry: retrySave, repair: repair)
                     .padding(.horizontal, 18)
                 HStack(spacing: 10) {
-                    Image(systemName: "magnifyingglass").foregroundStyle(theme.secondaryText)
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 18))
+                        .foregroundStyle(theme.secondaryText)
+                        .accessibilityHidden(true)
                     TextField("搜索对话", text: $query)
                         .font(.body)
                         .textInputAutocapitalization(.never)
@@ -51,7 +54,9 @@ struct CompactSessionHistory: View {
                         .accessibilityIdentifier("conversation-history-search")
                     if !query.isEmpty {
                         Button { query = "" } label: {
-                            Image(systemName: "xmark.circle.fill").frame(width: 44, height: 44)
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 16))
+                                .frame(width: 44, height: 44)
                         }
                         .foregroundStyle(theme.secondaryText)
                         .accessibilityLabel("清除搜索")
@@ -59,6 +64,7 @@ struct CompactSessionHistory: View {
                 }
                 .padding(.leading, 14)
                 .padding(.trailing, 4)
+                .padding(.vertical, 6)
                 .frame(minHeight: 48)
                 .background(theme.surface, in: RoundedRectangle(cornerRadius: 14))
                 .padding(.horizontal, 18)
@@ -122,6 +128,7 @@ struct CompactSessionHistory: View {
 
 struct ConversationHistoryRow: View {
     @Environment(\.appTheme) private var theme
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let session: ChatSession
     let isActive: Bool
     let select: () -> Void
@@ -132,10 +139,13 @@ struct ConversationHistoryRow: View {
         HStack(spacing: 4) {
             Button(action: select) {
                 HStack(alignment: .top, spacing: 12) {
-                    Image(systemName: isActive ? "bubble.left.fill" : "bubble.left")
-                        .font(.body.weight(.medium))
-                        .foregroundStyle(isActive ? theme.accent : theme.secondaryText)
-                        .padding(.top, 2)
+                    if dynamicTypeSize < .xxxLarge {
+                        Image(systemName: isActive ? "bubble.left.fill" : "bubble.left")
+                            .font(.body.weight(.medium))
+                            .foregroundStyle(isActive ? theme.accent : theme.secondaryText)
+                            .padding(.top, 2)
+                            .accessibilityHidden(true)
+                    }
                     VStack(alignment: .leading, spacing: 5) {
                         Text(session.title)
                             .font(.subheadline.weight(.semibold))
@@ -152,7 +162,11 @@ struct ConversationHistoryRow: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     if isActive {
-                        Image(systemName: "checkmark").font(.caption.weight(.bold)).foregroundStyle(theme.accent)
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(theme.accent)
+                            .padding(.top, 3)
+                            .accessibilityHidden(true)
                     }
                 }
                 .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
@@ -169,13 +183,14 @@ struct ConversationHistoryRow: View {
             .accessibilityAddTraits(isActive ? .isSelected : [])
 
             Button(action: delete) {
-                Image(systemName: "trash").font(.subheadline).foregroundStyle(theme.secondaryText)
+                Image(systemName: "trash").font(.system(size: 16)).foregroundStyle(theme.secondaryText)
                     .frame(width: 44, height: 44)
             }
             .buttonStyle(.plain)
             .disabled(!canDelete)
             .opacity(canDelete ? 1 : 0.3)
             .accessibilityLabel(SessionChipActionAccessibilityMetadata.label(for: .delete, session: session))
+            .accessibilityValue(SessionChipActionAccessibilityMetadata.value(for: .delete, session: session, isActive: isActive, canDelete: canDelete))
             .accessibilityHint("打开删除确认。确认后只删除本机对话和草稿，不删除模型文件。")
             .accessibilityInputLabels(SessionChipActionAccessibilityMetadata.inputLabels(for: .delete, session: session))
             .accessibilityIdentifier(SessionChipActionAccessibilityMetadata.identifier(for: .delete, session: session))
