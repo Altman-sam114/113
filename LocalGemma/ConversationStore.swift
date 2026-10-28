@@ -61,11 +61,13 @@ actor LocalConversationStore: ConversationStorage {
 
     func load() throws -> ConversationArchive? {
         writesAllowed = false
-        guard FileManager.default.fileExists(atPath: fileURL.path) else {
+        guard let attributes = try attributesIfPresent() else {
             writesAllowed = true
             return nil
         }
-        let attributes = try FileManager.default.attributesOfItem(atPath: fileURL.path)
+        guard attributes[.type] as? FileAttributeType == .typeRegular else {
+            throw ConversationStoreError.invalidArchive
+        }
         guard let bytes = attributes[.size] as? NSNumber,
               bytes.int64Value <= Int64(ConversationArchive.maximumBytes) else {
             throw ConversationStoreError.archiveTooLarge
@@ -87,13 +89,23 @@ actor LocalConversationStore: ConversationStorage {
         // An unreadable/newer archive is never silently replaced by the seed.
         // Explicit repair first preserves its exact original bytes under a new name.
         _ = try encoded(archive)
-        if FileManager.default.fileExists(atPath: fileURL.path) {
+        if try attributesIfPresent() != nil {
             let backup = fileURL.deletingLastPathComponent()
                 .appendingPathComponent("unreadable-\(UUID().uuidString).json")
             try FileManager.default.copyItem(at: fileURL, to: backup)
         }
         try persist(archive)
         writesAllowed = true
+    }
+
+    private func attributesIfPresent() throws -> [FileAttributeKey: Any]? {
+        // fileExists also returns false for access failures; those must never
+        // authorize replacing a history file that could not actually be read.
+        do {
+            return try FileManager.default.attributesOfItem(atPath: fileURL.path)
+        } catch let error as CocoaError where error.code == .fileNoSuchFile || error.code == .fileReadNoSuchFile {
+            return nil
+        }
     }
 
     private func persist(_ archive: ConversationArchive) throws {

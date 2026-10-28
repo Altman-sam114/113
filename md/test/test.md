@@ -2,6 +2,8 @@
 
 ## v3.10 会话与手机历史门禁（待自身云端）
 
+保护用例额外使用POSIX 000目录模拟真实不可访问：load必须报错而非缺失，恢复700权限后未重新load的save仍拒绝，旧字节不变。只接受明确NoSuchFile为缺失，不用`fileExists`误判授权；169方法数不变，不跳过权限断言。
+
 源码169个唯一XCTest，保留入口157名称、严格真实responder/页面identity和文件事务断言；新增12项：归档原始正文/ID/时间/草稿round-trip；未知版本/重复/无效归属/负tokens拒绝；坏档保护与明确备份修复；磁盘失败与32MiB上限不覆盖旧字节；新engine恢复选择/逐会话草稿/停止占位；删除/reset/陈旧session保护；有界人工hold的恢复期动作拒绝；写失败后最新快照重试；60次输入合并单写；本机搜索/预览排除seed且不裁剪保存正文；亮暗×284/366pt×large/accessibility3行/错误自然高度；真实JSON落盘后新engine的历史图。异步断言先await取值，不在XCTest autoclosure中await，不用固定sleep凑测试，不重试或skip。
 
 `testRestoredConversationHistoryProducesPhoneEvidence`新增4张`workbench-history-{light|dark}-{large|accessibility3}`，同一生产history，320×640pt，`UIView.drawHierarchy`，OCR必须同时有“会话记录”标题和“部署讨论”正文，记录restoredFromDisk=true。预存中文简繁等价归一仅做字形对应，不替代正文门禁。exporter保留原4provenance/22PNG并要求history第5份与4图，总26宿主+16Simulator=42；重复/缺图/身份或尺寸不符仍失败。宿主图不是系统sheet交互、完整Simulator或真机证据，尺寸测量不等于真实点按/完整辅助技术。

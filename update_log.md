@@ -4691,3 +4691,5 @@ summary/tree/源码名称和原始SQLite严格匹配157唯一Success、0 skipped
 本地轻量检查：`git diff --check`、工程`plutil -lint`、Ruby YAML解析/全部run脚本`bash -n`、7个Python AST、`PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s Tools/tests -p 'test_*.py' -v`的12/12、`verify_release_bundle.py --source-only`均通过；169/原157名称集合、新文件target/CLI注册、8份文档fence与6份既有未追踪prompt哈希检查通过。记录`/private/tmp/localgemma-v3.10-static.json`，未执行本地Swift或UI，不能替代待跑的云端构建测试。
 
 剩余：强杀/断电及后台到期耐久、大历史性能、模型遗留候选回收、真实runtime、真机/完整辅助技术、Mac GUI/pointer与签名分发。本轮普通重启恢复不代替故障恢复或发布验收，整体目标继续。
+
+同轮自审补充：初始`01c1000`云端已开始，未提前验收。发现`fileExists`可能把权限失败误判为缺失，改为只有明确NoSuchFile才授权缺失，非普通文件拒绝；真实POSIX 000目录fixture要求load报错且恢复权限后也不能直接save覆盖。此修复重新绑定最终新SHA全量云端，169方法/42图/原门禁不减，不把早期编译成功当最终通过。

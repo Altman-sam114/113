@@ -87,6 +87,19 @@ final class LocalGemmaTests: XCTestCase {
             .filter { $0.lastPathComponent.hasPrefix("unreadable-") }
         XCTAssertEqual(allBackups.count, 2)
         XCTAssertTrue(try allBackups.map { try Data(contentsOf: $0) }.contains(unknown))
+
+        let lockedDirectory = directory.appendingPathComponent("locked", isDirectory: true)
+        try FileManager.default.createDirectory(at: lockedDirectory, withIntermediateDirectories: true)
+        let lockedFile = lockedDirectory.appendingPathComponent("history-v1.json")
+        let lockedBytes = try JSONEncoder().encode(archive)
+        try lockedBytes.write(to: lockedFile)
+        let lockedStore = LocalConversationStore(fileURL: lockedFile)
+        try FileManager.default.setAttributes([.posixPermissions: 0o000], ofItemAtPath: lockedDirectory.path)
+        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: lockedDirectory.path) }
+        do { _ = try await lockedStore.load(); XCTFail("Inaccessible history is not missing history") } catch {}
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: lockedDirectory.path)
+        do { try await lockedStore.save(archive); XCTFail("Regained access must not silently authorize replacement") } catch {}
+        XCTAssertEqual(try Data(contentsOf: lockedFile), lockedBytes)
     }
 
     func testConversationStoreFailedAndOversizedWritesPreservePreviousBytes() async throws {

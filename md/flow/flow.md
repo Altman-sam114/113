@@ -2,6 +2,8 @@
 
 ## v3.10 本地会话与手机历史流
 
+“归档缺失”只来自明确NoSuchFile，不能使用`fileExists`的权限不明false；访问失败继续readFailed/禁止写，恢复访问也须重新成功load或明确备份修复。读取拒绝非普通文件，防止把目录/链接作为归档。
+
 生产`LocalGemmaApp`显式向`InferenceEngine`注入`LocalConversationStore.shared`；测试/预览未注入时仍memory-only，互不污染。启动异步load期间状态loading、同一composer和模板/会话动作不可用，不用延时focus。archive校验版本1、唯一会话/消息ID、当前选择、草稿归属与有限日期/非负tokens后，恢复原始records与逐会话草稿；不恢复任务、后端准备报告或自动生成。切换只按ID读取最新session，防止陈旧UI值回灌旧正文；删除同时清草稿，reset保持会话规则，空assistant导出按实际生成/已停止区分。
 
 MainActor只维护值快照，`LocalConversationStore`私有actor执行JSON读取/32MiB上限/校验/编码和`.atomic`写；原始字符串、空白/换行/时间与ID不截断。一个有序writer每180ms合并待写快照，不取消在途commit，前后台flush等待当前最新快照。写失败保留最新内存状态、显示短重试，后续编辑不反复自动重试；读失败/未知版本保护原文件且禁止自动写，明确确认后先copy原件再原子替换，失败仍保留原件。退后台先stop再有限后台flush，不能当作强杀/断电耐久证明。

@@ -10,7 +10,7 @@ flowchart TD
     App[生产App / InferenceEngine] --> Load[私有Store actor / 异步读与版本校验]
     Load --> Valid{缺失或合法归档?}
     Valid -- 合法 --> Restore[原始会话与ID时间 / 选择 / 分会话草稿]
-    Valid -- 缺失 --> Seed[保留新对话 / 不自动启动生成]
+    Valid -- 明确NoSuchFile缺失 --> Seed[保留新对话 / 不自动启动生成]
     Valid -- 读取失败或未知版本 --> Protected[保护原文件 / 不自动写 / 一行修复入口]
     Protected --> Confirm{明确确认修复?}
     Confirm -- 否 --> Protected
