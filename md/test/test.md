@@ -1,5 +1,11 @@
 # 测试规范
 
+## v3.10.1 内容无关搜索自然高度（待最终新SHA）
+
+`56b8a28` / run`40648305362` attempt1完整109014457字节ZIP独立SHA-256 `e297368f8841dd63ae03987a14d9e9ebca38e88ecc01250f2d8d7c99aaf833b6`与API一致、安全路径/CRC通过。summary/SQLite169唯一168 Success/1 Failure，原全字号矩阵AX2/AX3中文/英文各两态差1.667pt，共16断言，同一方法只执行一次。ScaledMetric下限没有稳定原生高度，不能称通过；搜索方法不在最慢8项中，主要云端时间不是该矩阵本身。
+
+改生产布局而不减测试：不可见单行`.body` Text轨道+8pt垂直间距自然测量父尺寸，唯一真实TextField在overlay+6pt间距且至少44pt，plain清除44pt/整行48pt。hidden strut不显示、不命中、不进入辅助树，无第二个输入控件、无固定字号/最大高度；内容状态不参与父测量。原DynamicTypeSize.allCases×亮暗×两宽×中英文query的1pt断言、自然高度与旧focus/169方法/42图等门禁保持，新SHA须完整云端与看图。
+
 ## v3.10.1 搜索字体/控件高度回归（待最终新SHA）
 
 `2cf7b63` / run`40646708156` attempt1完整98498647字节ZIP独立SHA-256 `3c93dde127ef497504743ffb82bfe5fecbde6e1338231250f50635fac7bef4ff`匹配API，安全路径/CRC通过。summary/SQLite169唯一中168 Success/1 Failure，唯一手机尺寸用例内亮暗×284/366的4个AX3断言分别60/61.667pt，未过原1pt容差；不是测试重试，不能凭42图或旧5e绿色称通过。

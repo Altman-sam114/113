@@ -2,6 +2,8 @@
 
 ## v3.10.1 输入保护与历史大字修复
 
+`56b8a28` / run`40648305362`实际168/169，AX2/AX3中英文两态固有高度仍差1.667pt，ScaledMetric最小值方案失败。搜索现在用不可见单行语义Text strut决定父尺寸，唯一可编辑TextField放overlay，查询不再参与尺寸测量；strut 8pt/输入6pt垂直间距，输入槽44pt、整行48pt起，自然body字号增长，不用固定上限或缩字。plain清除44pt与query所有权不变，原全字号1pt断言/169项/42图等不减，新SHA待云端。
+
 最后搜索收尾`2cf7b63` / run`40646708156`完整包实际168/169：同一尺寸测试4个AX3矩阵断言测得空/有query为60/61.667pt，不能用5e基线覆盖。生产搜索用相对body缩放22pt的最小文字槽、plain 44pt清除，仍由真实字号自然增高，不固定上限或压缩文字；原1pt断言扩展全部DynamicTypeSize、中英文query。169方法/42图等不减，新SHA待云端。
 
 核心代码`5e0eec3` / run`40643812543` attempt1完整包/169唯一Success与42图已复判，4份xcresult/unsigned资源成功；恢复期64次拒绝不再崩溃。基线完整包与独立hash/SQLite/图像记录在`/private/tmp/localgemma-c-review-40643812543/`，只绑定该SHA。后续搜索收尾仍须新SHA云端。

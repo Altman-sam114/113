@@ -4713,3 +4713,9 @@ AppState在rollback时用既有内部旗标抑制observer重入，loading仍拒�
 `2cf7b63` / run`40646708156` attempt1完整98498647字节ZIP已下载，独立SHA-256 `3c93dde127ef497504743ffb82bfe5fecbde6e1338231250f50635fac7bef4ff`与API一致，安全路径/CRC通过。summary/SQLite169唯一为168 Success/1 Failure，唯一尺寸方法内4个AX3矩阵断言测得空/有query为60/61.667pt，未过1pt；不是4次重试，42图等成功不能抵消失败。
 
 搜索加入相对body缩放22pt的最小文字槽，不设最大高度或缩字，清除明确plain且44pt。保留1pt容差，现有用例扩大至全部DynamicTypeSize、亮暗/两宽和中英文query对空状态，169方法不变，旧自然高度/notice/行/严格focus不减。同步核心文档，所有Swift/UI仍只云端。最终新SHA全量CI及完整包/图像待验收，不能用5e已验基线覆盖这次小修，不宣布整目标完成。
+
+### v3.10.1 / 搜索内容无关自然轨道（2026-10-28，待最终新SHA）
+
+`56b8a28` / run`40648305362` attempt1完整109014457字节ZIP已下载并独立匹配API SHA-256 `e297368f8841dd63ae03987a14d9e9ebca38e88ecc01250f2d8d7c99aaf833b6`，安全路径/CRC通过。summary/SQLite169唯一168 Success/1 Failure，AX2/AX3中英文在同一方法16个矩阵断言仍差1.667pt，ScaledMetric下限无效，未重试/skip或提高容差。该方法不在最慢8项中；云端测试启动/截图等待不能归咎于全字号矩阵本身。
+
+移除猜测缩放高度，用不可见单行语义Text轨道负责自然测量、唯一真实TextField overlay，查询不参与父尺寸；轨道8pt/真实输入6pt间距，输入槽至少44pt、整行48pt、plain清除44pt。字体仍body且自然增长，不固定上限/缩字，不增加第二输入控件或透明手势层。原全字号中英文/亮暗/两宽1pt断言、169方法与42图等门禁不变。同步文档并仅做本地静态检查，新SHA仍须全量云端与看图，不称整体目标完成。

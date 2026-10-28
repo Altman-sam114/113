@@ -8,6 +8,8 @@
 
 搜索中间版`2cf7b63` / run`40646708156`为168/169，AX3两态固有高度差未过1pt断言；当前用body缩放的22pt最低文字槽/plain清除，并保留及扩大断言矩阵，不以图片或基线通过抵消失败。
 
+该缩放方案在`56b8a28` / run`40648305362`仍168/169，现由不可见语义Text轨道决定自然尺寸，唯一真实TextField在overlay，不让内容状态回灌父高度；不是第二个输入框或透明手势阻断层。原全字号矩阵待新SHA重新验证。
+
 ```mermaid
 flowchart TD
     %% 生产显式注入，测试默认内存隔离
@@ -26,7 +28,7 @@ flowchart TD
     Edit --> Writer
     Writer -- 写失败 --> Retry[保留内存最新快照 / 一行重试]
     Retry -- 明确重试 --> Writer
-    Edit --> History[搜索22pt最低文字槽随body缩放 / plain 44pt清除 / 全字号两态断言<br/>标题短正文 / 44pt删除确认 / 大字隐藏装饰气泡不缩正文]
+    Edit --> History[搜索语义Text自然轨道 / 唯一TextField overlay / plain 44pt清除<br/>全字号两态断言 / 标题短正文 / 大字隐藏装饰气泡不缩正文]
     History --> Edit
     Edit --> Background[退后台stop / 有限后台flush]
     Background --> Writer

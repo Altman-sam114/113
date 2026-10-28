@@ -101,7 +101,6 @@ struct CompactSessionHistory: View {
 
 struct ConversationHistorySearchField: View {
     @Environment(\.appTheme) private var theme
-    @ScaledMetric(relativeTo: .body) private var lineMinimumHeight: CGFloat = 22
     @Binding var query: String
 
     var body: some View {
@@ -110,17 +109,26 @@ struct ConversationHistorySearchField: View {
                 .font(.system(size: 18))
                 .foregroundStyle(theme.secondaryText)
                 .accessibilityHidden(true)
-            TextField("搜索对话", text: $query)
+            // A semantic strut owns sizing; the single editable field cannot move the row.
+            Text("Ag国")
                 .font(.body)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .foregroundStyle(theme.primaryText)
-                // Reserve a scalable line slot for placeholder/content font fallbacks.
-                .frame(minHeight: lineMinimumHeight)
-                .padding(.vertical, 6)
-                .accessibilityLabel("搜索对话")
-                .accessibilityHint("仅搜索本机对话标题和正文，不会联网。")
-                .accessibilityIdentifier("conversation-history-search")
+                .lineLimit(1)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.vertical, 8)
+                .hidden()
+                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                .overlay {
+                    TextField("搜索对话", text: $query)
+                        .font(.body)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .foregroundStyle(theme.primaryText)
+                        .padding(.vertical, 6)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .accessibilityLabel("搜索对话")
+                        .accessibilityHint("仅搜索本机对话标题和正文，不会联网。")
+                        .accessibilityIdentifier("conversation-history-search")
+                }
             if !query.isEmpty {
                 Button { query = "" } label: {
                     Image(systemName: "xmark.circle.fill")
