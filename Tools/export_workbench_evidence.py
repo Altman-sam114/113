@@ -125,9 +125,10 @@ def main():
                 ):
                     raise RuntimeError(f"Incorrect real settings column allocation: {name}")
             elif capture["evidenceKind"] == "uihostingcontroller-compact-production-composition":
-                marker = {"chat": "想聊点什么", "models": "MODEL LIBRARY",
-                          "prompts": "PROMPTS", "settings": "SETTINGS"}[capture["workspace"]]
-                normalize = lambda text: "".join(c for c in text.upper() if c.isalnum())
+                marker = {"chat": "想聊点什么", "models": "导入模型文件",
+                          "prompts": "部署方案", "settings": "外观模式"}[capture["workspace"]]
+                normalize = lambda text: "".join(c for c in text.translate(
+                    str.maketrans("點麼導觀", "点么导观")).upper() if c.isalnum())
                 if (capture.get("requiredTextMarker") != marker
                         or normalize(marker) not in normalize(capture.get("recognizedText", ""))
                         or capture.get("viewportWidth") != 320

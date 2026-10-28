@@ -7,6 +7,197 @@ import XCTest
 
 @MainActor
 final class LocalGemmaTests: XCTestCase {
+    func testCompactChatHeaderReclaimsSpaceWithoutChangingRuntimeState() {
+        for size in DynamicTypeSize.allCases {
+            XCTAssertEqual(CompactWorkbenchPolicy.stacksHeaderControls(dynamicTypeSize: size), size >= .xxxLarge)
+        }
+        let catalog = ModelCatalog(autoScanLocalArtifacts: false)
+        let inference = InferenceEngine()
+        let model = catalog.selectedModel
+        let models = catalog.models
+        let sessions = inference.sessions
+        let validation = catalog.validation(for: model)
+        let deployment = catalog.deploymentState(for: model)
+        var actionCount = 0
+        for themeMode in AppThemeMode.allCases {
+            for width: CGFloat in [320, 390] {
+                var heights: [CGFloat] = []
+                for textSize in [DynamicTypeSize.large, .xxxLarge, .accessibility3] {
+                    let header = CompactWorkbenchHeader(
+                        model: model, isSimulated: true, themeMode: themeMode,
+                        openSummary: { actionCount += 1 }, toggleTheme: { actionCount += 1 },
+                        chatActions: CompactChatHeaderActions(
+                            sessionTitle: "A long conversation title with 中文",
+                            showHistory: { actionCount += 1 }, create: { actionCount += 1 },
+                            export: { actionCount += 1 }
+                        )
+                    )
+                    let size = compactControlSize(AnyView(header), width: width,
+                                                  textSize: textSize, themeMode: themeMode)
+                    heights.append(size.height)
+                    if textSize == .large {
+                        XCTAssertLessThanOrEqual(size.height, 76, "Phone header must not restore two toolbar rows")
+                    }
+                }
+                XCTAssertGreaterThan(heights[1], heights[0])
+                XCTAssertGreaterThan(heights[2], heights[0])
+            }
+        }
+        XCTAssertEqual(actionCount, 0)
+        XCTAssertEqual(catalog.models, models)
+        XCTAssertEqual(catalog.validation(for: model), validation)
+        XCTAssertEqual(catalog.deploymentState(for: model), deployment)
+        XCTAssertEqual(inference.sessions, sessions)
+        XCTAssertTrue(inference.lastResultWasSimulated)
+
+        let pageMarkers = ["想聊点什么", "导入模型文件", "部署方案", "外观模式"]
+        let recognizedForms = ["想聊點什麼？", "導入 模型 文件", "部署\n方案", "外觀模式"]
+        for (marker, recognized) in zip(pageMarkers, recognizedForms) {
+            XCTAssertEqual(workbenchNormalizedText(marker), workbenchNormalizedText(recognized))
+            XCTAssertFalse(workbenchNormalizedText("Gemma 1.5B 对话 模型 模板 设置")
+                .contains(workbenchNormalizedText(marker)), "Navigation alone is not page-content evidence")
+        }
+        XCTAssertNotEqual(workbenchNormalizedText("模拟预览"), workbenchNormalizedText("本地运行"))
+        XCTAssertNotEqual(workbenchNormalizedText("尚未导入"), workbenchNormalizedText("已校验"))
+    }
+
+    func testCompactSettingsRowsReclaimPhoneHeightAndKeepDynamicType() {
+        XCTAssertEqual(SettingsPreferenceRowLayoutPolicy.compactPreviewSize, 40)
+        XCTAssertEqual(SettingsPreferenceRowLayoutPolicy.compactHorizontalSpacing, 10)
+        XCTAssertEqual(SettingsPreferenceRowLayoutPolicy.compactHorizontalContentWidthThreshold, 244)
+        XCTAssertEqual(SettingsPreferenceRowLayoutPolicy.horizontalContentWidthThreshold, 270)
+        XCTAssertEqual(SettingsPreferenceRowLayoutPolicy.previewSize, 58)
+        for textSize in DynamicTypeSize.allCases {
+            for width: CGFloat in [0, -1, .nan, .infinity, -.infinity, 220, 243.99, 244, 256, 269.99, 270, 366] {
+                for isCompact in [false, true] {
+                    let plan = SettingsPreferenceRowLayoutPolicy.resolve(
+                        contentWidth: width, dynamicTypeSize: textSize, isCompact: isCompact
+                    )
+                    let safeWidth = width.isFinite && width > 0 ? width : 0
+                    let allowsHorizontal = safeWidth >= (isCompact ? 244 : 270) && textSize < .xxxLarge
+                    XCTAssertEqual(plan.contentWidth, safeWidth)
+                    XCTAssertEqual(plan.allowsHorizontal, allowsHorizontal)
+                    XCTAssertEqual(plan.mode, allowsHorizontal ? .horizontal : .stacked)
+                }
+            }
+        }
+        XCTAssertEqual(SettingsPreferenceRowLayoutPolicy.panelContentWidth(forPanelWidth: 284), 256)
+        var actionCount = 0
+        for themeMode in AppThemeMode.allCases {
+            for width: CGFloat in [284, 366] {
+                var heights: [CGFloat] = []
+                for textSize in [DynamicTypeSize.large, .xxxLarge, .accessibility3] {
+                    let panel = WallpaperPreferencePanel(
+                        wallpaperData: Data(), selectedItem: .constant(nil), isImporting: false,
+                        panelContentWidth: SettingsPreferenceRowLayoutPolicy.panelContentWidth(forPanelWidth: width),
+                        clearWallpaper: { actionCount += 1 }
+                    )
+                    let size = compactControlSize(AnyView(panel), width: width,
+                                                  textSize: textSize, themeMode: themeMode)
+                    heights.append(size.height)
+                    if textSize == .large {
+                        XCTAssertLessThanOrEqual(size.height, 120, "Ordinary phone wallpaper row must not become a tall empty card")
+                    }
+                }
+                XCTAssertGreaterThan(heights[1], heights[0])
+                XCTAssertGreaterThan(heights[2], heights[0])
+            }
+        }
+        for isImporting in [false, true] {
+            XCTAssertEqual(SettingsPreferenceRowLayoutPolicy.isChooseActionDisabled(isImporting: isImporting), isImporting)
+            for hasWallpaper in [false, true] {
+                XCTAssertEqual(SettingsPreferenceRowLayoutPolicy.isClearActionDisabled(
+                    hasCustomWallpaper: hasWallpaper, isImporting: isImporting
+                ), !hasWallpaper || isImporting)
+            }
+        }
+        XCTAssertEqual(actionCount, 0)
+        XCTAssertGreaterThanOrEqual(SettingsIconActionLayoutPolicy.iconButtonSize, 44)
+    }
+
+    func testCompactPromptRowsPreservePayloadAndActionBoundaries() {
+        XCTAssertEqual(CompactPromptPresentationPolicy.categoryMinimumWidth, 56)
+        XCTAssertEqual(CompactPromptPresentationPolicy.categoryHorizontalPadding, 10)
+        XCTAssertEqual(CompactPromptPresentationPolicy.rowMinimumHeight, 76)
+        XCTAssertGreaterThanOrEqual(PromptTemplateActionLayoutPolicy.minimumTouchTarget, 44)
+        XCTAssertGreaterThanOrEqual(PromptTemplateActionLayoutPolicy.sendButtonSize, 44)
+        let templates = PromptTemplateLibrary.defaultTemplates
+        for template in templates {
+            XCTAssertEqual(CompactPromptPresentationPolicy.summary(for: template), template.subtitle)
+        }
+        let fallback = PresetPromptTemplate(
+            id: "compact-summary-fallback", title: "Untitled template", subtitle: " \n\t ",
+            category: .writing, icon: "text.cursor", prompt: "  Keep the complete prompt\nincluding whitespace.  "
+        )
+        XCTAssertEqual(CompactPromptPresentationPolicy.summary(for: fallback), fallback.prompt)
+        let inference = InferenceEngine()
+        let sessions = inference.sessions
+        var actionCount = 0
+        for themeMode in AppThemeMode.allCases {
+            for width: CGFloat in [284, 366] {
+                let normalFilters = compactControlSize(
+                    AnyView(PromptCategorySelector(selectedCategory: .constant(nil))),
+                    width: width, textSize: .large, themeMode: themeMode
+                )
+                XCTAssertLessThanOrEqual(normalFilters.height, 104, "Phone filters should fit two readable rows")
+                let largeFilters = compactControlSize(
+                    AnyView(PromptCategorySelector(selectedCategory: .constant(nil))),
+                    width: width, textSize: .accessibility3, themeMode: themeMode
+                )
+                XCTAssertGreaterThan(largeFilters.height, normalFilters.height)
+                for template in [templates[0], templates[templates.count - 1]] {
+                    for isGenerating in [false, true] {
+                        var heights: [CGFloat] = []
+                        for textSize in [DynamicTypeSize.large, .accessibility3] {
+                            let row = PromptTemplateCard(
+                                template: template, isGenerating: isGenerating,
+                                apply: { actionCount += 1 }, send: { actionCount += 1 }
+                            )
+                            let size = compactControlSize(AnyView(row), width: width,
+                                                          textSize: textSize, themeMode: themeMode)
+                            heights.append(size.height)
+                            XCTAssertGreaterThanOrEqual(size.height, CompactPromptPresentationPolicy.rowMinimumHeight)
+                            if textSize == .large { XCTAssertLessThanOrEqual(size.height, 140) }
+                        }
+                        XCTAssertGreaterThan(heights[1], heights[0], "Template row must grow instead of shrinking large text")
+                    }
+                    XCTAssertNotEqual(
+                        PromptTemplateActionAccessibilityMetadata.identifier(for: .apply, template: template),
+                        PromptTemplateActionAccessibilityMetadata.identifier(for: .send, template: template)
+                    )
+                }
+            }
+        }
+        XCTAssertEqual(actionCount, 0)
+        XCTAssertEqual(inference.sessions, sessions)
+        XCTAssertEqual(PromptTemplateLibrary.defaultTemplates, templates)
+        for template in templates {
+            inference.applyTemplate(template)
+            XCTAssertEqual(inference.inputText, template.prompt)
+            XCTAssertFalse(inference.isGenerating)
+            XCTAssertEqual(inference.sessions, sessions)
+        }
+    }
+
+    private func compactControlSize(
+        _ control: AnyView, width: CGFloat, textSize: DynamicTypeSize, themeMode: AppThemeMode
+    ) -> CGSize {
+        let controller = UIHostingController(rootView: control
+            .environment(\.compactWorkbench, true)
+            .environment(\.appTheme, AppThemePalette(mode: themeMode))
+            .environment(\.colorScheme, themeMode.colorScheme)
+            .environment(\.dynamicTypeSize, textSize)
+            .frame(width: width))
+        controller.loadViewIfNeeded()
+        let natural = controller.sizeThatFits(in: CGSize(width: width, height: 600))
+        let tall = controller.sizeThatFits(in: CGSize(width: width, height: 1_600))
+        XCTAssertTrue(natural.width.isFinite && natural.height.isFinite)
+        XCTAssertEqual(natural.width, width, accuracy: 1)
+        XCTAssertGreaterThan(natural.height, 0)
+        XCTAssertEqual(natural.height, tall.height, accuracy: 1, "Phone control must report its natural height")
+        return natural
+    }
+
     func testCompactWorkbenchPolicyKeepsNavigationReachableAndRuntimeHonest() {
         XCTAssertEqual(CompactWorkbenchPolicy.minimumTouchTarget, 44)
         XCTAssertGreaterThanOrEqual(CompactWorkbenchPolicy.navigationItemHeight, 44)
@@ -62,7 +253,12 @@ final class LocalGemmaTests: XCTestCase {
                     let controls: [AnyView] = [
                         AnyView(CompactWorkbenchHeader(
                             model: catalog.selectedModel, isSimulated: true, themeMode: themeMode,
-                            openSummary: { actions += 1 }, toggleTheme: { actions += 1 }
+                            openSummary: { actions += 1 }, toggleTheme: { actions += 1 },
+                            chatActions: CompactChatHeaderActions(
+                                sessionTitle: inference.activeSessionTitle,
+                                showHistory: { actions += 1 }, create: { actions += 1 },
+                                export: { actions += 1 }
+                            )
                         )),
                         AnyView(CompactWorkspaceNavigation(selection: .constant(.chat))),
                         AnyView(CompactSessionToolbar(
@@ -120,7 +316,8 @@ final class LocalGemmaTests: XCTestCase {
         var evidence: [[String: Any]] = []
         for themeMode in AppThemeMode.allCases {
             let pages: [(WorkspaceTab, AnyView)] = [
-                (.chat, AnyView(ChatWorkspace(isActive: false))),
+                (.chat, AnyView(ChatWorkspace(isActive: false, themeMode: themeMode,
+                                              readiness: optimizer.deploymentReadiness))),
                 (.models, AnyView(ModelLibraryView())),
                 (.prompts, AnyView(PromptTemplatesWorkspace(openChat: { _ in }))),
                 (.settings, AnyView(SettingsWorkspace(themeMode: themeMode, wallpaperData: Data(), toggleTheme: {},
@@ -128,8 +325,6 @@ final class LocalGemmaTests: XCTestCase {
             ]
             for (workspace, page) in pages {
                 let content = AnyView(VStack(spacing: 0) {
-                    CompactWorkbenchHeader(model: catalog.selectedModel, isSimulated: true, themeMode: themeMode,
-                                           openSummary: {}, toggleTheme: {})
                     page.frame(maxWidth: .infinity, maxHeight: .infinity)
                     CompactWorkspaceNavigation(selection: .constant(workspace))
                 }
@@ -146,11 +341,11 @@ final class LocalGemmaTests: XCTestCase {
                 let marker: String
                 switch workspace {
                 case .chat: marker = "想聊点什么"
-                case .models: marker = "MODEL LIBRARY"
-                case .prompts: marker = "PROMPTS"
-                case .settings: marker = "SETTINGS"
+                case .models: marker = "导入模型文件"
+                case .prompts: marker = "部署方案"
+                case .settings: marker = "外观模式"
                 }
-                let recognized = try workbenchRecognizedText(in: image)
+                let recognized = try workbenchRecognizedText(in: image, requiredMarker: marker)
                 XCTAssertTrue(workbenchNormalizedText(recognized).contains(workbenchNormalizedText(marker)),
                               "Small phone content missing in \(name): \(recognized)")
                 evidence.append([
@@ -648,7 +843,8 @@ final class LocalGemmaTests: XCTestCase {
         var evidence: [[String: Any]] = []
         for themeMode in AppThemeMode.allCases {
             let workspaces: [(WorkspaceTab, String, AnyView)] = [
-                (.chat, "ChatWorkspace", AnyView(ChatWorkspace(isActive: false))),
+                (.chat, "ChatWorkspace", AnyView(ChatWorkspace(isActive: false, themeMode: themeMode,
+                                                               readiness: optimizer.deploymentReadiness))),
                 (.models, "ModelLibraryView", AnyView(ModelLibraryView())),
                 (.prompts, "PromptTemplatesWorkspace", AnyView(PromptTemplatesWorkspace(openChat: { _ in }))),
                 (.settings, "SettingsWorkspace", AnyView(SettingsWorkspace(
@@ -799,17 +995,31 @@ final class LocalGemmaTests: XCTestCase {
     }
 
     private func workbenchNormalizedText(_ text: String) -> String {
-        text.uppercased().filter { $0.isLetter || $0.isNumber }
+        text.replacingOccurrences(of: "點", with: "点")
+            .replacingOccurrences(of: "麼", with: "么")
+            .replacingOccurrences(of: "導", with: "导")
+            .replacingOccurrences(of: "觀", with: "观")
+            .uppercased().filter { $0.isLetter || $0.isNumber }
     }
 
-    private func workbenchRecognizedText(in image: UIImage) throws -> String {
-        let request = VNRecognizeTextRequest()
-        request.recognitionLevel = .accurate
-        request.recognitionLanguages = ["en-US", "zh-Hans"]
-        request.usesLanguageCorrection = false
+    private func workbenchRecognizedText(in image: UIImage, requiredMarker: String? = nil) throws -> String {
+        let needsChinese = requiredMarker?.contains { !$0.isASCII } ?? false
+        let languageSets = needsChinese ? [["zh-Hans"], ["en-US"]] : [["en-US"]]
         let cgImage = try XCTUnwrap(image.cgImage)
-        try VNImageRequestHandler(cgImage: cgImage, options: [:]).perform([request])
-        return (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }.joined(separator: "\n")
+        var texts: [String] = []
+        for languages in languageSets {
+            let request = VNRecognizeTextRequest()
+            request.recognitionLevel = .accurate
+            request.recognitionLanguages = languages
+            request.usesLanguageCorrection = languages.contains("zh-Hans")
+            try VNImageRequestHandler(cgImage: cgImage, options: [:]).perform([request])
+            let text = (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }.joined(separator: "\n")
+            texts.append(text)
+            print("[WorkbenchOCR] languages=\(languages), text=\(text)")
+            if let requiredMarker,
+               workbenchNormalizedText(text).contains(workbenchNormalizedText(requiredMarker)) { break }
+        }
+        return texts.joined(separator: "\n")
     }
 
     private func keepWorkbenchImage(_ image: UIImage, name: String) {

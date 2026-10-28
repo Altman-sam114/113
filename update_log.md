@@ -16,9 +16,9 @@
 - 平台：SwiftUI iOS App，Swift 6.0，iOS deployment target 17.0，当前 app/test target 支持 iPhone、iPad 和 Mac Catalyst build-for-testing，并提供项目内 Mac Catalyst 本地 build/run 脚本入口；尚未创建原生 macOS target。
 - 当前默认模型：`Gemma 1.5B Local`
 - 当前推理：本地模拟 runtime，不下载模型权重，不执行真实模型推理。
-- 当前核心测试：`LocalGemmaTests.swift` 中144个XCTest方法；实施基线`63a9766` / run `39892914886` attempt1完整包已核对141/141、JUnit8和三份xcresult。v3.6手机优先界面与新增3项等待自身云端验收，仍非整产品发布验收。
+- 当前核心测试：`LocalGemmaTests.swift` 中147个XCTest方法，原144保留并新增手机头部/设置行/模板行3项。v3.6 `3adaef7` / run `40169024104` 的review为143/144，唯一compact暗聊天中文OCR失败；v3.7承接预存识别修复，等待自身新SHA云端147项与36图验收，不是整产品发布验收。
 - 当前核心文档入口：`AGENTS.md`、`md/flow/flow.md`、`md/flow/flowchart.md`、`md/test/test.md`、`md/prompt/README.md`、`README.md`。
-- 当前协作验证：默认 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载未加密 CI 结果包验收；本地仓库当前已配置 `origin` remote，最终验收仍以最新 `origin/main` 对应的 GitHub Actions run 和结果包为准；文档已预留未来 `agentx:` 主控 Agent A -> Agent B -> Agent C 多轮循环的规则。
+- 当前协作验证：用户2026-10-28明确允许多Agent按文件所有权并行，root统一集成；默认 `main` 直推、GitHub Actions 云端重验证和 Agent C 下载未加密 CI 结果包验收，A -> B -> C链路不可省略。最终验收以最新 `origin/main` 对应的SHA/run/attempt完整产物为准，本地不编译、不运行UI。
 
 ## 历史记录
 
@@ -4604,3 +4604,23 @@ v3.5 `a28ac41` / run `39885347849` attempt1 的结果包为140/141成功，唯�
 本地仅静态轻量检查；所有Swift/SwiftC、Probe/Fast、iOS/Catalyst、XCTest、Vision、UIKit/ImageRenderer与Simulator执行只在GitHub Actions，不设置云端环境冒充执行。新SHA自己的构建/144项/36图和完整结果包仍需复判，不预写通过，不宣称真实推理或签名发布就绪。
 
 实际本地检查：`git diff --check`、`plutil -lint LocalGemma.xcodeproj/project.pbxproj`、`bash -n script/build_and_run.sh`、Ruby YAML解析均通过（Ruby仅既有PATH权限warning）；Python AST、144唯一测试/保留原141名称、8份文档fence/版本、CompactWorkbench target注册和AppState/入口/LogicSmoke无diff检查通过。push前确认main、HEAD与origin/main一致、origin为Altman-sam114/113、活动账号Altman-sam114。未执行任何本地Swift或UI。
+
+## v3.7 / iPhone 精致界面与发布质量门禁（2026-10-28，待自身云端验收）
+
+用户最新明确允许多 Agent 并行加速，覆盖此前单 Agent 条款；A负责设计/文档、root与副页B按文件所有权实施、C负责测试与结果复判，root唯一提交/push。A提示词：`md/prompt/v3（工作台重构）/v3.7（iPhone精致界面与发布质量门禁）.md`。AITRANS仅只读参考集中token/手机导航，不修改该项目，六份预存未跟踪prompt保持原样且不提交。
+
+历史失败与本轮范围：
+
+- 起点`main=origin/main=3adaef7`。C下载v3.6 run `40169024104` 的review包，143/144成功，唯一compact暗聊天中文OCR误读；实际正文存在，但不能写成全通过。入口四处未提交OCR/诊断修复保留承接，中文分轮识别、同义繁简归一与逐pass诊断继续受真实正文门禁约束。
+- compact根chrome改零高占位，稳定两节点/唯一四页保留；聊天独有模型/历史/新建/更多单头，主题与导出放更多，非聊天去全局模型栏和英文eyebrow。`.xxxLarge`以上同一头部AnyLayout堆叠，新增摘要sheet复用原ModelCapsule；离开聊天同步关闭摘要/历史/导出并清pending，原composer同步focus、48pt、快捷键不变。
+- 欢迎标记116缩76pt、去大轨道；底栏浮动圆角托盘和小面积选中图标保持56pt导航项。composer明确主题placeholder，焦点光环仅挂描边，不让正文发光。Files panel去重复标题/状态，可达metadata、导入/扫描/暂存/卸载确认保持。
+- 模型selector改单层Menu/Picker身份区，三独立badge语义保留，规格去重；部署文案无论artifact是否verified都诚实说明模拟预览，不再误称接入真实runtime。模板主区填入和同级44pt发送分明，短用途展示/空白subtitle回退不改完整payload，生成禁用保持；分类56pt最小宽/10pt横padding/44pt高真实换行。
+- 设置去重复分组与内嵌策略卡，壁纸手机40pt预览/10pt间距派生244pt内容横排阈值，320pt pane得到284pt panel/256pt内容，避免旧197pt堆叠高卡；非compact58/14/270pt和大字stacked保持。原SettingsSections两节点、PhotosPicker/导入/错误owner与四开关状态不变，设备预算明确模拟、非实测。
+- 新增3项到147：`testCompactChatHeaderReclaimsSpaceWithoutChangingRuntimeState`、`testCompactSettingsRowsReclaimPhoneHeightAndKeepDynamicType`、`testCompactPromptRowsPreservePayloadAndActionBoundaries`；原144名称、严格focus/identity/44pt/文件/导出/verified测试保留。真实控件测量锁住单头、壁纸、两行分类和模板自然高度/大字增长，不能冒充实际点按自动化。
+- 原36图、三份provenance、三份完整xcresult、JUnit8不减。compact宿主使用页面自身chrome，不再外挂重复Header，显式传实际themeMode/readiness；手机正文marker为“想聊点什么 / 导入模型文件 / 部署方案 / 外观模式”。capture逐页失败继续收集16图诊断，manifest记录期望数量/失败/尝试/JSON/stdout/stderr，最终任一失败仍使必选visual失败，不靠导航文字或空白图通过。
+
+关键文件：`ContentView.swift`、`CompactWorkbench.swift`、`ChatWorkspace.swift`、`ComposerBar.swift`、`WorkbenchComponents.swift`、模型/模板/设置四文件、`LocalGemmaTests.swift`、三个截图/OCR/export工具与七份核心文档。未改AppState/LocalGemmaApp、模型文件或runtime门禁；无本机Swift/UI执行。
+
+实际本地静态预检由root完成：`git diff --check`、工程`plutil -lint`、run脚本`bash -n`、Ruby workflow YAML均通过；Tools Python AST、147唯一测试/原144名称保留、12个workflow shell块与1个embedded Python AST、六份预存prompt hash/未跟踪状态检查通过。`AppState.swift`/`LocalGemmaApp.swift`无diff；push前main与origin/main仍为`3adaef7`，活动GitHub账号`Altman-sam114`。A另检查本提示词结构/fence/路径，未运行Swift或构建。
+
+完整147项、iOS/Catalyst、Vision/宿主/模拟器截图以及最新SHA/run/attempt的完整结果包和人眼验收尚未完成，必须等待本轮提交自己的云端产物，不沿用历史绿色结果、不预写发布通过。真实模型推理、AppIcon/签名分发、真机/完整辅助技术、Mac GUI/pointer仍为独立发布缺口；本轮只能在实际通过后声明指定iPhone UI与回归范围通过。

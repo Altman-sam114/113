@@ -171,6 +171,7 @@ enum PromptTemplateGridLayoutPolicy {
 
 struct PromptCategorySelector: View {
     @Environment(\.appTheme) private var theme
+    @Environment(\.compactWorkbench) private var isCompact
     @Binding var selectedCategory: PromptTemplateCategory?
 
     var body: some View {
@@ -194,17 +195,23 @@ struct PromptCategorySelector: View {
         let secondary = theme.actionPalette(for: .secondary)
 
         return Button(action: action) {
-            Label(title, systemImage: icon)
+            HStack(spacing: 6) {
+                if !isCompact {
+                    Image(systemName: icon)
+                }
+                Text(title)
+            }
                 .font(.subheadline)
-                .bold()
-                .labelStyle(.titleAndIcon)
+                .fontWeight(isCompact ? .medium : .bold)
                 .foregroundStyle(isSelected ? primary.prominentForeground : secondary.foreground)
                 .lineLimit(PromptCategoryTextLayoutPolicy.labelLineLimit)
                 .fixedSize(horizontal: false, vertical: true)
-                .padding(.horizontal, PromptCategoryLayoutPolicy.horizontalPadding)
+                .padding(.horizontal, isCompact ? CompactPromptPresentationPolicy.categoryHorizontalPadding
+                         : PromptCategoryLayoutPolicy.horizontalPadding)
                 .padding(.vertical, PromptCategoryLayoutPolicy.verticalPadding)
                 .frame(
-                    minWidth: PromptCategoryLayoutPolicy.minimumChipWidth,
+                    minWidth: isCompact ? CompactPromptPresentationPolicy.categoryMinimumWidth
+                        : PromptCategoryLayoutPolicy.minimumChipWidth,
                     minHeight: PromptCategoryLayoutPolicy.minimumTouchTarget
                 )
                 .background(isSelected ? primary.prominentFill : secondary.fill, in: Capsule())
@@ -305,11 +312,21 @@ struct PromptTemplateCard: View {
     let send: () -> Void
 
     var body: some View {
+        Group {
+            if isCompact {
+                CompactPromptTemplateRow(template: template, isGenerating: isGenerating, apply: apply, send: send)
+            } else {
+                expandedCard
+            }
+        }
+    }
+
+    private var expandedCard: some View {
         let categoryTint = theme.categoryTint(for: template.category)
         let primary = theme.actionPalette(for: .primary)
         let secondary = theme.actionPalette(for: .secondary)
 
-        VStack(alignment: .leading, spacing: 11) {
+        return VStack(alignment: .leading, spacing: 11) {
             HStack(alignment: .top, spacing: 10) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -327,42 +344,38 @@ struct PromptTemplateCard: View {
                         .foregroundStyle(theme.primaryText)
                         .lineLimit(PromptTemplateTextLayoutPolicy.titleLineLimit)
                         .fixedSize(horizontal: false, vertical: true)
-                    if !isCompact {
-                        Text(template.subtitle)
-                            .font(.subheadline)
-                            .bold()
-                            .foregroundStyle(theme.tertiaryText)
-                            .lineLimit(PromptTemplateTextLayoutPolicy.subtitleLineLimit)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
+                    Text(template.subtitle)
+                        .font(.subheadline)
+                        .bold()
+                        .foregroundStyle(theme.tertiaryText)
+                        .lineLimit(PromptTemplateTextLayoutPolicy.subtitleLineLimit)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
 
                 Spacer(minLength: 0)
 
-                if !isCompact {
-                    Text(template.category.title)
-                        .font(.caption)
-                        .bold()
-                        .foregroundStyle(categoryTint)
-                        .lineLimit(PromptTemplateTextLayoutPolicy.categoryLineLimit)
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 4)
-                        .background(categoryTint.opacity(0.10), in: Capsule())
-                }
+                Text(template.category.title)
+                    .font(.caption)
+                    .bold()
+                    .foregroundStyle(categoryTint)
+                    .lineLimit(PromptTemplateTextLayoutPolicy.categoryLineLimit)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 4)
+                    .background(categoryTint.opacity(0.10), in: Capsule())
             }
 
             Text(template.prompt)
-                .font(isCompact ? .subheadline : .callout)
+                .font(.callout)
                 .lineSpacing(PromptTemplateTextLayoutPolicy.bodyLineSpacing)
                 .foregroundStyle(theme.secondaryText)
-                .lineLimit(isCompact ? 2 : PromptTemplateTextLayoutPolicy.promptLineLimit)
+                .lineLimit(PromptTemplateTextLayoutPolicy.promptLineLimit)
                 .fixedSize(horizontal: false, vertical: true)
 
-            if !isCompact { Spacer(minLength: 0) }
+            Spacer(minLength: 0)
 
             HStack(spacing: PromptTemplateActionLayoutPolicy.spacing) {
                 Button(action: apply) {
-                    Label(isCompact ? "使用模板" : "填入", systemImage: "text.cursor")
+                    Label("填入", systemImage: "text.cursor")
                         .font(.subheadline)
                         .bold()
                         .foregroundStyle(secondary.foreground)
@@ -387,7 +400,6 @@ struct PromptTemplateCard: View {
                 )
                 .accessibilityInputLabels(
                     PromptTemplateActionAccessibilityMetadata.inputLabels(for: .apply, template: template)
-                        + (isCompact ? ["使用模板"] : [])
                 )
                 .accessibilityIdentifier(
                     PromptTemplateActionAccessibilityMetadata.identifier(for: .apply, template: template)
@@ -426,7 +438,7 @@ struct PromptTemplateCard: View {
         .foregroundStyle(theme.primaryText)
         .padding(PromptTemplateActionLayoutPolicy.cardPadding)
         .frame(maxWidth: .infinity, alignment: .topLeading)
-        .frame(minHeight: isCompact ? 0 : PromptTemplateTextLayoutPolicy.minimumCardHeight, alignment: .topLeading)
+        .frame(minHeight: PromptTemplateTextLayoutPolicy.minimumCardHeight, alignment: .topLeading)
         .background(templateBackground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
@@ -440,6 +452,91 @@ struct PromptTemplateCard: View {
         theme.surface
     }
 
+}
+
+enum CompactPromptPresentationPolicy {
+    static let categoryMinimumWidth: CGFloat = 56
+    static let categoryHorizontalPadding: CGFloat = 10
+    static let rowMinimumHeight: CGFloat = 76
+
+    static func summary(for template: PresetPromptTemplate) -> String {
+        template.subtitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? template.prompt : template.subtitle
+    }
+}
+
+struct CompactPromptTemplateRow: View {
+    @Environment(\.appTheme) private var theme
+
+    let template: PresetPromptTemplate
+    let isGenerating: Bool
+    let apply: () -> Void
+    let send: () -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Button(action: apply) {
+                HStack(spacing: 10) {
+                    Image(systemName: template.icon)
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(theme.categoryTint(for: template.category))
+                        .frame(width: 34, height: 34)
+                        .background(theme.chipSurface, in: RoundedRectangle(cornerRadius: 10))
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(template.title)
+                            .font(.headline.weight(.semibold))
+                            .foregroundStyle(theme.primaryText)
+                            .lineLimit(PromptTemplateTextLayoutPolicy.titleLineLimit)
+                        Text(CompactPromptPresentationPolicy.summary(for: template))
+                            .font(.subheadline)
+                            .foregroundStyle(theme.secondaryText)
+                            .lineLimit(PromptTemplateTextLayoutPolicy.subtitleLineLimit)
+                    }
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .padding(.vertical, 14)
+                .frame(maxWidth: .infinity, minHeight: CompactPromptPresentationPolicy.rowMinimumHeight,
+                       alignment: .leading)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(PromptTemplateActionAccessibilityMetadata.label(for: .apply, template: template))
+            .accessibilityValue(PromptTemplateActionAccessibilityMetadata.value(for: .apply, isGenerating: isGenerating))
+            .accessibilityHint(PromptTemplateActionAccessibilityMetadata.hint(for: .apply, template: template))
+            .accessibilityInputLabels(PromptTemplateActionAccessibilityMetadata.inputLabels(for: .apply, template: template)
+                + ["使用模板", template.title])
+            .accessibilityIdentifier(PromptTemplateActionAccessibilityMetadata.identifier(for: .apply, template: template))
+
+            Button(action: send) {
+                Image(systemName: "arrow.up")
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(theme.accent)
+                    .frame(width: PromptTemplateActionLayoutPolicy.sendButtonSize,
+                           height: PromptTemplateActionLayoutPolicy.sendButtonSize)
+                    .background(theme.chipSurface, in: RoundedRectangle(cornerRadius: 13))
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(PromptTemplateActionAccessibilityMetadata.label(for: .send, template: template))
+            .accessibilityValue(PromptTemplateActionAccessibilityMetadata.value(for: .send, isGenerating: isGenerating))
+            .accessibilityHint(PromptTemplateActionAccessibilityMetadata.hint(for: .send, template: template))
+            .accessibilityInputLabels(PromptTemplateActionAccessibilityMetadata.inputLabels(for: .send, template: template))
+            .accessibilityIdentifier(PromptTemplateActionAccessibilityMetadata.identifier(for: .send, template: template))
+        }
+        .padding(.horizontal, 14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(theme.surface, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .stroke(theme.border, lineWidth: 1)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        }
+        .disabled(isGenerating)
+        .opacity(isGenerating ? 0.5 : 1)
+    }
 }
 
 enum PromptTemplateTextLayoutPolicy {

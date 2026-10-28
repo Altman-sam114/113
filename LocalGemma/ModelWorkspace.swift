@@ -346,40 +346,57 @@ struct ModelSelectorPanel: View {
                 }
             }
 
-            Picker(selection: $selectedModelID) {
-                ForEach(models) { model in
-                    Text(model.name).tag(model.id)
-                }
-            } label: {
-                HStack(spacing: 10) {
-                    Image(systemName: "chevron.down.circle.fill")
-                        .font(.system(size: 17, weight: .bold))
-                    VStack(alignment: .leading, spacing: ModelSelectorTextLayoutPolicy.verticalSpacing) {
-                        Text(selectedModel.name)
-                            .font(.headline.weight(.semibold))
-                            .lineLimit(ModelSelectorTextLayoutPolicy.nameLineLimit)
-                            .fixedSize(horizontal: false, vertical: true)
-                        Text("\(selectedModel.parameterCount) · \(selectedModel.quantization)")
-                            .font(.caption.weight(.semibold))
-                            .lineLimit(ModelSelectorTextLayoutPolicy.specLineLimit)
-                            .fixedSize(horizontal: false, vertical: true)
+            Group {
+                if isCompact {
+                    Menu {
+                        Picker("选择模型", selection: $selectedModelID) {
+                            ForEach(models) { model in
+                                Text(CompactWorkbenchPolicy.modelTitle(model)).tag(model.id)
+                            }
+                        }
+                    } label: {
+                        CompactModelSelectionLabel(model: selectedModel)
                     }
-                    Spacer()
+                } else {
+                    Picker(selection: $selectedModelID) {
+                        ForEach(models) { model in
+                            Text(model.name).tag(model.id)
+                        }
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "chevron.down.circle.fill")
+                                .font(.system(size: 17, weight: .bold))
+                            VStack(alignment: .leading, spacing: ModelSelectorTextLayoutPolicy.verticalSpacing) {
+                                Text(selectedModel.name)
+                                    .font(.headline.weight(.semibold))
+                                    .lineLimit(ModelSelectorTextLayoutPolicy.nameLineLimit)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                Text("\(selectedModel.parameterCount) · \(selectedModel.quantization)")
+                                    .font(.caption.weight(.semibold))
+                                    .lineLimit(ModelSelectorTextLayoutPolicy.specLineLimit)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                            Spacer()
+                        }
+                    }
+                    .pickerStyle(.menu)
                 }
             }
-            .pickerStyle(.menu)
             .tint(theme.primaryText)
             .frame(
                 maxWidth: .infinity,
                 minHeight: ModelDeploymentControlLayoutPolicy.modelSelectorMinHeight,
                 alignment: .leading
             )
-            .padding(.horizontal, 12)
-            .padding(.vertical, 12)
-            .background(theme.recessedSurface, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .padding(.horizontal, isCompact ? 0 : 12)
+            .padding(.vertical, isCompact ? 2 : 12)
+            .background(isCompact ? Color.clear : theme.recessedSurface,
+                        in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             .overlay {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .stroke(theme.accent.opacity(0.24), lineWidth: 1)
+                if !isCompact {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(theme.accent.opacity(0.24), lineWidth: 1)
+                }
             }
             .accessibilityLabel(ModelDeploymentControlAccessibilityMetadata.modelSelectorLabel)
             .accessibilityValue(
@@ -415,14 +432,41 @@ struct ModelSelectorPanel: View {
                         .exposesIndependentBadge(for: .modelSelector)
                 )
             }
-            if isCompact {
-                Text("\(selectedModel.parameterCount) · \(selectedModel.quantization) · \(selectedModel.sizeOnDisk)")
-                    .font(.caption.monospaced())
-                    .foregroundStyle(theme.secondaryText)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
         }
-        .panelStyle(border: theme.accent.opacity(0.24))
+        .panelStyle(border: isCompact ? theme.border : theme.accent.opacity(0.24))
+    }
+}
+
+private struct CompactModelSelectionLabel: View {
+    @Environment(\.appTheme) private var theme
+    let model: LocalModel
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "cpu")
+                .font(.title3.weight(.medium))
+                .foregroundStyle(theme.accent)
+                .frame(width: 40, height: 40)
+                .background(theme.chipSurface, in: RoundedRectangle(cornerRadius: 12))
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 5) {
+                Text(CompactWorkbenchPolicy.modelTitle(model))
+                    .font(.headline.weight(.semibold))
+                    .foregroundStyle(theme.primaryText)
+                    .lineLimit(ModelSelectorTextLayoutPolicy.nameLineLimit)
+                Text("\(model.quantization) · \(model.sizeOnDisk)")
+                    .font(.caption)
+                    .foregroundStyle(theme.secondaryText)
+                    .lineLimit(ModelSelectorTextLayoutPolicy.specLineLimit)
+            }
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            Image(systemName: "chevron.up.chevron.down")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(theme.secondaryText)
+                .accessibilityHidden(true)
+        }
+        .contentShape(Rectangle())
     }
 }
 
@@ -504,21 +548,22 @@ struct DeploymentPowerButton: View {
         let palette = theme.actionPalette(for: isRunning ? .destructive : .primary)
 
         Button(action: toggle) {
-            HStack(spacing: 14) {
+            HStack(spacing: isCompact ? 12 : 14) {
                 ZStack {
                     Circle()
                         .fill(palette.iconSurface)
                     Image(systemName: isRunning ? "stop.fill" : "power")
                         .font(isCompact ? .title3.weight(.medium) : .title.weight(.semibold))
                 }
-                .frame(width: isCompact ? 40 : 58, height: isCompact ? 40 : 58)
+                .frame(width: isCompact ? 36 : 58, height: isCompact ? 36 : 58)
+                .accessibilityHidden(true)
 
                 VStack(alignment: .leading, spacing: ModelDeploymentPowerTextLayoutPolicy.verticalSpacing) {
-                    Text(isCompact ? (isRunning ? "停止部署预览" : "启动部署预览") : (isRunning ? "关闭模型部署" : "启动模型部署"))
+                    Text(isCompact ? (isRunning ? "停止预览" : "启动预览") : (isRunning ? "关闭模型部署" : "启动模型部署"))
                         .font(isCompact ? .headline : .title3.weight(.semibold))
                         .lineLimit(ModelDeploymentPowerTextLayoutPolicy.titleLineLimit)
                         .fixedSize(horizontal: false, vertical: true)
-                    Text(isCompact ? "仅模拟，不执行真实推理" : deploymentSubtitle)
+                    Text(isCompact ? "模拟推理" : deploymentSubtitle)
                         .font(.footnote)
                         .lineLimit(ModelDeploymentPowerTextLayoutPolicy.subtitleLineLimit)
                         .fixedSize(horizontal: false, vertical: true)
@@ -527,20 +572,23 @@ struct DeploymentPowerButton: View {
 
                 Spacer(minLength: 0)
 
-                Image(systemName: isRunning ? "pause.circle.fill" : "play.circle.fill")
-                    .font(isCompact ? .title3 : .title2)
-                    .opacity(0.84)
+                if !isCompact {
+                    Image(systemName: isRunning ? "pause.circle.fill" : "play.circle.fill")
+                        .font(.title2)
+                        .opacity(0.84)
+                }
             }
             .foregroundStyle(palette.foreground)
-            .padding(16)
+            .padding(isCompact ? 14 : 16)
             .frame(
                 maxWidth: .infinity,
                 minHeight: ModelDeploymentControlLayoutPolicy.powerButtonMinHeight
             )
-            .background(palette.fill, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .background(isCompact ? theme.surface : palette.fill,
+                        in: RoundedRectangle(cornerRadius: 18, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(palette.border, lineWidth: 1)
+                    .stroke(isCompact ? theme.border : palette.border, lineWidth: 1)
             }
         }
         .buttonStyle(.plain)
@@ -573,12 +621,7 @@ struct DeploymentPowerButton: View {
     }
 
     private var deploymentSubtitle: String {
-        if isRunning {
-            return "\(model.name) 正在\(validation.availability == .verified ? "真实 runtime" : "模拟 runtime")运行"
-        }
-        return validation.availability == .verified
-            ? "已校验权重，启动后接入 \(model.deploymentProfile.primaryBackend.shortTitle)"
-            : "未校验权重，启动后走本地模拟部署"
+        isRunning ? "正在展示本地模拟部署，不执行真实推理" : "启动本地模拟部署预览，不加载真实权重"
     }
 }
 

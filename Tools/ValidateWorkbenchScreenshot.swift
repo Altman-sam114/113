@@ -9,24 +9,39 @@ guard ProcessInfo.processInfo.environment["GITHUB_ACTIONS"] == "true",
 }
 
 func normalized(_ text: String) -> String {
-    String(text.uppercased().filter { $0.isLetter || $0.isNumber })
+    let canonical = text.replacingOccurrences(of: "點", with: "点")
+        .replacingOccurrences(of: "麼", with: "么")
+        .replacingOccurrences(of: "導", with: "导")
+        .replacingOccurrences(of: "觀", with: "观")
+    return String(canonical.uppercased().filter { $0.isLetter || $0.isNumber })
 }
 
 do {
     let url = URL(fileURLWithPath: CommandLine.arguments[1])
     let marker = CommandLine.arguments[2]
-    let request = VNRecognizeTextRequest()
-    request.recognitionLevel = .accurate
-    request.recognitionLanguages = ["en-US", "zh-Hans"]
-    request.usesLanguageCorrection = false
-    try VNImageRequestHandler(url: url).perform([request])
-    let recognized = (request.results ?? [])
-        .compactMap { $0.topCandidates(1).first?.string }
-        .joined(separator: "\n")
+    let needsChinese = marker.contains { !$0.isASCII }
+    let languageSets = needsChinese ? [["zh-Hans"], ["en-US"]] : [["en-US"]]
+    var passes: [[String: Any]] = []
+    var texts: [String] = []
+    for languages in languageSets {
+        let request = VNRecognizeTextRequest()
+        request.recognitionLevel = .accurate
+        request.recognitionLanguages = languages
+        request.usesLanguageCorrection = languages.contains("zh-Hans")
+        try VNImageRequestHandler(url: url).perform([request])
+        let text = (request.results ?? [])
+            .compactMap { $0.topCandidates(1).first?.string }
+            .joined(separator: "\n")
+        passes.append(["languages": languages, "recognizedText": text])
+        texts.append(text)
+        if normalized(text).contains(normalized(marker)) { break }
+    }
+    let recognized = texts.joined(separator: "\n")
     let matched = normalized(recognized).contains(normalized(marker))
     let document: [String: Any] = [
         "requiredTextMarker": marker,
         "recognizedText": recognized,
+        "recognitionPasses": passes,
         "pageContentValidated": matched
     ]
     let data = try JSONSerialization.data(withJSONObject: document, options: [.sortedKeys])

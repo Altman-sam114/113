@@ -145,8 +145,10 @@ struct SettingsPreferenceRowLayoutPlan: Equatable {
 
 enum SettingsPreferenceRowLayoutPolicy {
     static let previewSize: CGFloat = 58
+    static let compactPreviewSize: CGFloat = 40
     static let minimumTextWidth: CGFloat = 88
     static let horizontalSpacing: CGFloat = 14
+    static let compactHorizontalSpacing: CGFloat = 10
     static let stackedSpacing: CGFloat = 12
     static let actionSpacing: CGFloat = 8
     static let actionCount = 2
@@ -161,6 +163,13 @@ enum SettingsPreferenceRowLayoutPolicy {
             + minimumTextWidth
             + actionRowMinimumWidth
             + horizontalSpacing * 2
+    }
+
+    static var compactHorizontalContentWidthThreshold: CGFloat {
+        compactPreviewSize
+            + minimumTextWidth
+            + actionRowMinimumWidth
+            + compactHorizontalSpacing * 2
     }
 
     static func panelContentWidth(forPanelWidth panelWidth: CGFloat) -> CGFloat {
@@ -184,10 +193,12 @@ enum SettingsPreferenceRowLayoutPolicy {
 
     static func resolve(
         contentWidth: CGFloat,
-        dynamicTypeSize: DynamicTypeSize
+        dynamicTypeSize: DynamicTypeSize,
+        isCompact: Bool = false
     ) -> SettingsPreferenceRowLayoutPlan {
         let safeContentWidth = contentWidth.isFinite && contentWidth > 0 ? contentWidth : 0
-        let allowsHorizontal = safeContentWidth >= horizontalContentWidthThreshold
+        let threshold = isCompact ? compactHorizontalContentWidthThreshold : horizontalContentWidthThreshold
+        let allowsHorizontal = safeContentWidth >= threshold
             && dynamicTypeSize < .xxxLarge
 
         return SettingsPreferenceRowLayoutPlan(
@@ -200,20 +211,22 @@ enum SettingsPreferenceRowLayoutPolicy {
 
 struct ThemePreferencePanel: View {
     @Environment(\.appTheme) private var theme
+    @Environment(\.compactWorkbench) private var isCompact
 
     let themeMode: AppThemeMode
     let toggleTheme: () -> Void
 
     var body: some View {
-        HStack(spacing: 14) {
+        HStack(spacing: isCompact ? 12 : 14) {
             ZStack {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .fill(theme.accent.opacity(0.16))
-                Image(systemName: themeMode.icon)
-                    .font(.system(size: 22, weight: .semibold))
+                Image(systemName: isCompact ? "circle.lefthalf.filled" : themeMode.icon)
+                    .font(.system(size: isCompact ? 19 : 22, weight: .semibold))
                     .foregroundStyle(theme.accent)
             }
-            .frame(width: 52, height: 52)
+            .frame(width: isCompact ? 40 : 52, height: isCompact ? 40 : 52)
+            .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: SettingsPreferenceTextLayoutPolicy.verticalSpacing) {
                 Text("外观模式")
@@ -221,24 +234,38 @@ struct ThemePreferencePanel: View {
                     .foregroundStyle(theme.primaryText)
                     .lineLimit(SettingsPreferenceTextLayoutPolicy.titleLineLimit)
                     .fixedSize(horizontal: false, vertical: true)
-                Text(themeMode.title)
-                    .font(.subheadline.weight(.bold))
-                    .foregroundStyle(theme.secondaryText)
-                    .lineLimit(SettingsPreferenceTextLayoutPolicy.statusLineLimit)
-                    .fixedSize(horizontal: false, vertical: true)
+                if !isCompact {
+                    Text(themeMode.title)
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(theme.secondaryText)
+                        .lineLimit(SettingsPreferenceTextLayoutPolicy.statusLineLimit)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
 
             Spacer()
 
             Button(action: toggleTheme) {
-                Image(systemName: themeMode.icon)
-                    .font(.system(size: 15, weight: .semibold))
-                    .frame(
-                        width: SettingsIconActionLayoutPolicy.iconButtonSize,
-                        height: SettingsIconActionLayoutPolicy.iconButtonSize
-                    )
-                    .background(theme.accent, in: Circle())
-                    .foregroundStyle(theme.inverseText)
+                Group {
+                    if isCompact {
+                        Text(themeMode.title)
+                            .font(.subheadline.weight(.semibold))
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(.horizontal, 14)
+                            .frame(minWidth: 44, minHeight: 44)
+                            .foregroundStyle(theme.accent)
+                            .background(theme.chipSurface, in: Capsule())
+                    } else {
+                        Image(systemName: themeMode.icon)
+                            .font(.system(size: 15, weight: .semibold))
+                            .frame(
+                                width: SettingsIconActionLayoutPolicy.iconButtonSize,
+                                height: SettingsIconActionLayoutPolicy.iconButtonSize
+                            )
+                            .background(theme.accent, in: Circle())
+                            .foregroundStyle(theme.inverseText)
+                    }
+                }
             }
             .buttonStyle(.plain)
             .accessibilityLabel(
@@ -255,12 +282,13 @@ struct ThemePreferencePanel: View {
             )
             .accessibilityIdentifier(HeaderActionAccessibilityMetadata.settingsThemeToggleIdentifier)
         }
-        .panelStyle(border: theme.accent.opacity(0.26))
+        .panelStyle(border: isCompact ? theme.border : theme.accent.opacity(0.26))
     }
 }
 
 struct WallpaperPreferencePanel: View {
     @Environment(\.appTheme) private var theme
+    @Environment(\.compactWorkbench) private var isCompact
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     let wallpaperData: Data
@@ -275,13 +303,16 @@ struct WallpaperPreferencePanel: View {
         let pickerForeground = theme.inverseText
         let plan = SettingsPreferenceRowLayoutPolicy.resolve(
             contentWidth: panelContentWidth,
-            dynamicTypeSize: dynamicTypeSize
+            dynamicTypeSize: dynamicTypeSize,
+            isCompact: isCompact
         )
         let layout = plan.mode == .horizontal
             ? AnyLayout(
                 HStackLayout(
                     alignment: .top,
-                    spacing: SettingsPreferenceRowLayoutPolicy.horizontalSpacing
+                    spacing: isCompact
+                        ? SettingsPreferenceRowLayoutPolicy.compactHorizontalSpacing
+                        : SettingsPreferenceRowLayoutPolicy.horizontalSpacing
                 )
             )
             : AnyLayout(
@@ -306,8 +337,13 @@ struct WallpaperPreferencePanel: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .fixedSize(horizontal: false, vertical: true)
-        .frame(minHeight: SettingsPreferenceRowLayoutPolicy.previewSize)
+        .frame(minHeight: previewSize)
         .panelStyle(border: theme.border)
+    }
+
+    private var previewSize: CGFloat {
+        isCompact ? SettingsPreferenceRowLayoutPolicy.compactPreviewSize
+            : SettingsPreferenceRowLayoutPolicy.previewSize
     }
 
     private var wallpaperText: some View {
@@ -318,7 +354,7 @@ struct WallpaperPreferencePanel: View {
                 .lineLimit(SettingsPreferenceTextLayoutPolicy.titleLineLimit)
                 .fixedSize(horizontal: false, vertical: true)
             Text(statusText)
-                .font(.subheadline.weight(.bold))
+                .font(isCompact ? .caption : .subheadline.weight(.bold))
                 .foregroundStyle(theme.secondaryText)
                 .lineLimit(SettingsPreferenceTextLayoutPolicy.statusLineLimit)
                 .fixedSize(horizontal: false, vertical: true)
@@ -449,8 +485,8 @@ struct WallpaperPreferencePanel: View {
                     .resizable()
                     .scaledToFill()
                     .frame(
-                        width: SettingsPreferenceRowLayoutPolicy.previewSize,
-                        height: SettingsPreferenceRowLayoutPolicy.previewSize
+                        width: previewSize,
+                        height: previewSize
                     )
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                     .overlay {
@@ -472,8 +508,8 @@ struct WallpaperPreferencePanel: View {
                         .foregroundStyle(theme.accent)
                 }
                 .frame(
-                    width: SettingsPreferenceRowLayoutPolicy.previewSize,
-                    height: SettingsPreferenceRowLayoutPolicy.previewSize
+                    width: previewSize,
+                    height: previewSize
                 )
                 .overlay {
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
@@ -911,6 +947,7 @@ enum OptimizationToggleTextLayoutPolicy {
 
 struct OptimizationToggleGrid: View {
     @Environment(\.appTheme) private var theme
+    @Environment(\.compactWorkbench) private var isCompact
 
     let items: [OptimizationSwitch]
     let availableWidth: CGFloat
@@ -926,9 +963,21 @@ struct OptimizationToggleGrid: View {
                 .lineLimit(OptimizationToggleTextLayoutPolicy.gridTitleLineLimit)
                 .fixedSize(horizontal: false, vertical: true)
 
-            toggleGrid(columnCount: OptimizationToggleGridLayoutPolicy.columnCount(
-                for: max(availableWidth - WorkbenchVisualStylePolicy.panelPadding * 2, 0)
-            ))
+            if isCompact {
+                VStack(spacing: 0) {
+                    ForEach(items) { item in
+                        OptimizationToggleRow(item: item, toggle: { toggle(item) })
+                        if item.id != items.last?.id {
+                            Divider().overlay(theme.border)
+                                .padding(.leading, 32)
+                        }
+                    }
+                }
+            } else {
+                toggleGrid(columnCount: OptimizationToggleGridLayoutPolicy.columnCount(
+                    for: max(availableWidth - WorkbenchVisualStylePolicy.panelPadding * 2, 0)
+                ))
+            }
         }
         .panelStyle(border: border)
     }
@@ -1025,9 +1074,12 @@ struct OptimizationToggleRow: View {
 
                 Spacer()
             }
-            .padding(12)
+            .padding(.horizontal, isCompact ? 0 : 12)
+            .padding(.vertical, 12)
             .frame(minHeight: OptimizationToggleRowLayoutPolicy.rowMinHeight)
-            .background(theme.recessedSurface, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .contentShape(Rectangle())
+            .background(isCompact ? Color.clear : theme.recessedSurface,
+                        in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
         .buttonStyle(.plain)
         .accessibilityLabel(OptimizationToggleAccessibilityMetadata.label(for: item))

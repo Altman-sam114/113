@@ -2,9 +2,19 @@
 
 本文是本项目的入口记忆、总览、基本规则和多 Agent 云端迭代工作流。后续任何 Codex / Agent 进入项目后，先读本文，再读项目核心文档和相关源码。
 
-## 当前 v3.6 手机呈现边界
+## 当前 v3.7 手机呈现与协作边界
 
-人工最新要求以 iPhone 为主、精简界面并且不多开子智能体；由单一 Agent 串行执行设计/实现/云端复判。`CompactWorkbenchPolicy` 复用根 plan 的 `topNavigation`，不新增根断点；`compactWorkbench` 只读环境传给唯一四页 shell，手机使用单行模型栏与底部导航，不再显示旧顶部 tab 或横向会话 chip。编辑时只移除底栏，不重建四页；composer 同步 focus 生命周期、Command+Return、48pt 按钮保持，新增键盘完成和交互式收键盘。
+用户于 2026-10-28 明确允许多 Agent 并行加速，覆盖下文历史单 Agent 条款；按文件所有权分工，只有 root 集成负责人提交/push，A 设计、B 实施、C 精确云端结果包验收仍不可省略。AITRANS 只读参考，不修改。当前版本仍是本地模拟 runtime，UI 质量目标不等于真实推理或签名发布已经完成。
+
+compact 根 chrome 使用零高、无命中且辅助隐藏的占位，根同序两节点和唯一四页 shell 保持；聊天自带模型摘要/历史/新建/更多单行头，主题与导出位于更多菜单，`.xxxLarge` 以上同一头部布局堆叠。非聊天页不再重复全局模型栏，手机公共标题去英文 eyebrow 与副文。摘要复用 `CompactModelSummarySheet`；离开聊天同步关闭摘要、历史和导出并清 pending history focus，原 composer request/active 同步生命周期与 48pt 按钮不变。底栏只改变浮动圆角托盘与小面积选中图标呈现，56pt 导航项和原四入口/快捷键/Reduce Motion 路由保持。
+
+手机欢迎标记缩至 76pt，Files panel 去重复标题/状态但保留整体 metadata；模型 selector 去双层底板/重复规格，三枚 badge 独立语义保留，部署始终诚实显示模拟预览。模板主区填入与 44pt 独立发送同级，展示短用途而不改完整 prompt；分类最小宽 56pt、横 padding 10pt、44pt 高并真实换行。设置去重复标题/内嵌策略卡，手机壁纸用 40pt 预览、10pt 间距派生 244pt 内容横排阈值；大屏原 58/14/270pt 保留，`.xxxLarge` 以上继续 stacked，同一子树与父级 PhotosPicker 状态不变。设备预算仍明确模拟、非实测。
+
+源码 147 项，保留原 144 项并新增手机头部、设置行、模板行三项回归。16 模拟器图 + 20 宿主图、3 份 provenance、三份完整 xcresult 和 JUnit 8 阶段保留；手机 OCR 必须匹配真实特有正文“想聊点什么 / 导入模型文件 / 部署方案 / 外观模式”，不能仅命中底部导航。v3.6 run `40169024104` 的 143/144 与中文 OCR 失败是历史失败依据，预存语言分轮识别修复承接，不冒称已经通过。v3.7 所有 Swift/运行/截图只在云端，须核对自身新 SHA/run/attempt 的完整产物与人眼复判；真实 runtime、AppIcon/签名发布、真机/完整辅助技术和 Mac GUI/pointer 缺口仍须独立处理。
+
+## v3.6 手机呈现边界（历史）
+
+v3.6 实施时按当时人工要求由单一 Agent 串行执行设计/实现/云端复判；最新协作和呈现以 v3.7 节为准。`CompactWorkbenchPolicy` 复用根 plan 的 `topNavigation`，不新增根断点；`compactWorkbench` 只读环境传给唯一四页 shell，手机使用单行模型栏与底部导航，不再显示旧顶部 tab 或横向会话 chip。编辑时只移除底栏，不重建四页；composer 同步 focus 生命周期、Command+Return、48pt 按钮保持，新增键盘完成和交互式收键盘。
 
 手机会话 sheet 复用 SessionChip 选择/删除，dismiss 后且聊天仍 active 才发原 focus request，不用延时任务。模型摘要 sheet、参数 disclosure、Files 优先的动作与更多菜单仍复用原 metadata/确认/状态层；设备预算收起且标明模拟数据。手机 panel 20pt 圆角、大屏原 8pt 保留；手机去工程网格/重复解释，静态轨道装饰不命中且辅助隐藏，未增加动画。
 

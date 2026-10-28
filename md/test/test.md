@@ -2,6 +2,22 @@
 
 本文指导 Agent A、Agent B、Agent C 和 Agent X 为 `Local Gemma iOS Prototype` 选择本地轻量检查、云端重验证、结果包下载和验收方式。
 
+## v3.7 当前测试与证据基线
+
+当前源码 147 个唯一 XCTest 方法，保留 v3.6 原144项，新加以下3项；测试内容已经落盘，不代表已经云端执行。用户最新允许多 Agent 按文件所有权并行，由统一集成负责人 push；本地仍只能做静态检查，不能启动 Swift、Xcode、模拟器、Vision 或 ImageRenderer。
+
+- `testCompactChatHeaderReclaimsSpaceWithoutChangingRuntimeState`：全 Dynamic Type 的 `.xxxLarge` 堆叠契约；亮暗 × 320/390pt × large/xxxLarge/accessibility3 的生产集成头部自然尺寸，普通高度不超过76pt，大字增高，600/1600pt提议保持自然高度，动作与catalog/inference状态不变。真实页面marker的等义繁简归一必须匹配，底部四入口文字不能冒充正文。
+- `testCompactSettingsRowsReclaimPhoneHeightAndKeepDynamicType`：手机40pt预览/10pt间距派生244pt内容阈值，大屏58/14/270pt保持；全字号、非法宽度、243.99/244/256/269.99/270边界、284pt panel扣28得到256pt。真实壁纸panel亮暗 × 284/366pt普通高度不超过120pt，大字增长，导入/清除禁用规则和44pt保持，测量不执行动作。
+- `testCompactPromptRowsPreservePayloadAndActionBoundaries`：分类56pt最小宽/10pt横padding/真实44pt目标、模板76pt最小行高；普通284/366pt筛选两行不超过104pt，首末真实模板普通行不超过140pt，大字均增长。独立填入/发送identifier保留，summary的空白subtitle回退原prompt且不改首尾空白/换行；逐个apply得到完整原prompt，不发送、不改会话。
+
+保留首次/隐藏/重返的严格 composer first-responder、root/四页/设置两节点 identity、会话/卸载/导出/runtime/verified 与既有自然高度测试。新增测量与状态断言不是实际点按或完整辅助技术测试，不能把它们报告成手势/VoiceOver 已通过。
+
+云端继续输出16张iPhone/iPad亮暗四页模拟器图、8张宽屏+4张readiness+8张320×640pt compact宿主图，共36张；三份provenance、20唯一宿主PNG、原附件索引/结构化summary/tests与三份完整xcresult不减。compact组合移除旧外部Header，使用页面自身chrome和底栏，ChatWorkspace显式接收实际themeMode/readiness；组合图仍不是完整模拟器截图。
+
+手机/compact OCR正文统一为“想聊点什么 / 导入模型文件 / 部署方案 / 外观模式”，宽屏英文marker不变。只归一同义繁简“點麼導觀”，中文先单语识别并保留逐pass全文，不能用底部导航同名词、添加测试生产文案或取消marker门禁。capture脚本每页保留尝试次数、JSON/stdout/stderr；失败后继续其他页收集诊断，manifest记录expectedCaptureCount=16与failures，最终任何页/尺寸/文件/正文失败仍使必选visual失败。JUnit保持8阶段，只有既有optional Codex environment可跳过。
+
+历史v3.6 commit `3adaef7` / run `40169024104` 的review为143/144成功，唯一compact暗聊天中文OCR误读，真实图有正文；预存4处识别/诊断修改在本轮保留并增量修正，不将历史失败写成通过。v3.7必须验收自身最新SHA/run/attempt的完整包、日志、测试名集合、PNG尺寸/hash和实际手机图，不能用旧绿色run、OCR或结构断言代替人眼。真实runtime、AppIcon/签名分发、真机/完整辅助技术和Mac GUI/pointer不在本轮自动通过范围。
+
 ## 默认策略
 
 - 默认云端重验证，本机只跑轻量检查。
@@ -57,7 +73,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
 case "$LOCAL_SIMULATOR_UDID" in FAC4325D*) ;; *) exit 1 ;; esac
 ```
 
-当前测试基线（v3.6）：
+v3.6 测试基线（历史实施记录）：
 
 - 源码144个唯一方法，保留v3.5.2原141项。基线`63a9766` / run`39892914886` attempt1完整包已下载，核对141项Passed、JUnit8/0失败/1 optional skip、三份xcresult成功与Data/refs完整、28图hash；两张旧空白/桌面问题对应的新图已实际复看。不是整产品发布验收，v3.6仍需自己的云端结果。
 - 新增`testCompactWorkbenchPolicyKeepsNavigationReachableAndRuntimeHonest`，覆盖原根plan映射、底栏编辑真值表、四入口别名/原快捷键、文件三态、中文策略映射、状态不变与verified门禁。
@@ -65,11 +81,11 @@ case "$LOCAL_SIMULATOR_UDID" in FAC4325D*) ;; *) exit 1 ;; esac
 - 新增`testCompactWorkbenchProductionPagesProduceSmallPhoneEvidence`，真实云端UIKit宿主绘制320×640pt四页亮暗8图，包含生产手机header/页面/bottom navigation。中文聊天标题与原页面marker通过公开Vision OCR识别。keepAlways图与独立compact provenance严格标注组件组合，不冒充完整Simulator截图。
 - 原严格composer焦点测试新增编辑回调/底栏呈现，首次、离页和重进同时要求真实UITextInput first responder、原request消费以及isEditing真值；不放宽2秒条件，不重试/直接设first responder。
 - exporter保留原8wide+4readiness并要求新增8compact、三份provenance、20个唯一PNG及来源/OCR/尺寸/hash；compact同主题四页hash必须不同。原16张全屏模拟器图仍必选，iPhone聊天正文marker改为真实可见“想聊点什么”，不新增测试专用生产文案。JUnit8阶段/三份完整xcresult/review小包契约不减。
-- 本地仅静态检查，所有Swift/SwiftC、Probe/Fast、iOS/Catalyst build、XCTest、Vision、UIKit/ImageRenderer和模拟器采集只在云端。下列历史基线保留作追溯，不代表当前144项已执行。
+- 本地仅静态检查，所有Swift/SwiftC、Probe/Fast、iOS/Catalyst build、XCTest、Vision、UIKit/ImageRenderer和模拟器采集只在云端。此处及下列历史基线保留作追溯，不代表当前v3.7的147项已执行。
 
 历史测试基线：
 
-- `LocalGemmaTests.swift` 当前包含138个`test...`方法；v3.4新增6项、v3.4.2新增1项。最近已验收代码提交`1601bd6` / run `39825340832` attempt1为138/138，完整结果包和28图回归已核对，呈现/布局修复限定通过；不是发布或Mac GUI验收。新增契约和产物见文末小节；既有严格焦点与 identity 不弱化、不跳过。
+- `LocalGemmaTests.swift` 在v3.4.2时包含138个`test...`方法；v3.4新增6项、v3.4.2新增1项。当时已验收代码提交`1601bd6` / run `39825340832` attempt1为138/138，完整结果包和28图回归已核对，呈现/布局修复限定通过；不是发布或Mac GUI验收。新增契约和产物见文末小节；既有严格焦点与 identity 不弱化、不跳过。
 - v2.75 新增 `testChipReadinessLayoutPolicyAdaptsToCardWidthAndAccessibilityDynamicType`，锁住 `354pt` 真实 panel 内容宽度边界、普通字号横排、Accessibility Dynamic Type 无条件 stacked、NaN/Infinity/非正宽度回退、纯值 plan、`DeviceOptimizer`/隐私状态不变，以及 `86pt` slot / `66pt` diameter；生产 `ChipReadinessCard` 的 `ImageRenderer` 覆盖亮暗主题、`382pt` 外框（扣除两侧 `14pt` panel padding 后为 `354pt` 内容）、窄外框与 Accessibility 字号 stacked，只断言图像非 nil、宽度误差不超过 1pt、高度合理，不做像素/私有层级/截图断言。测试函数数从 119 增至 120；本地只做轻量检查，完整 iOS/Catalyst build、LogicSmoke、120 项 XCTest 和结果包待本轮 push 后 GitHub Actions 执行。
 - v2.76 新增 `testOptimizationToggleTextLayoutPolicySupportsDynamicTypeRows`，锁住共享 `OptimizationToggleTextLayoutPolicy` 的标题/行标题/副标题均为两行、行内 spacing 为 3pt、subtitle lineSpacing 为 2pt、三个多行能力计算属性、44pt 行最小高度、250pt 最小卡片宽度和 510pt 两列边界，并确认重复读取不改变 `DeviceOptimizer` 开关、准备度或隐私摘要。生产 `ImageRenderer` 使用真实 `OptimizationToggleRow` 覆盖 250/510pt、亮暗主题、enabled/disabled 与 `.large`/`.xxxLarge`/`.accessibility3`，比较普通/Accessibility 高度，并用真实 `OptimizationToggleGrid` 覆盖窄单列和宽区域；只断言非 nil、宽度误差不超过 1pt、高度合理，不做像素、私有层级或截图断言。测试函数数从 120 增至 121；本地只做轻量检查，完整 iOS/Catalyst build、LogicSmoke、121 项 XCTest 和结果包待本轮 push 后 GitHub Actions 执行。
 - v2.77 新增 `testExportSessionBodyTextLayoutPolicySupportsDynamicTypeReading`，锁住 `ExportSessionBodyTextLayoutPolicy` 的 18pt content padding、3pt body line spacing、`preservesFullText`、语义等宽 Dynamic Type 契约、重复读取不变性、`ExportSessionLayoutPolicy` 的 320/390/834/1200pt 与负数/NaN 回归及导出动作 44pt 目标。生产公开 `ImageRenderer` 直接渲染真实 `ExportSessionView(payload:)`，覆盖亮暗主题、320/390/834/1200pt 与 `.large`/`.xxxLarge`/`.accessibility3`，只断言非 nil、正尺寸和固定 NavigationStack/GeometryReader 测试 viewport 下的非下降高度，不做像素、颜色、截图或私有层级断言。测试函数数从 121 增至 122；本地不运行 XCTest、xcodebuild、Simulator、Catalyst build/run 或视觉截图验收，完整 iOS/Catalyst build、LogicSmoke、122 项 XCTest 和结果包待本轮 push 后 GitHub Actions 执行。
@@ -451,7 +467,7 @@ xcodebuild -project LocalGemma.xcodeproj \
 当前基线：
 
 - 期望结果：`TEST EXECUTE SUCCEEDED`。
-- 当前测试函数数：138。v3.4.2代码提交`1601bd6` / run `39825340832`已核对138/138，详见文末限定验收记录。已核对的 v3.3.1 基线为 `9ccf8b9` / run `38343587295` attempt `1` 的 `131/131 Success`，只证明焦点/构建回归基线；v3.4 新增及视觉修复必须由自己的新 run 验证。
+- 本节历史测试函数数：138；当前v3.7源码为147，尚待自身云端验收。v3.4.2代码提交`1601bd6` / run `39825340832`已核对138/138，详见文末限定验收记录。已核对的 v3.3.1 基线为 `9ccf8b9` / run `38343587295` attempt `1` 的 `131/131 Success`，只证明焦点/构建回归基线；v3.4 新增及视觉修复必须由自己的新 run 验证。
 
 ### v2.85 / 取消生成占位生命周期
 

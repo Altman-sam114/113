@@ -1,36 +1,50 @@
 # 项目核心流程图
 
-## v3.6 iPhone 优先的界面流
+## v3.7 iPhone 单头界面与云端门禁
 
-读图说明：手机新呈现只读取原状态和根布局计划，四页 shell 始终唯一。抽屉关闭与输入焦点严格串行，参数与预算渐进展开；所有执行仍在云端。
+读图说明：根窄屏 chrome 保留零高槽位，聊天自己呈现唯一集成头部，其他页面直接显示标题与内容；四页身份不变。隐藏聊天同步关闭模态，历史关闭后仍受活动态焦点门禁约束。用户允许按文件分工并行，但所有编译、运行与图片验证仍在云端，最新结果包不通过就退回修复。
 
 ```mermaid
 flowchart TD
     %% 不引入第二套根断点，不重建四页
     Root[原根布局 plan] --> Compact{topNavigation?}
-    Compact -- 是 --> Header[单行模型栏 / 运行摘要 sheet]
+    Compact -- 是 --> Empty[零高chrome占位 / 无命中 / 辅助隐藏]
     Compact -- 否 --> Sidebar[原大屏 sidebar]
-    Header --> Pages[同一个 WorkspacePagesShell]
+    Empty --> Pages[同一个 WorkspacePagesShell]
     Sidebar --> Pages
-    Pages --> Nav[手机底部四入口 / 44pt以上]
+    Pages --> Chat[聊天单头 / 模型摘要 历史 新建 更多]
+    Pages --> Other[模型 模板 设置 / 中文主标题与内容]
+    Chat --> More[更多菜单 / 主题与导出]
+    Chat --> Summary[原ModelCapsule摘要 / 原模型路由]
+    Pages --> Nav[浮动底部四入口 / 56pt导航项]
     %% 只读编辑反馈控制底栏，原同步聚焦保持
     Focus[原 ComposerBar FocusState] --> Editing[编辑状态向上传递]
     Editing --> NavRule[仅活动聊天编辑时收起底栏]
     NavRule --> Nav
     Focus --> Dismiss[键盘完成 / 记录交互式收键盘]
     %% sheet 关闭后才请求聚焦，不跨越活动态边界
-    Pages --> History[会话抽屉 / 原SessionChip]
+    Chat --> History[会话抽屉 / 原SessionChip]
     History --> Select[原选择或新建 / 保存UI focus reason]
     Select --> Closed[sheet onDismiss / 清reason]
     Closed --> Active{聊天仍active?}
     Active -- 是 --> Request[原requestComposerFocus同步路由]
     Active -- 否 --> None[不请求焦点]
+    Active -- 离页 --> Clear[同步清pending / 关闭历史 摘要 导出]
     %% 渐进披露不改模型文件与runtime门禁
-    Pages --> Files[Files导入与扫描优先 / 更多菜单]
+    Other --> Files[单层模型选择 / 导入主操作 / 模拟预览]
     Files --> Confirm[原卸载确认 / verified gate保持]
-    Pages --> Detail[模型参数与模拟设备预算按需展开]
-    Pages --> Cloud[云端144项 / 16模拟器图 / 20宿主图]
+    Other --> Prompt[模板主区填入 / 同级44pt发送 / 原payload]
+    Other --> Settings[壁纸244pt手机内容阈值 / 分隔式策略行]
+    Settings --> Detail[模型参数与模拟设备预算按需展开]
+    %% 并行实施统一提交，所有重验证只在真实云端
+    Parallel[A设计 / B按文件并行 / root统一集成] --> Cloud[云端147项 / 16模拟器图 / 20宿主图]
+    Pages --> Cloud
+    Cloud --> OCR[特有正文OCR / 逐页诊断 / 任意失败仍失败]
+    OCR --> Review
     Cloud --> Review[精确SHA-run-attempt完整包和实际图片复判]
+    Review --> Result{C是否通过?}
+    Result -- 否 --> Parallel
+    Result -- 是 --> Scope[仅本轮UI回归 / 真实runtime与签名仍独立验收]
 ```
 
 本文是 `md/flow/flow.md` 的 Mermaid 可视化版本。每张图前先给人工读图说明，图中节点使用中文注释，方便快速理解当前真实逻辑。

@@ -100,8 +100,10 @@ struct SettingsAppearanceSection: View {
     let clearWallpaper: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            SettingsSectionHeading(eyebrow: "01 / PERSONALIZATION", title: "外观与背景")
+        VStack(alignment: .leading, spacing: isCompact ? 12 : 16) {
+            if !isCompact {
+                SettingsSectionHeading(eyebrow: "01 / PERSONALIZATION", title: "外观与背景")
+            }
             if showsPreview {
                 SettingsAppearancePreview(wallpaperData: wallpaperData)
             }
@@ -149,10 +151,10 @@ struct SettingsRuntimeSection: View {
                     deviceDetails.padding(.top, 12)
                 } label: {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("设备与性能预算")
+                        Text("设备预算")
                             .font(.subheadline.weight(.medium))
                             .foregroundStyle(theme.primaryText)
-                        Text("模拟数据，非实测性能")
+                        Text("模拟数据 · 非实测")
                             .font(.caption)
                             .foregroundStyle(theme.secondaryText)
                     }

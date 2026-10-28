@@ -219,7 +219,7 @@ struct ChatWelcomeView: View {
     var body: some View {
         let contentWidth = WorkbenchPresentationPolicy.welcomeContentWidth(for: availableWidth)
 
-        VStack(alignment: isCompact ? .center : .leading, spacing: 24) {
+        VStack(alignment: isCompact ? .center : .leading, spacing: isCompact ? 18 : 24) {
             if isCompact && !dynamicTypeSize.isAccessibilitySize {
                 CompactIntelligenceMark()
             }
@@ -231,7 +231,7 @@ struct ChatWelcomeView: View {
                         .foregroundStyle(theme.accent)
                 }
                 Text("想聊点什么？")
-                    .font(.largeTitle.weight(.semibold))
+                    .font(isCompact ? .title.weight(.semibold) : .largeTitle.weight(.semibold))
                     .foregroundStyle(theme.primaryText)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityAddTraits(.isHeader)
@@ -272,7 +272,7 @@ struct ChatWelcomeView: View {
                                 .foregroundStyle(theme.secondaryText)
                         }
                         .padding(.horizontal, 14)
-                        .padding(.vertical, 12)
+                        .padding(.vertical, isCompact ? 10 : 12)
                         .frame(maxWidth: .infinity, minHeight: WorkbenchPresentationPolicy.minimumActionHeight,
                                alignment: .leading)
                         .background(theme.surface, in: RoundedRectangle(cornerRadius: 16))
@@ -302,21 +302,21 @@ private struct CompactIntelligenceMark: View {
         ZStack {
             Circle()
                 .fill(RadialGradient(colors: [theme.accent.opacity(0.12), .clear],
-                                     center: .center, startRadius: 8, endRadius: 58))
+                                     center: .center, startRadius: 4, endRadius: 38))
             Circle()
                 .stroke(theme.accent.opacity(0.16), lineWidth: 1)
-                .frame(width: 86, height: 86)
+                .frame(width: 58, height: 58)
             Ellipse()
                 .stroke(theme.secondaryAccent.opacity(0.35), lineWidth: 1)
-                .frame(width: 110, height: 42)
+                .frame(width: 74, height: 28)
                 .rotationEffect(.degrees(-35))
             Image(systemName: "sparkle")
-                .font(.system(size: 38, weight: .light))
+                .font(.system(size: 28, weight: .light))
                 .foregroundStyle(LinearGradient(colors: [theme.accent, theme.secondaryAccent],
                                                 startPoint: .topLeading, endPoint: .bottomTrailing))
-            Circle().fill(theme.accent).frame(width: 5, height: 5).offset(x: 40, y: -17)
+            Circle().fill(theme.accent).frame(width: 4, height: 4).offset(x: 27, y: -12)
         }
-        .frame(width: 116, height: 116)
+        .frame(width: 76, height: 76)
         .allowsHitTesting(false)
         .accessibilityHidden(true)
     }

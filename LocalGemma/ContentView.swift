@@ -685,12 +685,10 @@ struct ContentView: View {
     ) -> some View {
         switch layoutPlan.chrome {
         case .topNavigation:
-            headerView(
-                themeMode: themeMode,
-                selectedValidation: selectedValidation,
-                capsuleAvailableWidth: ModelCapsuleLayoutPolicy.availableWidth(forChromeWidth: rootSize.width),
-                layoutMode: layoutPlan.mode
-            )
+            // Keep the shell's chrome slot while compact pages own their single header.
+            Color.clear.frame(height: 0)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
         case .compactSidebar, .detailedSidebar:
             sidebarChrome(
                 themeMode: themeMode,
@@ -764,7 +762,18 @@ struct ContentView: View {
                 composerFocusRequest: composerFocusRequest,
                 requestComposerFocus: requestComposerFocus,
                 clearComposerFocusRequest: clearComposerFocusRequest,
-                composerEditingChanged: { isComposerEditing = $0 }
+                composerEditingChanged: { isComposerEditing = $0 },
+                themeMode: themeMode,
+                readiness: optimizer.deploymentReadiness,
+                toggleTheme: {
+                    withAnimation(AppMotionAccessibilityPolicy.animation(
+                        .spring(response: 0.28, dampingFraction: 0.82),
+                        for: .themeChange, reduceMotion: reduceMotion
+                    )) {
+                        themeModeStorage = themeMode.toggled.rawValue
+                    }
+                },
+                showModels: { selectWorkspace(.models) }
             )
         } models: {
             ModelLibraryView()
@@ -2744,47 +2753,15 @@ struct HeaderView: View {
             }
         }
         .sheet(isPresented: $isShowingSummary) {
-            NavigationStack {
-                ScrollView {
-                    ModelCapsule(
-                        model: model, readiness: readiness, tokensPerSecond: tokensPerSecond,
-                        memoryUsageMB: memoryUsageMB, backend: backend, availability: availability,
-                        deploymentState: deploymentState, isGenerating: isGenerating,
-                        isSimulated: isSimulated, availableWidth: capsuleAvailableWidth,
-                        layoutMode: .portrait
-                    )
-                    .padding(18)
-                    Button {
-                        isShowingSummary = false
-                        showModels()
-                    } label: {
-                        Label("管理模型", systemImage: "square.stack.3d.up")
-                            .font(.headline)
-                            .frame(maxWidth: .infinity, minHeight: 48)
-                    }
-                    .buttonStyle(.bordered)
-                    .padding(.horizontal, 18)
-                    .accessibilityLabel(HeaderActionAccessibilityMetadata.modelLibraryLabel)
-                    .accessibilityValue(HeaderActionAccessibilityMetadata.modelLibraryValue)
-                    .accessibilityHint(HeaderActionAccessibilityMetadata.modelLibraryHint)
-                    .accessibilityInputLabels(HeaderActionAccessibilityMetadata.modelLibraryInputLabels + ["管理模型"])
-                    .accessibilityIdentifier(HeaderActionAccessibilityMetadata.modelLibraryIdentifier)
-                }
-                .background(theme.canvas)
-                .navigationTitle("运行摘要")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button { isShowingSummary = false } label: {
-                            Image(systemName: "xmark").frame(width: 44, height: 44)
-                        }
-                        .accessibilityLabel("关闭运行摘要")
-                    }
-                }
+            CompactModelSummarySheet(
+                model: model, readiness: readiness, tokensPerSecond: tokensPerSecond,
+                memoryUsageMB: memoryUsageMB, backend: backend, availability: availability,
+                deploymentState: deploymentState, isGenerating: isGenerating,
+                isSimulated: isSimulated
+            ) {
+                isShowingSummary = false
+                showModels()
             }
-            .tint(theme.accent)
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
         }
     }
 }
@@ -3333,11 +3310,13 @@ struct SectionHeader: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: SectionHeaderTextLayoutPolicy.verticalSpacing) {
-            Text(eyebrow)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(theme.accent)
-                .tracking(SectionHeaderTextLayoutPolicy.eyebrowTracking)
-                .lineLimit(SectionHeaderTextLayoutPolicy.eyebrowLineLimit)
+            if !isCompact {
+                Text(eyebrow)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(theme.accent)
+                    .tracking(SectionHeaderTextLayoutPolicy.eyebrowTracking)
+                    .lineLimit(SectionHeaderTextLayoutPolicy.eyebrowLineLimit)
+            }
             Text(title)
                 .font(isCompact ? .title.weight(.semibold) : .largeTitle.weight(.semibold))
                 .foregroundStyle(theme.primaryText)

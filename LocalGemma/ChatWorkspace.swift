@@ -12,6 +12,7 @@ struct ChatWorkspace: View {
     @Environment(\.compactWorkbench) private var isCompact
     @State private var exportPayload: ExportPayload?
     @State private var isShowingHistory = false
+    @State private var isShowingModelSummary = false
     @State private var pendingHistoryFocus: ComposerFocusReason?
 
     let isActive: Bool
@@ -19,19 +20,31 @@ struct ChatWorkspace: View {
     let requestComposerFocus: (ComposerFocusReason) -> Void
     let clearComposerFocusRequest: () -> Void
     let composerEditingChanged: (Bool) -> Void
+    let themeMode: AppThemeMode
+    let readiness: Double
+    let toggleTheme: () -> Void
+    let showModels: () -> Void
 
     init(
         isActive: Bool = true,
         composerFocusRequest: ComposerFocusRequest = .initial,
         requestComposerFocus: @escaping (ComposerFocusReason) -> Void = { _ in },
         clearComposerFocusRequest: @escaping () -> Void = {},
-        composerEditingChanged: @escaping (Bool) -> Void = { _ in }
+        composerEditingChanged: @escaping (Bool) -> Void = { _ in },
+        themeMode: AppThemeMode = .dark,
+        readiness: Double = 0,
+        toggleTheme: @escaping () -> Void = {},
+        showModels: @escaping () -> Void = {}
     ) {
         self.isActive = isActive
         self.composerFocusRequest = composerFocusRequest
         self.requestComposerFocus = requestComposerFocus
         self.clearComposerFocusRequest = clearComposerFocusRequest
         self.composerEditingChanged = composerEditingChanged
+        self.themeMode = themeMode
+        self.readiness = readiness
+        self.toggleTheme = toggleTheme
+        self.showModels = showModels
     }
 
     var body: some View {
@@ -54,14 +67,21 @@ struct ChatWorkspace: View {
 
             workspaceLayout {
                 if isCompact {
-                    CompactSessionToolbar(
-                        title: inference.activeSessionTitle,
-                        showHistory: { isShowingHistory = true },
-                        create: {
-                            inference.createSession()
-                            requestComposerFocus(.createSession)
-                        },
-                        export: prepareExport
+                    CompactWorkbenchHeader(
+                        model: catalog.selectedModel,
+                        isSimulated: inference.lastResultWasSimulated,
+                        themeMode: themeMode,
+                        openSummary: { isShowingModelSummary = true },
+                        toggleTheme: toggleTheme,
+                        chatActions: CompactChatHeaderActions(
+                            sessionTitle: inference.activeSessionTitle,
+                            showHistory: { isShowingHistory = true },
+                            create: {
+                                inference.createSession()
+                                requestComposerFocus(.createSession)
+                            },
+                            export: prepareExport
+                        )
                     )
                 } else {
                     SessionBar(
@@ -109,6 +129,19 @@ struct ChatWorkspace: View {
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
         }
+        .sheet(isPresented: $isShowingModelSummary) {
+            CompactModelSummarySheet(
+                model: catalog.selectedModel, readiness: readiness,
+                tokensPerSecond: inference.currentTokensPerSecond,
+                memoryUsageMB: inference.memoryUsageMB, backend: inference.currentBackend,
+                availability: catalog.validation(for: catalog.selectedModel).availability,
+                deploymentState: catalog.deploymentState(for: catalog.selectedModel),
+                isGenerating: inference.isGenerating, isSimulated: inference.lastResultWasSimulated
+            ) {
+                isShowingModelSummary = false
+                showModels()
+            }
+        }
         .sheet(isPresented: $isShowingHistory, onDismiss: finishHistorySelection) {
             CompactSessionHistory(
                 sessions: inference.sessions, activeSessionID: inference.activeSessionID,
@@ -137,6 +170,13 @@ struct ChatWorkspace: View {
                 )
             )
         )
+        .onChange(of: isActive) { _, active in
+            guard !active else { return }
+            pendingHistoryFocus = nil
+            isShowingHistory = false
+            isShowingModelSummary = false
+            exportPayload = nil
+        }
     }
 
     private var sessionCommandActions: SessionCommandActions {

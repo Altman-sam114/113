@@ -30,7 +30,7 @@ struct ComposerBar: View {
                         .accessibilityHidden(true)
                 }
 
-                TextField("输入消息", text: $text, axis: .vertical)
+                TextField("输入消息", text: $text, prompt: Text("输入消息").foregroundStyle(theme.secondaryText), axis: .vertical)
                     .textFieldStyle(.plain)
                     .font(ComposerInputTextLayoutPolicy.semanticFont)
                     .foregroundStyle(theme.primaryText)
@@ -95,13 +95,15 @@ struct ComposerBar: View {
                     inputFieldBorderColor,
                     lineWidth: ComposerFocusGlowStylePolicy.lineWidth(isFocused: isInputFocused)
                 )
+                .shadow(
+                    color: theme.accent.opacity(ComposerFocusGlowStylePolicy.glowOpacity(
+                        isFocused: isInputFocused, isDark: theme.isDark
+                    )),
+                    radius: ComposerFocusGlowStylePolicy.glowRadius
+                )
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
         }
-        .shadow(
-            color: theme.accent.opacity(ComposerFocusGlowStylePolicy.glowOpacity(
-                isFocused: isInputFocused, isDark: theme.isDark
-            )),
-            radius: ComposerFocusGlowStylePolicy.glowRadius
-        )
         .onAppear(perform: updateFocus)
         .onChange(of: isInputFocused) { _, isFocused in
             editingChanged(isFocused)
