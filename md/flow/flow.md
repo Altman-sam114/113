@@ -2,6 +2,10 @@
 
 ## v3.10.1 输入保护与历史大字修复
 
+核心代码`5e0eec3` / run`40643812543` attempt1完整包/169唯一Success与42图已复判，4份xcresult/unsigned资源成功；恢复期64次拒绝不再崩溃。基线完整包与独立hash/SQLite/图像记录在`/private/tmp/localgemma-c-review-40643812543/`，只绑定该SHA。后续搜索收尾仍须新SHA云端。
+
+history继续拥有query，搜索子树抽为无服务依赖的`ConversationHistorySearchField`；6pt垂直padding只挂TextField，不把44pt清除按钮撑到56pt，48pt最小行高与大字自然增长并存，空/有查询不会跳高。现有尺寸测试增同宽同字号的两态等高断言，169方法/42图等门禁不减，未改变本地过滤、草稿/记录、focus或runtime。
+
 云端`01c1000` / run`40642098350`完整包实际168/169，ips确认`@Published inputText`在loading的oldValue回写重入didSet而栈溢出。rollback现在以既有内部输入旗标抑制嵌套observer，只恢复oldValue、不写draft/启动writer；恢复期模板/发送仍拒绝，同一测试改为64次尝试，不放宽断言。原169名称和42图等全链路不减，新SHA待云端。
 
 根据实际历史宿主大字图，`.xxxLarge`以上移除装饰气泡，搜索/勾选/删除符号采用小装饰尺寸，搜索框给语义正文增加垂直空间，按钮44pt和选择/删除metadata/原focus保持。正文排版不缩字，不修改records或verified；这不是新根布局断点或额外页面树。

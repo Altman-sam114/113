@@ -16,7 +16,7 @@
 - 平台：SwiftUI iOS App，Swift 6.0，iOS deployment target 17.0，当前 app/test target 支持 iPhone、iPad 和 Mac Catalyst build-for-testing，并提供项目内 Mac Catalyst 本地 build/run 脚本入口；尚未创建原生 macOS target。
 - 当前默认模型：`Gemma 1.5B Local`
 - 当前推理：本地模拟 runtime，不下载模型权重，不执行真实模型推理。
-- 当前核心测试：`LocalGemmaTests.swift`中169个唯一XCTest方法，原157名称保留；v3.10新增12项、42图待自身精确SHA云端验收。入口`f347619` / run`40638042855` attempt1已核对157/157、12个Python夹具与38图，不自动覆盖新代码，不是整产品发布验收。
+- 当前核心测试：`LocalGemmaTests.swift`中169个唯一XCTest方法，原157名称保留；核心修复`5e0eec3` / run`40643812543` attempt1完整包已核对169/169、12个Python夹具与42图。最后搜索框两态等高小修仍须自身新SHA云端，不自动继承绿色，不是整产品发布验收。
 - 当前核心文档入口：`AGENTS.md`、`md/flow/flow.md`、`md/flow/flowchart.md`、`md/test/test.md`、`md/prompt/README.md`、`README.md`。
 - 当前协作验证：按用户最新要求单Agent按模块推进，不开子智能体、不再采用ABC前置队列；main直推、GitHub Actions完整云端重验证、同一Agent下载完整包并看图。最终验收以最新origin/main的SHA/run/attempt为准，本地不编译、不运行UI。
 
@@ -4699,3 +4699,11 @@ summary/tree/源码名称和原始SQLite严格匹配157唯一Success、0 skipped
 已下载`01c1000` / run`40642098350` attempt1完整100983923字节包，独立ZIP SHA-256与API `8a9ef4fec7af55f84d4fab971731f9939c514d9b29429132ac6644b4c2a9be16`一致、安全路径/CRC通过。实际168/169，恢复期间拒绝输入的测试SIGSEGV。ips明确Published oldValue回写递归栈溢出；Xcode恢复剩余用例不是失败项通过，不以42图/5provenance、12Python/Swift6、iOS/Catalyst/unsigned成功抵消失败。
 
 AppState在rollback时用既有内部旗标抑制observer重入，loading仍拒绝输入/发送/模板；同一失败用例增强64次拒绝及模板/发送，保留原草稿/seed/0写入断言，不重试/skip。实看首轮历史亮暗/大字图，`.xxxLarge`以上隐藏装饰气泡、缩小纯装饰符号，搜索自然增长，语义正文/44pt/原metadata与focus保持。169/42图等原门禁不减，新SHA须重新完整云端验收，不提前称通过或整目标完成。
+
+### v3.10.1 / 核心验收与搜索行稳定收尾（2026-10-28）
+
+`5e0eec3e5dca6d9ea71df9a80d66a28826f18f67` / run`40643812543` attempt1，22m35s。完整artifact `localgemma-ci-v3.10.1-main-5e0eec3-run40643812543-attempt1`的99467041字节ZIP已独立算SHA-256 `7bb9bc7d1b133e5f53296fc14d5a1fbe84bc28d5f95ca526d725b8775009cffc`并匹配API，安全路径/CRC通过。summary/tree/源码/SQLite为169唯一Success/0 failure/skip/重启，恢复64次拒绝0.0015s，严格focus4.923s，实际磁盘恢复图12.085s；12Python/Swift6 smoke、iOS/Catalyst/unsigned资源成功。JUnit10仅optional Codex skip，4份xcresult根succeeded且Data/refs为3/3、3/3、3/3、906/906；实际App zip CRC/资源hash/Info/arm64/隐私再核对。
+
+42图/5provenance身份尺寸hash/OCR完整，4历史原尺寸和全部6联系表已看，无新遮挡或缺页；大字去装饰后标题/预览更完整，预览截断不影响原始存储。对入口f347619，21/22宿主逐字节一致，亮导入图仅spinner `(17,84)-(40,105)` 区域不同，16模拟器正文去状态栏像素相同。原始包/独立JSON/联系表在`/private/tmp/localgemma-c-review-40643812543/`。辅助技术/系统sheet交互/真机与签名发布不因此通过；169项只对本SHA成立。中间`3b474d5` / run`40642342631`日志另确认权限保护fixture成功，旧Published崩溃仍存在，不能称中间版通过。
+
+最后收尾将搜索框抽成同一query绑定的独立View，padding只挂TextField，清除按钮出现不会把普通字号行从48撑到56pt；旧手机尺寸测试增亮暗/两宽/两字号的空/有查询等高断言，仍169方法。此代码与回录文档要重新绑定自身新SHA的完整云端，不沿用上段绿色。整体目标继续，真实runtime/故障耐久/真机完整辅助技术/签名分发仍未完成。

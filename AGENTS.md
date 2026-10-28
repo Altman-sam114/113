@@ -1,5 +1,11 @@
 # AGENTS.md
 
+## v3.10.1 已验收代码基线与搜索收尾
+
+`5e0eec3e5dca6d9ea71df9a80d66a28826f18f67` / run`40643812543` attempt1完整99467041字节ZIP已独立匹配API SHA-256 `7bb9bc7d1b133e5f53296fc14d5a1fbe84bc28d5f95ca526d725b8775009cffc`：169唯一Success/0 failure/skip/重启，恢复期64次拒绝0.0015s、严格focus4.923s、真实磁盘恢复图12.085s。JUnit10仅optional Codex skip，12个Python与Swift6 smoke、iOS/Catalyst/unsigned资源成功；4份xcresult根succeeded且refs/Data配对3/3、3/3、3/3、906/906。42图均看，4历史原尺寸/全部6张无裁切联系表无新遮挡或缺页；对入口f347619的21/22宿主字节相同，另1仅进度spinner区域变化，16模拟器正文排除状态栏像素一致。完整包与记录在`/private/tmp/localgemma-c-review-40643812543/`。
+
+最后收尾把同一搜索框抽成`ConversationHistorySearchField`，只给TextField加垂直padding，避免普通字号清除按钮出现时整行增高；查询状态仍由history拥有，44pt清除/48pt行/大字增长保持。现有手机尺寸测试追加亮暗×284/366×large/accessibility3空/有查询等高断言，169方法不变。这个小修及本文后续提交仍须自身新SHA完整云端与看图，不能沿用上段绿色。整体目标继续，真实runtime/故障耐久/真机辅助技术/签名发布仍未完成。
+
 ## 当前 v3.10.1 恢复保护与大字历史修复
 
 `01c1000` / run`40642098350` attempt1完整包已独立核对ZIP digest：168/169，唯一`testConversationEngineDoesNotOverwriteWhileRestoring`因真实栈溢出崩溃，ips明确`inputText.didset/setter`反复递归。其余168、42图/OCR、iOS/Catalyst/unsigned与12个Python成功不能抵消失败。`@Published`回写oldValue也重入didSet，现用既有内部输入抑制旗标包住rollback，保留恢复期拒绝动作/原草稿保护；同一测试增强为64次拒绝加模板/发送，不删断言、不重试/skip。

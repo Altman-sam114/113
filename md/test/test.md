@@ -1,6 +1,12 @@
 # 测试规范
 
-## v3.10.1 云端崩溃回归（待自身新SHA）
+## v3.10.1 核心修复验收与最后搜索回归
+
+`5e0eec3e5dca6d9ea71df9a80d66a28826f18f67` / run`40643812543` attempt1完整99467041字节ZIP独立SHA-256 `7bb9bc7d1b133e5f53296fc14d5a1fbe84bc28d5f95ca526d725b8775009cffc`与API匹配，安全路径/CRC通过。summary/tree/源码/SQLite严格169唯一Success、0 failure/skip/进程重启，恢复期64次拒绝0.0015s，严格focus4.923s，实际磁盘恢复图12.085s。JUnit10仅optional Codex skip，12Python/Swift6 smoke/iOS/Catalyst/unsigned资源成功，4份xcresult根succeeded且Data/refs 3、3、3、906配对；App zip CRC/资源hash/实际arm64/Info/隐私再核对。
+
+42图/5provenance身份/尺寸/hash/OCR完整，4新历史图原尺寸及6张全部图片无裁切联系表已看，无新遮挡/缺页。对入口f347619，21/22原宿主字节一致，另1导入亮图变化仅spinner `(17,84)-(40,105)`，16模拟器正文排除状态栏后像素相同。记录`/private/tmp/localgemma-c-review-40643812543/`。这只验收上述SHA的普通重启/界面回归，不是真机/完整辅助技术、系统sheet操作或签名发布证明。
+
+最后小修将生产搜索框抽出独立View，TextField自身6pt垂直padding而非整行padding；原`testConversationHistoryRowsAndNoticesGrowOnSmallPhones`追加两态尺寸：亮暗×284/366pt×large/accessibility3，空query与“部署”query自然高度相等（1pt容差）、最小48pt。44pt清除与query所有权/过滤不变，169方法/42图等全链路不减。此小修仍待自身新SHA完整云端，不沿用上段结论。
 
 `01c1000` / run`40642098350` attempt1完整100983923字节ZIP独立SHA-256 `8a9ef4fec7af55f84d4fab971731f9939c514d9b29429132ac6644b4c2a9be16`与API一致，169方法中168成功、1真实SIGSEGV。ips写明栈溢出，`inputText.didset/setter`重复；Xcode在崩溃后启动剩余测试不等于失败用例重试成功。42图/5provenance、12个Python、LogicSmoke和三个平台构建/unsigned资源成功不改变整轮失败。
 

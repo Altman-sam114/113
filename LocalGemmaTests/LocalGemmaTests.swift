@@ -278,6 +278,17 @@ final class LocalGemmaTests: XCTestCase {
                     XCTAssertEqual(size.width, width, accuracy: 1)
                     XCTAssertGreaterThanOrEqual(size.height, 72)
                     heights.append(size.height)
+                    let emptySearch = compactControlSize(
+                        AnyView(ConversationHistorySearchField(query: .constant(""))),
+                        width: width, textSize: type, themeMode: theme
+                    )
+                    let filledSearch = compactControlSize(
+                        AnyView(ConversationHistorySearchField(query: .constant("部署"))),
+                        width: width, textSize: type, themeMode: theme
+                    )
+                    XCTAssertGreaterThanOrEqual(emptySearch.height, 48)
+                    XCTAssertEqual(emptySearch.height, filledSearch.height, accuracy: 1,
+                        "The 44pt clear action must not make search jump when typing")
                     for state in [ConversationPersistenceState.loading, .readFailed, .writeFailed, .repairing] {
                         let notice = AnyView(ConversationPersistenceNotice(state: state, retry: {}, repair: {}))
                         let noticeSize = compactControlSize(notice, width: width, textSize: type, themeMode: theme)

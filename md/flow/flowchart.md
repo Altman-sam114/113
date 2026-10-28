@@ -4,6 +4,8 @@
 
 读图说明：正常保存没有提示卡；恢复期间不允许seed或输入覆盖已有磁盘。历史搜索和预览仅展示层裁剪，不改原始正文，不接入真实runtime。
 
+核心修复`5e0eec3` / run`40643812543`的169项与42图已独立核对；最后搜索框两态等高小修仍待自身新SHA全量云端，旧结果不能代替新验收。
+
 ```mermaid
 flowchart TD
     %% 生产显式注入，测试默认内存隔离
@@ -22,7 +24,7 @@ flowchart TD
     Edit --> Writer
     Writer -- 写失败 --> Retry[保留内存最新快照 / 一行重试]
     Retry -- 明确重试 --> Writer
-    Edit --> History[手机搜索自然长高 / 标题短正文 / 44pt删除确认<br/>大字隐藏装饰气泡 / 不缩正文]
+    Edit --> History[手机搜索两态等高且随字号增长 / 标题短正文 / 44pt删除确认<br/>大字隐藏装饰气泡 / 不缩正文]
     History --> Edit
     Edit --> Background[退后台stop / 有限后台flush]
     Background --> Writer

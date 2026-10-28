@@ -39,37 +39,10 @@ struct CompactSessionHistory: View {
             VStack(spacing: 0) {
                 ConversationPersistenceNotice(state: persistenceState, retry: retrySave, repair: repair)
                     .padding(.horizontal, 18)
-                HStack(spacing: 10) {
-                    Image(systemName: "magnifyingglass")
-                        .font(.system(size: 18))
-                        .foregroundStyle(theme.secondaryText)
-                        .accessibilityHidden(true)
-                    TextField("搜索对话", text: $query)
-                        .font(.body)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .foregroundStyle(theme.primaryText)
-                        .accessibilityLabel("搜索对话")
-                        .accessibilityHint("仅搜索本机对话标题和正文，不会联网。")
-                        .accessibilityIdentifier("conversation-history-search")
-                    if !query.isEmpty {
-                        Button { query = "" } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: 16))
-                                .frame(width: 44, height: 44)
-                        }
-                        .foregroundStyle(theme.secondaryText)
-                        .accessibilityLabel("清除搜索")
-                    }
-                }
-                .padding(.leading, 14)
-                .padding(.trailing, 4)
-                .padding(.vertical, 6)
-                .frame(minHeight: 48)
-                .background(theme.surface, in: RoundedRectangle(cornerRadius: 14))
-                .padding(.horizontal, 18)
-                .padding(.top, 8)
-                .padding(.bottom, 12)
+                ConversationHistorySearchField(query: $query)
+                    .padding(.horizontal, 18)
+                    .padding(.top, 8)
+                    .padding(.bottom, 12)
 
                 ScrollView {
                     let filtered = sessions.filter { ConversationHistoryPolicy.matches($0, query: query) }
@@ -123,6 +96,42 @@ struct CompactSessionHistory: View {
             } message: { session in Text(session.title) }
         }
         .tint(theme.accent)
+    }
+}
+
+struct ConversationHistorySearchField: View {
+    @Environment(\.appTheme) private var theme
+    @Binding var query: String
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 18))
+                .foregroundStyle(theme.secondaryText)
+                .accessibilityHidden(true)
+            TextField("搜索对话", text: $query)
+                .font(.body)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .foregroundStyle(theme.primaryText)
+                .padding(.vertical, 6)
+                .accessibilityLabel("搜索对话")
+                .accessibilityHint("仅搜索本机对话标题和正文，不会联网。")
+                .accessibilityIdentifier("conversation-history-search")
+            if !query.isEmpty {
+                Button { query = "" } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 16))
+                        .frame(width: 44, height: 44)
+                }
+                .foregroundStyle(theme.secondaryText)
+                .accessibilityLabel("清除搜索")
+            }
+        }
+        .padding(.leading, 14)
+        .padding(.trailing, 4)
+        .frame(minHeight: 48)
+        .background(theme.surface, in: RoundedRectangle(cornerRadius: 14))
     }
 }
 
