@@ -28,22 +28,23 @@ def attachment_name_matches(suggested_name, expected_name):
 
 def validate_task_capture(capture, width, height, name):
     contexts = {
-        "welcome-accessibility3": ("chat", "everyday", "accessibility3", "想聊点什么", "润色文字"),
-        "everyday-accessibility3": ("prompts", "everyday", "accessibility3", "润色文字", "保留原意"),
-        "technical-large": ("prompts", "technical", "large", "部署方案", "部署方案"),
+        "welcome-accessibility3": ("chat", "everyday", "accessibility3", "想聊点什么", "润色文字", 320, 640),
+        "welcome-accessibility5": ("chat", "everyday", "accessibility5", "想聊点什么", "润色文字", 390, 844),
+        "everyday-accessibility3": ("prompts", "everyday", "accessibility3", "润色文字", "保留原意", 320, 640),
+        "technical-large": ("prompts", "technical", "large", "部署方案", "部署方案", 320, 640),
     }
     expected = contexts.get(capture.get("context"))
     normalized = "".join(c for c in capture.get("recognizedText", "").translate(
         str.maketrans("點麼潤", "点么润")) if c.isalnum())
     actual = tuple(capture.get(key) for key in [
         "workspace", "templateCollection", "dynamicTypeSize", "requiredTextMarker", "requiredBodyMarker"])
-    if (expected is None or actual != expected
+    if (expected is None or actual != expected[:5]
             or expected[3] not in normalized
             or expected[4] not in normalized
             or capture.get("theme") not in ["light", "dark"]
             or name != f"workbench-tasks-{capture['theme']}-{capture['context']}"
-            or capture.get("viewportWidth") != 320 or capture.get("viewportHeight") != 640
-            or width != 320 or height != 640):
+            or capture.get("viewportWidth") != expected[5] or capture.get("viewportHeight") != expected[6]
+            or width != expected[5] or height != expected[6]):
         raise RuntimeError(f"Invalid everyday task production composition: {name}")
 
 
@@ -68,6 +69,33 @@ def validate_conversation_capture(capture, width, height, name):
             or capture.get("viewportWidth") != 320 or capture.get("viewportHeight") != 640
             or width != 320 or height != 640):
         raise RuntimeError(f"Invalid production conversation state: {name}")
+
+
+def validate_summary_capture(capture, width, height, name):
+    contexts = {
+        "missing-large": ("large", "missing", "stopped", False, False, "尚未导入", "尚未导入", "", 320, 640),
+        "staged-generating": ("large", "staged", "stopped", True, False, "正在生成", "待校验", "", 320, 640),
+        "verified-accessibility3": ("accessibility3", "verified", "running", False, False, "模拟预览", "已校验", "", 320, 640),
+        "details-large": ("large", "missing", "stopped", False, True, "参考指标", "尚未导入", "36.0", 390, 844),
+    }
+    expected = contexts.get(capture.get("context"))
+    normalize = lambda text: "".join(c for c in text.translate(
+        str.maketrans("導擬預覽驗參標實測", "导拟预览验参标实测")) if c.isalnum())
+    text = normalize(capture.get("recognizedText", ""))
+    actual = tuple(capture.get(key) for key in [
+        "dynamicTypeSize", "availability", "deploymentState", "isGenerating", "detailsExpanded",
+        "requiredTextMarker", "requiredStateMarker", "requiredDetailMarker"])
+    if (expected is None or actual != expected[:8]
+            or any(normalize(marker) not in text for marker in [expected[5], expected[6], "管理模型", expected[7]])
+            or capture.get("requiredBodyMarker") != "管理模型"
+            or capture.get("workspace") != "model-summary" or capture.get("theme") not in ["light", "dark"]
+            or capture.get("stateSource") != "explicit-presentation-fixture"
+            or capture.get("isSimulated") is not True or capture.get("usesProductionSummaryPage") is not True
+            or any(type(capture.get(key)) is not bool for key in ["isGenerating", "detailsExpanded"])
+            or name != f"workbench-summary-{capture['theme']}-{capture['context']}"
+            or capture.get("viewportWidth") != expected[8] or capture.get("viewportHeight") != expected[9]
+            or width != expected[8] or height != expected[9]):
+        raise RuntimeError(f"Invalid production model summary page: {name}")
 
 
 def main():
@@ -102,16 +130,16 @@ def main():
             exported.append((suggested_name, source, test_identifier))
             for name in ["workbench-wide-provenance", "workbench-readiness-provenance",
                          "workbench-compact-provenance", "workbench-import-provenance",
-                         "workbench-history-provenance", "workbench-tasks-provenance", "workbench-conversation-provenance"]:
+                         "workbench-history-provenance", "workbench-tasks-provenance", "workbench-conversation-provenance", "workbench-summary-provenance"]:
                 if attachment_name_matches(suggested_name, name):
                     document = json.loads(source.read_text(encoding="utf-8"))
                     documents.append((name, document, test_identifier))
 
     if {name for name, _document, _test in documents} != {
         "workbench-wide-provenance", "workbench-readiness-provenance", "workbench-compact-provenance",
-        "workbench-import-provenance", "workbench-history-provenance", "workbench-tasks-provenance", "workbench-conversation-provenance"
-    } or len(documents) != 7:
-        raise RuntimeError("Expected exactly seven production-render provenance attachments")
+        "workbench-import-provenance", "workbench-history-provenance", "workbench-tasks-provenance", "workbench-conversation-provenance", "workbench-summary-provenance"
+    } or len(documents) != 8:
+        raise RuntimeError("Expected exactly eight production-render provenance attachments")
 
     captures = []
     for _name, document, exported_test in documents:
@@ -210,6 +238,8 @@ def main():
                 validate_task_capture(capture, width, height, name)
             elif capture["evidenceKind"] == "uihostingcontroller-conversation-production-composition":
                 validate_conversation_capture(capture, width, height, name)
+            elif capture["evidenceKind"] == "uihostingcontroller-model-summary-production-page":
+                validate_summary_capture(capture, width, height, name)
             elif capture["evidenceKind"] != "uihostingcontroller-production-component":
                 raise RuntimeError(f"Unknown production snapshot source: {name}")
             captures.append({
@@ -246,16 +276,21 @@ def main():
     expected_tasks = {
         f"workbench-tasks-{theme}-{context}"
         for theme in ["light", "dark"]
-        for context in ["welcome-accessibility3", "everyday-accessibility3", "technical-large"]
+        for context in ["welcome-accessibility3", "welcome-accessibility5", "everyday-accessibility3", "technical-large"]
     }
     expected_conversation = {
         f"workbench-conversation-{theme}-{context}"
         for theme in ["light", "dark"]
         for context in ["completed-large", "completed-accessibility3", "generating-large", "stopped-large"]
     }
-    if (len(captures) != 40
+    expected_summary = {
+        f"workbench-summary-{theme}-{context}"
+        for theme in ["light", "dark"]
+        for context in ["missing-large", "staged-generating", "verified-accessibility3", "details-large"]
+    }
+    if (len(captures) != 50
             or {capture["attachmentName"] for capture in captures}
-            != expected_wide | expected_readiness | expected_compact | expected_import | expected_history | expected_tasks | expected_conversation):
+            != expected_wide | expected_readiness | expected_compact | expected_import | expected_history | expected_tasks | expected_conversation | expected_summary):
         raise RuntimeError("Incomplete or duplicate production-render capture matrix")
     for theme in ["light", "dark"]:
         hashes = [capture["sha256"] for capture in captures
@@ -284,8 +319,9 @@ def main():
         "compactCompositionCaptureCount": 8,
         "importCompositionCaptureCount": 2,
         "historyCompositionCaptureCount": 4,
-        "taskCompositionCaptureCount": 6,
+        "taskCompositionCaptureCount": 8,
         "conversationCompositionCaptureCount": 8,
+        "summaryPageCaptureCount": 8,
         "captureCount": len(captures),
         "captures": captures,
     }

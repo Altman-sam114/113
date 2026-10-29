@@ -1,5 +1,21 @@
 # 项目核心流程图
 
+## 手机模型摘要
+
+```mermaid
+flowchart TD
+    Header[当前模型 / 44pt入口] --> Sheet[聊天局部摘要sheet]
+    Values[模型 / artifact / 部署 / 生成原值] --> Snapshot[只读SummarySnapshot]
+    Snapshot --> Page[同一生产SummaryPage]
+    Sheet --> Page
+    Page --> First[身份 / 模拟标记 / 文件 / 预览状态]
+    Page --> More[更多运行信息 / 非实测]
+    More --> Capsule[原ModelCapsule及完整辅助语义]
+    Page --> Manage[底部48pt起管理模型]
+    Manage --> Route[父级关闭摘要并选择models]
+    Page --> Close[原dismiss / 不改会话或文件]
+```
+
 ## 当前聊天呈现
 
 ```mermaid

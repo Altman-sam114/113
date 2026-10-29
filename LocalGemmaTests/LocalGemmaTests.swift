@@ -7,6 +7,146 @@ import XCTest
 
 @MainActor
 final class LocalGemmaTests: XCTestCase {
+    func testCompactModelSummaryKeepsIndependentPresentationStates() {
+        for availability in [ArtifactAvailability.missing, .staged, .verified] {
+            for deployment in [ModelDeploymentState.stopped, .running] {
+                for generating in [false, true] {
+                    for simulated in [false, true] {
+                        let snapshot = summarySnapshot(availability: availability, deployment: deployment,
+                                                       generating: generating, simulated: simulated)
+                        let original = snapshot
+                        XCTAssertEqual(snapshot.fileTitle, CompactWorkbenchPolicy.fileStatus(availability))
+                        XCTAssertEqual(snapshot.activityTitle, generating ? "正在生成" : "空闲")
+                        XCTAssertEqual(snapshot.modeTitle, simulated ? "模拟预览" : "运行计划")
+                        XCTAssertEqual(snapshot.deploymentLabel, simulated ? "预览状态" : "计划状态")
+                        XCTAssertEqual(snapshot.deploymentTitle, simulated
+                                       ? (deployment == .running ? "已启动" : "未启动")
+                                       : (deployment == .running ? "已启用" : "未启用"))
+                        XCTAssertTrue(snapshot.overviewValue.contains(snapshot.model.parameterCount))
+                        XCTAssertTrue(snapshot.overviewValue.contains(snapshot.model.quantization))
+                        XCTAssertTrue(snapshot.overviewValue.contains(snapshot.activityTitle))
+                        XCTAssertFalse(snapshot.modeTitle.contains("本地运行"))
+                        let full = ModelCapsuleAccessibilityMetadata.value(
+                            model: snapshot.model, readiness: snapshot.readiness,
+                            tokensPerSecond: snapshot.tokensPerSecond, memoryUsageMB: snapshot.memoryUsageMB,
+                            backend: snapshot.backend, availability: snapshot.availability,
+                            deploymentState: snapshot.deploymentState, isGenerating: snapshot.isGenerating,
+                            isSimulated: snapshot.isSimulated
+                        )
+                        XCTAssertTrue(full.contains(availability.rawValue))
+                        XCTAssertTrue(full.contains(snapshot.backend.title))
+                        XCTAssertTrue(full.contains("36.0 tok/s"))
+                        XCTAssertTrue(full.contains("1.8G"))
+                        XCTAssertTrue(full.contains("76%"))
+                        XCTAssertEqual(snapshot, original)
+                    }
+                }
+            }
+        }
+        XCTAssertTrue(CompactWorkbenchPolicy.runtimeAccessibilityValue(isSimulated: false).contains("不代表真实推理已接入"))
+        XCTAssertTrue(ModelCapsuleAccessibilityMetadata.hint.contains("verified"))
+        XCTAssertTrue(HeaderActionAccessibilityMetadata.modelLibraryHint.contains("不会"))
+    }
+
+    func testCompactModelSummaryUsesNaturalTextAndReachableManagement() {
+        XCTAssertEqual(CompactModelSummaryLayoutPolicy.horizontalPadding, 18)
+        XCTAssertEqual(CompactModelSummaryLayoutPolicy.maximumContentWidth, 520)
+        XCTAssertGreaterThanOrEqual(CompactModelSummaryLayoutPolicy.managementMinimumHeight, 48)
+        let widths: [(CGFloat, CGFloat)] = [(320, 284), (390, 354), (556, 520), (1200, 520), (36, 0), (20, 0)]
+        for (container, expected) in widths {
+            XCTAssertEqual(CompactModelSummaryLayoutPolicy.contentWidth(for: container), expected)
+        }
+        for width in [CGFloat.nan, .infinity, -.infinity, -1, 0] {
+            XCTAssertEqual(CompactModelSummaryLayoutPolicy.contentWidth(for: width), 0)
+        }
+        var actions = 0
+        for theme in AppThemeMode.allCases {
+            for width: CGFloat in [284, 354] {
+                for expanded in [false, true] {
+                    let content = AnyView(CompactModelSummaryContent(
+                        snapshot: summarySnapshot(), availableWidth: width, showsRuntimeDetails: .constant(expanded)
+                    ))
+                    let normal = compactControlSize(content, width: width, textSize: .large, themeMode: theme)
+                    if !expanded { XCTAssertLessThanOrEqual(normal.height, 330, "First summary screen must not restore the full metrics capsule") }
+                    for type in [DynamicTypeSize.xxxLarge, .accessibility3, .accessibility5] {
+                        let size = compactControlSize(content, width: width, textSize: type, themeMode: theme)
+                        XCTAssertGreaterThan(size.height, normal.height)
+                    }
+                }
+                let action = AnyView(CompactModelSummaryManageAction(showModels: { actions += 1 }))
+                let normal = compactControlSize(action, width: width, textSize: .large, themeMode: theme)
+                XCTAssertGreaterThanOrEqual(normal.height, CompactModelSummaryLayoutPolicy.managementMinimumHeight)
+                let expanded = compactControlSize(action, width: width, textSize: .accessibility5, themeMode: theme)
+                XCTAssertGreaterThan(expanded.height, normal.height)
+            }
+        }
+        XCTAssertEqual(actions, 0)
+    }
+
+    func testCompactModelSummaryProductionPagesProducePhoneEvidence() async throws {
+        let cases: [(String, ArtifactAvailability, ModelDeploymentState, Bool, Bool, DynamicTypeSize, CGSize, String)] = [
+            ("missing-large", .missing, .stopped, false, false, .large, CGSize(width: 320, height: 640), "尚未导入"),
+            ("staged-generating", .staged, .stopped, true, false, .large, CGSize(width: 320, height: 640), "正在生成"),
+            ("verified-accessibility3", .verified, .running, false, false, .accessibility3, CGSize(width: 320, height: 640), "模拟预览"),
+            ("details-large", .missing, .stopped, false, true, .large, CGSize(width: 390, height: 844), "参考指标")
+        ]
+        var captures: [[String: Any]] = []
+        var actions = 0
+        for theme in AppThemeMode.allCases {
+            for (context, availability, deployment, generating, expanded, type, size, marker) in cases {
+                let snapshot = summarySnapshot(availability: availability, deployment: deployment, generating: generating)
+                let original = snapshot
+                let page = AnyView(CompactModelSummaryPage(
+                    snapshot: snapshot, showsRuntimeDetails: .constant(expanded),
+                    close: { actions += 1 }, showModels: { actions += 1 }
+                )
+                    .environment(\.compactWorkbench, true)
+                    .environment(\.appTheme, AppThemePalette(mode: theme))
+                    .environment(\.colorScheme, theme.colorScheme)
+                    .environment(\.dynamicTypeSize, type)
+                    .frame(width: size.width, height: size.height))
+                let image = try await captureWorkbenchView(page, size: size, themeMode: theme)
+                let name = "workbench-summary-\(theme.rawValue)-\(context)"
+                keepWorkbenchImage(image, name: name)
+                let recognized = try workbenchRecognizedText(in: image, requiredMarker: marker)
+                let normalized = workbenchNormalizedText(recognized)
+                for required in [marker, "管理模型", snapshot.fileTitle] {
+                    XCTAssertTrue(normalized.contains(workbenchNormalizedText(required)), "Missing \(required): \(recognized)")
+                }
+                if expanded { XCTAssertTrue(normalized.contains(workbenchNormalizedText("36.0")), recognized) }
+                XCTAssertEqual(snapshot, original)
+                XCTAssertEqual(actions, 0)
+                captures.append([
+                    "attachmentName": name, "evidenceKind": "uihostingcontroller-model-summary-production-page",
+                    "captureMethod": "UIView.drawHierarchy", "workspace": "model-summary", "context": context,
+                    "theme": theme.rawValue, "dynamicTypeSize": type == .large ? "large" : "accessibility3",
+                    "availability": availability.rawValue, "deploymentState": deployment.rawValue,
+                    "isGenerating": generating, "isSimulated": true, "detailsExpanded": expanded,
+                    "usesProductionSummaryPage": true, "stateSource": "explicit-presentation-fixture",
+                    "requiredTextMarker": marker, "requiredBodyMarker": "管理模型",
+                    "requiredStateMarker": snapshot.fileTitle, "requiredDetailMarker": expanded ? "36.0" : "",
+                    "recognizedText": recognized, "imageWidth": Double(image.size.width), "imageHeight": Double(image.size.height),
+                    "viewportWidth": Double(size.width), "viewportHeight": Double(size.height)
+                ])
+            }
+        }
+        XCTAssertEqual(captures.count, 8)
+        try keepWorkbenchProvenance([
+            "captures": captures, "testIdentifier": "LocalGemmaTests/testCompactModelSummaryProductionPagesProducePhoneEvidence()"
+        ], name: "workbench-summary-provenance")
+    }
+
+    private func summarySnapshot(
+        availability: ArtifactAvailability = .missing, deployment: ModelDeploymentState = .stopped,
+        generating: Bool = false, simulated: Bool = true
+    ) -> CompactModelSummarySnapshot {
+        CompactModelSummarySnapshot(
+            model: ModelCatalog.defaultModels[0], readiness: 0.76, tokensPerSecond: 36,
+            memoryUsageMB: 1800, backend: .coreMLANE, availability: availability,
+            deploymentState: deployment, isGenerating: generating, isSimulated: simulated
+        )
+    }
+
     func testSimulationPreviewCopyIsConciseAndHonest() {
         let provider = GemmaSimulationProvider()
         let model = ModelCatalog.defaultModels[0]
@@ -298,11 +438,13 @@ final class LocalGemmaTests: XCTestCase {
         var evidence: [[String: Any]] = []
         let cases: [(String, WorkspaceTab, CompactPromptCollection, DynamicTypeSize, String)] = [
             ("welcome-accessibility3", .chat, .everyday, .accessibility3, "想聊点什么"),
+            ("welcome-accessibility5", .chat, .everyday, .accessibility5, "想聊点什么"),
             ("everyday-accessibility3", .prompts, .everyday, .accessibility3, "润色文字"),
             ("technical-large", .prompts, .technical, .large, "部署方案")
         ]
         for theme in AppThemeMode.allCases {
             for (context, workspace, collection, type, marker) in cases {
+                let viewport = type == .accessibility5 ? CGSize(width: 390, height: 844) : size
                 let page: AnyView
                 if workspace == .chat {
                     page = AnyView(ChatWorkspace(isActive: false, themeMode: theme,
@@ -319,9 +461,9 @@ final class LocalGemmaTests: XCTestCase {
                     .environment(\.appTheme, AppThemePalette(mode: theme))
                     .environment(\.colorScheme, theme.colorScheme)
                     .environment(\.dynamicTypeSize, type)
-                    .frame(width: size.width, height: size.height)
+                    .frame(width: viewport.width, height: viewport.height)
                     .background(AppThemePalette(mode: theme).canvas))
-                let image = try await captureWorkbenchView(content, size: size, themeMode: theme)
+                let image = try await captureWorkbenchView(content, size: viewport, themeMode: theme)
                 let name = "workbench-tasks-\(theme.rawValue)-\(context)"
                 keepWorkbenchImage(image, name: name)
                 let recognized = try workbenchRecognizedText(in: image, requiredMarker: marker)
@@ -336,20 +478,20 @@ final class LocalGemmaTests: XCTestCase {
                 evidence.append([
                     "attachmentName": name, "evidenceKind": "uihostingcontroller-task-production-composition",
                     "captureMethod": "UIView.drawHierarchy", "workspace": workspace.rawValue,
-                    "theme": theme.rawValue, "dynamicTypeSize": type == .large ? "large" : "accessibility3",
+                    "theme": theme.rawValue, "dynamicTypeSize": type == .large ? "large" : (type == .accessibility5 ? "accessibility5" : "accessibility3"),
                     "templateCollection": collection.rawValue, "context": context,
                     "requiredTextMarker": marker, "recognizedText": recognized,
                     "requiredBodyMarker": context == "everyday-accessibility3" ? "保留原意"
                         : (workspace == .chat ? "润色文字" : "部署方案"),
                     "imageWidth": Double(image.size.width), "imageHeight": Double(image.size.height),
-                    "viewportWidth": Double(size.width), "viewportHeight": Double(size.height)
+                    "viewportWidth": Double(viewport.width), "viewportHeight": Double(viewport.height)
                 ])
             }
         }
         XCTAssertEqual(actions, 0)
         XCTAssertEqual(inference.sessions, sessions)
         XCTAssertFalse(inference.isGenerating)
-        XCTAssertEqual(evidence.count, 6)
+        XCTAssertEqual(evidence.count, 8)
         try keepWorkbenchProvenance([
             "captures": evidence, "testIdentifier": "LocalGemmaTests/testEverydayTaskProductionViewsProducePhoneEvidence()"
         ], name: "workbench-tasks-provenance")
@@ -981,6 +1123,9 @@ final class LocalGemmaTests: XCTestCase {
     }
 
     func testCompactChatHeaderReclaimsSpaceWithoutChangingRuntimeState() {
+        XCTAssertEqual(CompactWorkbenchPolicy.headerActionSymbolSize, 18)
+        XCTAssertEqual(CompactWorkbenchPolicy.headerChevronSymbolSize, 12)
+        XCTAssertGreaterThanOrEqual(CompactWorkbenchPolicy.minimumTouchTarget, 44)
         for size in DynamicTypeSize.allCases {
             XCTAssertEqual(CompactWorkbenchPolicy.stacksHeaderControls(dynamicTypeSize: size), size >= .xxxLarge)
         }
@@ -995,7 +1140,7 @@ final class LocalGemmaTests: XCTestCase {
         for themeMode in AppThemeMode.allCases {
             for width: CGFloat in [320, 390] {
                 var heights: [CGFloat] = []
-                for textSize in [DynamicTypeSize.large, .xxxLarge, .accessibility3] {
+                for textSize in [DynamicTypeSize.large, .xxxLarge, .accessibility3, .accessibility5] {
                     let header = CompactWorkbenchHeader(
                         model: model, isSimulated: true, themeMode: themeMode,
                         openSummary: { actionCount += 1 }, toggleTheme: { actionCount += 1 },
@@ -1014,6 +1159,7 @@ final class LocalGemmaTests: XCTestCase {
                 }
                 XCTAssertGreaterThan(heights[1], heights[0])
                 XCTAssertGreaterThan(heights[2], heights[0])
+                XCTAssertGreaterThan(heights[3], heights[0])
             }
         }
         XCTAssertEqual(actionCount, 0)
@@ -1969,6 +2115,14 @@ final class LocalGemmaTests: XCTestCase {
 
     private func workbenchNormalizedText(_ text: String) -> String {
         text.replacingOccurrences(of: "點", with: "点")
+            .replacingOccurrences(of: "擬", with: "拟")
+            .replacingOccurrences(of: "預", with: "预")
+            .replacingOccurrences(of: "覽", with: "览")
+            .replacingOccurrences(of: "驗", with: "验")
+            .replacingOccurrences(of: "參", with: "参")
+            .replacingOccurrences(of: "標", with: "标")
+            .replacingOccurrences(of: "實", with: "实")
+            .replacingOccurrences(of: "測", with: "测")
             .replacingOccurrences(of: "麼", with: "么")
             .replacingOccurrences(of: "導", with: "导")
             .replacingOccurrences(of: "觀", with: "观")

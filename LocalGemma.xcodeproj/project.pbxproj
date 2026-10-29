@@ -18,6 +18,7 @@
 		1A0000010000000000000005 /* LocalGemmaTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0000100000000000000005 /* LocalGemmaTests.swift */; };
 		1B0000010000000000000014 /* ChatWorkspace.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B0000100000000000000014 /* ChatWorkspace.swift */; };
 		1B0000010000000000000023 /* ChatMessageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B0000100000000000000023 /* ChatMessageView.swift */; };
+		1B0000010000000000000024 /* CompactModelSummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B0000100000000000000024 /* CompactModelSummary.swift */; };
 		1B0000010000000000000015 /* PromptWorkspace.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B0000100000000000000015 /* PromptWorkspace.swift */; };
 		1B0000010000000000000016 /* ComposerBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B0000100000000000000016 /* ComposerBar.swift */; };
 		1B0000010000000000000017 /* ModelWorkspace.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B0000100000000000000017 /* ModelWorkspace.swift */; };
@@ -52,6 +53,7 @@
 		1A0000100000000000000007 /* LocalGemmaTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LocalGemmaTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		1B0000100000000000000014 /* ChatWorkspace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatWorkspace.swift; sourceTree = "<group>"; };
 		1B0000100000000000000023 /* ChatMessageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatMessageView.swift; sourceTree = "<group>"; };
+		1B0000100000000000000024 /* CompactModelSummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompactModelSummary.swift; sourceTree = "<group>"; };
 		1B0000100000000000000015 /* PromptWorkspace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptWorkspace.swift; sourceTree = "<group>"; };
 		1B0000100000000000000016 /* ComposerBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerBar.swift; sourceTree = "<group>"; };
 		1B0000100000000000000017 /* ModelWorkspace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelWorkspace.swift; sourceTree = "<group>"; };
@@ -99,6 +101,7 @@
 				1A0000100000000000000002 /* ContentView.swift */,
 				1B000010000000000000001A /* WorkbenchComponents.swift */,
 				1B000010000000000000001C /* CompactWorkbench.swift */,
+				1B0000100000000000000024 /* CompactModelSummary.swift */,
 				1B0000100000000000000019 /* WorkbenchTheme.swift */,
 				1B0000100000000000000018 /* SettingsWorkspace.swift */,
 				1B000010000000000000001B /* SettingsSections.swift */,
@@ -242,6 +245,7 @@
 				1B0000010000000000000018 /* SettingsWorkspace.swift in Sources */,
 				1B000001000000000000001B /* SettingsSections.swift in Sources */,
 				1B000001000000000000001C /* CompactWorkbench.swift in Sources */,
+				1B0000010000000000000024 /* CompactModelSummary.swift in Sources */,
 				1B0000010000000000000017 /* ModelWorkspace.swift in Sources */,
 				1B0000010000000000000016 /* ComposerBar.swift in Sources */,
 				1B0000010000000000000015 /* PromptWorkspace.swift in Sources */,

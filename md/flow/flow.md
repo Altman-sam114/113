@@ -1,5 +1,11 @@
 # 项目核心流程文档
 
+## 手机运行摘要
+
+`CompactWorkbenchHeader` 与会话工具图标分别使用共享18pt动作符号、12pt展开箭头和原44pt命中区域；模型文字继续使用语义字体与既有`.xxxLarge`堆叠，SIM为“模拟预览”，非SIM只称“运行计划”。这些展示不改工作区、菜单、会话或同步focus路由。
+
+`CompactModelSummarySheet`只拥有“更多运行信息”的局部展开态和原dismiss；原model/artifact/deployment/inference值构成只读`CompactModelSummarySnapshot`，传入同一生产`CompactModelSummaryPage`。首屏模型身份、独立文件与预览/计划状态不互相推导，生成态单独显示；完整原`ModelCapsule`及其整体辅助语义按需展开，参考指标明确非实测。底部48pt起的管理动作仍调用原父级闭合sheet并选择models的路由，文字可自然增长；没有文件操作、额外状态层、异步focus或真实runtime变化。摘要内容按真实pane扣36pt后居中、最多520pt，无效宽度归零；大屏原胶囊不变。
+
 ## v3.10.1 输入保护与历史大字修复
 
 `56b8a28` / run`40648305362`实际168/169，AX2/AX3中英文两态固有高度仍差1.667pt，ScaledMetric最小值方案失败。搜索现在用不可见单行语义Text strut决定父尺寸，唯一可编辑TextField放overlay，查询不再参与尺寸测量；strut 8pt/输入6pt垂直间距，输入槽44pt、整行48pt起，自然body字号增长，不用固定上限或缩字。plain清除44pt与query所有权不变，原全字号1pt断言/169项/42图等不减，新SHA待云端。

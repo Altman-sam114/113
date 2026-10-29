@@ -15,6 +15,16 @@ enum CompactWorkbenchPolicy {
     static let minimumTouchTarget: CGFloat = 44
     static let navigationItemHeight: CGFloat = 56
     static let surfaceCornerRadius: CGFloat = 20
+    static let headerActionSymbolSize: CGFloat = 18
+    static let headerChevronSymbolSize: CGFloat = 12
+
+    static func runtimeTitle(isSimulated: Bool) -> String {
+        isSimulated ? "模拟预览" : "运行计划"
+    }
+
+    static func runtimeAccessibilityValue(isSimulated: Bool) -> String {
+        isSimulated ? "本地模拟预览，未执行真实推理" : "本地运行计划，不代表真实推理已接入"
+    }
 
     static func usesCompactChrome(for plan: WorkspaceRootLayoutPlan) -> Bool {
         plan.chrome == .topNavigation
@@ -101,15 +111,16 @@ struct CompactWorkbenchHeader: View {
                         HStack(spacing: 5) {
                             Circle().fill(theme.accent).frame(width: 4, height: 4)
                                 .accessibilityHidden(true)
-                            Text(isSimulated ? "模拟预览" : "本地运行")
+                            Text(CompactWorkbenchPolicy.runtimeTitle(isSimulated: isSimulated))
                                 .font(.caption)
                                 .foregroundStyle(theme.secondaryText)
                         }
                     }
                     .fixedSize(horizontal: false, vertical: true)
                     Image(systemName: "chevron.down")
-                        .font(.caption2.weight(.semibold))
+                        .font(.system(size: CompactWorkbenchPolicy.headerChevronSymbolSize, weight: .semibold))
                         .foregroundStyle(theme.secondaryText)
+                        .accessibilityHidden(true)
                 }
                 .frame(minHeight: CompactWorkbenchPolicy.minimumTouchTarget, alignment: .leading)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -117,7 +128,7 @@ struct CompactWorkbenchHeader: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel("当前模型，\(model.name)")
-            .accessibilityValue(isSimulated ? "本地模拟预览，未执行真实推理" : "本地运行")
+            .accessibilityValue(CompactWorkbenchPolicy.runtimeAccessibilityValue(isSimulated: isSimulated))
             .accessibilityHint("打开当前模型运行摘要；只展示本地状态，不下载权重或启动真实 runtime。")
             .accessibilityInputLabels(["当前模型", "模型摘要", model.name])
             .accessibilityIdentifier("compact-model-summary")
@@ -129,7 +140,8 @@ struct CompactWorkbenchHeader: View {
             } else {
                 Button(action: toggleTheme) {
                     Image(systemName: themeMode.icon)
-                        .frame(width: 44, height: 44)
+                        .font(.system(size: CompactWorkbenchPolicy.headerActionSymbolSize, weight: .medium))
+                        .frame(width: CompactWorkbenchPolicy.minimumTouchTarget, height: CompactWorkbenchPolicy.minimumTouchTarget)
                 }
                 .buttonStyle(WorkbenchIconButtonStyle())
                 .accessibilityLabel(HeaderActionAccessibilityMetadata.themeToggleLabel(themeMode: themeMode))
@@ -153,7 +165,9 @@ private struct CompactChatTools: View {
     var body: some View {
         HStack(spacing: 2) {
             Button(action: actions.showHistory) {
-                Image(systemName: "clock.arrow.circlepath").frame(width: 44, height: 44)
+                Image(systemName: "clock.arrow.circlepath")
+                    .font(.system(size: CompactWorkbenchPolicy.headerActionSymbolSize, weight: .medium))
+                    .frame(width: CompactWorkbenchPolicy.minimumTouchTarget, height: CompactWorkbenchPolicy.minimumTouchTarget)
                     .contentShape(Rectangle())
             }
             .accessibilityLabel("会话记录")
@@ -163,7 +177,9 @@ private struct CompactChatTools: View {
             .accessibilityIdentifier("compact-session-history")
 
             Button(action: actions.create) {
-                Image(systemName: "square.and.pencil").frame(width: 44, height: 44)
+                Image(systemName: "square.and.pencil")
+                    .font(.system(size: CompactWorkbenchPolicy.headerActionSymbolSize, weight: .medium))
+                    .frame(width: CompactWorkbenchPolicy.minimumTouchTarget, height: CompactWorkbenchPolicy.minimumTouchTarget)
                     .contentShape(Rectangle())
             }
             .modifier(CompactSessionActionAccessibility(action: .createSession))
@@ -182,7 +198,9 @@ private struct CompactChatTools: View {
                 .accessibilityInputLabels(HeaderActionAccessibilityMetadata.themeToggleInputLabels(themeMode: themeMode))
                 .accessibilityIdentifier(HeaderActionAccessibilityMetadata.headerThemeToggleIdentifier)
             } label: {
-                Image(systemName: "ellipsis").frame(width: 44, height: 44)
+                Image(systemName: "ellipsis")
+                    .font(.system(size: CompactWorkbenchPolicy.headerActionSymbolSize, weight: .medium))
+                    .frame(width: CompactWorkbenchPolicy.minimumTouchTarget, height: CompactWorkbenchPolicy.minimumTouchTarget)
                     .contentShape(Rectangle())
             }
             .accessibilityLabel("更多会话操作")
@@ -206,66 +224,6 @@ private struct CompactSessionActionAccessibility: ViewModifier {
             .accessibilityHint(SessionBarActionAccessibilityMetadata.hint(for: action))
             .accessibilityInputLabels(SessionBarActionAccessibilityMetadata.inputLabels(for: action))
             .accessibilityIdentifier(SessionBarActionAccessibilityMetadata.identifier(for: action))
-    }
-}
-
-struct CompactModelSummarySheet: View {
-    @Environment(\.appTheme) private var theme
-    @Environment(\.dismiss) private var dismiss
-    let model: LocalModel
-    let readiness: Double
-    let tokensPerSecond: Double
-    let memoryUsageMB: Int
-    let backend: ComputeBackend
-    let availability: ArtifactAvailability
-    let deploymentState: ModelDeploymentState
-    let isGenerating: Bool
-    let isSimulated: Bool
-    let showModels: () -> Void
-
-    var body: some View {
-        NavigationStack {
-            GeometryReader { geometry in
-                ScrollView {
-                    VStack(spacing: 18) {
-                        ModelCapsule(
-                            model: model, readiness: readiness, tokensPerSecond: tokensPerSecond,
-                            memoryUsageMB: memoryUsageMB, backend: backend, availability: availability,
-                            deploymentState: deploymentState, isGenerating: isGenerating,
-                            isSimulated: isSimulated,
-                            availableWidth: ModelCapsuleLayoutPolicy.availableWidth(forChromeWidth: geometry.size.width),
-                            layoutMode: .portrait
-                        )
-                        Button(action: showModels) {
-                            Label("管理模型", systemImage: "square.stack.3d.up")
-                                .font(.headline)
-                                .frame(maxWidth: .infinity, minHeight: 48)
-                        }
-                        .buttonStyle(.bordered)
-                        .accessibilityLabel(HeaderActionAccessibilityMetadata.modelLibraryLabel)
-                        .accessibilityValue(HeaderActionAccessibilityMetadata.modelLibraryValue)
-                        .accessibilityHint(HeaderActionAccessibilityMetadata.modelLibraryHint)
-                        .accessibilityInputLabels(HeaderActionAccessibilityMetadata.modelLibraryInputLabels + ["管理模型"])
-                        .accessibilityIdentifier(HeaderActionAccessibilityMetadata.modelLibraryIdentifier)
-                    }
-                    .padding(18)
-                }
-            }
-            .background(theme.canvas)
-            .navigationTitle(isSimulated ? "模拟预览" : "运行摘要")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button { dismiss() } label: {
-                        Image(systemName: "xmark").frame(width: 44, height: 44)
-                    }
-                    .accessibilityLabel("关闭运行摘要")
-                }
-            }
-        }
-        .tint(theme.accent)
-        .presentationDetents([.medium, .large])
-        .presentationDragIndicator(.visible)
     }
 }
 

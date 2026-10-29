@@ -4759,3 +4759,13 @@ c0f5bb8 / main / run40799963435 attempt1完整106114629字节ZIP独立SHA-256=fa
 56图/7provenance的身份/尺寸/hash与OCR齐全，4份xcresult Data/refs为3/3/3/955；三个构建根succeeded，测试根failed。arm64未签名包及6项实际资源hash再核对通过；signingVerified仍false。直接消息图已开始实际查看，普通回复层级清晰，大字长记录需滚动，不能把固定viewport图当成完整滚动/点按/辅助技术验收。原包与离线读取、联系图保留于/private/tmp/ai-deploy-chat-review-20261029/run40799963435/。
 
 生产compact消息在同一AnyLayout外加垂直fixedSize，让大字正文按自然高度返回，宽度/同序摘要与复制/正文/桌面/状态边界不变。焦点测试宿主改由注册在挂载前的viewDidAppear一次性事件确认出现，原2秒内等待并逐项断言原foreground/key/attached/appeared条件；首次聚焦、离页清除、重进与真实first-responder仍走原2秒严格检查，不延时、不失败后重试、不改生产focus。保留176测试、原1pt尺寸容差、20Python和56图合同；新SHA仍须云端与实际看图，不预称通过。
+
+## v3.13 / 手机运行摘要与头部层级（2026-10-29，待自身云端）
+
+从5923bff及其真实AX3图继续，收敛模型箭头和历史/新建/更多等符号为共享18pt动作、12pt箭头，原44pt命中/语义字体/同序AnyLayout/菜单和同步focus不变。非模拟标记明确为“运行计划”，辅助值说明不等于真实推理已接入，不把placeholder冒充真实能力。
+
+发现同一手机入口的摘要仍首屏堆完整桌面ModelCapsule，故一并按用户目标精简：只读Snapshot接收原值，首屏模型身份、文件、独立预览/计划与生成状态；完整原胶囊和整体辅助语义保留在“更多运行信息”，标明“参考指标·非实测”。管理模型固定底部且48pt起、文字自然增长，关闭继续原dismiss，父级管理路由不变，不写状态层、会话或文件、不启动runtime。内容真实pane扣两侧18pt后最多520pt；新CompactModelSummary.swift仅App target注册，复杂摘要从导航文件分离，大屏原胶囊及其248/436pt等契约未改。
+
+新增3项XCTest，目标179方法（原176保留，进场readiness3项不纳入）：24种状态组合/完整原值；亮暗窄屏到AX5自然高度与48pt动作/无副作用；8张生产摘要Page宿主图，缺失/生成中/verified AX3为320×640pt，展开完整指标为390×844pt。状态明示presentation fixture，不伪造真实artifact或生成/系统sheet点按；展开要求实际36.0指标及管理/文件正文，原生成流图仍保留。原头部测试加入AX5；原6张任务图不减，新增390×844pt亮暗AX5欢迎。总预期66图/8provenance、24Python，4个新摘要夹具及原任务夹具扩展；只做精确繁简字形归一，不用标题或近义词替代正文。
+
+本机相关12个evidence Python夹具0.002s、相关AST/工程plist/diff静态通过，尚未运行Swift/Xcode/UIKit；新SHA仍须自身云端构建、完整包和实际看图。进场归属快照/private/tmp/ai-deploy-mobile-summary-20261029/，保留所有原readiness/工程/workflow/制度/旧prompt和验收回录，不混入本轮提交。AITRANS仅只读hash核对，不修改；同一Agent，无子智能体。真实推理、真机/完整辅助技术、故障耐久和签名发布仍未通过，整个目标继续。
