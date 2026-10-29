@@ -38,6 +38,21 @@ class ReleaseBundleTests(unittest.TestCase):
     def test_source_resources_have_all_opaque_slots(self):
         self.assertEqual(CHECK.validate_source(CHECK.ROOT)["iconSlotCount"], 28)
 
+    def test_rejects_resources_registered_only_to_test_target(self):
+        project = (CHECK.ROOT / "LocalGemma.xcodeproj/project.pbxproj").read_text()
+        CHECK.validate_app_resource_registration(project)
+        wrong_target = project.replace("1A0000700000000000000001 /* Resources */,",
+                                       "1C0000700000000000000001 /* Resources */,", 1)
+        with self.assertRaisesRegex(ValueError, "App resources phase"):
+            CHECK.validate_app_resource_registration(wrong_target)
+
+    def test_resource_comments_cannot_replace_actual_file_reference(self):
+        project = (CHECK.ROOT / "LocalGemma.xcodeproj/project.pbxproj").read_text()
+        wrong_file = project.replace("fileRef = 1B000010000000000000001E /* PrivacyInfo.xcprivacy */",
+                                     "fileRef = 1A0000100000000000000004 /* PrivacyInfo.xcprivacy */", 1)
+        with self.assertRaisesRegex(ValueError, "App resources phase"):
+            CHECK.validate_app_resource_registration(wrong_file)
+
     def test_device_bundle_passes_without_claiming_signing(self):
         report = CHECK.validate_bundle(self.app)
         self.assertFalse(report["signingVerified"])

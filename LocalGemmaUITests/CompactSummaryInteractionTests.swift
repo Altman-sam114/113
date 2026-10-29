@@ -57,6 +57,8 @@ final class CompactSummaryInteractionTests: XCTestCase {
         let scroll = app.scrollViews["compact-model-summary-scroll"]
         reveal(element(app, detailsID), in: scroll)
         tap(element(app, detailsID), id: detailsID)
+        XCTAssertTrue(waitUntil { self.element(app, self.detailsID).value as? String == "已展开" })
+        reveal(element(app, "header-model-capsule"), in: scroll)
         XCTAssertTrue(element(app, "header-model-capsule").waitForExistence(timeout: 5))
         XCTAssertTrue(waitUntil { self.element(app, "compact-model-summary-heading").frame.minY < app.frame.height * 0.25 })
         reveal(element(app, "header-model-capsule"), in: scroll)
@@ -65,6 +67,7 @@ final class CompactSummaryInteractionTests: XCTestCase {
 
         reveal(element(app, detailsID), in: scroll, direction: .down)
         tap(element(app, detailsID), id: detailsID)
+        XCTAssertTrue(waitUntil { self.element(app, self.detailsID).value as? String == "已折叠" })
         XCTAssertTrue(waitUntil { !self.element(app, "header-model-capsule").exists })
         XCTAssertLessThan(element(app, "compact-model-summary-heading").frame.minY, app.frame.height * 0.25)
         tap(app.buttons[closeID], id: closeID)
@@ -92,7 +95,12 @@ final class CompactSummaryInteractionTests: XCTestCase {
         if keyboardIntroduction.waitForExistence(timeout: 3) && keyboardIntroduction.isHittable {
             tap(keyboardIntroduction, id: "system-keyboard-introduction-continue")
         }
-        let composer = element(app, composerID)
+        let keyboardDone = app.buttons["收起键盘"]
+        if keyboardDone.exists && keyboardDone.isHittable {
+            tap(keyboardDone, id: "composer-keyboard-done")
+            XCTAssertTrue(waitUntil { !app.keyboards.firstMatch.exists })
+        }
+        let composer = app.textFields[composerID]
         let composerReady = waitUntil { composer.isEnabled && composer.isHittable }
         if !composerReady { attachDiagnostic("unreachable-composer") }
         XCTAssertTrue(composerReady)
@@ -151,6 +159,8 @@ final class CompactSummaryInteractionTests: XCTestCase {
 
     private func tap(_ control: XCUIElement, id: String) {
         XCTAssertTrue(control.waitForExistence(timeout: 5), "Missing control: \(id)")
+        if !control.isEnabled { attachDiagnostic("disabled-control-" + id) }
+        XCTAssertTrue(control.isEnabled, "Disabled control: \(id)")
         XCTAssertTrue(control.isHittable, "Unreachable control: \(id)")
         control.tap()
         actions.append("tap:\(id)")
@@ -170,9 +180,11 @@ final class CompactSummaryInteractionTests: XCTestCase {
 
     private func assertReachableAction(_ action: XCUIElement, inside bounds: CGRect) {
         XCTAssertTrue(action.waitForExistence(timeout: 5))
-        if !action.isHittable || action.frame.width < 44 || action.frame.height < 44 {
+        let ready = waitUntil { action.isHittable && action.frame.width >= 44 && action.frame.height >= 44 }
+        if !ready {
             attachDiagnostic("unreachable-or-small-action")
         }
+        XCTAssertTrue(ready, "Wait for the real sheet transition to finish without reducing 44pt targets")
         XCTAssertTrue(action.isHittable)
         XCTAssertGreaterThanOrEqual(action.frame.width, 44)
         XCTAssertGreaterThanOrEqual(action.frame.height, 44)
@@ -186,6 +198,10 @@ final class CompactSummaryInteractionTests: XCTestCase {
         attachment.name = "diagnostic-" + name
         attachment.lifetime = .keepAlways
         add(attachment)
+        let tree = XCTAttachment(string: XCUIApplication().debugDescription)
+        tree.name = "diagnostic-public-accessibility-" + name
+        tree.lifetime = .keepAlways
+        add(tree)
     }
 
     private func waitUntil(_ predicate: @escaping () -> Bool) -> Bool {

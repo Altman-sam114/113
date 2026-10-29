@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import plistlib
+import re
 import struct
 import zlib
 
@@ -70,6 +71,39 @@ def validate_privacy(path):
     return fingerprint(path)
 
 
+def validate_app_resource_registration(project):
+    def objects(section):
+        begin, end = f"/* Begin {section} section */", f"/* End {section} section */"
+        require(project.count(begin) == project.count(end) == 1, f"Missing {section} section")
+        text = project.split(begin, 1)[1].split(end, 1)[0]
+        return dict(re.findall(r"([A-F0-9]{24})\s*/\*[^*]*\*/\s*=\s*\{(.*?)\};", text, re.S))
+
+    def references(body, key):
+        match = re.search(rf"\b{key}\s*=\s*\((.*?)\);", body, re.S)
+        require(match is not None, f"Missing {key} references")
+        return re.findall(r"\b[A-F0-9]{24}\b", match[1])
+
+    targets = objects("PBXNativeTarget")
+    apps = [body for body in targets.values()
+            if re.search(r'\bname\s*=\s*"?LocalGemma"?\s*;', body)
+            and 'productType = "com.apple.product-type.application";' in body]
+    require(len(apps) == 1, "Expected one LocalGemma app target")
+    phases = objects("PBXResourcesBuildPhase")
+    app_phases = [phases[identifier] for identifier in references(apps[0], "buildPhases") if identifier in phases]
+    require(len(app_phases) == 1, "App must reference exactly one resources phase")
+    build_files, file_references = objects("PBXBuildFile"), objects("PBXFileReference")
+    paths = set()
+    for identifier in references(app_phases[0], "files"):
+        require(identifier in build_files, "App resource build file is missing")
+        file_ref = re.search(r"\bfileRef\s*=\s*([A-F0-9]{24})", build_files[identifier])
+        require(file_ref is not None and file_ref[1] in file_references, "App resource file reference is missing")
+        path = re.search(r'\bpath\s*=\s*"?([^;"\n]+)"?\s*;', file_references[file_ref[1]])
+        require(path is not None, "App resource path is missing")
+        paths.add(path[1].strip())
+    require({"Assets.xcassets", "PrivacyInfo.xcprivacy"} <= paths,
+            "App resources phase must include the asset catalog and privacy manifest")
+
+
 def validate_source(root):
     icons = root / "LocalGemma/Assets.xcassets/AppIcon.appiconset"
     contents = json.loads((icons / "Contents.json").read_text())
@@ -96,10 +130,7 @@ def validate_source(root):
     project = (root / "LocalGemma.xcodeproj/project.pbxproj").read_text()
     require(project.count("ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;") == 2,
             "Both app build configurations must select AppIcon")
-    resources_section = project.split("/* Begin PBXResourcesBuildPhase section */", 1)[1]
-    app_resources = resources_section.split("runOnlyForDeploymentPostprocessing", 1)[0]
-    require("Assets.xcassets in Resources" in app_resources and "PrivacyInfo.xcprivacy in Resources" in app_resources,
-            "App resources phase must include the asset catalog and privacy manifest")
+    validate_app_resource_registration(project)
     return {"iconSlotCount": len(slots), "icons": resources, "privacyManifest": privacy}
 
 

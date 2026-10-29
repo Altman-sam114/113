@@ -4,6 +4,7 @@ enum CompactModelSummaryLayoutPolicy {
     static let horizontalPadding: CGFloat = 18
     static let maximumContentWidth: CGFloat = 520
     static let managementMinimumHeight: CGFloat = 48
+    static let closeButtonSize: CGFloat = 48
 
     static func prefersLargeDetent(dynamicTypeSize: DynamicTypeSize) -> Bool {
         CompactWorkbenchPolicy.stacksHeaderControls(dynamicTypeSize: dynamicTypeSize)
@@ -136,7 +137,7 @@ private struct CompactModelSummaryHeader: View {
             Button(action: close) {
                 Image(systemName: "xmark")
                     .font(.system(size: CompactWorkbenchPolicy.headerActionSymbolSize, weight: .medium))
-                    .frame(width: CompactWorkbenchPolicy.minimumTouchTarget, height: CompactWorkbenchPolicy.minimumTouchTarget)
+                    .frame(width: CompactModelSummaryLayoutPolicy.closeButtonSize, height: CompactModelSummaryLayoutPolicy.closeButtonSize)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain).foregroundStyle(theme.secondaryText)
@@ -186,6 +187,7 @@ struct CompactModelSummaryContent: View {
                 .frame(minHeight: CompactWorkbenchPolicy.minimumTouchTarget, alignment: .leading)
             }
             .tint(theme.secondaryText)
+            .accessibilityValue(showsRuntimeDetails ? "已展开" : "已折叠")
             .accessibilityHint(ModelCapsuleAccessibilityMetadata.hint)
             .accessibilityInputLabels(["更多运行信息", "参考指标"])
             .accessibilityIdentifier("compact-model-runtime-details")

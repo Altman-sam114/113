@@ -55,6 +55,7 @@ final class LocalGemmaTests: XCTestCase {
         XCTAssertEqual(CompactModelSummaryLayoutPolicy.horizontalPadding, 18)
         XCTAssertEqual(CompactModelSummaryLayoutPolicy.maximumContentWidth, 520)
         XCTAssertGreaterThanOrEqual(CompactModelSummaryLayoutPolicy.managementMinimumHeight, 48)
+        XCTAssertEqual(CompactModelSummaryLayoutPolicy.closeButtonSize, 48)
         let widths: [(CGFloat, CGFloat)] = [(320, 284), (390, 354), (556, 520), (1200, 520), (36, 0), (20, 0)]
         for (container, expected) in widths {
             XCTAssertEqual(CompactModelSummaryLayoutPolicy.contentWidth(for: container), expected)

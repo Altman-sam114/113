@@ -4785,3 +4785,11 @@ c0f5bb8 / main / run40799963435 attempt1完整106114629字节ZIP独立SHA-256=fa
 - 27cbbd0直接run40816374636 attempt1构建成功，但large/AX5均0/3：4项真实toolbar关闭按钮高度34.464/36pt未达44pt；2项草稿被全新模拟器首次键盘Continue引导遮挡。142686584字节原包SHA256 1574ac287e35eb03975b0feb497542c1f81dffd519b2732624c480ae43e124e7与API一致、CRC/安全路径通过，视频实际抽帧确认；不将系统引导误修到composer状态层。
 - 摘要改为同一NavigationStack内自有语义标题/44pt plain关闭header，隐藏系统会自动压缩的toolbar，保留原dismiss和底部管理路由。UI测试仍测真实44pt frame，以实际heading坐标检验detent，不放宽尺寸；首次键盘引导通过公开Continue按钮处理，原草稿/键盘/可达断言保留，失败增加原始屏幕诊断。
 - 原6个方法/22图/179单元和其余门禁不减。全量40816374632结果单列，不可抵消本次直接失败；新修复等待自身SHA两项云端结果与实际看图。
+
+
+### v3.14.2 半屏投影、可见内容与资源归属校验（待新SHA）
+
+- 8120a4a直接run40817213739构建成功但large/AX5均0/3。原158147676字节包SHA256 a7105987ea9f3ff7b30a3df21d03c212d4f531eccdc3f8a19d6ff6a2da9e9915与API一致，CRC/安全路径通过，诊断图和视频已看。普通半屏系统浮动投影将44pt逻辑关闭宽缩为42.1227，AX5大弹层自有header已过44；生产关闭改48pt留出投影余量，44pt真实frame断言不降，动作符号仍18pt。
+- 对真实系统过渡等待原44pt可达，更多信息保留native DisclosureGroup并暴露已展开/已折叠辅助值；正文先实际滚到可见再检查存在。键盘Continue已点按，后续通过生产收起键盘完成一次焦点周期，再以明确textFields查询输入；原enabled/hittable/草稿/键盘断言保留，新增公开XCUI dump诊断，不改composer状态层。
+- 27cbbd0全量40816374632虽179 XCTest、构建/图像/逻辑过，仍因旧检查器把首个UI target空资源phase当App而static/releaseBundle失败，不能称整轮通过。修复verify_release_bundle按真实LocalGemma App target的phase/build file/file reference追踪资源，拒绝仅注册到test target或文件注释伪装；原断言未删除。两新增纯负夹具使release夹具10项，本机10+4相关纯夹具/静态过；完整云端预期Python30，原179和66图合同不变。
+- 新修复需自身SHA云端，旧失败不沿用，所有Apple编译/运行仍只在GitHub Actions。原dirty/readiness和AITRANS未动。
