@@ -1,5 +1,13 @@
 # 测试规范
 
+## 手机摘要真实系统交互入口
+
+`LocalGemmaInteraction`独立scheme只注册新的LocalGemmaUITests，不改变原179单元或Catalyst scheme。`.github/workflows/iphone-interaction.yml`在相关生产UI/工程/自身入口push到main时运行，也可手动带expected_sha精确守卫；它是摘要直接验证入口，不是原完整CI的筛选profile，原ci-results.yml仍维持原全量触发和合同。
+
+云端创建全新iPhone SE3并记录完整UDID，375×667pt；先经simctl设置并回读真实系统large/AX5，再分别选3个公开XCUITest（共6个唯一方法、无skip/重试）。实际生产按钮验证亮暗打开、默认detent、展开升large/收起不缩回、关闭/重开局部态、管理/返回，以及键盘上打开/关闭和跨工作区草稿保留。所有交互不发送prompt、不注入生产状态、不下载文件，不使用私有API或宿主渲染代替点按。
+
+每次system配置输出3/3 summary/tree、原xcresult、日志与11张XCUIScreen原图及对应操作/几何provenance；全轮22张750×1334px、关闭/管理44pt可达、原始草稿保留。4个纯Python夹具拒绝错误系统字号、宿主来源、尺寸/缺操作/截断草稿、越界/无穷/小目标、重复/skip/错设备用例。静态检查不等于真实交互通过；新SHA云端与实际看图前不称已验收，也不宣称真机完整辅助技术、实际模型推理或签名发布。
+
 ## 手机摘要与大字头部
 
 新增3项XCTest，原176方法保留，目标179：独立missing/staged/verified、部署/生成/模式的24种纯值组合；原始完整胶囊指标与辅助语义；真实内容/管理动作亮暗、284/354pt及普通至AX5自然高度（原1pt容差不变）、520pt上限与非法宽度、无动作副作用；8张实际生产SummaryPage云端宿主图。头部原测试扩至AX5并锁18/12pt装饰与44pt命中，不压缩语义文字。原6张任务图保留，增加390×844pt亮暗AX5欢迎页，原上下文仍严格320×640pt。

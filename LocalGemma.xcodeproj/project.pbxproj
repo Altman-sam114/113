@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		1C0000010000000000000001 /* CompactSummaryInteractionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C0000100000000000000001 /* CompactSummaryInteractionTests.swift */; };
 		1B0000010000000000000020 /* ConversationStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B0000100000000000000020 /* ConversationStore.swift */; };
 		1B0000010000000000000021 /* ConversationHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B0000100000000000000021 /* ConversationHistory.swift */; };
 		1B000001000000000000001F /* ArtifactImport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B000010000000000000001F /* ArtifactImport.swift */; };
@@ -30,6 +31,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		1C0000020000000000000001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1A0000200000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 1A0000300000000000000001;
+			remoteInfo = LocalGemma;
+		};
 		1A0000020000000000000001 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 1A0000200000000000000001 /* Project object */;
@@ -40,6 +48,8 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		1C0000100000000000000001 /* CompactSummaryInteractionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompactSummaryInteractionTests.swift; sourceTree = "<group>"; };
+		1C0000100000000000000002 /* LocalGemmaUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LocalGemmaUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		1B0000100000000000000020 /* ConversationStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationStore.swift; sourceTree = "<group>"; };
 		1B0000100000000000000021 /* ConversationHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationHistory.swift; sourceTree = "<group>"; };
 		1B000010000000000000001F /* ArtifactImport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtifactImport.swift; sourceTree = "<group>"; };
@@ -65,6 +75,12 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		1C0000400000000000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = ();
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		1A0000400000000000000001 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -87,6 +103,7 @@
 			children = (
 				1A0000500000000000000002 /* LocalGemma */,
 				1A0000500000000000000003 /* LocalGemmaTests */,
+				1C0000500000000000000001 /* LocalGemmaUITests */,
 				1A0000500000000000000004 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -130,13 +147,39 @@
 			children = (
 				1A0000100000000000000006 /* LocalGemma.app */,
 				1A0000100000000000000007 /* LocalGemmaTests.xctest */,
+				1C0000100000000000000002 /* LocalGemmaUITests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		1C0000500000000000000001 /* LocalGemmaUITests */ = {
+			isa = PBXGroup;
+			children = (
+				1C0000100000000000000001 /* CompactSummaryInteractionTests.swift */,
+			);
+			path = LocalGemmaUITests;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		1C0000300000000000000001 /* LocalGemmaUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 1C0000800000000000000001 /* Build configuration list for PBXNativeTarget "LocalGemmaUITests" */;
+			buildPhases = (
+				1C0000600000000000000001 /* Sources */,
+				1C0000400000000000000001 /* Frameworks */,
+				1C0000700000000000000001 /* Resources */,
+			);
+			buildRules = ();
+			dependencies = (
+				1C0000900000000000000001 /* PBXTargetDependency */,
+			);
+			name = LocalGemmaUITests;
+			productName = LocalGemmaUITests;
+			productReference = 1C0000100000000000000002 /* LocalGemmaUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 		1A0000300000000000000001 /* LocalGemma */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 1A0000800000000000000001 /* Build configuration list for PBXNativeTarget "LocalGemma" */;
@@ -182,6 +225,10 @@
 				LastSwiftUpdateCheck = 2600;
 				LastUpgradeCheck = 2600;
 				TargetAttributes = {
+					1C0000300000000000000001 = {
+						CreatedOnToolsVersion = 26.0;
+						TestTargetID = 1A0000300000000000000001;
+					};
 					1A0000300000000000000001 = {
 						CreatedOnToolsVersion = 26.0;
 					};
@@ -205,6 +252,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
+				1C0000300000000000000001 /* LocalGemmaUITests */,
 				1A0000300000000000000001 /* LocalGemma */,
 				1A0000300000000000000002 /* LocalGemmaTests */,
 			);
@@ -212,6 +260,12 @@
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		1C0000700000000000000001 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = ();
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		1A0000700000000000000001 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -231,6 +285,14 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		1C0000600000000000000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1C0000010000000000000001 /* CompactSummaryInteractionTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		1A0000600000000000000001 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -266,6 +328,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		1C0000900000000000000001 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 1A0000300000000000000001 /* LocalGemma */;
+			targetProxy = 1C0000020000000000000001 /* PBXContainerItemProxy */;
+		};
 		1A0000900000000000000001 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 1A0000300000000000000001 /* LocalGemma */;
@@ -274,6 +341,38 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		1C0000A00000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.localgemma.prototype.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = LocalGemma;
+			};
+			name = Debug;
+		};
+		1C0000A00000000000000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.localgemma.prototype.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = LocalGemma;
+			};
+			name = Release;
+		};
 		1A0000A00000000000000001 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -513,6 +612,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		1C0000800000000000000001 /* Build configuration list for PBXNativeTarget "LocalGemmaUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1C0000A00000000000000001 /* Debug */,
+				1C0000A00000000000000002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		1A0000800000000000000001 /* Build configuration list for PBXNativeTarget "LocalGemma" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

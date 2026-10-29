@@ -4769,3 +4769,12 @@ c0f5bb8 / main / run40799963435 attempt1完整106114629字节ZIP独立SHA-256=fa
 新增3项XCTest，目标179方法（原176保留，进场readiness3项不纳入）：24种状态组合/完整原值；亮暗窄屏到AX5自然高度与48pt动作/无副作用；8张生产摘要Page宿主图，缺失/生成中/verified AX3为320×640pt，展开完整指标为390×844pt。状态明示presentation fixture，不伪造真实artifact或生成/系统sheet点按；展开要求实际36.0指标及管理/文件正文，原生成流图仍保留。原头部测试加入AX5；原6张任务图不减，新增390×844pt亮暗AX5欢迎。总预期66图/8provenance、24Python，4个新摘要夹具及原任务夹具扩展；只做精确繁简字形归一，不用标题或近义词替代正文。
 
 本机相关12个evidence Python夹具0.002s、相关AST/工程plist/diff静态通过，尚未运行Swift/Xcode/UIKit；新SHA仍须自身云端构建、完整包和实际看图。进场归属快照/private/tmp/ai-deploy-mobile-summary-20261029/，保留所有原readiness/工程/workflow/制度/旧prompt和验收回录，不混入本轮提交。AITRANS仅只读hash核对，不修改；同一Agent，无子智能体。真实推理、真机/完整辅助技术、故障耐久和签名发布仍未通过，整个目标继续。
+
+
+## v3.14 手机摘要系统弹层与公开交互入口（实施，待云端）
+
+- 普通字号保留medium；xxxLarge及以上初始large，原DisclosureGroup展开升large、收起不强制缩回。仅局部selectedDetent，无异步focus/新动画入口；独立部署行澄清“模拟部署”，不合并文件/生成状态或声称真实runtime。原179单元名称保留，既有摘要测试补全字号detent阈值与文案，原自然高度/44pt门禁不降。
+- 新LocalGemmaUITests/LocalGemmaInteraction独立scheme（6个公开测试）与iphone-interaction.yml，仅云端375×667pt iPhone SE3；simctl实际系统large/AX5各3个方法，真实点按生产打开/展开/收起/关闭/管理/返回与键盘草稿保留，不注入生产状态、不发送prompt。原ci-results.yml及其已有dirty/readiness/workflow修改保持未提交。
+- 保留每个配置原xcresult/summary/tree/日志、11张750×1334px XCUIScreen及操作/几何provenance，共22；验证器拒绝重复/skip/错设备/缺操作/伪宿主/假字号/小或越界目标，4个纯Python夹具。新独立入口不替代原全量/16+50宿主合同。
+- baseline：git diff --check、plutil静态lint/目标引用、scheme XML、workflow YAML、Python AST及4个夹具通过；未在本机运行Swift/Xcode/UIKit/Simulator。代码及交互待自身新SHA云端，不沿用2755b1a；真实推理、真机完整辅助技术、签名分发及旧iPad稳定采集风险仍未验收。
+- 现场基线/原文件：/private/tmp/ai-deploy-summary-interaction-20261029-120233/。仅本轮文件/hunks提交，无子智能体、无AITRANS修改。

@@ -8,9 +8,11 @@ flowchart TD
     Values[模型 / artifact / 部署 / 生成原值] --> Snapshot[只读SummarySnapshot]
     Snapshot --> Page[同一生产SummaryPage]
     Sheet --> Page
-    Page --> First[身份 / 模拟标记 / 文件 / 预览状态]
+    Page --> First[身份 / 模拟标记 / 文件 / 模拟部署]
+    Sheet --> Detent[普通medium / xxxLarge起large]
     Page --> More[更多运行信息 / 非实测]
     More --> Capsule[原ModelCapsule及完整辅助语义]
+    More --> Large[升级large / 收起不强制缩回]
     Page --> Manage[底部48pt起管理模型]
     Manage --> Route[父级关闭摘要并选择models]
     Page --> Close[原dismiss / 不改会话或文件]

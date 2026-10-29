@@ -5,6 +5,10 @@ enum CompactModelSummaryLayoutPolicy {
     static let maximumContentWidth: CGFloat = 520
     static let managementMinimumHeight: CGFloat = 48
 
+    static func prefersLargeDetent(dynamicTypeSize: DynamicTypeSize) -> Bool {
+        CompactWorkbenchPolicy.stacksHeaderControls(dynamicTypeSize: dynamicTypeSize)
+    }
+
     static func contentWidth(for containerWidth: CGFloat) -> CGFloat {
         guard containerWidth.isFinite, containerWidth > 0 else { return 0 }
         return min(max(containerWidth - horizontalPadding * 2, 0), maximumContentWidth)
@@ -25,7 +29,7 @@ struct CompactModelSummarySnapshot: Equatable {
     var modeTitle: String { CompactWorkbenchPolicy.runtimeTitle(isSimulated: isSimulated) }
     var activityTitle: String { isGenerating ? "正在生成" : "空闲" }
     var fileTitle: String { CompactWorkbenchPolicy.fileStatus(availability) }
-    var deploymentLabel: String { isSimulated ? "预览状态" : "计划状态" }
+    var deploymentLabel: String { isSimulated ? "模拟部署" : "计划状态" }
     var deploymentTitle: String {
         if isSimulated { return deploymentState == .running ? "已启动" : "未启动" }
         return deploymentState == .running ? "已启用" : "未启用"
@@ -37,7 +41,9 @@ struct CompactModelSummarySnapshot: Equatable {
 
 struct CompactModelSummarySheet: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var showsRuntimeDetails = false
+    @State private var selectedDetent: PresentationDetent = .medium
 
     let model: LocalModel
     let readiness: Double
@@ -63,8 +69,16 @@ struct CompactModelSummarySheet: View {
             snapshot: snapshot, showsRuntimeDetails: $showsRuntimeDetails,
             close: { dismiss() }, showModels: showModels
         )
-        .presentationDetents([.medium, .large])
+        .presentationDetents([.medium, .large], selection: $selectedDetent)
         .presentationDragIndicator(.visible)
+        .onChange(of: dynamicTypeSize, initial: true) { _, size in
+            if CompactModelSummaryLayoutPolicy.prefersLargeDetent(dynamicTypeSize: size) {
+                selectedDetent = .large
+            }
+        }
+        .onChange(of: showsRuntimeDetails) { _, expanded in
+            if expanded { selectedDetent = .large }
+        }
     }
 }
 
@@ -85,6 +99,7 @@ struct CompactModelSummaryPage: View {
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.vertical, 24)
                 }
+                .accessibilityIdentifier("compact-model-summary-scroll")
                 .scrollIndicators(.hidden)
                 .safeAreaInset(edge: .bottom, spacing: 0) {
                     CompactModelSummaryManageAction(showModels: showModels)

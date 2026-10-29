@@ -18,7 +18,7 @@ final class LocalGemmaTests: XCTestCase {
                         XCTAssertEqual(snapshot.fileTitle, CompactWorkbenchPolicy.fileStatus(availability))
                         XCTAssertEqual(snapshot.activityTitle, generating ? "正在生成" : "空闲")
                         XCTAssertEqual(snapshot.modeTitle, simulated ? "模拟预览" : "运行计划")
-                        XCTAssertEqual(snapshot.deploymentLabel, simulated ? "预览状态" : "计划状态")
+                        XCTAssertEqual(snapshot.deploymentLabel, simulated ? "模拟部署" : "计划状态")
                         XCTAssertEqual(snapshot.deploymentTitle, simulated
                                        ? (deployment == .running ? "已启动" : "未启动")
                                        : (deployment == .running ? "已启用" : "未启用"))
@@ -49,6 +49,9 @@ final class LocalGemmaTests: XCTestCase {
     }
 
     func testCompactModelSummaryUsesNaturalTextAndReachableManagement() {
+        for size in DynamicTypeSize.allCases {
+            XCTAssertEqual(CompactModelSummaryLayoutPolicy.prefersLargeDetent(dynamicTypeSize: size), size >= .xxxLarge)
+        }
         XCTAssertEqual(CompactModelSummaryLayoutPolicy.horizontalPadding, 18)
         XCTAssertEqual(CompactModelSummaryLayoutPolicy.maximumContentWidth, 520)
         XCTAssertGreaterThanOrEqual(CompactModelSummaryLayoutPolicy.managementMinimumHeight, 48)

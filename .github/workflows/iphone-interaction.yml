@@ -1,0 +1,46 @@
+name: iPhone Interaction
+
+"on":
+  push:
+    branches: [main]
+    paths:
+      - 'LocalGemma/CompactModelSummary.swift'
+      - 'LocalGemma/CompactWorkbench.swift'
+      - 'LocalGemma/ChatWorkspace.swift'
+      - 'LocalGemma/ComposerBar.swift'
+      - 'LocalGemma/ContentView.swift'
+      - 'LocalGemma.xcodeproj/**'
+      - 'LocalGemmaUITests/**'
+      - 'Tools/*iphone_interaction*.py'
+      - 'Tools/tests/test_iphone_interaction.py'
+      - '.github/workflows/iphone-interaction.yml'
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: 'Optional exact commit SHA guard'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  iphone-interaction:
+    name: Small iPhone production sheet interactions
+    runs-on: macos-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Evidence validator fixtures
+        run: PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s Tools/tests -p test_iphone_interaction.py -v
+      - name: Build and operate the production app
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: python3 Tools/run_iphone_interaction.py
+      - name: Upload original UI test results and screen evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: localgemma-iphone-interaction-${{ github.sha }}-run${{ github.run_id }}-attempt${{ github.run_attempt }}
+          path: iphone-interaction-results
+          if-no-files-found: error

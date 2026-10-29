@@ -2,6 +2,8 @@
 
 ## 手机运行摘要
 
+摘要sheet局部持有selectedDetent：普通字号初始medium，既有xxxLarge阈值及以上初始large，展开更多信息升large，收起不强制缩回；系统detent负责呈现，不新增withAnimation或异步focus。部署行改称“模拟部署”，仍直接读取原deploymentState而不与isGenerating合并。独立LocalGemmaInteraction scheme只通过公开XCUITest操作生产App，不提供测试替身页面或verified状态注入。
+
 `CompactWorkbenchHeader` 与会话工具图标分别使用共享18pt动作符号、12pt展开箭头和原44pt命中区域；模型文字继续使用语义字体与既有`.xxxLarge`堆叠，SIM为“模拟预览”，非SIM只称“运行计划”。这些展示不改工作区、菜单、会话或同步focus路由。
 
 `CompactModelSummarySheet`只拥有“更多运行信息”的局部展开态和原dismiss；原model/artifact/deployment/inference值构成只读`CompactModelSummarySnapshot`，传入同一生产`CompactModelSummaryPage`。首屏模型身份、独立文件与预览/计划状态不互相推导，生成态单独显示；完整原`ModelCapsule`及其整体辅助语义按需展开，参考指标明确非实测。底部48pt起的管理动作仍调用原父级闭合sheet并选择models的路由，文字可自然增长；没有文件操作、额外状态层、异步focus或真实runtime变化。摘要内容按真实pane扣36pt后居中、最多520pt，无效宽度归零；大屏原胶囊不变。
