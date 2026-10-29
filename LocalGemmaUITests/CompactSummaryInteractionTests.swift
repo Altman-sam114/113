@@ -66,6 +66,7 @@ final class CompactSummaryInteractionTests: XCTestCase {
         XCTAssertTrue(element(app, "header-model-capsule").waitForExistence(timeout: 5))
         XCTAssertTrue(waitUntil { self.element(app, "compact-model-summary-heading").frame.minY < app.frame.height * 0.25 })
         XCTAssertTrue((element(app, "header-model-capsule").value as? String ?? "").contains("36.0 tok/s"))
+        reveal(app.staticTexts["36.0 tok/s"].firstMatch, in: scroll, app: app, requiresHitTarget: false)
         assertReachableAction(app.buttons[manageID], inside: app.frame)
         try capture(app, theme: theme, accessibility: accessibility, stage: "expanded")
 
@@ -117,9 +118,7 @@ final class CompactSummaryInteractionTests: XCTestCase {
         actions.append("type:local-draft-without-send")
         XCTAssertEqual(composer.value as? String, "Keep this draft")
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
-        let composerReady = waitUntil { composer.isEnabled && composer.isHittable }
-        if !composerReady { attachDiagnostic("unreachable-composer-after-real-typing") }
-        XCTAssertTrue(composerReady)
+        assertComposerVisible(composer, in: app)
         try capture(app, theme: "dark", accessibility: accessibility, stage: "draft-keyboard")
 
         tap(app.buttons[summaryID], id: summaryID)
@@ -137,7 +136,8 @@ final class CompactSummaryInteractionTests: XCTestCase {
         tap(app.buttons["workspace-tab-chat"], id: "workspace-tab-chat")
         XCTAssertTrue(composer.waitForExistence(timeout: 5))
         XCTAssertEqual(composer.value as? String, "Keep this draft")
-        XCTAssertTrue(waitUntil { composer.isHittable && app.keyboards.firstMatch.exists })
+        XCTAssertTrue(waitUntil { composer.isEnabled && app.keyboards.firstMatch.exists })
+        assertComposerVisible(composer, in: app)
         try capture(app, theme: "dark", accessibility: accessibility, stage: "draft-returned")
         app.terminate()
     }
@@ -227,6 +227,16 @@ final class CompactSummaryInteractionTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(action.frame.minX, bounds.minX)
         XCTAssertLessThanOrEqual(action.frame.maxX, bounds.maxX)
         XCTAssertLessThanOrEqual(action.frame.maxY, bounds.maxY)
+    }
+
+    private func assertComposerVisible(_ composer: XCUIElement, in app: XCUIApplication) {
+        XCTAssertTrue(composer.isEnabled)
+        XCTAssertEqual(composer.value as? String, "Keep this draft")
+        XCTAssertTrue(app.keyboards.firstMatch.exists)
+        XCTAssertGreaterThan(composer.frame.width, 0)
+        XCTAssertGreaterThan(composer.frame.height, 0)
+        XCTAssertTrue(app.frame.contains(composer.frame))
+        XCTAssertLessThanOrEqual(composer.frame.maxY, app.keyboards.firstMatch.frame.minY)
     }
 
     private func attachDiagnostic(_ name: String) {

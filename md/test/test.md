@@ -2,6 +2,8 @@
 
 ## 手机摘要真实系统交互入口
 
+输入可达性由真实tap/type事件成功、原始草稿、enabled、实际键盘、正且在屏内/键盘上方的输入矩形共同验证，不以当前SDK与真实事件冲突的TextField.isHittable预检代替实际输入；该SDK现象及旧失败保留日志。按钮仍严格要求hittable和真实44pt。展开动作与原完整Capsule必须是独立辅助节点，Capsule原metadata/identifier及36.0参考指标均需实际滚动可达，不用巨型组合Button冒充。
+
 `LocalGemmaInteraction`独立scheme只注册新的LocalGemmaUITests，不改变原179单元或Catalyst scheme。`.github/workflows/iphone-interaction.yml`在相关生产UI/工程/自身入口push到main时运行，也可手动带expected_sha精确守卫；它是摘要直接验证入口，不是原完整CI的筛选profile，原ci-results.yml仍维持原全量触发和合同。
 
 云端创建全新iPhone SE3并记录完整UDID，375×667pt；先经simctl设置并回读真实系统large/AX5，再分别选3个公开XCUITest（共6个唯一方法、无skip/重试）。实际生产按钮验证亮暗打开、默认detent、展开升large/收起不缩回、关闭/重开局部态、管理/返回，以及键盘上打开/关闭和跨工作区草稿保留。所有交互不发送prompt、不注入生产状态、不下载文件，不使用私有API或宿主渲染代替点按。

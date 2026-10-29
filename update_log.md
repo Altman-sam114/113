@@ -4800,3 +4800,11 @@ c0f5bb8 / main / run40799963435 attempt1完整106114629字节ZIP独立SHA-256=fa
 - c75f710 direct40819267721构建成功，48pt关闭实际几何通过，但large/AX5各0/3。181675008字节原包SHA256 d86a8c2482aea9ffd6c229923005dff84e9337de622a9c6ccee5f25d0bb6442d匹配API且CRC/路径过；原视频/诊断图/公开AX树已读。普通更多按钮尚在固定footer之外，原驱动只凭hittable错误地过早点按；大字原驱动把长静态Capsule当作必须可点击的控制，未取得完整交互证据。
 - 新驱动从关闭底边/管理顶边计算真实scroll viewport，公开XCUI实际drag限定内容区，按钮完整进入viewport且hittable才点，nativeDisclosure明确buttons查询；展开/收起后先滚动再读原辅助值。静态Capsule要求可见交集、存在和完整36.0 tok/s metadata，不用按钮命中判定纯展示阅读。原6方法/22图/真实44pt不减。
 - Continue与生产收起键盘均实际点按，公开AX字段存在且未Disabled，但预检hittable仍false；先公开tap/type真实字段，再保留原enabled/hittable/草稿/键盘断言，区分实际触控问题和前置快照误判。未凭猜测修改composer或状态层。新SHA仍待直接云端；full结果不能抵消direct失败。
+
+
+### v3.14.4 依据真实AX修复展开语义，并用实际事件验证输入（待新SHA）
+
+- 2ab48f9直接run40821075557仍large/AX5各0/3，构建和真实48pt关闭通过。259730364字节原包SHA256 cced6080653f0e4b8d87f63625f785017f8de0c848bb5cd99b512689418d8462匹配API，CRC/路径过；公开AX树与诊断图明确默认DisclosureGroup把header+body合并成973.5pt高Button，并把内层Capsule标识/value覆盖为展开控件的值，原完整语义被遮蔽，不能靠继续滚动或删断言解决。
+- 保留原DisclosureGroup/Binding/onChange detent，采用公开DisclosureGroupStyle仅在独立48pt header Button设置动作metadata/value/id，原完整Capsule独立兄弟节点且保留语义；箭头固定12pt装饰。UI测试继续要求真实展开/收起、原Capsule id/value、36.0指标实际滚动可见与按钮44pt。原179单元加48pt样式合同，6个UI方法/22图不减。
+- 两组输入真实tap/type均成功，原文Keep this draft、键盘与AX Keyboard Focused已确认，但SDK isHittable仍false；记录原失败，不假装修复输入状态。不再用已被真实事件证伪的预检布尔代替操作，以实际tap/type、原文、enabled、键盘和正/在屏内/键盘上方矩形共同门槛替代；按钮hittable/44pt仍严格。不是skip或吞失败，没有生产状态注入、隐藏文件操作或真实runtime变化。
+- 相关flow/test合同同步，原dirty/readiness继续未提交。所有Apple编译/运行只在云端；本机只有静态，等待自身新SHA两项云端及实际看图，旧full绿色不能替代direct。

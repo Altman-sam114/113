@@ -2,6 +2,8 @@
 
 ## 手机运行摘要
 
+公开`DisclosureGroupStyle`将展开动作的identifier/value/hint限定在48pt起的header Button，原`ModelCapsule`作为独立内容兄弟保留完整metadata，避免默认group把内容合进巨型Button并覆盖内部语义。原DisclosureGroup binding与detent路由不变，12pt箭头仅静态装饰。
+
 摘要sheet局部持有selectedDetent：普通字号初始medium，既有xxxLarge阈值及以上初始large，展开更多信息升large，收起不强制缩回；系统detent负责呈现，不新增withAnimation或异步focus。部署行改称“模拟部署”，仍直接读取原deploymentState而不与isGenerating合并。独立LocalGemmaInteraction scheme只通过公开XCUITest操作生产App，不提供测试替身页面或verified状态注入。
 
 `CompactWorkbenchHeader` 与会话工具图标分别使用共享18pt动作符号、12pt展开箭头和原44pt命中区域；模型文字继续使用语义字体与既有`.xxxLarge`堆叠，SIM为“模拟预览”，非SIM只称“运行计划”。这些展示不改工作区、菜单、会话或同步focus路由。

@@ -5,6 +5,7 @@ enum CompactModelSummaryLayoutPolicy {
     static let maximumContentWidth: CGFloat = 520
     static let managementMinimumHeight: CGFloat = 48
     static let closeButtonSize: CGFloat = 48
+    static let disclosureMinimumHeight: CGFloat = 48
 
     static func prefersLargeDetent(dynamicTypeSize: DynamicTypeSize) -> Bool {
         CompactWorkbenchPolicy.stacksHeaderControls(dynamicTypeSize: dynamicTypeSize)
@@ -186,13 +187,41 @@ struct CompactModelSummaryContent: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(minHeight: CompactWorkbenchPolicy.minimumTouchTarget, alignment: .leading)
             }
-            .tint(theme.secondaryText)
-            .accessibilityValue(showsRuntimeDetails ? "已展开" : "已折叠")
+            .disclosureGroupStyle(CompactModelSummaryDisclosureStyle())
+        }
+        .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+private struct CompactModelSummaryDisclosureStyle: DisclosureGroupStyle {
+    @Environment(\.appTheme) private var theme
+
+    func makeBody(configuration: Configuration) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Button {
+                configuration.isExpanded.toggle()
+            } label: {
+                HStack(spacing: 12) {
+                    configuration.label.frame(maxWidth: .infinity, alignment: .leading)
+                    Image(systemName: configuration.isExpanded ? "chevron.down" : "chevron.right")
+                        .font(.system(size: CompactWorkbenchPolicy.headerChevronSymbolSize, weight: .semibold))
+                        .foregroundStyle(theme.secondaryText)
+                        .accessibilityHidden(true)
+                }
+                .frame(minHeight: CompactModelSummaryLayoutPolicy.disclosureMinimumHeight)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("更多运行信息")
+            .accessibilityValue(configuration.isExpanded ? "已展开" : "已折叠")
             .accessibilityHint(ModelCapsuleAccessibilityMetadata.hint)
             .accessibilityInputLabels(["更多运行信息", "参考指标"])
             .accessibilityIdentifier("compact-model-runtime-details")
+
+            if configuration.isExpanded {
+                configuration.content
+            }
         }
-        .fixedSize(horizontal: false, vertical: true)
     }
 }
 
