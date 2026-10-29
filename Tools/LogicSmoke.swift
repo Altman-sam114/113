@@ -352,7 +352,7 @@ enum LogicSmoke {
         engine.inputText = "说明本地模型"
         engine.send(using: catalog.selectedModel)
         engine.resetConversation()
-        expect(engine.messages.count == 2, "reset conversation should restore welcome messages")
+        expect(engine.messages.count == 0, "reset conversation should restore an empty virtual welcome, not stored introductions")
         expect(engine.inputText.isEmpty, "reset conversation should clear composer text")
         expect(engine.isGenerating == false, "reset conversation should stop generation")
         expect(engine.lastPreparationReport == nil, "reset conversation should clear preparation report")

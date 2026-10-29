@@ -1179,18 +1179,7 @@ final class InferenceEngine: ObservableObject {
     }
 
     private static func defaultMessages() -> [ChatMessage] {
-        [
-            ChatMessage(
-                role: .system,
-                text: "Gemma 1.5B Local 正在模拟运行。模型权重暂未下载，所有输出均在本机生成占位结果。",
-                tokens: 18
-            ),
-            ChatMessage(
-                role: .assistant,
-                text: "我已经准备好模拟 iPhone 本地大模型推理。可以测试隐私、本地部署、苹果芯片优化、中文问答和流式输出。",
-                tokens: 36
-            )
-        ]
+        []
     }
 
     var activeSession: ChatSession? {
@@ -1575,54 +1564,26 @@ struct GemmaSimulationProvider: SimulatedResponseProviding {
         let normalized = prompt.lowercased()
         if normalized.contains("部署") || normalized.contains("芯片") || normalized.contains("metal") || normalized.contains("ane") {
             return """
-            这是 \(model.name) 的模拟部署建议：
+            \(model.name) · 模拟部署示例
 
-            1. 先以 4-bit 量化权重作为默认包体，首屏只加载 tokenizer、模型清单和安全策略。
-            2. 真机启动时预热 Metal graph，并把 KV cache 设为分页缓存，避免长上下文造成统一内存峰值。
-            3. 在 A17 Pro 或 M 系列芯片上优先使用 Core ML 编译模型；不支持的算子回退 Metal Performance Shaders。
-            4. 生成过程中根据 thermal state 调整 token budget，温度升高时自动降低并发和最大输出长度。
+            先导入并校验模型文件，再接入实际推理后端。
 
-            当前没有下载真实 Gemma 权重，所以以上回答来自本地模拟器，用于验证产品体验和工程接口。
+            当前仅为界面预览，尚未执行 Core ML / Metal 真实推理。
             """
         }
 
         if normalized.contains("隐私") || normalized.contains("安全") || normalized.contains("本地") {
             return """
-            隐私模式已按本地优先设计：
+            对话和草稿留在本机，不会主动发送到云端。
 
-            - 提示词、上下文和生成内容默认只保存在设备内存中。
-            - 模型列表可以展示下载源，但推理路径不会调用云端接口。
-            - 后续接入真实 Gemma 1.5B 时，建议把模型文件放入 App Group 容器，并对完整性哈希进行校验。
-            - 用户清空会话时同步释放 KV cache，降低残留风险。
-
-            这条回复是模拟输出，适合在 Xcode 预览或 iPhone 模拟器里测试 UI 流程。
-            """
-        }
-
-        if normalized.contains("计划") || normalized.contains("总结") || normalized.contains("写") {
-            return """
-            我先给出一个本机模型风格的结构化草案：
-
-            一、目标
-            用 iPhone 端 Gemma 1.5B 完成离线文本生成，强调低延迟、隐私和可控资源占用。
-
-            二、实现
-            当前版本使用模拟推理引擎，保留流式 token、内存指标、停止生成和模型切换接口。
-
-            三、优化
-            后续下载真实权重后，接入 Core ML Tools 转换、Metal 预热、Int4 量化与热状态调度。
-
-            四、体验
-            用户看到的是像真实模型一样的渐进式响应，同时能清楚知道当前处于模拟模式。
+            这是模拟说明，尚未接入真实模型。
             """
         }
 
         return """
-        \(model.name) 正在以模拟模式回答：
+        这是一段模拟回复，用于预览逐字显示、停止和复制。
 
-        我会把你的输入理解为本地大模型测试请求，并返回接近真实端侧推理的流式结果。当前版本重点验证三件事：第一，聊天交互是否自然；第二，模型管理和部署状态是否清晰；第三，苹果芯片优化指标是否能帮助判断真机部署准备度。
-
-        真实模型文件暂时不会下载。等 UI 和流程稳定后，可以把这里的模拟响应替换为 Core ML / llama.cpp / MLX Swift 的推理适配层。
+        真实模型尚未接入，不会实际改写、翻译或总结你的内容。
         """
     }
 }

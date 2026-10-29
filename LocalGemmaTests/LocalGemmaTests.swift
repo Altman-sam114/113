@@ -7,6 +7,197 @@ import XCTest
 
 @MainActor
 final class LocalGemmaTests: XCTestCase {
+    func testSimulationPreviewCopyIsConciseAndHonest() {
+        let provider = GemmaSimulationProvider()
+        let model = ModelCatalog.defaultModels[0]
+        for prompt in ["你好", "润色这段文字", "总结要点", "翻译成英文", "行动计划", "隐私保护", "本地安全", "芯片部署 Metal"] {
+            let response = provider.response(for: prompt, model: model)
+            XCTAssertTrue(response.contains("模拟"), "Copied or exported replies must still disclose the preview")
+            XCTAssertLessThanOrEqual(response.count, 150)
+            XCTAssertLessThanOrEqual(response.components(separatedBy: "\n").count, 6)
+            XCTAssertFalse(response.contains("设备内存中"))
+            XCTAssertFalse(response.contains("App Group"))
+            XCTAssertFalse(response.contains("释放 KV cache"))
+            XCTAssertEqual(provider.response(for: prompt, model: model), response)
+        }
+        let privacy = provider.response(for: "隐私保护", model: model)
+        XCTAssertTrue(privacy.contains("对话和草稿留在本机"))
+        XCTAssertTrue(privacy.contains("不会主动发送到云端"))
+        XCTAssertTrue(privacy.contains("尚未接入真实模型"))
+        let generic = provider.response(for: "翻译这段文字", model: model)
+        XCTAssertTrue(generic.contains("不会实际改写、翻译或总结"))
+        XCTAssertTrue(provider.response(for: "部署", model: model).contains("Metal"))
+    }
+
+    func testFreshConversationsAreEmptyAndLegacyArchivesRemainUntouched() async throws {
+        let model = ModelCatalog.defaultModels[0]
+        let fresh = InferenceEngine()
+        XCTAssertEqual(fresh.messages, [])
+        XCTAssertEqual(fresh.activeSession?.messages, [])
+        XCTAssertTrue(WorkbenchPresentationPolicy.showsWelcome(messages: fresh.messages, isGenerating: fresh.isGenerating))
+        XCTAssertFalse(SessionChipActionAccessibilityMetadata.canDelete(session: try XCTUnwrap(fresh.activeSession), isActive: true))
+        let originalID = fresh.activeSessionID
+        fresh.inputText = "新对话"
+        fresh.send(using: model)
+        fresh.stop()
+        XCTAssertEqual(fresh.messages.map(\.role), [.user, .assistant])
+        XCTAssertEqual(fresh.messages.first?.text, "新对话")
+        XCTAssertTrue(SessionChipActionAccessibilityMetadata.canDelete(session: try XCTUnwrap(fresh.activeSession), isActive: true))
+        XCTAssertTrue(fresh.exportActiveSessionText(modelName: model.name).contains("（已停止）"))
+        fresh.resetConversation()
+        XCTAssertEqual(fresh.activeSessionID, originalID)
+        XCTAssertEqual(fresh.messages, [])
+        fresh.createSession()
+        XCTAssertNotEqual(fresh.activeSessionID, originalID)
+        XCTAssertEqual(fresh.messages, [])
+
+        let legacy = ChatSession(title: "旧会话", messages: [
+            ChatMessage(role: .system, text: "  Gemma 1.5B Local 正在模拟运行。\n保留旧正文  ", tokens: 18),
+            ChatMessage(role: .assistant, text: "我已经准备好模拟 iPhone 本地大模型推理。", tokens: 36)
+        ])
+        let archive = ConversationArchive(sessions: [legacy], activeSessionID: legacy.id, drafts: [legacy.id: "旧草稿"])
+        let storage = ConversationTestStorage(archive: archive)
+        let restored = InferenceEngine(conversationStorage: storage)
+        await restored.waitForConversationRestore()
+        XCTAssertEqual(restored.messages, legacy.messages)
+        XCTAssertEqual(restored.inputText, "旧草稿")
+        restored.inputText = "继续旧会话"
+        restored.send(using: model)
+        restored.stop()
+        XCTAssertEqual(Array(restored.messages.prefix(2)), legacy.messages)
+        XCTAssertEqual(restored.messages.count, 4)
+        let exported = restored.exportActiveSessionText(modelName: model.name)
+        for message in legacy.messages { XCTAssertTrue(exported.contains(message.text)) }
+        let newID = restored.createSession()
+        XCTAssertEqual(restored.messages, [])
+        let flushed = await restored.flushConversationHistory()
+        XCTAssertTrue(flushed)
+        let savedValue = await storage.lastSaved()
+        let saved = try XCTUnwrap(savedValue)
+        try saved.validate()
+        XCTAssertEqual(saved.sessions.first(where: { $0.id == newID })?.messages, [])
+        XCTAssertEqual(Array(try XCTUnwrap(saved.sessions.first(where: { $0.id == legacy.id })).messages.prefix(2)), legacy.messages)
+    }
+
+    func testCompactChatMessagesKeepCopySpaceAndNaturalTextGrowth() {
+        XCTAssertEqual(ChatMessagePresentationPolicy.compactHeaderTrailingInset,
+                       ChatMessageCopyActionPolicy.actionButtonSize + 8)
+        XCTAssertGreaterThanOrEqual(ChatMessageCopyActionPolicy.actionButtonSize, 44)
+        let payload = "  完整正文，不缩短、不移除换行。\n在手机较大字号下仍然自然换行，复制和导出保留原样。  "
+        for role in [ChatMessage.Role.user, .assistant, .system] {
+            XCTAssertTrue(ChatMessagePresentationPolicy.showsSurface(for: role, isCompact: false))
+            XCTAssertEqual(ChatMessagePresentationPolicy.showsSurface(for: role, isCompact: true), role != .assistant)
+            let message = ChatMessage(role: role, text: payload, tokens: 123)
+            for theme in AppThemeMode.allCases {
+                for width: CGFloat in [284, 366] {
+                    let control = AnyView(ChatBubble(message: message, availableWidth: width, isGenerating: false))
+                    let normal = compactControlSize(control, width: width, textSize: .large, themeMode: theme)
+                    for type in [DynamicTypeSize.accessibility3, .accessibility5] {
+                        let expanded = compactControlSize(control, width: width, textSize: type, themeMode: theme)
+                        XCTAssertGreaterThan(expanded.height, normal.height)
+                    }
+                }
+            }
+            XCTAssertEqual(ChatMessageCopyActionPolicy.payload(for: message, isGenerating: false), payload)
+            XCTAssertTrue(ChatMessageAccessibilityMetadata.value(for: message).contains("123 tokens"))
+        }
+        for role in [ChatMessage.Role.user, .assistant] {
+            let message = ChatMessage(role: role, text: "一条简短消息", tokens: 6)
+            let compact = AnyView(ChatBubble(message: message, availableWidth: 284, isGenerating: false))
+            let regular = AnyView(ChatBubble(message: message, availableWidth: 284, isGenerating: false)
+                .environment(\.compactWorkbench, false))
+            let compactSize = compactControlSize(compact, width: 284, textSize: .large, themeMode: .dark)
+            let regularSize = compactControlSize(regular, width: 284, textSize: .large, themeMode: .dark)
+            XCTAssertLessThan(compactSize.height, regularSize.height, "Inline copy must reclaim the old footer row")
+        }
+        for generating in [false, true] {
+            let placeholder = ChatMessage(role: .assistant, text: "", tokens: 0)
+            let size = compactControlSize(AnyView(ChatBubble(message: placeholder, availableWidth: 284, isGenerating: generating)),
+                                          width: 284, textSize: .accessibility3, themeMode: .dark)
+            XCTAssertGreaterThan(size.height, 44)
+            XCTAssertFalse(ChatMessageCopyActionPolicy.canCopy(placeholder, isGenerating: generating))
+        }
+    }
+
+    func testConversationProductionStatesProducePhoneEvidence() async throws {
+        let size = CGSize(width: 320, height: 640)
+        let catalog = ModelCatalog(autoScanLocalArtifacts: false)
+        let optimizer = DeviceOptimizer()
+        var evidence: [[String: Any]] = []
+        for theme in AppThemeMode.allCases {
+            for context in ["completed-large", "generating-large", "stopped-large", "completed-accessibility3"] {
+                let growing = context == "generating-large"
+                let stopped = context == "stopped-large"
+                let type: DynamicTypeSize = context.hasSuffix("accessibility3") ? .accessibility3 : .large
+                let inference = growing
+                    ? InferenceEngine(runtime: SimulatedGemmaRuntime(provider: ConversationCaptureResponseProvider()))
+                    : InferenceEngine()
+                defer { inference.stop() }
+                inference.inputText = "说明隐私保护"
+                inference.send(using: catalog.selectedModel)
+                if stopped { inference.stop() }
+                if !growing && !stopped { await waitForConversationPreview(inference) }
+                XCTAssertEqual(inference.messages.map(\.role), [.user, .assistant])
+                XCTAssertEqual(inference.isGenerating, growing)
+                XCTAssertTrue(inference.lastResultWasSimulated)
+                if stopped { XCTAssertTrue(try XCTUnwrap(inference.messages.last).text.isEmpty) }
+                if !growing && !stopped {
+                    XCTAssertEqual(inference.messages.last?.text, GemmaSimulationProvider().response(
+                        for: "说明隐私保护", model: catalog.selectedModel
+                    ))
+                }
+                let content = AnyView(VStack(spacing: 0) {
+                    ChatWorkspace(isActive: false, themeMode: theme, readiness: optimizer.deploymentReadiness)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    CompactWorkspaceNavigation(selection: .constant(.chat))
+                }
+                    .environmentObject(catalog).environmentObject(inference).environmentObject(optimizer)
+                    .environment(\.compactWorkbench, true)
+                    .environment(\.appTheme, AppThemePalette(mode: theme))
+                    .environment(\.colorScheme, theme.colorScheme)
+                    .environment(\.dynamicTypeSize, type)
+                    .environment(\.accessibilityReduceMotion, true)
+                    .frame(width: size.width, height: size.height)
+                    .background(AppThemePalette(mode: theme).canvas))
+                let image = try await captureWorkbenchView(content, size: size, themeMode: theme)
+                XCTAssertEqual(inference.isGenerating, growing)
+                let name = "workbench-conversation-\(theme.rawValue)-\(context)"
+                keepWorkbenchImage(image, name: name)
+                let marker = growing ? "正在生成" : (stopped ? "已停止" : "对话和草稿")
+                let recognized = try workbenchRecognizedText(in: image, requiredMarker: marker)
+                XCTAssertTrue(workbenchNormalizedText(recognized).contains(workbenchNormalizedText(marker)), recognized)
+                let reply = try XCTUnwrap(inference.messages.last)
+                let canCopy = ChatMessageCopyActionPolicy.canCopy(reply, isGenerating: growing)
+                XCTAssertEqual(canCopy, !growing && !stopped)
+                evidence.append([
+                    "attachmentName": name, "evidenceKind": "uihostingcontroller-conversation-production-composition",
+                    "captureMethod": "UIView.drawHierarchy", "workspace": "chat", "context": context,
+                    "theme": theme.rawValue, "dynamicTypeSize": type == .large ? "large" : "accessibility3",
+                    "requiredTextMarker": marker, "recognizedText": recognized,
+                    "usesInferenceEngineSend": true, "runtimeIsSimulated": inference.lastResultWasSimulated,
+                    "responseSource": growing ? "whitespace-fixture" : "default-simulation",
+                    "isGenerating": growing, "messageCount": inference.messages.count,
+                    "canCopyAssistant": canCopy,
+                    "imageWidth": Double(image.size.width), "imageHeight": Double(image.size.height),
+                    "viewportWidth": Double(size.width), "viewportHeight": Double(size.height)
+                ])
+            }
+        }
+        XCTAssertEqual(evidence.count, 8)
+        try keepWorkbenchProvenance([
+            "captures": evidence, "testIdentifier": "LocalGemmaTests/testConversationProductionStatesProducePhoneEvidence()"
+        ], name: "workbench-conversation-provenance")
+    }
+
+    private func waitForConversationPreview(_ inference: InferenceEngine) async {
+        guard inference.isGenerating else { return }
+        let done = XCTestExpectation(description: "Default simulated reply finishes")
+        let observation = inference.$isGenerating.first(where: { !$0 }).sink { _ in done.fulfill() }
+        let result = await XCTWaiter.fulfillment(of: [done], timeout: 10)
+        observation.cancel()
+        XCTAssertEqual(result, .completed)
+    }
+
     func testEverydayTemplatesSeparateEditableTasksFromTechnicalExamples() {
         let everyday = PromptTemplateLibrary.everydayTemplates
         let technical = PromptTemplateLibrary.technicalTemplates
@@ -1783,6 +1974,7 @@ final class LocalGemmaTests: XCTestCase {
             .replacingOccurrences(of: "導", with: "导")
             .replacingOccurrences(of: "觀", with: "观")
             .replacingOccurrences(of: "潤", with: "润")
+            .replacingOccurrences(of: "對", with: "对")
             .replacingOccurrences(of: "會", with: "会")
             .replacingOccurrences(of: "話", with: "话")
             .replacingOccurrences(of: "記", with: "记")
@@ -4217,10 +4409,10 @@ final class LocalGemmaTests: XCTestCase {
         )
         engine.stop()
         engine.resetConversation()
-        XCTAssertEqual(engine.messages.count, 2)
+        XCTAssertEqual(engine.messages.count, 0)
         XCTAssertFalse(engine.isGenerating)
         engine.resetConversation()
-        XCTAssertEqual(engine.messages.count, 2)
+        XCTAssertEqual(engine.messages.count, 0)
         XCTAssertFalse(engine.isGenerating)
 
         XCTAssertEqual(
@@ -4743,13 +4935,14 @@ final class LocalGemmaTests: XCTestCase {
         engine.send(using: model)
         engine.resetConversation()
 
-        XCTAssertEqual(engine.messages.count, 2)
+        XCTAssertEqual(engine.messages.count, 0)
         XCTAssertEqual(engine.inputText, "")
         XCTAssertFalse(engine.isGenerating)
         XCTAssertNil(engine.lastPreparationReport)
         XCTAssertTrue(engine.lastResultWasSimulated)
         XCTAssertEqual(engine.currentBackend, .coreMLANE)
-        XCTAssertTrue(engine.messages[0].text.contains("模拟运行"))
+        XCTAssertTrue(WorkbenchPresentationPolicy.showsWelcome(messages: engine.messages, isGenerating: engine.isGenerating))
+        XCTAssertTrue(ChatWelcomeAccessibilityMetadata.value.contains("模拟"))
     }
 
     func testInferenceRecordsSelectedArtifactAvailability() {
@@ -10091,5 +10284,12 @@ private struct ComposerFocusLifecycleHarness: View {
             .toolbar(.hidden, for: .navigationBar)
         }
         .environment(\.compactWorkbench, true)
+    }
+}
+
+private struct ConversationCaptureResponseProvider: SimulatedResponseProviding {
+    func response(for prompt: String, model: LocalModel) -> String {
+        // Keep the existing empty-text indicator active while exercising the real send/stop pipeline.
+        String(repeating: " ", count: 4096) + "模拟回复"
     }
 }

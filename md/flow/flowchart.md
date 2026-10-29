@@ -1,5 +1,20 @@
 # 项目核心流程图
 
+## 当前聊天呈现
+
+```mermaid
+flowchart TD
+    New[新建或重置] --> Empty[0条消息 / 虚拟欢迎不入档]
+    Archive[恢复已有归档] --> Original[原消息ID / 正文 / 顺序保留]
+    Empty --> Send[原send追加user和assistant]
+    Original --> Send
+    Send --> Messages[ChatMessage原始值]
+    Messages --> Phone[手机同序AnyLayout摘要与复制 / 助手去装饰表面]
+    Messages --> Wide[桌面既有卡片和统计]
+    Phone --> Copy[44pt复制 / 原始payload / 只写剪贴板]
+    Wide --> Copy
+```
+
 ## v3.10.1 会话恢复与精简手机历史
 
 读图说明：正常保存没有提示卡；恢复期间不允许seed或输入覆盖已有磁盘。历史搜索和预览仅展示层裁剪，不改原始正文，不接入真实runtime。

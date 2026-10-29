@@ -76,6 +76,8 @@ v2.64 的顶部模型胶囊还会按真实 chrome 可用宽度切换堆叠/横�
 
 ## 当前核心数据流
 
+`InferenceEngine.defaultMessages()` 只为新建/重置提供空数组，welcome由现有呈现策略绘制，不写入消息；读取旧归档不迁移、不筛掉历史开场白。首次send只追加user与assistant两条，恰好名为“新对话”的已发送会话不会再被删除控件误判为空白。`ChatMessageView.swift`独立承载生产气泡：手机同一AnyLayout的摘要/动作两节点叠放，角色行预留44pt复制和8pt间距，桌面保持竖排与token统计；didCopy仍由ChatBubble持有，生成指示原样提取，消息顺序/ID/原始复制与导出、同步焦点和runtime/verified不变。
+
 手机欢迎页只读取 `PromptTemplateLibrary.everydayTemplates`，通过原 `applyTemplate` 与同步 composer focus 路由填入完整提示词。`PromptTemplatesWorkspace` 局部保存日常/进阶选择；两组来自同一值目录，不访问磁盘或网络。`requiresInput` 只决定模板卡片是否展示直接发送入口，日常任务必须先填入并补充内容；技术模板的填入/本地模拟发送、原桌面分类、会话和 runtime/verified 状态流不变。
 
 1. App 启动。

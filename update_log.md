@@ -4733,3 +4733,15 @@ AppState在rollback时用既有内部旗标抑制observer重入，loading仍拒�
 48图/6provenance身份/尺寸/hash齐全，8张无裁切联系表全部复看（6张任务图为320pt原尺寸）。普通iPhone入口清楚；AX3装饰图标/箭头随字号变大，挤占阅读宽度，使“润色文字”副标题省略，欢迎图标挤文字，因此没有宣布完整视觉通过。iPad light prompts另出现变淡/未稳定采集现象，已有readiness修复仍未提交，不以本轮绿色掩盖。原ZIP、离线核对与看图记录在 `/private/tmp/localgemma-c-review-40691750090/`。
 
 据实际图修复：只将手机底栏、模板分组/任务图标、填入/发送符号和欢迎装饰收为18/16/14/20pt固定装饰字号，语义文本继续Dynamic Type、自然增高和既有行数；不缩小44pt/56pt命中，不改focus、模板payload、会话、runtime或verified。原新增尺寸测试扩至欢迎`.xxxLarge`/AX3/AX5；同一6图新增requiredBodyMarker，日常AX3必须完整OCR“保留原意”，夹具新增省略正文拒绝。仍172方法/16Python/48图/6provenance，未删断言或放宽容差；新修复SHA必须重新云端，不能继承d3ba678结论。全目标继续，真实runtime/真机辅助技术/故障耐久与签名分发门禁保留。
+
+## v3.12 / iPhone 对话减噪与空白会话（2026-10-28，待自身云端）
+
+首轮发送前welcome虽然隐藏旧开场，发送后仍会露出两段工程宣言。本轮将新建/重置的defaultMessages改为0条，welcome只作UI；已有归档不迁移、不筛选、不删旧正文。原reset的2条断言按新需求改锁0条及真实welcome，原172方法/停止/输入/后端/模拟断言保留，新增旧归档与flush/导出顺序及原始空白保护。空白会话判定增加没有user消息，避免用户输入“新对话”后2条真实消息被误当空白。
+
+提取275行生产ChatMessageView.swift并只注册App target，ChatWorkspace减253行。手机AnyLayout在ZStackLayout与既有VStackLayout间切换，始终是同序摘要/动作两节点；44pt复制与8pt预留并入角色标题，助手仅去装饰表面，正文语义字号/自然增长/原宽度策略不变。didCopy继续由ChatBubble持有、原复制payload/metadata/Reduce Motion不改，GenerationIndicator实现逐字节原样提取。桌面仍为原卡片/token统计，未引入新断点、延时、手势或runtime变化。
+
+GemmaSimulationProvider改为简短且明确模拟的预设回复；移除“仅内存”、已释放KV、预热和未来接入的长宣言，说明对话和草稿留在本机且不会主动发云端，不假称实际改写/翻译/总结。默认仍模拟，真实runtime和verified门禁未动。
+
+新增4个XCTest：简洁且真实的模拟文案；新空白/首次2条/旧档不迁移；窄屏亮暗/AX3/AX5自然增长和copy占位；完成/生成中/停止/完成AX3共8张真实生产ChatWorkspace宿主图。完成/停止用默认provider，生成中仅明示小型4096空格fixture保持原指示并走send/stop，不能冒充真实推理或实际点按。完整预期176方法、20Python、56图（原48不减）与7provenance；新4个纯Python夹具拒绝错状态、复制门禁、来源、尺寸、数量及无正文。新SHA的云端结果/完整包/实际看图尚待执行，不预写通过。
+
+同一Agent执行，无子智能体；AITRANS只读不修改。本轮初始main/origin=886ac20，原readiness/指纹/workflow/工程/3测试/LogicSmoke hunks、制度与旧prompt/上一轮回录均保留，不混入当前提交。完整稳定iPad采集、真实runtime、真机/完整辅助技术、故障耐久、Mac GUI/pointer和签名分发仍是独立未完成门禁。

@@ -47,6 +47,29 @@ def validate_task_capture(capture, width, height, name):
         raise RuntimeError(f"Invalid everyday task production composition: {name}")
 
 
+def validate_conversation_capture(capture, width, height, name):
+    contexts = {
+        "completed-large": ("large", "对话和草稿", False, True, "default-simulation"),
+        "completed-accessibility3": ("accessibility3", "对话和草稿", False, True, "default-simulation"),
+        "generating-large": ("large", "正在生成", True, False, "whitespace-fixture"),
+        "stopped-large": ("large", "已停止", False, False, "default-simulation"),
+    }
+    expected = contexts.get(capture.get("context"))
+    normalized = "".join(c for c in capture.get("recognizedText", "").translate(
+        str.maketrans("對話", "对话")) if c.isalnum())
+    actual = tuple(capture.get(key) for key in [
+        "dynamicTypeSize", "requiredTextMarker", "isGenerating", "canCopyAssistant", "responseSource"])
+    if (expected is None or actual != expected or expected[1] not in normalized
+            or capture.get("workspace") != "chat" or capture.get("theme") not in ["light", "dark"]
+            or capture.get("usesInferenceEngineSend") is not True or capture.get("runtimeIsSimulated") is not True
+            or type(capture.get("isGenerating")) is not bool or type(capture.get("canCopyAssistant")) is not bool
+            or type(capture.get("messageCount")) is not int or capture["messageCount"] != 2
+            or name != f"workbench-conversation-{capture['theme']}-{capture['context']}"
+            or capture.get("viewportWidth") != 320 or capture.get("viewportHeight") != 640
+            or width != 320 or height != 640):
+        raise RuntimeError(f"Invalid production conversation state: {name}")
+
+
 def main():
     if os.environ.get("GITHUB_ACTIONS") != "true":
         raise SystemExit("Cloud-only evidence export requires GITHUB_ACTIONS=true")
@@ -79,16 +102,16 @@ def main():
             exported.append((suggested_name, source, test_identifier))
             for name in ["workbench-wide-provenance", "workbench-readiness-provenance",
                          "workbench-compact-provenance", "workbench-import-provenance",
-                         "workbench-history-provenance", "workbench-tasks-provenance"]:
+                         "workbench-history-provenance", "workbench-tasks-provenance", "workbench-conversation-provenance"]:
                 if attachment_name_matches(suggested_name, name):
                     document = json.loads(source.read_text(encoding="utf-8"))
                     documents.append((name, document, test_identifier))
 
     if {name for name, _document, _test in documents} != {
         "workbench-wide-provenance", "workbench-readiness-provenance", "workbench-compact-provenance",
-        "workbench-import-provenance", "workbench-history-provenance", "workbench-tasks-provenance"
-    } or len(documents) != 6:
-        raise RuntimeError("Expected exactly six production-render provenance attachments")
+        "workbench-import-provenance", "workbench-history-provenance", "workbench-tasks-provenance", "workbench-conversation-provenance"
+    } or len(documents) != 7:
+        raise RuntimeError("Expected exactly seven production-render provenance attachments")
 
     captures = []
     for _name, document, exported_test in documents:
@@ -185,6 +208,8 @@ def main():
                     raise RuntimeError(f"Invalid restored conversation history composition: {name}")
             elif capture["evidenceKind"] == "uihostingcontroller-task-production-composition":
                 validate_task_capture(capture, width, height, name)
+            elif capture["evidenceKind"] == "uihostingcontroller-conversation-production-composition":
+                validate_conversation_capture(capture, width, height, name)
             elif capture["evidenceKind"] != "uihostingcontroller-production-component":
                 raise RuntimeError(f"Unknown production snapshot source: {name}")
             captures.append({
@@ -223,9 +248,14 @@ def main():
         for theme in ["light", "dark"]
         for context in ["welcome-accessibility3", "everyday-accessibility3", "technical-large"]
     }
-    if (len(captures) != 32
+    expected_conversation = {
+        f"workbench-conversation-{theme}-{context}"
+        for theme in ["light", "dark"]
+        for context in ["completed-large", "completed-accessibility3", "generating-large", "stopped-large"]
+    }
+    if (len(captures) != 40
             or {capture["attachmentName"] for capture in captures}
-            != expected_wide | expected_readiness | expected_compact | expected_import | expected_history | expected_tasks):
+            != expected_wide | expected_readiness | expected_compact | expected_import | expected_history | expected_tasks | expected_conversation):
         raise RuntimeError("Incomplete or duplicate production-render capture matrix")
     for theme in ["light", "dark"]:
         hashes = [capture["sha256"] for capture in captures
@@ -255,6 +285,7 @@ def main():
         "importCompositionCaptureCount": 2,
         "historyCompositionCaptureCount": 4,
         "taskCompositionCaptureCount": 6,
+        "conversationCompositionCaptureCount": 8,
         "captureCount": len(captures),
         "captures": captures,
     }

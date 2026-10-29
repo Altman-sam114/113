@@ -1919,6 +1919,7 @@ enum SessionChipActionAccessibilityMetadata {
 
     private static func isDefaultEmptyActiveSession(session: ChatSession, isActive: Bool) -> Bool {
         isActive && session.messages.count <= 2 && session.title == "新对话"
+            && !session.messages.contains { $0.role == .user }
     }
 
     private static func identifierPrefix(for session: ChatSession) -> String {
