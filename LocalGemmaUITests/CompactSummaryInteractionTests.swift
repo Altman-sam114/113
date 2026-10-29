@@ -132,7 +132,9 @@ final class CompactSummaryInteractionTests: XCTestCase {
         tap(app.buttons[summaryID], id: summaryID)
         tap(app.buttons[manageID], id: manageID)
         assertModels(app)
-        XCTAssertFalse(app.keyboards.firstMatch.exists)
+        let keyboardDismissed = waitUntil { !app.keyboards.firstMatch.exists }
+        if !keyboardDismissed { attachDiagnostic("keyboard-survived-model-navigation") }
+        XCTAssertTrue(keyboardDismissed)
         tap(app.buttons["workspace-tab-chat"], id: "workspace-tab-chat")
         XCTAssertTrue(composer.waitForExistence(timeout: 5))
         XCTAssertEqual(composer.value as? String, "Keep this draft")
@@ -191,6 +193,7 @@ final class CompactSummaryInteractionTests: XCTestCase {
             let viewport = CGRect(x: scroll.frame.minX, y: top, width: scroll.frame.width, height: bottom - top)
             XCTAssertGreaterThan(viewport.height, 44)
             var actualDirection = direction
+            var distance = viewport.height * 0.45
             if target.exists {
                 let frame = target.frame
                 if requiresHitTarget {
@@ -198,15 +201,17 @@ final class CompactSummaryInteractionTests: XCTestCase {
                 } else if frame.intersection(viewport).height >= min(44, frame.height) {
                     return
                 }
-                actualDirection = frame.minY < viewport.minY ? .down : .up
+                let offset = frame.midY - viewport.midY
+                actualDirection = offset < 0 ? .down : .up
+                distance = min(max(abs(offset), 16), distance)
             }
             let origin = app.coordinate(withNormalizedOffset: .zero)
-            let upper = origin.withOffset(CGVector(dx: viewport.midX, dy: viewport.minY + viewport.height * 0.2))
-            let lower = origin.withOffset(CGVector(dx: viewport.midX, dy: viewport.maxY - viewport.height * 0.2))
+            let upper = origin.withOffset(CGVector(dx: viewport.midX, dy: viewport.midY - distance / 2))
+            let lower = origin.withOffset(CGVector(dx: viewport.midX, dy: viewport.midY + distance / 2))
             if actualDirection == .up {
-                lower.press(forDuration: 0.05, thenDragTo: upper)
+                lower.press(forDuration: 0.05, thenDragTo: upper, withVelocity: .slow, thenHoldForDuration: 0.2)
             } else {
-                upper.press(forDuration: 0.05, thenDragTo: lower)
+                upper.press(forDuration: 0.05, thenDragTo: lower, withVelocity: .slow, thenHoldForDuration: 0.2)
             }
             actions.append(actualDirection == .up ? "scroll:content-up" : "scroll:content-down")
         }

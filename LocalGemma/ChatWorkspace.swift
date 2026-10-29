@@ -13,6 +13,7 @@ struct ChatWorkspace: View {
     @State private var exportPayload: ExportPayload?
     @State private var isShowingHistory = false
     @State private var isShowingModelSummary = false
+    @State private var shouldOpenModelsAfterSummary = false
     @State private var pendingHistoryFocus: ComposerFocusReason?
 
     let isActive: Bool
@@ -131,7 +132,7 @@ struct ChatWorkspace: View {
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
         }
-        .sheet(isPresented: $isShowingModelSummary) {
+        .sheet(isPresented: $isShowingModelSummary, onDismiss: finishModelSummaryNavigation) {
             CompactModelSummarySheet(
                 model: catalog.selectedModel, readiness: readiness,
                 tokensPerSecond: inference.currentTokensPerSecond,
@@ -140,8 +141,8 @@ struct ChatWorkspace: View {
                 deploymentState: catalog.deploymentState(for: catalog.selectedModel),
                 isGenerating: inference.isGenerating, isSimulated: inference.lastResultWasSimulated
             ) {
+                shouldOpenModelsAfterSummary = true
                 isShowingModelSummary = false
-                showModels()
             }
         }
         .sheet(isPresented: $isShowingHistory, onDismiss: finishHistorySelection) {
@@ -180,8 +181,17 @@ struct ChatWorkspace: View {
             pendingHistoryFocus = nil
             isShowingHistory = false
             isShowingModelSummary = false
+            shouldOpenModelsAfterSummary = false
             exportPayload = nil
         }
+    }
+
+    private func finishModelSummaryNavigation() {
+        let requested = shouldOpenModelsAfterSummary
+        shouldOpenModelsAfterSummary = false
+        guard isActive, requested else { return }
+        // Switch after UIKit finishes restoring the sheet's presenting responder.
+        showModels()
     }
 
     private var sessionCommandActions: SessionCommandActions {

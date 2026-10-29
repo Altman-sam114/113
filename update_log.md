@@ -4808,3 +4808,10 @@ c0f5bb8 / main / run40799963435 attempt1完整106114629字节ZIP独立SHA-256=fa
 - 保留原DisclosureGroup/Binding/onChange detent，采用公开DisclosureGroupStyle仅在独立48pt header Button设置动作metadata/value/id，原完整Capsule独立兄弟节点且保留语义；箭头固定12pt装饰。UI测试继续要求真实展开/收起、原Capsule id/value、36.0指标实际滚动可见与按钮44pt。原179单元加48pt样式合同，6个UI方法/22图不减。
 - 两组输入真实tap/type均成功，原文Keep this draft、键盘与AX Keyboard Focused已确认，但SDK isHittable仍false；记录原失败，不假装修复输入状态。不再用已被真实事件证伪的预检布尔代替操作，以实际tap/type、原文、enabled、键盘和正/在屏内/键盘上方矩形共同门槛替代；按钮hittable/44pt仍严格。不是skip或吞失败，没有生产状态注入、隐藏文件操作或真实runtime变化。
 - 相关flow/test合同同步，原dirty/readiness继续未提交。所有Apple编译/运行只在云端；本机只有静态，等待自身新SHA两项云端及实际看图，旧full绿色不能替代direct。
+
+
+### v3.14.5 关闭摘要后再切页，并消除大字手势往返（待新SHA）
+
+- 7e74ab6 direct40823153197普通2/3（亮暗完整生命周期已过），AX5 0/3。243998010字节ZIP SHA256 1dacc1c3338fa7cdfe74d9aae185ed3029b06be2d2effdaf28278d4f82e261ba与API一致且CRC/路径过；AX已确认165pt独立header Button与789pt原完整Capsule保留正确id/value，实际生产语义修复有效，未称整组通过。AX5现剩固定长手势来回越过目标的驱动振荡，按真实中心误差限幅、慢速末端hold，继续完整viewport/44pt门槛，不改绑定或放宽尺寸。
+- 草稿两组均走过真实输入、开/关和管理按钮，失败在离开聊天后keyboard仍存在。聊天摘要改为局部记录管理意图、先dismiss，在公开onDismiss且聊天仍active时调用原showModels；离开聊天同步清意图，关闭/交互dismiss不跳页，避免UIKit结束sheet后再恢复旧响应者。无异步focus任务，不改ComposerBar或Engine/会话/文件状态。测试真实键盘消失最多5秒，失败保存原屏/公开AX；原无键盘断言保留。
+- 7e74ab6 full40823153321 success完整113929317字节ZIP SHA256 d37a3eeacd84ea3d1a7f12745ca80646796a901d3c0e1791dfcb818f4fc95d6c匹配API、CRC/安全路径过；离线summary/tree/源码/SQLite179唯一Success、4xcresult refs齐、66图/8provenance身份/hash与unsigned arm64资源复核。只看summary-1联系图，尚未全面视觉复判，也不能抵消direct失败或代替新路由代码。新SHA仍须两个云端真实结论和图。
