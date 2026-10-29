@@ -66,7 +66,11 @@ def validate_capture(document, category, png_size):
             or document.get("signedDistributionVerified") is not False):
         raise ValueError("Capture must be the exact small-phone production UI and real system text category")
     actions = document.get("actions", [])
-    if "tap:compact-model-summary" not in actions:
+    if stage == "draft-keyboard":
+        if not {"tap:session-bar-action-createSession", "tap:composer-input-field",
+                "type:local-draft-without-send"} <= set(actions):
+            raise ValueError("The initial keyboard capture must follow real session creation and input events")
+    elif "tap:compact-model-summary" not in actions:
         raise ValueError("The production summary button must be tapped")
     if stage == "expanded" and "tap:compact-model-runtime-details" not in actions:
         raise ValueError("Details must be opened through the production disclosure control")

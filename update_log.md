@@ -4815,3 +4815,9 @@ c0f5bb8 / main / run40799963435 attempt1完整106114629字节ZIP独立SHA-256=fa
 - 7e74ab6 direct40823153197普通2/3（亮暗完整生命周期已过），AX5 0/3。243998010字节ZIP SHA256 1dacc1c3338fa7cdfe74d9aae185ed3029b06be2d2effdaf28278d4f82e261ba与API一致且CRC/路径过；AX已确认165pt独立header Button与789pt原完整Capsule保留正确id/value，实际生产语义修复有效，未称整组通过。AX5现剩固定长手势来回越过目标的驱动振荡，按真实中心误差限幅、慢速末端hold，继续完整viewport/44pt门槛，不改绑定或放宽尺寸。
 - 草稿两组均走过真实输入、开/关和管理按钮，失败在离开聊天后keyboard仍存在。聊天摘要改为局部记录管理意图、先dismiss，在公开onDismiss且聊天仍active时调用原showModels；离开聊天同步清意图，关闭/交互dismiss不跳页，避免UIKit结束sheet后再恢复旧响应者。无异步focus任务，不改ComposerBar或Engine/会话/文件状态。测试真实键盘消失最多5秒，失败保存原屏/公开AX；原无键盘断言保留。
 - 7e74ab6 full40823153321 success完整113929317字节ZIP SHA256 d37a3eeacd84ea3d1a7f12745ca80646796a901d3c0e1791dfcb818f4fc95d6c匹配API、CRC/安全路径过；离线summary/tree/源码/SQLite179唯一Success、4xcresult refs齐、66图/8provenance身份/hash与unsigned arm64资源复核。只看summary-1联系图，尚未全面视觉复判，也不能抵消direct失败或代替新路由代码。新SHA仍须两个云端真实结论和图。
+
+
+### v3.14.6 首次键盘证据按真实操作时序校验（静态发现，待云端）
+
+- 源码自审发现exporter原对所有stage无条件要求已点摘要，而draft-keyboard是首次真实输入后、打开摘要前的截图，不能要求未来操作。该阶段现在严格要求真实新建、tap原composer与type事件；其他摘要/返回阶段仍须summary/manage/tab操作，原文/键盘/尺寸/44pt和22图合同不降。
+- 扩展原4项纯Python夹具：真实首次键盘的无summary序列必须通过，分别缺create/tap/type必须拒绝。4项本机纯夹具通过，未本机运行任何Apple编译/模拟器。1762723的自适应手势和onDismiss源代码在新提交不变，两个云端结果尚待，不把旧API绿色替代自身实际结果。

@@ -40,6 +40,15 @@ class IPhoneInteractionEvidenceTests(unittest.TestCase):
                 validate_capture(document, category, (375, 667))
 
     def test_actual_action_history_and_unmodified_draft_required(self):
+        initial = self.capture(stage="draft-keyboard")
+        initial.update({"keyboardVisible": True, "draft": "Keep this draft", "actions": [
+            "tap:session-bar-action-createSession", "tap:composer-input-field", "type:local-draft-without-send"]})
+        validate_capture(initial, "large", (750, 1334))
+        for action in initial["actions"]:
+            bad = copy.deepcopy(initial)
+            bad["actions"].remove(action)
+            with self.assertRaises(ValueError):
+                validate_capture(bad, "large", (750, 1334))
         document = self.capture(stage="draft-returned")
         document.update({"keyboardVisible": True, "draft": "Keep this draft"})
         document["actions"] += ["tap:header-action-open-model-library", "tap:workspace-tab-chat"]
