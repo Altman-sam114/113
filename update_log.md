@@ -4793,3 +4793,10 @@ c0f5bb8 / main / run40799963435 attempt1完整106114629字节ZIP独立SHA-256=fa
 - 对真实系统过渡等待原44pt可达，更多信息保留native DisclosureGroup并暴露已展开/已折叠辅助值；正文先实际滚到可见再检查存在。键盘Continue已点按，后续通过生产收起键盘完成一次焦点周期，再以明确textFields查询输入；原enabled/hittable/草稿/键盘断言保留，新增公开XCUI dump诊断，不改composer状态层。
 - 27cbbd0全量40816374632虽179 XCTest、构建/图像/逻辑过，仍因旧检查器把首个UI target空资源phase当App而static/releaseBundle失败，不能称整轮通过。修复verify_release_bundle按真实LocalGemma App target的phase/build file/file reference追踪资源，拒绝仅注册到test target或文件注释伪装；原断言未删除。两新增纯负夹具使release夹具10项，本机10+4相关纯夹具/静态过；完整云端预期Python30，原179和66图合同不变。
 - 新修复需自身SHA云端，旧失败不沿用，所有Apple编译/运行仍只在GitHub Actions。原dirty/readiness和AITRANS未动。
+
+
+### v3.14.3 用真实滚动视口驱动按钮，区分静态阅读与命中（待新SHA）
+
+- c75f710 direct40819267721构建成功，48pt关闭实际几何通过，但large/AX5各0/3。181675008字节原包SHA256 d86a8c2482aea9ffd6c229923005dff84e9337de622a9c6ccee5f25d0bb6442d匹配API且CRC/路径过；原视频/诊断图/公开AX树已读。普通更多按钮尚在固定footer之外，原驱动只凭hittable错误地过早点按；大字原驱动把长静态Capsule当作必须可点击的控制，未取得完整交互证据。
+- 新驱动从关闭底边/管理顶边计算真实scroll viewport，公开XCUI实际drag限定内容区，按钮完整进入viewport且hittable才点，nativeDisclosure明确buttons查询；展开/收起后先滚动再读原辅助值。静态Capsule要求可见交集、存在和完整36.0 tok/s metadata，不用按钮命中判定纯展示阅读。原6方法/22图/真实44pt不减。
+- Continue与生产收起键盘均实际点按，公开AX字段存在且未Disabled，但预检hittable仍false；先公开tap/type真实字段，再保留原enabled/hittable/草稿/键盘断言，区分实际触控问题和前置快照误判。未凭猜测修改composer或状态层。新SHA仍待直接云端；full结果不能抵消direct失败。

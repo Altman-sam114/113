@@ -55,19 +55,27 @@ final class CompactSummaryInteractionTests: XCTestCase {
         try capture(app, theme: theme, accessibility: accessibility, stage: "open")
 
         let scroll = app.scrollViews["compact-model-summary-scroll"]
-        reveal(element(app, detailsID), in: scroll)
+        reveal(element(app, detailsID), in: scroll, app: app)
         tap(element(app, detailsID), id: detailsID)
-        XCTAssertTrue(waitUntil { self.element(app, self.detailsID).value as? String == "已展开" })
-        reveal(element(app, "header-model-capsule"), in: scroll)
+        reveal(element(app, detailsID), in: scroll, app: app, direction: .down)
+        XCTAssertTrue(waitUntil {
+            let details = self.element(app, self.detailsID)
+            return details.exists && details.value as? String == "已展开"
+        })
+        reveal(element(app, "header-model-capsule"), in: scroll, app: app, requiresHitTarget: false)
         XCTAssertTrue(element(app, "header-model-capsule").waitForExistence(timeout: 5))
         XCTAssertTrue(waitUntil { self.element(app, "compact-model-summary-heading").frame.minY < app.frame.height * 0.25 })
-        reveal(element(app, "header-model-capsule"), in: scroll)
+        XCTAssertTrue((element(app, "header-model-capsule").value as? String ?? "").contains("36.0 tok/s"))
         assertReachableAction(app.buttons[manageID], inside: app.frame)
         try capture(app, theme: theme, accessibility: accessibility, stage: "expanded")
 
-        reveal(element(app, detailsID), in: scroll, direction: .down)
+        reveal(element(app, detailsID), in: scroll, app: app, direction: .down)
         tap(element(app, detailsID), id: detailsID)
-        XCTAssertTrue(waitUntil { self.element(app, self.detailsID).value as? String == "已折叠" })
+        reveal(element(app, detailsID), in: scroll, app: app)
+        XCTAssertTrue(waitUntil {
+            let details = self.element(app, self.detailsID)
+            return details.exists && details.value as? String == "已折叠"
+        })
         XCTAssertTrue(waitUntil { !self.element(app, "header-model-capsule").exists })
         XCTAssertLessThan(element(app, "compact-model-summary-heading").frame.minY, app.frame.height * 0.25)
         tap(app.buttons[closeID], id: closeID)
@@ -101,14 +109,17 @@ final class CompactSummaryInteractionTests: XCTestCase {
             XCTAssertTrue(waitUntil { !app.keyboards.firstMatch.exists })
         }
         let composer = app.textFields[composerID]
-        let composerReady = waitUntil { composer.isEnabled && composer.isHittable }
-        if !composerReady { attachDiagnostic("unreachable-composer") }
-        XCTAssertTrue(composerReady)
-        tap(composer, id: composerID)
+        XCTAssertTrue(waitUntil { composer.exists && composer.isEnabled })
+        print("Composer before direct tap: enabled=\(composer.isEnabled), hittable=\(composer.isHittable), frame=\(composer.frame)")
+        composer.tap()
+        actions.append("tap:\(composerID)")
         composer.typeText("Keep this draft")
         actions.append("type:local-draft-without-send")
         XCTAssertEqual(composer.value as? String, "Keep this draft")
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+        let composerReady = waitUntil { composer.isEnabled && composer.isHittable }
+        if !composerReady { attachDiagnostic("unreachable-composer-after-real-typing") }
+        XCTAssertTrue(composerReady)
         try capture(app, theme: "dark", accessibility: accessibility, stage: "draft-keyboard")
 
         tap(app.buttons[summaryID], id: summaryID)
@@ -154,7 +165,8 @@ final class CompactSummaryInteractionTests: XCTestCase {
     }
 
     private func element(_ app: XCUIApplication, _ id: String) -> XCUIElement {
-        app.descendants(matching: .any).matching(identifier: id).firstMatch
+        if id == detailsID { return app.buttons[id] }
+        return app.descendants(matching: .any).matching(identifier: id).firstMatch
     }
 
     private func tap(_ control: XCUIElement, id: String) {
@@ -168,14 +180,38 @@ final class CompactSummaryInteractionTests: XCTestCase {
 
     private enum ScrollDirection { case up, down }
 
-    private func reveal(_ target: XCUIElement, in scroll: XCUIElement, direction: ScrollDirection = .up) {
-        for _ in 0..<8 {
-            if target.exists && target.isHittable { return }
+    private func reveal(
+        _ target: XCUIElement, in scroll: XCUIElement, app: XCUIApplication,
+        direction: ScrollDirection = .up, requiresHitTarget: Bool = true
+    ) {
+        for _ in 0..<12 {
             XCTAssertTrue(scroll.exists)
-            if direction == .up { scroll.swipeUp() } else { scroll.swipeDown() }
-            actions.append(direction == .up ? "scroll:up" : "scroll:down")
+            let top = app.buttons[closeID].frame.maxY + 8
+            let bottom = app.buttons[manageID].frame.minY - 8
+            let viewport = CGRect(x: scroll.frame.minX, y: top, width: scroll.frame.width, height: bottom - top)
+            XCTAssertGreaterThan(viewport.height, 44)
+            var actualDirection = direction
+            if target.exists {
+                let frame = target.frame
+                if requiresHitTarget {
+                    if frame.minY >= viewport.minY && frame.maxY <= viewport.maxY && target.isHittable { return }
+                } else if frame.intersection(viewport).height >= min(44, frame.height) {
+                    return
+                }
+                actualDirection = frame.minY < viewport.minY ? .down : .up
+            }
+            let origin = app.coordinate(withNormalizedOffset: .zero)
+            let upper = origin.withOffset(CGVector(dx: viewport.midX, dy: viewport.minY + viewport.height * 0.2))
+            let lower = origin.withOffset(CGVector(dx: viewport.midX, dy: viewport.maxY - viewport.height * 0.2))
+            if actualDirection == .up {
+                lower.press(forDuration: 0.05, thenDragTo: upper)
+            } else {
+                upper.press(forDuration: 0.05, thenDragTo: lower)
+            }
+            actions.append(actualDirection == .up ? "scroll:content-up" : "scroll:content-down")
         }
-        XCTAssertTrue(target.isHittable, "Scroll content must remain reachable")
+        attachDiagnostic("unreachable-scroll-content")
+        XCTFail("Content must enter the real scroll viewport without tapping through the fixed header or footer")
     }
 
     private func assertReachableAction(_ action: XCUIElement, inside bounds: CGRect) {
