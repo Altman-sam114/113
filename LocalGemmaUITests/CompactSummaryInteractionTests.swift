@@ -58,7 +58,7 @@ final class CompactSummaryInteractionTests: XCTestCase {
         reveal(element(app, detailsID), in: scroll)
         tap(element(app, detailsID), id: detailsID)
         XCTAssertTrue(element(app, "header-model-capsule").waitForExistence(timeout: 5))
-        XCTAssertTrue(waitUntil { app.navigationBars["运行摘要"].frame.minY < app.frame.height * 0.25 })
+        XCTAssertTrue(waitUntil { self.element(app, "compact-model-summary-heading").frame.minY < app.frame.height * 0.25 })
         reveal(element(app, "header-model-capsule"), in: scroll)
         assertReachableAction(app.buttons[manageID], inside: app.frame)
         try capture(app, theme: theme, accessibility: accessibility, stage: "expanded")
@@ -66,7 +66,7 @@ final class CompactSummaryInteractionTests: XCTestCase {
         reveal(element(app, detailsID), in: scroll, direction: .down)
         tap(element(app, detailsID), id: detailsID)
         XCTAssertTrue(waitUntil { !self.element(app, "header-model-capsule").exists })
-        XCTAssertLessThan(app.navigationBars["运行摘要"].frame.minY, app.frame.height * 0.25)
+        XCTAssertLessThan(element(app, "compact-model-summary-heading").frame.minY, app.frame.height * 0.25)
         tap(app.buttons[closeID], id: closeID)
         XCTAssertTrue(waitUntil { !app.buttons[self.closeID].exists })
         XCTAssertTrue(app.buttons[summaryID].isHittable)
@@ -88,8 +88,14 @@ final class CompactSummaryInteractionTests: XCTestCase {
     private func draftLifecycle(accessibility: Bool) throws {
         let app = launch(theme: "dark", accessibility: accessibility)
         tap(app.buttons["session-bar-action-createSession"], id: "session-bar-action-createSession")
+        let keyboardIntroduction = app.buttons["Continue"]
+        if keyboardIntroduction.waitForExistence(timeout: 3) && keyboardIntroduction.isHittable {
+            tap(keyboardIntroduction, id: "system-keyboard-introduction-continue")
+        }
         let composer = element(app, composerID)
-        XCTAssertTrue(waitUntil { composer.isEnabled && composer.isHittable })
+        let composerReady = waitUntil { composer.isEnabled && composer.isHittable }
+        if !composerReady { attachDiagnostic("unreachable-composer") }
+        XCTAssertTrue(composerReady)
         tap(composer, id: composerID)
         composer.typeText("Keep this draft")
         actions.append("type:local-draft-without-send")
@@ -122,7 +128,7 @@ final class CompactSummaryInteractionTests: XCTestCase {
         XCTAssertTrue(close.waitForExistence(timeout: 5))
         assertReachableAction(close, inside: app.frame)
         assertReachableAction(app.buttons[manageID], inside: app.frame)
-        let navigation = app.navigationBars["运行摘要"]
+        let navigation = element(app, "compact-model-summary-heading")
         XCTAssertTrue(navigation.waitForExistence(timeout: 5))
         if startsLarge {
             XCTAssertTrue(waitUntil { navigation.frame.minY < app.frame.height * 0.25 })
@@ -164,12 +170,22 @@ final class CompactSummaryInteractionTests: XCTestCase {
 
     private func assertReachableAction(_ action: XCUIElement, inside bounds: CGRect) {
         XCTAssertTrue(action.waitForExistence(timeout: 5))
+        if !action.isHittable || action.frame.width < 44 || action.frame.height < 44 {
+            attachDiagnostic("unreachable-or-small-action")
+        }
         XCTAssertTrue(action.isHittable)
         XCTAssertGreaterThanOrEqual(action.frame.width, 44)
         XCTAssertGreaterThanOrEqual(action.frame.height, 44)
         XCTAssertGreaterThanOrEqual(action.frame.minX, bounds.minX)
         XCTAssertLessThanOrEqual(action.frame.maxX, bounds.maxX)
         XCTAssertLessThanOrEqual(action.frame.maxY, bounds.maxY)
+    }
+
+    private func attachDiagnostic(_ name: String) {
+        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        attachment.name = "diagnostic-" + name
+        attachment.lifetime = .keepAlways
+        add(attachment)
     }
 
     private func waitUntil(_ predicate: @escaping () -> Bool) -> Bool {

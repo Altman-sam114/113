@@ -4778,3 +4778,10 @@ c0f5bb8 / main / run40799963435 attempt1完整106114629字节ZIP独立SHA-256=fa
 - 保留每个配置原xcresult/summary/tree/日志、11张750×1334px XCUIScreen及操作/几何provenance，共22；验证器拒绝重复/skip/错设备/缺操作/伪宿主/假字号/小或越界目标，4个纯Python夹具。新独立入口不替代原全量/16+50宿主合同。
 - baseline：git diff --check、plutil静态lint/目标引用、scheme XML、workflow YAML、Python AST及4个夹具通过；未在本机运行Swift/Xcode/UIKit/Simulator。代码及交互待自身新SHA云端，不沿用2755b1a；真实推理、真机完整辅助技术、签名分发及旧iPad稳定采集风险仍未验收。
 - 现场基线/原文件：/private/tmp/ai-deploy-summary-interaction-20261029-120233/。仅本轮文件/hunks提交，无子智能体、无AITRANS修改。
+
+
+### v3.14.1 云端真实交互发现后的修复（待新SHA）
+
+- 27cbbd0直接run40816374636 attempt1构建成功，但large/AX5均0/3：4项真实toolbar关闭按钮高度34.464/36pt未达44pt；2项草稿被全新模拟器首次键盘Continue引导遮挡。142686584字节原包SHA256 1574ac287e35eb03975b0feb497542c1f81dffd519b2732624c480ae43e124e7与API一致、CRC/安全路径通过，视频实际抽帧确认；不将系统引导误修到composer状态层。
+- 摘要改为同一NavigationStack内自有语义标题/44pt plain关闭header，隐藏系统会自动压缩的toolbar，保留原dismiss和底部管理路由。UI测试仍测真实44pt frame，以实际heading坐标检验detent，不放宽尺寸；首次键盘引导通过公开Continue按钮处理，原草稿/键盘/可达断言保留，失败增加原始屏幕诊断。
+- 原6个方法/22图/179单元和其余门禁不减。全量40816374632结果单列，不可抵消本次直接失败；新修复等待自身SHA两项云端结果与实际看图。

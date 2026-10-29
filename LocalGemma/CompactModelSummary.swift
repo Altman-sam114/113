@@ -101,6 +101,9 @@ struct CompactModelSummaryPage: View {
                 }
                 .accessibilityIdentifier("compact-model-summary-scroll")
                 .scrollIndicators(.hidden)
+                .safeAreaInset(edge: .top, spacing: 0) {
+                    CompactModelSummaryHeader(close: close)
+                }
                 .safeAreaInset(edge: .bottom, spacing: 0) {
                     CompactModelSummaryManageAction(showModels: showModels)
                         .frame(width: width)
@@ -112,21 +115,38 @@ struct CompactModelSummaryPage: View {
             .background(theme.canvas)
             .navigationTitle("运行摘要")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(action: close) {
-                        Image(systemName: "xmark")
-                            .font(.system(size: CompactWorkbenchPolicy.headerActionSymbolSize, weight: .medium))
-                            .frame(width: CompactWorkbenchPolicy.minimumTouchTarget, height: CompactWorkbenchPolicy.minimumTouchTarget)
-                            .contentShape(Rectangle())
-                    }
-                    .accessibilityLabel("关闭运行摘要")
-                    .accessibilityInputLabels(["关闭运行摘要", "关闭"])
-                    .accessibilityIdentifier("compact-model-summary-close")
-                }
-            }
+            .toolbar(.hidden, for: .navigationBar)
         }
         .tint(theme.accent)
+    }
+}
+
+private struct CompactModelSummaryHeader: View {
+    @Environment(\.appTheme) private var theme
+    let close: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Text("运行摘要")
+                .font(.headline).foregroundStyle(theme.primaryText)
+                .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityAddTraits(.isHeader)
+                .accessibilityIdentifier("compact-model-summary-heading")
+            Button(action: close) {
+                Image(systemName: "xmark")
+                    .font(.system(size: CompactWorkbenchPolicy.headerActionSymbolSize, weight: .medium))
+                    .frame(width: CompactWorkbenchPolicy.minimumTouchTarget, height: CompactWorkbenchPolicy.minimumTouchTarget)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain).foregroundStyle(theme.secondaryText)
+            .accessibilityLabel("关闭运行摘要")
+            .accessibilityInputLabels(["关闭运行摘要", "关闭"])
+            .accessibilityIdentifier("compact-model-summary-close")
+        }
+        .padding(.horizontal, CompactModelSummaryLayoutPolicy.horizontalPadding)
+        .padding(.vertical, 6)
+        .background(theme.canvas)
     }
 }
 
