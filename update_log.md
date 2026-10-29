@@ -4821,3 +4821,10 @@ c0f5bb8 / main / run40799963435 attempt1完整106114629字节ZIP独立SHA-256=fa
 
 - 源码自审发现exporter原对所有stage无条件要求已点摘要，而draft-keyboard是首次真实输入后、打开摘要前的截图，不能要求未来操作。该阶段现在严格要求真实新建、tap原composer与type事件；其他摘要/返回阶段仍须summary/manage/tab操作，原文/键盘/尺寸/44pt和22图合同不降。
 - 扩展原4项纯Python夹具：真实首次键盘的无summary序列必须通过，分别缺create/tap/type必须拒绝。4项本机纯夹具通过，未本机运行任何Apple编译/模拟器。1762723的自适应手势和onDismiss源代码在新提交不变，两个云端结果尚待，不把旧API绿色替代自身实际结果。
+
+
+### v3.14.7 半屏正文先滚动，展开动作再升级大弹层（待新SHA）
+
+- ff1b5e0 direct40826748550普通1/3（草稿完整往返通过）、AX5 3/3且11张原始screen/provenance严格导出并独立核对，整轮仍failure。218681357字节ZIP SHA256 646ae1d0acd08f89a136755ad1ad1179aa5b7ee65db3a24672522da5f8be204b匹配API、CRC/安全路径过；onDismiss键盘/草稿顺序已在两组通过，大字原完整Capsule与参考指标实际滚动、关闭/管理/返回均过，但不将4/6称完整。
+- 普通两例公开AX确定medium里更多按钮600.1...646.1pt被601.6pt起的footer挡住，连续短pan后body坐标不变：默认sheet先吃掉向上手势，未达detent阈值又回弹。使用公开presentationContentInteraction(.scrolls)让正文优先滚动，原生grabber仍可升降；UI测试新增更多完整露出后仍medium、点开才large的断言，不直接改绑定或绕过控件。
+- 静态阅读几何用CGRect.contains处理完整容纳时的浮点相减，正宽高与原44pt可见交集保留，不降低按钮44pt/hittable/viewport门槛。原179/6方法/22图合同不减；新SHA需自己的云端结果与看图，本机仍只有静态。

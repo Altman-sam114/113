@@ -56,6 +56,9 @@ final class CompactSummaryInteractionTests: XCTestCase {
 
         let scroll = app.scrollViews["compact-model-summary-scroll"]
         reveal(element(app, detailsID), in: scroll, app: app)
+        if !accessibility {
+            XCTAssertGreaterThan(element(app, "compact-model-summary-heading").frame.minY, app.frame.height * 0.3)
+        }
         tap(element(app, detailsID), id: detailsID)
         reveal(element(app, detailsID), in: scroll, app: app, direction: .down)
         XCTAssertTrue(waitUntil {
@@ -198,7 +201,8 @@ final class CompactSummaryInteractionTests: XCTestCase {
                 let frame = target.frame
                 if requiresHitTarget {
                     if frame.minY >= viewport.minY && frame.maxY <= viewport.maxY && target.isHittable { return }
-                } else if frame.intersection(viewport).height >= min(44, frame.height) {
+                } else if frame.width > 0 && frame.height > 0 &&
+                            (viewport.contains(frame) || frame.intersection(viewport).height >= min(44, frame.height)) {
                     return
                 }
                 let offset = frame.midY - viewport.midY

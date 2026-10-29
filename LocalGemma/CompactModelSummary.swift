@@ -72,6 +72,7 @@ struct CompactModelSummarySheet: View {
             close: { dismiss() }, showModels: showModels
         )
         .presentationDetents([.medium, .large], selection: $selectedDetent)
+        .presentationContentInteraction(.scrolls)
         .presentationDragIndicator(.visible)
         .onChange(of: dynamicTypeSize, initial: true) { _, size in
             if CompactModelSummaryLayoutPolicy.prefersLargeDetent(dynamicTypeSize: size) {

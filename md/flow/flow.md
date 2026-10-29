@@ -2,6 +2,8 @@
 
 ## 手机运行摘要
 
+摘要采用公开presentationContentInteraction(.scrolls)：半屏内容先滚动，原生grabber仍可切detent；更多信息完整进入真实内容区后，点按原DisclosureGroup再升级large，避免短内容手势被sheet吸收并回弹。普通字号初始medium与大字初始large不变。
+
 聊天页管理模型先记录局部导航意图并关闭摘要，在公开sheet onDismiss且聊天仍活动时才调用原showModels；普通关闭/交互dismiss不跳页，离开聊天同步清空意图。避免系统在sheet消失后恢复原输入响应者，造成隐藏聊天页键盘重现；不使用异步focus任务，也不改变原composer清焦/工作区状态层。
 
 公开`DisclosureGroupStyle`将展开动作的identifier/value/hint限定在48pt起的header Button，原`ModelCapsule`作为独立内容兄弟保留完整metadata，避免默认group把内容合进巨型Button并覆盖内部语义。原DisclosureGroup binding与detent路由不变，12pt箭头仅静态装饰。
