@@ -51,6 +51,7 @@ struct ChatBubble: View {
                     didCopy: $didCopy
                 )
             }
+            .fixedSize(horizontal: false, vertical: isCompact)
             .padding(.horizontal, 14)
             .padding(.vertical, 12)
             .background {

@@ -6031,6 +6031,8 @@ final class LocalGemmaTests: XCTestCase {
         let controller = ComposerFocusHostingController(
             rootView: ComposerFocusLifecycleHarness(store: focusStore)
         )
+        let hostAppeared = XCTestExpectation(description: "Focus host viewDidAppear")
+        controller.onFirstAppearance = { hostAppeared.fulfill() }
         let container = UIViewController()
         let window = UIWindow(windowScene: scene)
         window.frame = scene.coordinateSpace.bounds
@@ -6078,15 +6080,17 @@ final class LocalGemmaTests: XCTestCase {
         controller.view.setNeedsLayout()
         controller.view.layoutIfNeeded()
 
-        guard await waitForComposerCondition(
-            "initial host attachment",
-            diagnostic: diagnostic,
-            condition: {
-                scene.activationState == .foregroundActive
-                    && window.isKeyWindow && !window.isHidden
-                    && controller.view.window === window && controller.hasAppeared
-            }
-        ) else { return }
+        let appearanceResult = await XCTWaiter.fulfillment(of: [hostAppeared], timeout: 2)
+        XCTAssertEqual(appearanceResult, .completed, "initial host appearance: \(diagnostic())")
+        XCTAssertEqual(scene.activationState, .foregroundActive)
+        XCTAssertTrue(window.isKeyWindow)
+        XCTAssertFalse(window.isHidden)
+        XCTAssertTrue(controller.view.window === window)
+        XCTAssertTrue(controller.hasAppeared)
+        guard appearanceResult == .completed,
+              scene.activationState == .foregroundActive,
+              window.isKeyWindow, !window.isHidden,
+              controller.view.window === window, controller.hasAppeared else { return }
         guard await waitForComposerCondition(
             "initial pending request focuses input",
             diagnostic: diagnostic,
@@ -10210,10 +10214,15 @@ private final class ArtifactHoldingFileManager: FileManager, @unchecked Sendable
 
 private final class ComposerFocusHostingController: UIHostingController<ComposerFocusLifecycleHarness> {
     private(set) var hasAppeared = false
+    var onFirstAppearance: (() -> Void)?
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
+        guard !hasAppeared else { return }
         hasAppeared = true
+        let notify = onFirstAppearance
+        onFirstAppearance = nil
+        notify?()
     }
 }
 

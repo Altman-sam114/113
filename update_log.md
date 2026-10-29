@@ -4751,3 +4751,11 @@ GemmaSimulationProvider改为简短且明确模拟的预设回复；移除“仅
 代码88e11d7 / main / run40799223817 attempt1实际失败。完整1794034字节ZIP的独立SHA-256为1c7bbdc1259f08ce2368c2735eb0284bb90594f454ce18ad5d38cde96fd9d0a4，与API digest一致，安全路径/CRC及manifest身份核对通过。静态/20个Python夹具与unsigned Release/资源成功，但新增截图测试向只读accessibilityReduceMotion环境key path注入值，导致iOS/Catalyst测试编译失败、XCTest未执行、宿主图和完整visual合同未完成。LogicSmoke还在匹配旧“本地/设备”词，未接受新文案“本机”；不能拿Release或静态通过抵消失败。
 
 只移除无效的只读环境写入，让截图使用系统真实值，不声称已运行实际Reduce Motion开关矩阵；既有motion/生成指示策略测试不变。烟测改为完整核对“对话和草稿留在本机”“不会主动发送到云端”及模拟/未接入真实模型，断言更明确。176方法、20Python、56图与7provenance门槛不减；不改生产逻辑、不放宽断言、不延时重试测试，修复后仍只云端。完整失败证据在/private/tmp/ai-deploy-chat-review-20261029/run40799223817/full；新SHA必须重新验收。
+
+## v3.12.2 / 大字消息自然高度与焦点宿主事件（2026-10-29，待新SHA）
+
+c0f5bb8 / main / run40799963435 attempt1完整106114629字节ZIP独立SHA-256=fabb4613cd6476977bb982a81433a6ee2ccf8adb509be40792c642a9879d659a，与API digest一致，CRC/安全路径及身份核对通过。summary/tree/源码/原SQLite严格176唯一方法、174 Success/2 Failure，无重复执行。新消息尺寸测试12个断言在600/1600pt提案间仍差6.667或7.333pt；原焦点测试首次宿主轮询超时，结束诊断显示foreground/key/attached/appeared与真实UITextInput均已就绪。JUnit10/1 failure/1既有optional skip，其他构建、烟测、20Python与unsigned资源成功不抵消测试失败。
+
+56图/7provenance的身份/尺寸/hash与OCR齐全，4份xcresult Data/refs为3/3/3/955；三个构建根succeeded，测试根failed。arm64未签名包及6项实际资源hash再核对通过；signingVerified仍false。直接消息图已开始实际查看，普通回复层级清晰，大字长记录需滚动，不能把固定viewport图当成完整滚动/点按/辅助技术验收。原包与离线读取、联系图保留于/private/tmp/ai-deploy-chat-review-20261029/run40799963435/。
+
+生产compact消息在同一AnyLayout外加垂直fixedSize，让大字正文按自然高度返回，宽度/同序摘要与复制/正文/桌面/状态边界不变。焦点测试宿主改由注册在挂载前的viewDidAppear一次性事件确认出现，原2秒内等待并逐项断言原foreground/key/attached/appeared条件；首次聚焦、离页清除、重进与真实first-responder仍走原2秒严格检查，不延时、不失败后重试、不改生产focus。保留176测试、原1pt尺寸容差、20Python和56图合同；新SHA仍须云端与实际看图，不预称通过。
