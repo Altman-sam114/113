@@ -279,7 +279,9 @@ enum LogicSmoke {
         expect(deploymentAnswer.contains("Gemma"), "deployment answer should mention Gemma")
 
         let privacyAnswer = provider.response(for: "说明本地隐私安全模式", model: catalog.selectedModel)
-        expect(privacyAnswer.contains("本地") || privacyAnswer.contains("设备"), "privacy answer should emphasize local device execution")
+        expect(privacyAnswer.contains("对话和草稿留在本机"), "privacy answer should describe local conversation storage")
+        expect(privacyAnswer.contains("不会主动发送到云端"), "privacy answer should preserve the no-cloud boundary")
+        expect(privacyAnswer.contains("模拟") && privacyAnswer.contains("尚未接入真实模型"), "privacy answer must not imply real inference")
 
         let optimizer = DeviceOptimizer()
         let initialReadiness = optimizer.deploymentReadiness

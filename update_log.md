@@ -4745,3 +4745,9 @@ GemmaSimulationProvider改为简短且明确模拟的预设回复；移除“仅
 新增4个XCTest：简洁且真实的模拟文案；新空白/首次2条/旧档不迁移；窄屏亮暗/AX3/AX5自然增长和copy占位；完成/生成中/停止/完成AX3共8张真实生产ChatWorkspace宿主图。完成/停止用默认provider，生成中仅明示小型4096空格fixture保持原指示并走send/stop，不能冒充真实推理或实际点按。完整预期176方法、20Python、56图（原48不减）与7provenance；新4个纯Python夹具拒绝错状态、复制门禁、来源、尺寸、数量及无正文。新SHA的云端结果/完整包/实际看图尚待执行，不预写通过。
 
 同一Agent执行，无子智能体；AITRANS只读不修改。本轮初始main/origin=886ac20，原readiness/指纹/workflow/工程/3测试/LogicSmoke hunks、制度与旧prompt/上一轮回录均保留，不混入当前提交。完整稳定iPad采集、真实runtime、真机/完整辅助技术、故障耐久、Mac GUI/pointer和签名分发仍是独立未完成门禁。
+
+## v3.12.1 / 云端测试接线修复（2026-10-29，待新SHA）
+
+代码88e11d7 / main / run40799223817 attempt1实际失败。完整1794034字节ZIP的独立SHA-256为1c7bbdc1259f08ce2368c2735eb0284bb90594f454ce18ad5d38cde96fd9d0a4，与API digest一致，安全路径/CRC及manifest身份核对通过。静态/20个Python夹具与unsigned Release/资源成功，但新增截图测试向只读accessibilityReduceMotion环境key path注入值，导致iOS/Catalyst测试编译失败、XCTest未执行、宿主图和完整visual合同未完成。LogicSmoke还在匹配旧“本地/设备”词，未接受新文案“本机”；不能拿Release或静态通过抵消失败。
+
+只移除无效的只读环境写入，让截图使用系统真实值，不声称已运行实际Reduce Motion开关矩阵；既有motion/生成指示策略测试不变。烟测改为完整核对“对话和草稿留在本机”“不会主动发送到云端”及模拟/未接入真实模型，断言更明确。176方法、20Python、56图与7provenance门槛不减；不改生产逻辑、不放宽断言、不延时重试测试，修复后仍只云端。完整失败证据在/private/tmp/ai-deploy-chat-review-20261029/run40799223817/full；新SHA必须重新验收。

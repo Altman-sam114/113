@@ -156,7 +156,6 @@ final class LocalGemmaTests: XCTestCase {
                     .environment(\.appTheme, AppThemePalette(mode: theme))
                     .environment(\.colorScheme, theme.colorScheme)
                     .environment(\.dynamicTypeSize, type)
-                    .environment(\.accessibilityReduceMotion, true)
                     .frame(width: size.width, height: size.height)
                     .background(AppThemePalette(mode: theme).canvas))
                 let image = try await captureWorkbenchView(content, size: size, themeMode: theme)
