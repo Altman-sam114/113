@@ -182,7 +182,8 @@ def extract_ios_frameworks(archive, destination):
             safe_path(destination, name)
         metadata = f"{BINARY_PREFIX}/Info.plist"
         require(metadata in names, "Pinned archive does not contain the expected XCFramework")
-        selected = validate_metadata(plistlib.loads(binary.read(metadata)), {"device", "simulator"})
+        # The pinned official release ships iOS device and macOS, but no Simulator.
+        selected = validate_metadata(plistlib.loads(binary.read(metadata)), {"device"})
         prefixes = tuple(f"{BINARY_PREFIX}/{r['LibraryIdentifier']}/" for r in selected.values())
         destination.mkdir(parents=True)
         for entry in entries:
@@ -267,14 +268,15 @@ def run(arguments, log, timeout=1800):
     return "\n".join(text.splitlines()[1:]).strip()
 
 
-def catalyst_cmake_arguments(source, build, architecture, sdk, clang, clangxx):
-    require(architecture in {"arm64", "x86_64"}, "Unsupported Catalyst architecture")
-    target = f"{architecture}-apple-ios17.0-macabi"
+def cpu_cmake_arguments(source, build, architecture, sdk, clang, clangxx, variant):
+    require(architecture in {"arm64", "x86_64"}, "Unsupported CPU architecture")
+    require(variant in {"simulator", "maccatalyst"}, "Unsupported CPU platform variant")
+    target = f"{architecture}-apple-ios17.0-{'macabi' if variant == 'maccatalyst' else 'simulator'}"
     flags = f"-target {target} -g -O2"
     return ["cmake", "-S", source, "-B", build, "-G", "Unix Makefiles", "-DCMAKE_BUILD_TYPE=Release",
-            "-DCMAKE_SYSTEM_NAME=Darwin", f"-DCMAKE_SYSTEM_PROCESSOR={architecture}",
+            f"-DCMAKE_SYSTEM_NAME={'Darwin' if variant == 'maccatalyst' else 'iOS'}", f"-DCMAKE_SYSTEM_PROCESSOR={architecture}",
             f"-DCMAKE_OSX_SYSROOT={sdk}", f"-DCMAKE_OSX_ARCHITECTURES={architecture}",
-            "-DCMAKE_OSX_DEPLOYMENT_TARGET=", "-DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY",
+            f"-DCMAKE_OSX_DEPLOYMENT_TARGET={'' if variant == 'maccatalyst' else '17.0'}", "-DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY",
             f"-DCMAKE_C_COMPILER={clang}", f"-DCMAKE_CXX_COMPILER={clangxx}",
             f"-DCMAKE_C_FLAGS={flags}", f"-DCMAKE_CXX_FLAGS={flags}",
             "-DCMAKE_POSITION_INDEPENDENT_CODE=ON", "-DBUILD_SHARED_LIBS=OFF",
@@ -287,29 +289,36 @@ def catalyst_cmake_arguments(source, build, architecture, sdk, clang, clangxx):
             f"-DLLAMA_BUILD_COMMIT={COMMIT}", f"-DLLAMA_BUILD_NUMBER={TAG[1:]}"]
 
 
-def build_catalyst(source, work, headers, sdk, logs):
+def catalyst_cmake_arguments(source, build, architecture, sdk, clang, clangxx):
+    return cpu_cmake_arguments(source, build, architecture, sdk, clang, clangxx, "maccatalyst")
+
+
+def build_cpu_framework(source, work, headers, sdk, logs, variant):
+    require(variant in {"simulator", "maccatalyst"}, "Unsupported CPU framework variant")
     clang = run(["xcrun", "--find", "clang"], logs / "clang-path.log")
     clangxx = run(["xcrun", "--find", "clang++"], logs / "clangxx-path.log")
     binaries = []
     for architecture in ["arm64", "x86_64"]:
-        build = work / f"catalyst-{architecture}"
-        run(catalyst_cmake_arguments(source, build, architecture, sdk, clang, clangxx),
-            logs / f"catalyst-{architecture}-configure.log")
+        build = work / f"{variant}-{architecture}"
+        run(cpu_cmake_arguments(source, build, architecture, sdk, clang, clangxx, variant),
+            logs / f"{variant}-{architecture}-configure.log")
         run(["cmake", "--build", build, "--target", "llama", "vendor-hash", "--parallel", "3"],
-            logs / f"catalyst-{architecture}-build.log")
+            logs / f"{variant}-{architecture}-build.log")
         libraries = [build / "src/libllama.a", build / "ggml/src/libggml.a",
                      build / "ggml/src/libggml-base.a", build / "ggml/src/libggml-cpu.a",
                      build / "vendor/hash/libvendor-hash.a"]
-        require(all(p.is_file() for p in libraries), "A required Catalyst static library was not built")
+        require(all(p.is_file() for p in libraries), f"A required {variant} static library was not built")
         combined = build / "combined.a"
-        run(["xcrun", "libtool", "-static", "-o", combined, *libraries], logs / f"catalyst-{architecture}-combine.log")
+        run(["xcrun", "libtool", "-static", "-o", combined, *libraries], logs / f"{variant}-{architecture}-combine.log")
         binary = build / "llama"
-        run([clangxx, "-target", f"{architecture}-apple-ios17.0-macabi", "-isysroot", sdk,
+        target = f"{architecture}-apple-ios17.0-{'macabi' if variant == 'maccatalyst' else 'simulator'}"
+        run([clangxx, "-target", target, "-isysroot", sdk,
              "-dynamiclib", "-Wl,-force_load," + str(combined), "-install_name", "@rpath/llama.framework/llama",
-             "-o", binary], logs / f"catalyst-{architecture}-link.log")
-        require(macho_slices(binary.read_bytes()) == {architecture: 6}, "Catalyst compiler emitted a different platform")
+             "-o", binary], logs / f"{variant}-{architecture}-link.log")
+        require(macho_slices(binary.read_bytes()) == {architecture: PLATFORMS[variant][0]},
+                f"{variant} compiler emitted a different platform")
         binaries.append(binary)
-    framework = work / "catalyst/llama.framework"
+    framework = work / variant / "llama.framework"
     framework.mkdir(parents=True)
     shutil.copytree(headers, framework / "Headers", ignore=shutil.ignore_patterns("mtmd*.h", "ggml-metal.h", "ggml-blas.h"))
     (framework / "Modules").mkdir()
@@ -318,11 +327,13 @@ def build_catalyst(source, work, headers, sdk, logs):
     (framework / "Info.plist").write_bytes(plistlib.dumps({
         "CFBundleExecutable": "llama", "CFBundleIdentifier": "org.ggml.llama", "CFBundleName": "llama",
         "CFBundlePackageType": "FMWK", "CFBundleShortVersionString": "0.8.0", "CFBundleVersion": TAG[1:],
-        "CFBundleSupportedPlatforms": ["MacOSX"], "DTPlatformName": "macosx", "UIDeviceFamily": [6],
+        "CFBundleSupportedPlatforms": ["MacOSX" if variant == "maccatalyst" else "iPhoneSimulator"],
+        "DTPlatformName": "macosx" if variant == "maccatalyst" else "iphonesimulator",
+        "UIDeviceFamily": [6] if variant == "maccatalyst" else [1, 2],
         "MinimumOSVersion": "17.0"}))
-    run(["xcrun", "lipo", "-create", *binaries, "-output", framework / "llama"], logs / "catalyst-lipo.log")
-    symbols = work / "catalyst/llama.dSYM"
-    run(["xcrun", "dsymutil", framework / "llama", "-o", symbols], logs / "catalyst-dsym.log")
+    run(["xcrun", "lipo", "-create", *binaries, "-output", framework / "llama"], logs / f"{variant}-lipo.log")
+    symbols = work / variant / "llama.dSYM"
+    run(["xcrun", "dsymutil", framework / "llama", "-o", symbols], logs / f"{variant}-dsym.log")
     return framework, symbols
 
 
@@ -355,6 +366,7 @@ def input_identity(toolchain):
     return {"tag": TAG, "commit": COMMIT, "sourceUrl": SOURCE_URL, "sourceSha256": SOURCE_SHA256,
             "binaryUrl": BINARY_URL, "binarySha256": BINARY_SHA256, "toolchain": toolchain,
             "builderSha256": fingerprint(Path(__file__))["sha256"],
+            "simulator": "CPU-only, built from the pinned source; upstream binary has no Simulator slice",
             "catalyst": "CPU-only; no Metal, Accelerate, OpenMP, dynamic backend loading or network tools"}
 
 
@@ -422,22 +434,27 @@ def main():
         source_archive, binary_archive = work / "source.tar.gz", work / "prebuilt.zip"
         downloads = {"source": download_verified(SOURCE_URL, source_archive, SOURCE_SHA256),
                      "binary": download_verified(BINARY_URL, binary_archive, BINARY_SHA256)}
+        (logs / "pinned-downloads.json").write_text(json.dumps(downloads, indent=2) + "\n", encoding="utf-8")
+        with zipfile.ZipFile(binary_archive) as archive:
+            (logs / "upstream-xcframework-info.plist").write_bytes(archive.read(f"{BINARY_PREFIX}/Info.plist"))
         source = extract_source(source_archive, work / "source")
         official, records = extract_ios_frameworks(binary_archive, work / "official")
-        stage = "catalyst-build"
         device = official / records["device"]["LibraryIdentifier"] / "llama.framework"
         require((device / "Headers/llama.h").read_bytes() == (source / "include/llama.h").read_bytes(),
                 "Official public C API does not match the pinned source revision")
-        catalyst, catalyst_symbols = build_catalyst(source, work, device / "Headers", mac_sdk, logs)
+        stage = "simulator-build"
+        simulator_sdk = run(["xcrun", "--sdk", "iphonesimulator", "--show-sdk-path"], logs / "simulator-sdk-path.log")
+        simulator, simulator_symbols = build_cpu_framework(source, work, device / "Headers", simulator_sdk, logs, "simulator")
+        stage = "catalyst-build"
+        catalyst, catalyst_symbols = build_cpu_framework(source, work, device / "Headers", mac_sdk, logs, "maccatalyst")
         stage = "package"
         arguments = ["xcrun", "xcodebuild", "-create-xcframework"]
         notices = legal_notices(source)
-        for path in [*(official / r["LibraryIdentifier"] / "llama.framework" for r in records.values()), catalyst]:
+        for path, symbols in [(device, device.parent / records["device"].get("DebugSymbolsPath", "dSYMs")),
+                              (simulator, simulator_symbols), (catalyst, catalyst_symbols)]:
             shutil.copyfile(source / "LICENSE", path / "LICENSE")
             (path / "THIRD_PARTY_NOTICES.txt").write_text(notices, encoding="utf-8")
             arguments += ["-framework", path]
-            symbols = catalyst_symbols if path == catalyst else path.parent / records[
-                "device" if path == device else "simulator"].get("DebugSymbolsPath", "dSYMs")
             candidates = [symbols] if symbols.suffix == ".dSYM" else sorted(symbols.glob("*.dSYM"))
             require(len(candidates) == 1, "Missing unique upstream/Catalyst dependency dSYM")
             arguments += ["-debug-symbols", candidates[0]]
@@ -454,7 +471,7 @@ def main():
         output.rename(root / "llama.xcframework")
         (root / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
         validate_cache(root, identity)
-        print("Prepared pinned iOS/Simulator and CPU-only Mac Catalyst llama XCFramework; real inference remains unverified", flush=True)
+        print("Prepared pinned iOS device and CPU-only Simulator/Mac Catalyst llama XCFramework; real inference remains unverified", flush=True)
         return 0
     except Exception as error:
         failure = {"status": "failure", "stage": stage, "type": type(error).__name__, "message": str(error),

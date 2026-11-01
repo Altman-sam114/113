@@ -240,9 +240,30 @@ class LlamaDependencyTests(unittest.TestCase):
             entry.external_attr = (stat.S_IFLNK | 0o777) << 16
             output.writestr(entry, "Versions/Current/Headers")
         root, records = CHECK.extract_ios_frameworks(archive, self.root / "official")
-        self.assertEqual(set(records), {"device", "simulator"})
+        self.assertEqual(set(records), {"device"})
         self.assertTrue((root / "ios-device/llama.framework/Headers/llama.h").is_file())
         self.assertFalse((root / "macos-arm64_x86_64").exists())
+
+    def test_actual_upstream_device_macos_metadata_cannot_satisfy_final_simulator_gate(self):
+        # Shape transcribed from the pinned b12032 asset's actual Info.plist.
+        upstream = {"XCFrameworkFormatVersion": "1.0", "CFBundlePackageType": "XFWK", "AvailableLibraries": [
+            {"BinaryPath": "llama.framework/llama", "DebugSymbolsPath": "dSYMs", "LibraryIdentifier": "ios-arm64",
+             "LibraryPath": "llama.framework", "SupportedArchitectures": ["arm64"], "SupportedPlatform": "ios"},
+            {"BinaryPath": "llama.framework/Versions/A/llama", "DebugSymbolsPath": "dSYMs",
+             "LibraryIdentifier": "macos-arm64_x86_64", "LibraryPath": "llama.framework",
+             "SupportedArchitectures": ["arm64", "x86_64"], "SupportedPlatform": "macos"},
+        ]}
+        self.assertEqual(set(CHECK.validate_metadata(upstream, {"device"})), {"device"})
+        with self.assertRaisesRegex(ValueError, "variant is missing"):
+            CHECK.validate_metadata(upstream, set(CHECK.PLATFORMS))
+        archive = self.root / "actual-shape.zip"
+        with zipfile.ZipFile(archive, "w") as output:
+            output.writestr(CHECK.BINARY_PREFIX + "/Info.plist", plistlib.dumps(upstream))
+            output.writestr(CHECK.BINARY_PREFIX + "/ios-arm64/llama.framework/Headers/llama.h", "fixture header")
+        root, selected = CHECK.extract_ios_frameworks(archive, self.root / "official")
+        self.assertEqual(selected["device"]["LibraryIdentifier"], "ios-arm64")
+        self.assertTrue((root / "ios-arm64/llama.framework/Headers/llama.h").exists())
+        self.assertEqual(sum(len(p[1]) for p in CHECK.PLATFORMS.values()), 5)
 
     def test_legal_notices_preserve_license_files_and_all_leading_embedded_notices(self):
         source = self.root / "source"
@@ -273,6 +294,19 @@ class LlamaDependencyTests(unittest.TestCase):
             self.assertIn(flag, arguments)
         with self.assertRaises(ValueError):
             CHECK.catalyst_cmake_arguments("source", "build", "arm64e", "/sdk", "/clang", "/clang++")
+
+    def test_missing_official_simulator_is_built_for_both_real_simulator_targets(self):
+        for architecture in ["arm64", "x86_64"]:
+            arguments = list(map(str, CHECK.cpu_cmake_arguments("source", "build", architecture, "/simulator-sdk",
+                                                               "/clang", "/clang++", "simulator")))
+            self.assertIn("-DCMAKE_SYSTEM_NAME=iOS", arguments)
+            self.assertIn("-DCMAKE_OSX_DEPLOYMENT_TARGET=17.0", arguments)
+            self.assertIn(f"-DCMAKE_C_FLAGS=-target {architecture}-apple-ios17.0-simulator -g -O2", arguments)
+            self.assertIn("-DCMAKE_OSX_SYSROOT=/simulator-sdk", arguments)
+            for flag in ["-DGGML_METAL=OFF", "-DGGML_ACCELERATE=OFF", "-DGGML_BLAS=OFF", "-DLLAMA_BUILD_MTMD=OFF"]:
+                self.assertIn(flag, arguments)
+        with self.assertRaises(ValueError):
+            CHECK.cpu_cmake_arguments("source", "build", "arm64", "/sdk", "/clang", "/clang++", "macos")
 
 
 if __name__ == "__main__":
