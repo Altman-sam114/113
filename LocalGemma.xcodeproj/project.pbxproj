@@ -70,7 +70,7 @@
 		1D0000100000000000000001 /* LlamaTextRuntime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LlamaTextRuntime.swift; sourceTree = "<group>"; };
 		1D0000100000000000000002 /* RuntimeStreaming.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuntimeStreaming.swift; sourceTree = "<group>"; };
 		1D0000100000000000000003 /* RuntimeStreamingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuntimeStreamingTests.swift; sourceTree = "<group>"; };
-		1D0000100000000000000004 /* llama.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; path = .runtime/llama.xcframework; sourceTree = SOURCE_ROOT; };
+		1D0000100000000000000004 /* llama.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; path = .runtime/app-bundle/llama.xcframework; sourceTree = SOURCE_ROOT; };
 		1C0000100000000000000001 /* CompactSummaryInteractionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompactSummaryInteractionTests.swift; sourceTree = "<group>"; };
 		1C0000100000000000000002 /* LocalGemmaUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LocalGemmaUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		1B0000100000000000000020 /* ConversationStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationStore.swift; sourceTree = "<group>"; };

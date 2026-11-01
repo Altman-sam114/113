@@ -12,7 +12,7 @@
 
 ## 实现与失败边界
 
-- 使用[固定 llama.cpp 依赖](runtime-dependency.md)，不调用网络推理。iOS device 链接原生库；Simulator / Catalyst 使用真实编译的 CPU slice，不能证明真机 Metal、可用内存或热状态。
+- 使用[固定 llama.cpp 依赖](runtime-dependency.md)，不调用网络推理。iOS device 链接原生库；Simulator / Catalyst 使用真实编译的 CPU slice。App 使用独立暂存产物，Catalyst 采用 `Versions/A`、`Resources/Info.plist` 和受限的内部别名；不修改已校验的编译缓存或二进制。CPU 验证不能证明真机 Metal、可用内存或热状态。
 - 原生 worker 串行执行，逐次拥有模型、上下文和采样器；退出前同步并释放。文件通过无符号链接的只读描述符重新验摘要并检查文件身份，校验不依赖先前 UI 状态。
 - 使用模型内嵌 tokenizer 和受支持的 chat template，保留有序完整正文。上下文不足时明确拒绝，不静默裁剪；最多 4096 context tokens、512 output tokens，输出限额不冒称自然结束。
 - 流式 UTF-8 不显示半个字符。停止、会话切换、模型切换、文件失去 verified 或进入后台时取消工作；generation/session identity 阻止迟到事件写回另一会话。

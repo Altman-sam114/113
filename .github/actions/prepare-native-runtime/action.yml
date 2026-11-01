@@ -24,6 +24,9 @@ runs:
     - name: Validate or prepare all native slices
       shell: bash
       run: PYTHONDONTWRITEBYTECODE=1 python3 Tools/prepare_llama_dependency.py
+    - name: Stage the versioned Catalyst app framework
+      shell: bash
+      run: PYTHONDONTWRITEBYTECODE=1 python3 Tools/stage_native_framework.py
     - name: Preserve native preparation identity and diagnostics
       if: always()
       uses: actions/upload-artifact@v4
@@ -33,6 +36,7 @@ runs:
           .runtime/manifest.json
           .runtime/failure.json
           .runtime/logs
+          .runtime/app-bundle/manifest.json
         include-hidden-files: true
         if-no-files-found: error
         retention-days: 30

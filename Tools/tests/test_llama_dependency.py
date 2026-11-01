@@ -17,6 +17,7 @@ import zipfile
 
 sys.path.insert(0, str(Path(__file__).parents[1]))
 import prepare_llama_dependency as CHECK
+import stage_native_framework as STAGE
 
 
 def macho(architecture, platform):
@@ -68,6 +69,7 @@ class LlamaDependencyTests(unittest.TestCase):
             (framework / "Modules/module.modulemap").write_text('framework module llama { umbrella "Headers" export * }\n')
             (framework / "LICENSE").write_text("fixture upstream license\n")
             (framework / "THIRD_PARTY_NOTICES.txt").write_text("fixture third-party notices\n")
+            (framework / "Info.plist").write_bytes(plistlib.dumps({"CFBundleExecutable": "llama", "CFBundlePackageType": "FMWK"}))
             platform, architectures = CHECK.PLATFORMS[variant]
             binaries = {a: macho(a, platform) for a in sorted(architectures)}
             (framework / "llama").write_bytes(universal(binaries) if len(binaries) > 1 else next(iter(binaries.values())))
@@ -307,6 +309,60 @@ class LlamaDependencyTests(unittest.TestCase):
                 self.assertIn(flag, arguments)
         with self.assertRaises(ValueError):
             CHECK.cpu_cmake_arguments("source", "build", "arm64", "/sdk", "/clang", "/clang++", "macos")
+
+    def test_catalyst_staging_preserves_native_bytes_and_the_immutable_cache(self):
+        source = self.framework()
+        before = CHECK.tree_fingerprints(source)
+        destination = self.root / "staged/llama.xcframework"
+        records = STAGE.stage_framework(source, destination)
+        self.assertEqual(CHECK.tree_fingerprints(source), before)
+        framework = destination / "ios-maccatalyst/llama.framework"
+        self.assertFalse((framework / "Info.plist").exists())
+        self.assertTrue((framework / "Versions/Current/Resources/Info.plist").is_file())
+        self.assertTrue((framework / "llama").is_symlink())
+        self.assertEqual((framework / "llama").read_bytes(), (source / "ios-maccatalyst/llama.framework/llama").read_bytes())
+        self.assertEqual(records, STAGE.app_framework_fingerprints(destination))
+        packaged = self.root / "framework.zip"
+        STAGE.package_framework(destination, packaged)
+        with zipfile.ZipFile(packaged) as archive:
+            link = archive.getinfo("llama.xcframework/ios-maccatalyst/llama.framework/Versions/Current")
+            self.assertTrue(stat.S_ISLNK(link.external_attr >> 16))
+            self.assertEqual(archive.read(link), b"A")
+
+    def test_versioned_framework_rejects_escaping_or_unexpected_aliases(self):
+        source = self.framework()
+        destination = self.root / "staged/llama.xcframework"
+        STAGE.stage_framework(source, destination)
+        framework = destination / "ios-maccatalyst/llama.framework"
+        alias = framework / "Headers"
+        alias.unlink()
+        alias.symlink_to(self.root, target_is_directory=True)
+        with self.assertRaisesRegex(ValueError, "escaping"):
+            STAGE.app_framework_fingerprints(destination)
+        alias.unlink()
+        alias.symlink_to(STAGE.CATALYST_LINKS["Headers"], target_is_directory=True)
+        (framework / "extra-link").symlink_to("Versions/Current/Headers", target_is_directory=True)
+        with self.assertRaisesRegex(ValueError, "Unexpected"):
+            STAGE.app_framework_fingerprints(destination)
+
+    def test_staging_cannot_accept_a_linked_source_or_overwrite_existing_output(self):
+        source = self.framework()
+        target = self.root / "sentinel"
+        target.write_text("preserve")
+        with self.assertRaisesRegex(ValueError, "new path"):
+            STAGE.stage_framework(source, target)
+        (source / "extra").symlink_to(self.root, target_is_directory=True)
+        with self.assertRaises(ValueError):
+            STAGE.stage_framework(source, self.root / "staged")
+        self.assertEqual(target.read_text(), "preserve")
+
+    def test_app_framework_entry_point_rejects_local_commands_before_staging(self):
+        with patch.object(STAGE.os, "environ", {}), patch.object(STAGE.subprocess, "check_output") as command, \
+                patch.object(STAGE.shutil, "copytree") as copytree:
+            with self.assertRaisesRegex(ValueError, "GitHub-hosted"):
+                STAGE.main()
+            command.assert_not_called()
+            copytree.assert_not_called()
 
 
 if __name__ == "__main__":

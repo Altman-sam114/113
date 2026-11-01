@@ -75,7 +75,7 @@ def main():
     sdk = subprocess.check_output(["xcrun", "--sdk", "macosx", "--show-sdk-path"], text=True).strip()
     architecture = platform.machine()
     require(architecture in {"arm64", "x86_64"}, "Unsupported hosted architecture")
-    framework = ROOT / ".runtime/llama.xcframework/ios-arm64_x86_64-maccatalyst"
+    framework = ROOT / ".runtime/app-bundle/llama.xcframework/ios-arm64_x86_64-maccatalyst"
     executable = private / "native-text-smoke"
     command = ["xcrun", "swiftc", "-swift-version", "6", "-sdk", sdk,
                "-target", f"{architecture}-apple-ios17.0-macabi", "-F", str(framework),

@@ -41,3 +41,9 @@ Simulator 使用 Simulator SDK 和真实 `arch-apple-ios17.0-simulator` 目标�
 ## 必须另验收
 
 新增 native SDK 后重新审核隐私 required-reason API；例如 llama 的 `fstat` 模型文件读取必须与 App 容器/用户授权路径及实际用途匹配。依赖构建通过不证明流式输出、正确 tokenizer/chat template、多轮上下文、停止/内存释放、后台中断、模型来源可信或发布签名可用。没有实际云端产物与结果时不得将本页当作已验证声明。
+
+## App framework 暂存格式
+
+编译缓存 `.runtime/llama.xcframework` 保持不可变、全文件 SHA-256/权限和五个平台架构链接校验。共同 action 随后运行仅云端 `Tools/stage_native_framework.py`，复制到 `.runtime/app-bundle/llama.xcframework`，将 Catalyst 整理为标准版本化 framework：`Versions/A`、`Versions/Current`、`Resources/Info.plist` 与固定相对别名。iOS device/Simulator 仍为浅层 bundle，所有原生二进制和 dSYM 字节保持不变；App 工程和真实 native probe 统一使用暂存路径。
+
+仅允许脚本构造的七个内部相对别名，目标必须在物理版本 A 内；上游下载、不可变缓存和其他路径仍拒绝符号链接。额外别名、外部目标、旧浅层 Info.plist、切片/摘要/权限不匹配都会失败，不关闭 Xcode bundle validation。专用依赖产物使用保留这些别名的 ZIP，不能让普通 artifact 上传将别名展开后当作原始 framework。格式暂存不意味着 App/Catalyst 构建、真实推理或签名已验收，仍核对各自精确 SHA 的云端结果。

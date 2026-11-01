@@ -54,14 +54,17 @@ jobs:
           key: ${{ runner.os }}-llama-b12032-catalyst-${{ steps.toolchain.outputs.cache-key }}-${{ hashFiles('Tools/prepare_llama_dependency.py') }}
       - name: Prepare and validate the real dependency
         run: python3 Tools/prepare_llama_dependency.py
+      - name: Stage the versioned Catalyst framework without rebuilding native code
+        run: PYTHONDONTWRITEBYTECODE=1 python3 Tools/stage_native_framework.py
       - name: Preserve framework and build evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: localgemma-native-dependency-${{ github.sha }}-run${{ github.run_id }}-attempt${{ github.run_attempt }}
           path: |
-            .runtime/llama.xcframework
             .runtime/manifest.json
+            .runtime/app-bundle/llama.xcframework.zip
+            .runtime/app-bundle/manifest.json
             .runtime/logs
             .runtime/failure.json
           include-hidden-files: true
