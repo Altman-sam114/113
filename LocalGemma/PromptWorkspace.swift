@@ -58,7 +58,8 @@ struct PromptTemplatesWorkspace: View {
                             inference.useTemplate(
                                 template,
                                 model: model,
-                                availability: validation.availability
+                                availability: validation.availability,
+                                artifactDirectoryURL: catalog.artifactDirectoryURL
                             )
                             openChat(.sendTemplate)
                         }

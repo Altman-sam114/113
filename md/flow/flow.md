@@ -1,5 +1,9 @@
 # 项目核心流程文档
 
+## 原生文本路径
+
+生产 App 注入 `VerifiedLlamaRuntime`，初始模拟模型不变。指定 Gemma 3 1B 的手动 GGUF 经 ModelCatalog 校验为 verified 后，InferenceEngine 以 generation/session identity 创建完整消息请求，经串行 LlamaTextRuntime 重新验证文件、内嵌模板/tokenizer 和预算，再回流真实文字/完成指标。停止、换会话/模型、文件失去 verified 和后台事件取消任务；迟到事件不写回。文件/上下文/解码错误保留问题与已收到正文并显式报告，不回退模拟输出。REAL 只由原生事件确认。详细边界见[本地文本推理](../release/native-runtime.md)。
+
 ## 手机运行摘要
 
 摘要采用公开presentationContentInteraction(.scrolls)：半屏内容先滚动，原生grabber仍可切detent；更多信息完整进入真实内容区后，点按原DisclosureGroup再升级large，避免短内容手势被sheet吸收并回弹。普通字号初始medium与大字初始large不变。

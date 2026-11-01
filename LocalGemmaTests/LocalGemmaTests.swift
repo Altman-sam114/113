@@ -17,7 +17,7 @@ final class LocalGemmaTests: XCTestCase {
                         let original = snapshot
                         XCTAssertEqual(snapshot.fileTitle, CompactWorkbenchPolicy.fileStatus(availability))
                         XCTAssertEqual(snapshot.activityTitle, generating ? "正在生成" : "空闲")
-                        XCTAssertEqual(snapshot.modeTitle, simulated ? "模拟预览" : "运行计划")
+                        XCTAssertEqual(snapshot.modeTitle, simulated ? "模拟预览" : "本地推理")
                         XCTAssertEqual(snapshot.deploymentLabel, simulated ? "模拟部署" : "计划状态")
                         XCTAssertEqual(snapshot.deploymentTitle, simulated
                                        ? (deployment == .running ? "已启动" : "未启动")
@@ -43,7 +43,7 @@ final class LocalGemmaTests: XCTestCase {
                 }
             }
         }
-        XCTAssertTrue(CompactWorkbenchPolicy.runtimeAccessibilityValue(isSimulated: false).contains("不代表真实推理已接入"))
+        XCTAssertTrue(CompactWorkbenchPolicy.runtimeAccessibilityValue(isSimulated: false).contains("已执行真实文本推理"))
         XCTAssertTrue(ModelCapsuleAccessibilityMetadata.hint.contains("verified"))
         XCTAssertTrue(HeaderActionAccessibilityMetadata.modelLibraryHint.contains("不会"))
     }
@@ -9856,7 +9856,8 @@ final class LocalGemmaTests: XCTestCase {
         XCTAssertEqual(Set(sections.map(\.id)).count, sections.count)
         XCTAssertTrue(sections.allSatisfy { !$0.title.isEmpty && !$0.body.isEmpty })
         XCTAssertTrue(sections[0].body.contains("模拟回复"))
-        XCTAssertTrue(sections[0].body.contains("不代表真实推理已接入"))
+        XCTAssertTrue(sections[0].body.contains("发送消息会执行本机文本推理"))
+        XCTAssertTrue(sections[0].body.contains("不保证设备内存足够或生成成功"))
         XCTAssertTrue(sections[1].body.contains("不收集使用分析"))
         XCTAssertTrue(sections[1].body.contains("不自动下载模型权重"))
         XCTAssertTrue(sections[2].body.contains("系统备份"))

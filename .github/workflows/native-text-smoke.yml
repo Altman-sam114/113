@@ -1,0 +1,46 @@
+name: Real Native Text Smoke
+
+"on":
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: Exact main SHA to validate
+        required: true
+        type: string
+      fixture_release_tag:
+        description: Temporary unpublished encrypted local fixture draft
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  native-text:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    # Draft release assets require push-level repository access. No release is
+    # created, published, modified or deleted by this job.
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Prepare the pinned production native runtime
+        uses: ./.github/actions/prepare-native-runtime
+      - name: Exercise real loading, context, generation, cancellation and reload
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          FIXTURE_RELEASE_TAG: ${{ inputs.fixture_release_tag }}
+          LOCALGEMMA_NATIVE_FIXTURE_KEY: ${{ secrets.LOCALGEMMA_NATIVE_FIXTURE_KEY }}
+          GH_TOKEN: ${{ github.token }}
+        run: PYTHONDONTWRITEBYTECODE=1 python3 Tools/run_native_text_smoke.py
+      - name: Preserve actual native results without the model
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: localgemma-real-native-${{ github.sha }}-run${{ github.run_id }}-attempt${{ github.run_attempt }}
+          path: native-text-results
+          if-no-files-found: error
+          retention-days: 30

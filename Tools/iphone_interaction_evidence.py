@@ -18,7 +18,7 @@ LIFECYCLE_STAGES = ("open", "expanded", "managed-models", "returned-chat")
 DRAFT_STAGES = ("draft-keyboard", "draft-sheet", "draft-returned")
 HELP_STAGES = ("help-open", "help-bottom")
 HELP_SECTIONS = (
-    ("capabilities", "当前能力", "当前版本是本地 AI 工作台原型", ("模拟回复", "不代表真实推理已接入")),
+    ("capabilities", "当前能力", "当前版本是本地 AI 工作台原型", ("模拟回复", "发送消息会执行本机文本推理", "不保证设备内存足够或生成成功")),
     ("privacy", "App 不主动上传", "App 不发起对话", ("不收集使用分析", "不自动下载模型权重")),
     ("storage", "本机保存与系统备份", "对话和逐会话草稿保存在",
      ("不参与系统备份", "卸载 App 会失去未导出的对话", "壁纸", "仍可能进入系统备份")),

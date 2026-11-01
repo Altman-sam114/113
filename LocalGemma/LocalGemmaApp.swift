@@ -3,7 +3,9 @@ import SwiftUI
 @main
 struct LocalGemmaApp: App {
     @StateObject private var catalog = ModelCatalog(autoScanLocalArtifacts: true)
-    @StateObject private var inferenceEngine = InferenceEngine(conversationStorage: LocalConversationStore.shared)
+    @StateObject private var inferenceEngine = InferenceEngine(
+        conversationStorage: LocalConversationStore.shared, streamingRuntime: VerifiedLlamaRuntime()
+    )
     @StateObject private var optimizer = DeviceOptimizer()
 
     var body: some Scene {

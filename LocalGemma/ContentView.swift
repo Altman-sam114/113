@@ -582,6 +582,12 @@ struct ContentView: View {
             .toolbar(.hidden, for: .navigationBar)
         }
         .focusedSceneValue(\.workspaceTabSelection, workspaceSelection)
+        .onChange(of: catalog.selectedModel.id) { _, modelID in
+            inference.stopNativeGeneration(ifModelChangedTo: modelID)
+        }
+        .onChange(of: selectedValidation.availability) { _, availability in
+            if availability != .verified { inference.stopNativeGenerationIfNeeded() }
+        }
     }
 
     private static var initialTab: WorkspaceTab {
@@ -1317,11 +1323,13 @@ enum ModelCapsuleAccessibilityMetadata {
     }
 
     static func speedValue(_ tokensPerSecond: Double) -> String {
-        String(format: "%.1f tok/s", tokensPerSecond)
+        guard tokensPerSecond.isFinite, tokensPerSecond > 0 else { return "未测量" }
+        return String(format: "%.1f tok/s", tokensPerSecond)
     }
 
     static func memoryValue(_ memoryUsageMB: Int) -> String {
-        memoryUsageMB >= 1000
+        guard memoryUsageMB > 0 else { return "未测量" }
+        return memoryUsageMB >= 1000
             ? String(format: "%.1fG", Double(memoryUsageMB) / 1000)
             : "\(memoryUsageMB)M"
     }
@@ -3048,7 +3056,7 @@ struct ModelCapsule: View {
     private var speedMetric: some View {
         HeaderMetricChip(
             title: "速度",
-            value: String(format: "%.1f tok/s", tokensPerSecond),
+            value: ModelCapsuleAccessibilityMetadata.speedValue(tokensPerSecond),
             icon: "speedometer",
             tint: theme.accent
         )

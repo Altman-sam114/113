@@ -1,0 +1,38 @@
+name: Prepare pinned native runtime
+description: Verify the cached dependency or build real iOS and Catalyst slices on a hosted macOS runner.
+
+runs:
+  using: composite
+  steps:
+    - name: Identify the cloud toolchain
+      id: toolchain
+      shell: bash
+      run: |
+        python3 - <<'PY'
+        import hashlib, os, subprocess
+        identity = subprocess.check_output(['xcodebuild', '-version'])
+        with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+            output.write('cache-key=' + hashlib.sha256(identity).hexdigest()[:16] + '\n')
+        PY
+    - name: Restore the exact native dependency
+      uses: actions/cache@v4
+      with:
+        path: |
+          .runtime/llama.xcframework
+          .runtime/manifest.json
+        key: ${{ runner.os }}-llama-b12032-catalyst-${{ steps.toolchain.outputs.cache-key }}-${{ hashFiles('Tools/prepare_llama_dependency.py') }}
+    - name: Validate or prepare all native slices
+      shell: bash
+      run: PYTHONDONTWRITEBYTECODE=1 python3 Tools/prepare_llama_dependency.py
+    - name: Preserve native preparation identity and diagnostics
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: localgemma-native-prepare-${{ github.job }}-${{ github.sha }}-run${{ github.run_id }}-attempt${{ github.run_attempt }}
+        path: |
+          .runtime/manifest.json
+          .runtime/failure.json
+          .runtime/logs
+        include-hidden-files: true
+        if-no-files-found: error
+        retention-days: 30

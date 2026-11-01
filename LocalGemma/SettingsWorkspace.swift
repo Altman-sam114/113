@@ -129,7 +129,7 @@ enum SettingsHelpContent {
     static let sections = [
         SettingsHelpSection(
             id: "capabilities", title: "当前能力",
-            body: "当前版本是本地 AI 工作台原型，默认使用模拟回复，不会实际改写、翻译或总结输入。模型文件校验为 verified 只说明文件通过校验，不代表真实推理已接入；参考速度、内存和设备预算并非实测。"
+            body: "当前版本是本地 AI 工作台原型，默认使用模拟回复，模拟模式不会实际改写、翻译或总结输入。选择 Gemma 3 1B、手动导入指定 GGUF 并通过 verified 校验后，发送消息会执行本机文本推理。verified 只说明文件通过校验，不保证设备内存足够或生成成功；参考速度、内存和设备预算并非实测。"
         ),
         SettingsHelpSection(
             id: "privacy", title: "App 不主动上传",
@@ -149,7 +149,7 @@ enum SettingsHelpContent {
         ),
         SettingsHelpSection(
             id: "models", title: "模型与授权",
-            body: "App 不附带可运行的真实模型权重。手动导入前请确认文件来源、格式和相应模型许可；模拟文件不是真实权重。模型名称与参数只用于本地部署计划展示，不代表相关模型提供方的认可。"
+            body: "App 不附带可运行的真实模型权重。手动导入前请确认文件来源、格式和相应模型许可；模拟文件不是真实权重。只有已登记的 GGUF 文本模型接入真实推理，其他模型仍用于模拟预览与部署计划。模型名称不代表相关模型提供方的认可。"
         ),
         SettingsHelpSection(
             id: "support", title: "帮助与反馈",

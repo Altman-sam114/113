@@ -226,9 +226,19 @@ final class CompactSummaryInteractionTests: XCTestCase {
         XCTAssertTrue(waitUntil { !close.exists && app.buttons["workspace-tab-settings"].isSelected })
         let settingsRestored = app.buttons["workspace-tab-settings"].isSelected
         tap(app.buttons["workspace-tab-chat"], id: "workspace-tab-chat")
-        XCTAssertTrue(waitUntil { app.buttons["workspace-tab-chat"].isSelected && composer.exists && composer.isEnabled
-            && app.keyboards.firstMatch.exists })
+        XCTAssertTrue(waitUntil { composer.exists && composer.isEnabled && app.keyboards.firstMatch.exists })
         XCTAssertFalse(close.exists)
+        XCTAssertEqual(composer.value as? String, "Keep this draft")
+        assertComposerVisible(composer, in: app)
+        // Chat intentionally hides workspace chrome while editing. Observe the
+        // actual selection with the keyboard dismissed, then restore editing.
+        tap(keyboardDone, id: "composer-keyboard-done")
+        let chatNavigation = app.buttons["workspace-tab-chat"]
+        XCTAssertTrue(waitUntil { !app.keyboards.firstMatch.exists && chatNavigation.exists && chatNavigation.isSelected })
+        let chatRestored = chatNavigation.isSelected
+        composer.tap()
+        actions.append("tap:\(composerID)")
+        XCTAssertTrue(waitUntil { composer.exists && composer.isEnabled && app.keyboards.firstMatch.exists })
         XCTAssertEqual(composer.value as? String, "Keep this draft")
         assertComposerVisible(composer, in: app)
         // The image remains the original bottom-of-help screen; completion is
@@ -236,7 +246,8 @@ final class CompactSummaryInteractionTests: XCTestCase {
         bottom.document["completion"] = [
             "source": "post-dismiss-live-XCUI-snapshot", "actions": actions,
             "settingsRestoredAfterClose": settingsRestored,
-            "workspace": "chat", "workspaceSelected": app.buttons["workspace-tab-chat"].isSelected,
+            "workspace": "chat", "workspaceSelected": chatRestored,
+            "workspaceSelectionSource": "post-return-keyboard-dismissed-navigation",
             "draft": composer.value as? String ?? "", "keyboardVisible": app.keyboards.firstMatch.exists,
             "helpVisible": close.exists, "composerFrame": helpFrame(composer.frame),
             "keyboardFrame": helpFrame(app.keyboards.firstMatch.frame)

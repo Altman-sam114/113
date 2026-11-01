@@ -1,5 +1,11 @@
 # 测试规范
 
+## 原生文本验证入口
+
+`RuntimeStreamingTests` 随原 LocalGemma unit scheme 在云端执行，覆盖可信模型、verified 门禁、完整多轮请求、真实指标契约、取消迟到事件、失败/未完成流、内存预算、UTF-8 和实际链接的畸形 GGUF 拒绝。测试替身只验证状态契约，不代表权重推理成功。
+
+独立 `native-text-smoke.yml` 仅手动触发，使用用户明确提供且摘要固定的加密 270M 本地模型草稿，通过同一生产 LlamaTextRuntime 的 Catalyst CPU slice 执行真实生成、两轮记忆、输出限额、取消后重新加载、上下文拒绝。原模型和密钥不进结果包。全量与真实手机交互入口准备固定 native framework，unsigned archive 单独手动执行。结果仍须绑定精确 SHA/run/attempt 并核对完整产物；270M CPU 不覆盖生产 1B、真机 Metal/内存/辅助技术或签名发行。细节见[本地文本推理](../release/native-runtime.md)。
+
 ## 手机摘要真实系统交互入口
 
 输入可达性由真实tap/type事件成功、原始草稿、enabled、实际键盘、正且在屏内/键盘上方的输入矩形共同验证，不以当前SDK与真实事件冲突的TextField.isHittable预检代替实际输入；该SDK现象及旧失败保留日志。按钮仍严格要求hittable和真实44pt。展开动作与原完整Capsule必须是独立辅助节点，Capsule原metadata/identifier及36.0参考指标均需实际滚动可达，不用巨型组合Button冒充。

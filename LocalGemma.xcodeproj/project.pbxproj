@@ -7,6 +7,11 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		1D0000010000000000000001 /* LlamaTextRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D0000100000000000000001 /* LlamaTextRuntime.swift */; };
+		1D0000010000000000000002 /* RuntimeStreaming.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D0000100000000000000002 /* RuntimeStreaming.swift */; };
+		1D0000010000000000000003 /* RuntimeStreamingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D0000100000000000000003 /* RuntimeStreamingTests.swift */; };
+		1D0000010000000000000004 /* llama.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1D0000100000000000000004 /* llama.xcframework */; };
+		1D0000010000000000000005 /* llama.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 1D0000100000000000000004 /* llama.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		1C0000010000000000000001 /* CompactSummaryInteractionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C0000100000000000000001 /* CompactSummaryInteractionTests.swift */; };
 		1B0000010000000000000020 /* ConversationStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B0000100000000000000020 /* ConversationStore.swift */; };
 		1B0000010000000000000021 /* ConversationHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B0000100000000000000021 /* ConversationHistory.swift */; };
@@ -47,7 +52,25 @@
 		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		1D0000400000000000000001 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				1D0000010000000000000005 /* llama.xcframework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		1D0000100000000000000001 /* LlamaTextRuntime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LlamaTextRuntime.swift; sourceTree = "<group>"; };
+		1D0000100000000000000002 /* RuntimeStreaming.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuntimeStreaming.swift; sourceTree = "<group>"; };
+		1D0000100000000000000003 /* RuntimeStreamingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuntimeStreamingTests.swift; sourceTree = "<group>"; };
+		1D0000100000000000000004 /* llama.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; path = .runtime/llama.xcframework; sourceTree = SOURCE_ROOT; };
 		1C0000100000000000000001 /* CompactSummaryInteractionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompactSummaryInteractionTests.swift; sourceTree = "<group>"; };
 		1C0000100000000000000002 /* LocalGemmaUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LocalGemmaUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		1B0000100000000000000020 /* ConversationStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationStore.swift; sourceTree = "<group>"; };
@@ -85,6 +108,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				1D0000010000000000000004 /* llama.xcframework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -101,6 +125,7 @@
 		1A0000500000000000000001 = {
 			isa = PBXGroup;
 			children = (
+				1D0000100000000000000004 /* llama.xcframework */,
 				1A0000500000000000000002 /* LocalGemma */,
 				1A0000500000000000000003 /* LocalGemmaTests */,
 				1C0000500000000000000001 /* LocalGemmaUITests */,
@@ -111,6 +136,8 @@
 		1A0000500000000000000002 /* LocalGemma */ = {
 			isa = PBXGroup;
 			children = (
+				1D0000100000000000000001 /* LlamaTextRuntime.swift */,
+				1D0000100000000000000002 /* RuntimeStreaming.swift */,
 				1A0000100000000000000001 /* AppState.swift */,
 				1B000010000000000000001F /* ArtifactImport.swift */,
 				1B0000100000000000000020 /* ConversationStore.swift */,
@@ -137,6 +164,7 @@
 		1A0000500000000000000003 /* LocalGemmaTests */ = {
 			isa = PBXGroup;
 			children = (
+				1D0000100000000000000003 /* RuntimeStreamingTests.swift */,
 				1A0000100000000000000005 /* LocalGemmaTests.swift */,
 			);
 			path = LocalGemmaTests;
@@ -187,6 +215,7 @@
 				1A0000600000000000000001 /* Sources */,
 				1A0000400000000000000001 /* Frameworks */,
 				1A0000700000000000000001 /* Resources */,
+				1D0000400000000000000001 /* Embed Frameworks */,
 			);
 			buildRules = (
 			);
@@ -297,6 +326,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				1D0000010000000000000001 /* LlamaTextRuntime.swift in Sources */,
+				1D0000010000000000000002 /* RuntimeStreaming.swift in Sources */,
 				1A0000010000000000000001 /* AppState.swift in Sources */,
 				1B000001000000000000001F /* ArtifactImport.swift in Sources */,
 				1B0000010000000000000020 /* ConversationStore.swift in Sources */,
@@ -321,6 +352,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				1D0000010000000000000003 /* RuntimeStreamingTests.swift in Sources */,
 				1A0000010000000000000005 /* LocalGemmaTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -351,6 +383,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.localgemma.prototype.uitests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTS_MACCATALYST = NO;
+				FRAMEWORK_SEARCH_PATHS = ("$(inherited)", "$(BUILT_PRODUCTS_DIR)", );
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_TARGET_NAME = LocalGemma;
@@ -367,6 +400,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.localgemma.prototype.uitests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTS_MACCATALYST = NO;
+				FRAMEWORK_SEARCH_PATHS = ("$(inherited)", "$(BUILT_PRODUCTS_DIR)", );
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_TARGET_NAME = LocalGemma;
@@ -522,6 +556,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTS_MACCATALYST = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				FRAMEWORK_SEARCH_PATHS = ("$(inherited)", "$(BUILT_PRODUCTS_DIR)", );
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -556,6 +591,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTS_MACCATALYST = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				FRAMEWORK_SEARCH_PATHS = ("$(inherited)", "$(BUILT_PRODUCTS_DIR)", );
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -579,6 +615,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.localgemma.prototype.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTS_MACCATALYST = YES;
+				FRAMEWORK_SEARCH_PATHS = ("$(inherited)", "$(BUILT_PRODUCTS_DIR)", );
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/LocalGemma.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/LocalGemma";
@@ -603,6 +640,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.localgemma.prototype.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTS_MACCATALYST = YES;
+				FRAMEWORK_SEARCH_PATHS = ("$(inherited)", "$(BUILT_PRODUCTS_DIR)", );
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/LocalGemma.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/LocalGemma";

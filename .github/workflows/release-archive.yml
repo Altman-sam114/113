@@ -35,6 +35,8 @@ jobs:
           persist-credentials: false
       - name: Validate unsigned archive evidence fixtures
         run: PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s Tools/tests -p test_release_archive.py -v
+      - name: Prepare the pinned iOS and Catalyst runtime
+        uses: ./.github/actions/prepare-native-runtime
       - name: Archive and independently verify device bundle and dSYM
         env:
           EXPECTED_SHA: ${{ inputs.expected_sha }}

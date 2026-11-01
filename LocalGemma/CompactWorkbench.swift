@@ -19,11 +19,11 @@ enum CompactWorkbenchPolicy {
     static let headerChevronSymbolSize: CGFloat = 12
 
     static func runtimeTitle(isSimulated: Bool) -> String {
-        isSimulated ? "模拟预览" : "运行计划"
+        isSimulated ? "模拟预览" : "本地推理"
     }
 
     static func runtimeAccessibilityValue(isSimulated: Bool) -> String {
-        isSimulated ? "本地模拟预览，未执行真实推理" : "本地运行计划，不代表真实推理已接入"
+        isSimulated ? "本地模拟预览，未执行真实推理" : "本地模型已执行真实文本推理；内容未发送到云端服务"
     }
 
     static func usesCompactChrome(for plan: WorkspaceRootLayoutPlan) -> Bool {

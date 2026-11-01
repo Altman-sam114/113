@@ -236,7 +236,8 @@ struct ChatWorkspace: View {
                 send: {
                     inference.send(
                         using: selectedModel,
-                        availability: selectedValidation.availability
+                        availability: selectedValidation.availability,
+                        artifactDirectoryURL: catalog.artifactDirectoryURL
                     )
                 },
                 stop: inference.stop,
@@ -248,8 +249,19 @@ struct ChatWorkspace: View {
             .padding(.horizontal, ComposerBarLayoutPolicy.horizontalPadding)
             .padding(.top, isCompact ? 8 : 12)
             .padding(.bottom, ComposerBarLayoutPolicy.bottomPadding)
+            if let error = inference.generationError {
+                Text(error)
+                    .font(.footnote)
+                    .foregroundStyle(theme.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: ComposerBarLayoutPolicy.maximumContentWidth, alignment: .leading)
+                    .padding(.horizontal, ComposerBarLayoutPolicy.horizontalPadding)
+                    .padding(.bottom, ComposerBarLayoutPolicy.bottomPadding)
+                    .accessibilityLabel("本地推理提示：\(error)")
+                    .accessibilityIdentifier("native-generation-error")
+            }
             if !isCompact {
-                Label("模拟预览 · 内容在本机生成", systemImage: "lock")
+                Label(inference.lastResultWasSimulated ? "模拟预览 · 内容在本机生成" : "本地推理 · 请核实重要信息", systemImage: "lock")
                     .font(.caption)
                     .foregroundStyle(theme.secondaryText)
                     .padding(.bottom, ComposerBarLayoutPolicy.bottomPadding)

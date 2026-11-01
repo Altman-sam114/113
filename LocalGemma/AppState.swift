@@ -115,13 +115,16 @@ struct ChatMessage: Identifiable, Codable, Equatable, Sendable {
     var text: String
     var timestamp: Date
     var tokens: Int
+    var isRuntimeStatus: Bool?
 
-    init(id: UUID = UUID(), role: Role, text: String, timestamp: Date = Date(), tokens: Int = 0) {
+    init(id: UUID = UUID(), role: Role, text: String, timestamp: Date = Date(), tokens: Int = 0,
+         isRuntimeStatus: Bool? = nil) {
         self.id = id
         self.role = role
         self.text = text
         self.timestamp = timestamp
         self.tokens = tokens
+        self.isRuntimeStatus = isRuntimeStatus
     }
 }
 
@@ -781,7 +784,7 @@ final class ModelCatalog: ObservableObject {
     @Published private var deploymentStates: [UUID: ModelDeploymentState]
     @Published private(set) var artifactOperation: ArtifactOperation?
 
-    private let artifactDirectoryURL: URL
+    let artifactDirectoryURL: URL
     private let fileAccess: ArtifactFileAccess
     private var importControl: ArtifactImportControl?
     private var initialScanTask: Task<Void, Never>?
@@ -1120,7 +1123,7 @@ final class ModelCatalog: ObservableObject {
                 maxActiveTokens: 4096
             )
         )
-    ]
+    ] + [PinnedTextModel.model]
 }
 
 @MainActor
@@ -1211,10 +1214,15 @@ final class InferenceEngine: ObservableObject {
     @Published var lastPreparationReport: RuntimePreparationReport?
     @Published var lastResultWasSimulated: Bool
     @Published var currentBackend: ComputeBackend
+    @Published private(set) var generationError: String?
     @Published private(set) var conversationPersistenceState: ConversationPersistenceState
 
     private var generationTask: Task<Void, Never>?
+    private var generationID: UUID?
+    private var nativeGenerationModelID: UUID?
+    private var nativeResultModelID: UUID?
     private let runtime: LocalInferenceRuntime
+    private let streamingRuntime: (any LocalStreamingInferenceRuntime)?
     private let conversationStorage: (any ConversationStorage)?
     private var drafts: [UUID: String] = [:]
     private var restoreTask: Task<Void, Never>?
@@ -1222,8 +1230,10 @@ final class InferenceEngine: ObservableObject {
     private var pendingArchive: ConversationArchive?
     private var isApplyingArchive = false
 
-    init(runtime: LocalInferenceRuntime = SimulatedGemmaRuntime(), conversationStorage: (any ConversationStorage)? = nil) {
+    init(runtime: LocalInferenceRuntime = SimulatedGemmaRuntime(), conversationStorage: (any ConversationStorage)? = nil,
+         streamingRuntime: (any LocalStreamingInferenceRuntime)? = nil) {
         self.runtime = runtime
+        self.streamingRuntime = streamingRuntime
         self.conversationStorage = conversationStorage
         self.conversationPersistenceState = conversationStorage == nil ? .memoryOnly : .loading
         let initialSession = ChatSession(
@@ -1241,6 +1251,7 @@ final class InferenceEngine: ObservableObject {
         self.lastPreparationReport = nil
         self.lastResultWasSimulated = true
         self.currentBackend = .coreMLANE
+        self.generationError = nil
         if let conversationStorage {
             restoreTask = Task { [weak self] in
                 do {
@@ -1279,17 +1290,52 @@ final class InferenceEngine: ObservableObject {
         activeSession?.title ?? "新对话"
     }
 
-    func send(using model: LocalModel, availability: ArtifactAvailability = .missing) {
+    func send(using model: LocalModel, availability: ArtifactAvailability = .missing,
+              artifactDirectoryURL: URL? = nil) {
         let trimmed = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.isEmpty == false, isGenerating == false,
               !conversationPersistenceState.blocksEditing else { return }
 
+        let native = streamingRuntime.flatMap { $0.supports(model) ? $0 : nil }
+        if native != nil && (availability != .verified || artifactDirectoryURL == nil) {
+            clearNativeResultSummary()
+            generationError = StreamingInferenceError.unverifiedArtifact.localizedDescription
+            return
+        }
+        generationError = nil
+        let operationID = UUID()
+        let sessionID = activeSessionID
+        generationID = operationID
+
         inputText = ""
         messages.append(ChatMessage(role: .user, text: trimmed, tokens: estimateTokens(trimmed)))
+        let history = messages.filter {
+            $0.isRuntimeStatus != true && !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
         let placeholderID = UUID()
         messages.append(ChatMessage(id: placeholderID, role: .assistant, text: "", tokens: 0))
         syncActiveSession(titlePrompt: trimmed)
         isGenerating = true
+        if let native, let artifactDirectoryURL {
+            nativeGenerationModelID = model.id
+            currentTokensPerSecond = 0
+            memoryUsageMB = 0
+            cpuLoad = 0
+            lastResultWasSimulated = true
+            currentBackend = .llamaCpp
+            let request = StreamingInferenceRequest(
+                model: model, availability: availability,
+                modelFileURL: artifactDirectoryURL.appendingPathComponent(model.artifactManifest.modelFileName),
+                messages: history, maximumOutputTokens: 512
+            )
+            generationTask = Task { [weak self] in
+                guard let self else { return }
+                await self.consumeNativeStream(native, request: request, operationID: operationID,
+                                               sessionID: sessionID, placeholderID: placeholderID)
+            }
+            return
+        }
+        nativeGenerationModelID = nil
         memoryUsageMB = model.family == "Gemma" ? 1870 : 1420
         cpuLoad = 48
 
@@ -1305,7 +1351,8 @@ final class InferenceEngine: ObservableObject {
             var generated = ""
             for chunk in fullResponse.streamingChunks() {
                 try? await Task.sleep(for: .milliseconds(34))
-                guard Task.isCancelled == false else { return }
+                guard Task.isCancelled == false, self.generationID == operationID,
+                      self.activeSessionID == sessionID else { return }
                 generated += chunk
                 if let index = self.messages.firstIndex(where: { $0.id == placeholderID }) {
                     self.messages[index].text = generated
@@ -1318,21 +1365,117 @@ final class InferenceEngine: ObservableObject {
             self.isGenerating = false
             self.cpuLoad = 18
             self.currentTokensPerSecond = model.tokensPerSecond
+            self.generationID = nil
             self.syncActiveSession()
         }
     }
 
     func stop() {
+        let wasNative = nativeGenerationModelID != nil || nativeResultModelID != nil
         generationTask?.cancel()
-        generationTask = nil
+        generationID = nil
+        nativeGenerationModelID = nil
         isGenerating = false
-        cpuLoad = 16
+        cpuLoad = wasNative ? 0 : 16
         requestConversationSave()
+    }
+
+    func waitForCurrentGeneration() async {
+        await generationTask?.value
+    }
+
+    func stopNativeGeneration(ifModelChangedTo modelID: UUID) {
+        if let nativeGenerationModelID, nativeGenerationModelID != modelID { stop() }
+        if let nativeResultModelID, nativeResultModelID != modelID { clearNativeResultSummary() }
+        generationError = nil
+    }
+
+    func stopNativeGenerationIfNeeded() {
+        if nativeGenerationModelID != nil { stop() }
+        if nativeResultModelID != nil { clearNativeResultSummary() }
+    }
+
+    private func clearNativeResultSummary() {
+        nativeResultModelID = nil
+        lastResultWasSimulated = true
+        lastPreparationReport = nil
+        currentTokensPerSecond = 0
+        memoryUsageMB = 0
+        cpuLoad = 0
+        currentBackend = .coreMLANE
+    }
+
+    private func consumeNativeStream(
+        _ runtime: any LocalStreamingInferenceRuntime, request: StreamingInferenceRequest,
+        operationID: UUID, sessionID: UUID, placeholderID: UUID
+    ) async {
+        var completed = false
+        do {
+            for try await event in runtime.stream(request) {
+                try Task.checkCancellation()
+                guard generationID == operationID, activeSessionID == sessionID else { return }
+                guard !completed, let index = messages.firstIndex(where: { $0.id == placeholderID }) else {
+                    throw StreamingInferenceError.incompleteStream
+                }
+                switch event {
+                case .text(let delta):
+                    guard !delta.isEmpty else { continue }
+                    messages[index].text += delta
+                    messages[index].tokens = 0
+                    recordNativeExecution(request)
+                case .completed(let metrics):
+                    guard metrics.promptTokens > 0, (0...request.maximumOutputTokens).contains(metrics.outputTokens),
+                          metrics.tokensPerSecond.isFinite, metrics.tokensPerSecond >= 0 else {
+                        throw StreamingInferenceError.incompleteStream
+                    }
+                    messages[index].tokens = metrics.outputTokens
+                    currentTokensPerSecond = metrics.tokensPerSecond
+                    recordNativeExecution(request)
+                    completed = true
+                    if metrics.reachedOutputLimit {
+                        messages.append(ChatMessage(role: .system,
+                            text: "已达到本次 \(request.maximumOutputTokens) token 输出上限，回答可能尚未结束。",
+                            isRuntimeStatus: true))
+                    }
+                }
+                syncActiveSession()
+            }
+            try Task.checkCancellation()
+            guard completed else { throw StreamingInferenceError.incompleteStream }
+        } catch {
+            guard !Task.isCancelled, generationID == operationID, activeSessionID == sessionID else { return }
+            generationError = error.localizedDescription
+            if let index = messages.firstIndex(where: { $0.id == placeholderID }), messages[index].text.isEmpty {
+                messages.remove(at: index)
+            }
+            messages.append(ChatMessage(role: .system, text: "本地推理未完成：\(error.localizedDescription)",
+                                        isRuntimeStatus: true))
+        }
+        guard generationID == operationID, activeSessionID == sessionID else { return }
+        isGenerating = false
+        generationID = nil
+        nativeGenerationModelID = nil
+        syncActiveSession()
+    }
+
+    private func recordNativeExecution(_ request: StreamingInferenceRequest) {
+        nativeResultModelID = request.model.id
+        lastResultWasSimulated = false
+        currentBackend = .llamaCpp
+        lastPreparationReport = RuntimePreparationReport(
+            modelName: request.model.name, availability: request.availability,
+            canRunRealWeights: true, networkDownloadAllowed: false,
+            activeBackend: .llamaCpp, fallbackBackend: .llamaCpp,
+            requiredFiles: request.model.artifactManifest.requiredFiles,
+            blockers: [], nextSteps: []
+        )
     }
 
     func resetConversation() {
         guard !conversationPersistenceState.blocksEditing else { return }
         stop()
+        generationError = nil
+        nativeResultModelID = nil
         inputText = ""
         messages = Self.defaultMessages()
         syncActiveSession(title: "新对话")
@@ -1343,10 +1486,11 @@ final class InferenceEngine: ObservableObject {
         memoryUsageMB = 1840
     }
 
-    func usePrompt(_ prompt: String, model: LocalModel, availability: ArtifactAvailability = .missing) {
+    func usePrompt(_ prompt: String, model: LocalModel, availability: ArtifactAvailability = .missing,
+                   artifactDirectoryURL: URL? = nil) {
         guard isGenerating == false, !conversationPersistenceState.blocksEditing else { return }
         inputText = prompt
-        send(using: model, availability: availability)
+        send(using: model, availability: availability, artifactDirectoryURL: artifactDirectoryURL)
     }
 
     func applyTemplate(_ template: PresetPromptTemplate) {
@@ -1354,16 +1498,19 @@ final class InferenceEngine: ObservableObject {
         inputText = template.prompt
     }
 
-    func useTemplate(_ template: PresetPromptTemplate, model: LocalModel, availability: ArtifactAvailability = .missing) {
+    func useTemplate(_ template: PresetPromptTemplate, model: LocalModel, availability: ArtifactAvailability = .missing,
+                     artifactDirectoryURL: URL? = nil) {
         guard isGenerating == false, !conversationPersistenceState.blocksEditing else { return }
         inputText = template.prompt
-        send(using: model, availability: availability)
+        send(using: model, availability: availability, artifactDirectoryURL: artifactDirectoryURL)
     }
 
     @discardableResult
     func createSession(title: String? = nil) -> UUID {
         guard !conversationPersistenceState.blocksEditing else { return activeSessionID }
         stop()
+        generationError = nil
+        nativeResultModelID = nil
         let session = ChatSession(
             title: title ?? nextSessionTitle(),
             messages: Self.defaultMessages()
@@ -1385,6 +1532,8 @@ final class InferenceEngine: ObservableObject {
         guard !conversationPersistenceState.blocksEditing,
               let current = sessions.first(where: { $0.id == session.id }) else { return }
         stop()
+        generationError = nil
+        if nativeResultModelID != nil { clearNativeResultSummary() }
         activeSessionID = current.id
         messages = current.messages
         inputText = drafts[current.id] ?? ""
@@ -1396,6 +1545,8 @@ final class InferenceEngine: ObservableObject {
         let wasActive = session.id == activeSessionID
         if wasActive {
             stop()
+            generationError = nil
+            if nativeResultModelID != nil { clearNativeResultSummary() }
         }
 
         sessions.removeAll { $0.id == session.id }

@@ -11,11 +11,14 @@ struct ModelLibraryView: View {
     @Environment(\.compactWorkbench) private var isCompact
     var isModal = false
     @State private var importTargetModel: LocalModel?
+    @State private var pendingLicenseModel: LocalModel?
+    @State private var approvedLicenseImportModel: LocalModel?
     @State private var pendingUninstallModel: LocalModel?
     @State private var isShowingFileImporter = false
     @State private var operationErrorTitle = "操作失败"
     @State private var operationErrorMessage: String?
     @State private var showsModelDetails = false
+    @State private var showsModelLicenseLinks = false
 
     var body: some View {
         ZStack {
@@ -46,6 +49,19 @@ struct ModelLibraryView: View {
             allowsMultipleSelection: true
         ) { result in
             handleImport(result)
+        }
+        .sheet(item: $pendingLicenseModel, onDismiss: continueApprovedLicenseImport) { model in
+            ModelImportLicenseReview(
+                model: model,
+                confirm: {
+                    approvedLicenseImportModel = model
+                    pendingLicenseModel = nil
+                },
+                cancel: {
+                    approvedLicenseImportModel = nil
+                    pendingLicenseModel = nil
+                }
+            )
         }
         .alert(
             operationErrorTitle,
@@ -151,6 +167,33 @@ struct ModelLibraryView: View {
                 ArtifactOperationStatusRow(operation: operation) { catalog.cancelArtifactImport() }
             }
 
+            if ModelImportLicensePolicy.requiresConfirmation(for: model) {
+                VStack(alignment: .leading, spacing: 0) {
+                    Button { showsModelLicenseLinks.toggle() } label: {
+                        HStack(spacing: 12) {
+                            Label("模型许可与固定版本来源", systemImage: "doc.text")
+                                .font(.subheadline.weight(.medium))
+                                .foregroundStyle(theme.primaryText)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            Image(systemName: showsModelLicenseLinks ? "chevron.down" : "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(theme.secondaryText)
+                                .accessibilityHidden(true)
+                        }
+                        .frame(minHeight: ModelImportLicensePolicy.minimumActionHeight)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityValue(showsModelLicenseLinks ? "已展开" : "已折叠")
+                    .accessibilityHint("展开后可主动打开官方许可、使用限制和固定版本来源；不会自动下载或加载模型。")
+                    .accessibilityInputLabels(["模型许可与固定版本来源", "模型许可"])
+                    .accessibilityIdentifier("model-license-sources")
+                    if showsModelLicenseLinks {
+                        ModelImportLicenseLinks().padding(.top, 8)
+                    }
+                }
+            }
+
             if isCompact {
                 ModelSelectorPanel(
                     models: catalog.models, selectedModelID: selectedModelID, selectedModel: model,
@@ -161,10 +204,7 @@ struct ModelLibraryView: View {
                     download: { catalog.simulateDownload(for: model) },
                     uninstall: { requestUninstall(model) },
                     scan: { Task { await catalog.refreshArtifactStatus(for: model) } },
-                    importFiles: {
-                        importTargetModel = model
-                        isShowingFileImporter = true
-                    }
+                    importFiles: { requestImport(model) }
                 )
                 .disabled(catalog.isArtifactOperationInProgress)
                 DeploymentPowerButton(
@@ -217,10 +257,7 @@ struct ModelLibraryView: View {
                             download: { catalog.simulateDownload(for: model) },
                             uninstall: { requestUninstall(model) },
                             scan: { Task { await catalog.refreshArtifactStatus(for: model) } },
-                            importFiles: {
-                                importTargetModel = model
-                                isShowingFileImporter = true
-                            }
+                            importFiles: { requestImport(model) }
                         )
                         .disabled(catalog.isArtifactOperationInProgress)
                     }
@@ -257,10 +294,7 @@ struct ModelLibraryView: View {
                     download: { catalog.simulateDownload(for: model) },
                     uninstall: { requestUninstall(model) },
                     scan: { Task { await catalog.refreshArtifactStatus(for: model) } },
-                    importFiles: {
-                        importTargetModel = model
-                        isShowingFileImporter = true
-                    }
+                    importFiles: { requestImport(model) }
                 )
                 .disabled(catalog.isArtifactOperationInProgress)
 
@@ -274,6 +308,30 @@ struct ModelLibraryView: View {
                 )
             }
         }
+    }
+
+    private func requestImport(_ model: LocalModel) {
+        guard !catalog.isArtifactOperationInProgress else { return }
+        approvedLicenseImportModel = nil
+        if ModelImportLicensePolicy.requiresConfirmation(for: model) {
+            pendingLicenseModel = model
+        } else {
+            presentFileImporter(for: model, didConfirmLicense: false)
+        }
+    }
+
+    private func continueApprovedLicenseImport() {
+        guard let model = approvedLicenseImportModel else { return }
+        approvedLicenseImportModel = nil
+        // The system file picker is presented only after the review sheet is gone.
+        presentFileImporter(for: model, didConfirmLicense: true)
+    }
+
+    private func presentFileImporter(for model: LocalModel, didConfirmLicense: Bool) {
+        guard !catalog.isArtifactOperationInProgress,
+              ModelImportLicensePolicy.permitsFileImporter(for: model, didConfirmLicense: didConfirmLicense) else { return }
+        importTargetModel = model
+        isShowingFileImporter = true
     }
 
     private func handleImport(_ result: Result<[URL], Error>) {
@@ -321,6 +379,139 @@ struct ModelLibraryView: View {
                 operationErrorMessage = error.localizedDescription
             }
         }
+    }
+}
+
+enum ModelImportLicensePolicy {
+    static let minimumActionHeight: CGFloat = 48
+    static let title = "导入前确认模型许可"
+    static let notice = "模型不随 App 提供，也不会自动下载。请自行取得指定版本的模型文件，并在导入前阅读官方 Gemma 许可与使用限制。"
+    static let confirmation = "我已阅读并同意适用的 Gemma 许可与使用限制，并自行确认有权使用该模型。"
+    static let boundary = "本次确认只继续选择本地文件，不代表 App 授予模型许可，也不会下载、加载模型或启动推理。文件仍须通过可信 SHA-256 校验。"
+
+    static func requiresConfirmation(for model: LocalModel) -> Bool {
+        PinnedTextModel.supports(model)
+    }
+
+    static func permitsFileImporter(for model: LocalModel, didConfirmLicense: Bool) -> Bool {
+        !requiresConfirmation(for: model) || didConfirmLicense
+    }
+
+    static func tokenizerDescription(for manifest: ModelArtifactManifest) -> String {
+        manifest.tokenizerIsEmbedded ? "GGUF 内嵌词表" : manifest.tokenizerFileName
+    }
+}
+
+private struct ModelImportLicenseLinks: View {
+    @Environment(\.appTheme) private var theme
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            sourceLink("Gemma 官方许可", destination: PinnedTextModel.licenseURL, identifier: "model-license-terms")
+            sourceLink("Gemma 官方使用限制", destination: PinnedTextModel.usePolicyURL, identifier: "model-license-use-policy")
+            sourceLink("固定版本模型来源", destination: PinnedTextModel.sourceURL, identifier: "model-license-fixed-source")
+            Text("来源：Hugging Face · ggml-org/gemma-3-1b-it-GGUF\n版本：\(PinnedTextModel.revision)")
+                .font(.caption)
+                .foregroundStyle(theme.secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 6)
+        }
+        .accessibilityElement(children: .contain)
+    }
+
+    private func sourceLink(_ title: String, destination: URL, identifier: String) -> some View {
+        Link(destination: destination) {
+            Label(title, systemImage: "arrow.up.right.square")
+                .font(.subheadline)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, minHeight: ModelImportLicensePolicy.minimumActionHeight, alignment: .leading)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(theme.accent)
+        .accessibilityHint("仅在你点按后打开外部网页；不会附带对话、草稿或模型文件，不会在 App 中自动下载模型。")
+        .accessibilityInputLabels([title])
+        .accessibilityIdentifier(identifier)
+    }
+}
+
+private struct ModelImportLicenseReview: View {
+    @Environment(\.appTheme) private var theme
+    let model: LocalModel
+    let confirm: () -> Void
+    let cancel: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(alignment: .top, spacing: 12) {
+                Text(ModelImportLicensePolicy.title)
+                    .font(.headline)
+                    .foregroundStyle(theme.primaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityAddTraits(.isHeader)
+                Button(action: cancel) {
+                    Text("取消")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(minWidth: 48, minHeight: ModelImportLicensePolicy.minimumActionHeight)
+                        .contentShape(Rectangle())
+                }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("取消模型导入许可确认")
+                    .accessibilityHint("关闭说明，不选择文件，不修改或加载模型。")
+                    .accessibilityIdentifier("model-license-cancel")
+            }
+            .padding(.horizontal, 18)
+            .padding(.top, 12)
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    Text(model.name)
+                        .font(.title2.weight(.semibold))
+                        .foregroundStyle(theme.primaryText)
+                        .accessibilityIdentifier("model-license-model-name")
+                    Text(ModelImportLicensePolicy.notice)
+                        .foregroundStyle(theme.secondaryText)
+                    ModelImportLicenseLinks()
+                    Text("仅接受文件：\(PinnedTextModel.fileName)\nSHA-256：\(PinnedTextModel.sha256)")
+                        .font(.caption.monospaced())
+                        .foregroundStyle(theme.secondaryText)
+                    Text(ModelImportLicensePolicy.confirmation)
+                        .font(.body.weight(.medium))
+                        .foregroundStyle(theme.primaryText)
+                    Text(ModelImportLicensePolicy.boundary)
+                        .font(.footnote)
+                        .foregroundStyle(theme.secondaryText)
+                }
+                .font(.body)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: 680, alignment: .leading)
+                .padding(18)
+                .frame(maxWidth: .infinity)
+            }
+
+            Button(action: confirm) {
+                Text("我已阅读并同意，选择本地文件")
+                    .font(.headline)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, minHeight: ModelImportLicensePolicy.minimumActionHeight)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 6)
+                    .background(theme.accent, in: RoundedRectangle(cornerRadius: 12))
+                    .foregroundStyle(theme.canvas)
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("确认你已自行阅读并同意模型许可后，打开系统 Files 选择器；不自动下载、不启动推理，不绕过文件校验。")
+            .accessibilityInputLabels(["同意并选择文件", "选择本地文件"])
+            .accessibilityIdentifier("model-license-confirm-import")
+            .padding(18)
+        }
+        .background(theme.canvas)
+        .tint(theme.accent)
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
+        .accessibilityIdentifier("model-license-review")
     }
 }
 
@@ -1076,6 +1267,13 @@ struct ModelParametersPanel: View {
                 panelContentWidth: panelContentWidth
             )
             DetailRow(title: "包体大小", value: model.sizeOnDisk, panelContentWidth: panelContentWidth)
+            if model.artifactManifest.tokenizerIsEmbedded {
+                DetailRow(
+                    title: "词表",
+                    value: ModelImportLicensePolicy.tokenizerDescription(for: model.artifactManifest),
+                    panelContentWidth: panelContentWidth
+                )
+            }
         }
     }
 }

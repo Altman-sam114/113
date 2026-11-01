@@ -101,10 +101,13 @@ enum ModelArtifactHasher {
         _ url: URL, fileManager: FileManager, control: ArtifactImportControl
     ) throws -> String {
         try control.checkCancellation()
-        let values = try url.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey, .isRegularFileKey])
-        guard values.isSymbolicLink != true else { throw ArtifactImportError.unsafeFile(url.lastPathComponent) }
+        // URL resource values can cache a directory type after the path is replaced.
+        // Read the current filesystem entry so validation never trusts that stale hint.
+        let attributes = try fileManager.attributesOfItem(atPath: url.path)
+        let type = attributes[.type] as? FileAttributeType
+        guard type != .typeSymbolicLink else { throw ArtifactImportError.unsafeFile(url.lastPathComponent) }
         var hasher = SHA256()
-        if values.isDirectory == true {
+        if type == .typeDirectory {
             var entries: [DirectoryEntry] = []
             try collectEntries(in: url, path: "", fileManager: fileManager, control: control, into: &entries)
             // Length-prefixed paths and fixed-size content digests cannot be
@@ -123,7 +126,7 @@ enum ModelArtifactHasher {
                     hasher.update(data: Data(contentHasher.finalize()))
                 }
             }
-        } else if values.isRegularFile == true {
+        } else if type == .typeRegular {
             try update(&hasher, file: url, control: control)
         } else {
             throw ArtifactImportError.unsafeFile(url.lastPathComponent)
