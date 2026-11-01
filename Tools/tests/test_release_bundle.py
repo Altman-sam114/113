@@ -6,6 +6,7 @@ import shutil
 import struct
 import tempfile
 import unittest
+from native_bundle_fixture import add_fixture_native_runtime, macho, path_command
 
 
 SPEC = importlib.util.spec_from_file_location("release_bundle", Path(__file__).parents[1] / "verify_release_bundle.py")
@@ -27,6 +28,7 @@ class ReleaseBundleTests(unittest.TestCase):
             self.info[key] = {"CFBundlePrimaryIcon": {"CFBundleIconName": "AppIcon", "CFBundleIconFiles": ["AppIcon60x60"]}}
         self.write_info()
         (self.app / "Fixture").write_bytes(struct.pack("<IIIIIIII", 0xfeedfacf, 0x0100000c, 0, 2, 0, 0, 0, 0))
+        add_fixture_native_runtime(self.app, "Fixture")
         (self.app / "Assets.car").write_bytes(b"fixture compiled resources")
         (self.app / "PrivacyInfo.xcprivacy").write_bytes(plistlib.dumps(CHECK.EXPECTED_PRIVACY))
         shutil.copyfile(CHECK.ROOT / "LocalGemma/Assets.xcassets/AppIcon.appiconset/AppIcon-120.png",
@@ -62,6 +64,26 @@ class ReleaseBundleTests(unittest.TestCase):
         self.info["CFBundleSupportedPlatforms"] = ["iPhoneSimulator"]
         self.write_info()
         with self.assertRaisesRegex(ValueError, "device build"):
+            CHECK.validate_bundle(self.app)
+
+    def test_rejects_missing_embedded_native_runtime(self):
+        (self.app / "Frameworks/llama.framework/llama").rename(self.app / "misplaced-native")
+        with self.assertRaisesRegex(ValueError, "embedded native framework"):
+            CHECK.validate_bundle(self.app)
+
+    def test_rejects_a_renamed_catalyst_library_in_device_delivery(self):
+        (self.app / "Frameworks/llama.framework/llama").write_bytes(
+            macho(6, [path_command(0xD, "@rpath/llama.framework/llama")], platform=6))
+        with self.assertRaisesRegex(ValueError, "iOS device slice"):
+            CHECK.validate_bundle(self.app)
+
+    def test_rejects_an_unlinked_native_library_or_wrong_install_name(self):
+        (self.app / "Fixture").write_bytes(macho(2, [path_command(0x8000001C, "@executable_path/Frameworks")]))
+        with self.assertRaisesRegex(ValueError, "strongly linked"):
+            CHECK.validate_bundle(self.app)
+        add = self.app / "Frameworks/llama.framework/llama"
+        add.write_bytes(macho(6, [path_command(0xD, "/unavailable/llama")]))
+        with self.assertRaisesRegex(ValueError, "install name"):
             CHECK.validate_bundle(self.app)
 
     def test_rejects_missing_ipad_icon_declaration(self):

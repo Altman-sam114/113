@@ -9,6 +9,7 @@ struct ModelLibraryView: View {
     @Environment(\.appTheme) private var theme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.compactWorkbench) private var isCompact
+    @Environment(\.isEnabled) private var isEnabled
     var isModal = false
     @State private var importTargetModel: LocalModel?
     @State private var pendingLicenseModel: LocalModel?
@@ -62,6 +63,12 @@ struct ModelLibraryView: View {
                     pendingLicenseModel = nil
                 }
             )
+        }
+        .onChange(of: isEnabled) { _, enabled in
+            if !enabled {
+                approvedLicenseImportModel = nil
+                pendingLicenseModel = nil
+            }
         }
         .alert(
             operationErrorTitle,
@@ -321,14 +328,14 @@ struct ModelLibraryView: View {
     }
 
     private func continueApprovedLicenseImport() {
-        guard let model = approvedLicenseImportModel else { return }
+        guard isEnabled, let model = approvedLicenseImportModel else { return }
         approvedLicenseImportModel = nil
         // The system file picker is presented only after the review sheet is gone.
         presentFileImporter(for: model, didConfirmLicense: true)
     }
 
     private func presentFileImporter(for model: LocalModel, didConfirmLicense: Bool) {
-        guard !catalog.isArtifactOperationInProgress,
+        guard isEnabled, !catalog.isArtifactOperationInProgress,
               ModelImportLicensePolicy.permitsFileImporter(for: model, didConfirmLicense: didConfirmLicense) else { return }
         importTargetModel = model
         isShowingFileImporter = true

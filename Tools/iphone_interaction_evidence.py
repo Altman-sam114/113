@@ -7,16 +7,19 @@ TESTS = {
         "testLightSummaryLifecycle", "testDarkSummaryLifecycle",
         "testDraftSurvivesSummaryAndModelNavigation",
         "testHelpPreservesDraftAndWorkspace",
+        "testNativeModelLicenseReviewCancelsWithoutImport",
     },
     "accessibility5": {
         "testAccessibilityLightSummaryLifecycle", "testAccessibilityDarkSummaryLifecycle",
         "testAccessibilityDraftSurvivesSummaryAndModelNavigation",
         "testAccessibilityHelpPreservesDraftAndWorkspace",
+        "testAccessibilityNativeModelLicenseReviewCancelsWithoutImport",
     },
 }
 LIFECYCLE_STAGES = ("open", "expanded", "managed-models", "returned-chat")
 DRAFT_STAGES = ("draft-keyboard", "draft-sheet", "draft-returned")
 HELP_STAGES = ("help-open", "help-bottom")
+LICENSE_STAGES = ("license-open", "license-cancelled")
 HELP_SECTIONS = (
     ("capabilities", "当前能力", "当前版本是本地 AI 工作台原型", ("模拟回复", "发送消息会执行本机文本推理", "不保证设备内存足够或生成成功")),
     ("privacy", "App 不主动上传", "App 不发起对话", ("不收集使用分析", "不自动下载模型权重")),
@@ -33,15 +36,16 @@ HELP_SECTIONS = (
 def expected_captures(category):
     return {f"interaction-{theme}-{category}-{stage}"
             for theme in ("light", "dark") for stage in LIFECYCLE_STAGES} | {
-                f"interaction-dark-{category}-{stage}" for stage in DRAFT_STAGES + HELP_STAGES}
+                f"interaction-dark-{category}-{stage}" for stage in DRAFT_STAGES + HELP_STAGES + LICENSE_STAGES}
 
 
 def validate_results(summary, tree, category, device_id):
-    if (summary.get("result") != "Passed" or summary.get("totalTestCount") != 4
-            or summary.get("passedTests") != 4 or summary.get("failedTests") != 0
+    count = len(TESTS[category])
+    if (summary.get("result") != "Passed" or summary.get("totalTestCount") != count
+            or summary.get("passedTests") != count or summary.get("failedTests") != 0
             or summary.get("skippedTests") != 0 or summary.get("expectedFailures") != 0
             or summary.get("testFailures")):
-        raise ValueError("Exactly four successful UI tests with no failure or skip are required")
+        raise ValueError(f"Exactly {count} successful UI tests with no failure or skip are required")
     cases = []
 
     def walk(node):
@@ -56,7 +60,7 @@ def validate_results(summary, tree, category, device_id):
 
     walk(tree.get("testNodes", []))
     names = [case.get("name", "").removesuffix("()") for case in cases]
-    if len(cases) != 4 or set(names) != TESTS[category] or any(c.get("result") != "Passed" for c in cases):
+    if len(cases) != count or set(names) != TESTS[category] or any(c.get("result") != "Passed" for c in cases):
         raise ValueError("UI test names, unique executions, and results must match the selected system category")
     devices = tree.get("devices", [])
     if len(devices) != 1 or devices[0].get("deviceId") != device_id:
@@ -84,7 +88,7 @@ def validate_capture(document, category, png_size):
         if not {"tap:session-bar-action-createSession", "tap:composer-input-field",
                 "type:local-draft-without-send"} <= set(actions):
             raise ValueError("The initial keyboard capture must follow real session creation and input events")
-    elif stage not in HELP_STAGES and "tap:compact-model-summary" not in actions:
+    elif stage not in HELP_STAGES + LICENSE_STAGES and "tap:compact-model-summary" not in actions:
         raise ValueError("The production summary button must be tapped")
     if stage == "expanded" and "tap:compact-model-runtime-details" not in actions:
         raise ValueError("Details must be opened through the production disclosure control")
@@ -111,6 +115,28 @@ def validate_capture(document, category, png_size):
                 raise ValueError("Summary actions must keep 44pt visible screen bounds")
     if stage in HELP_STAGES:
         validate_help_capture(document)
+    if stage in LICENSE_STAGES:
+        validate_license_capture(document)
+
+
+def validate_license_capture(document):
+    actions = document.get("actions", [])
+    require_action_sequence(actions, ["tap:workspace-tab-models", "tap:model-selector-picker",
+                                     "tap:native-model-choice", "tap:model-artifact-action-importFiles"])
+    if (document.get("keyboardVisible") is not False or "Gemma 3 1B" not in document.get("selectedModel", "")
+            or "missing" not in document.get("selectedModel", "")
+            or "tap:model-license-confirm-import" in actions):
+        raise ValueError("License verification must not import, verify or run a model")
+    if document["stage"] == "license-open":
+        if document.get("licenseReviewVisible") is not True:
+            raise ValueError("The real production license review must be visible")
+        for identifier in ["model-license-cancel", "model-license-confirm-import"]:
+            validate_screen_frame(document.get("frames", {}).get(identifier), 44)
+    else:
+        require_action_sequence(actions, ["tap:model-artifact-action-importFiles", "tap:model-license-cancel"])
+        if document.get("licenseReviewVisible") is not False:
+            raise ValueError("Cancellation must dismiss the actual license review")
+        validate_screen_frame(document.get("frames", {}).get("model-selector-picker"), 44)
 
 
 def require_action_sequence(actions, sequence):

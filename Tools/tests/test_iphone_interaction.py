@@ -28,7 +28,7 @@ class IPhoneInteractionEvidenceTests(unittest.TestCase):
         for category in TESTS:
             document = self.capture(category)
             validate_capture(document, category, (750, 1334))
-            self.assertEqual(len(expected_captures(category)), 13)
+            self.assertEqual(len(expected_captures(category)), 15)
             for key, value in (("source", "host-render"), ("screenWidth", 390),
                                ("realInferenceVerified", True), ("signedDistributionVerified", 0),
                                ("systemContentSizeCategory", "injected-font-size"), ("stage", "fixture")):
@@ -73,7 +73,7 @@ class IPhoneInteractionEvidenceTests(unittest.TestCase):
                 validate_capture(bad, "large", (750, 1334))
 
     def test_all_selected_tests_must_succeed_once_on_the_recorded_device(self):
-        summary = {"result": "Passed", "totalTestCount": 4, "passedTests": 4,
+        summary = {"result": "Passed", "totalTestCount": 5, "passedTests": 5,
                    "failedTests": 0, "skippedTests": 0, "expectedFailures": 0, "testFailures": []}
         for category, names in TESTS.items():
             tree = {"devices": [{"deviceId": "exact-udid"}], "testNodes": [
@@ -124,13 +124,34 @@ class IPhoneInteractionEvidenceTests(unittest.TestCase):
             for stage in ("help-open", "help-bottom"):
                 validate_capture(self.help_capture(category, stage), category, (750, 1334))
             expected = expected_captures(category)
-            self.assertEqual(len(TESTS[category]), 4)
-            self.assertEqual(len(expected), 13)
+            self.assertEqual(len(TESTS[category]), 5)
+            self.assertEqual(len(expected), 15)
             for theme in ("light", "dark"):
                 for stage in ("open", "expanded", "managed-models", "returned-chat"):
                     self.assertIn(f"interaction-{theme}-{category}-{stage}", expected)
             for stage in ("draft-keyboard", "draft-sheet", "draft-returned", "help-open", "help-bottom"):
                 self.assertIn(f"interaction-dark-{category}-{stage}", expected)
+
+    def test_native_license_review_requires_real_controls_and_cancel_without_acceptance(self):
+        document = self.capture(stage="license-open")
+        document.update(selectedModel="Gemma 3 1B artifact missing", licenseReviewVisible=True,
+                        actions=["tap:workspace-tab-models", "tap:model-selector-picker", "tap:native-model-choice",
+                                 "tap:model-artifact-action-importFiles"], frames={
+                            "model-license-cancel": {"x": 290, "y": 50, "width": 60, "height": 48},
+                            "model-license-confirm-import": {"x": 18, "y": 550, "width": 339, "height": 64}})
+        validate_capture(document, "large", (750, 1334))
+        for field, value in [("selectedModel", "Gemma 3 1B artifact verified"), ("licenseReviewVisible", False)]:
+            with self.assertRaises(ValueError):
+                validate_capture(dict(document, **{field: value}), "large", (750, 1334))
+        with self.assertRaises(ValueError):
+            validate_capture(dict(document, actions=document["actions"] + ["tap:model-license-confirm-import"]), "large", (750, 1334))
+        document.update(stage="license-cancelled", name="interaction-dark-large-license-cancelled",
+                        licenseReviewVisible=False, frames={
+                            "model-selector-picker": {"x": 18, "y": 160, "width": 339, "height": 60}})
+        with self.assertRaises(ValueError):
+            validate_capture(document, "large", (750, 1334))
+        document["actions"].append("tap:model-license-cancel")
+        validate_capture(document, "large", (750, 1334))
 
     def test_help_requires_real_ordered_production_navigation_and_all_complete_sections(self):
         original = self.help_capture()

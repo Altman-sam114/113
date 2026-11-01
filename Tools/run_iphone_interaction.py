@@ -133,7 +133,8 @@ def main():
             print(f"{category}: {error}", flush=True)
         write_json(root / "manifest.json", manifest)
     write_json(root / "manifest.json", manifest)
-    if set(manifest["outcomes"].values()) != {"success"} or len(manifest["captures"]) != 26:
+    required_captures = sum(len(expected_captures(category)) for category in TESTS)
+    if set(manifest["outcomes"].values()) != {"success"} or len(manifest["captures"]) != required_captures:
         raise SystemExit("Required iPhone UI interactions or original screenshot evidence failed")
 
 

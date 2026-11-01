@@ -9,6 +9,7 @@ import struct
 import sys
 import tempfile
 import unittest
+from native_bundle_fixture import add_fixture_native_runtime
 from unittest.mock import patch
 import zipfile
 import zlib
@@ -47,6 +48,7 @@ class ReleaseArchiveTests(unittest.TestCase):
             self.app_info[key] = {"CFBundlePrimaryIcon": {"CFBundleIconName": "AppIcon", "CFBundleIconFiles": ["AppIcon60x60"]}}
         self.write_app_info()
         (self.app / "LocalGemma").write_bytes(struct.pack("<IIIIIIII", 0xfeedfacf, 0x0100000c, 0, 2, 0, 0, 0, 0))
+        add_fixture_native_runtime(self.app, "LocalGemma")
         (self.app / "LocalGemma").chmod(0o755)
         (self.app / "Assets.car").write_bytes(b"fake compiled catalog for validator fixtures only")
         (self.app / "PrivacyInfo.xcprivacy").write_bytes(plistlib.dumps(EXPECTED_PRIVACY))

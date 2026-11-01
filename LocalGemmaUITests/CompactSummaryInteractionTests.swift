@@ -42,6 +42,14 @@ final class CompactSummaryInteractionTests: XCTestCase {
         try helpLifecycle(accessibility: true)
     }
 
+    func testNativeModelLicenseReviewCancelsWithoutImport() throws {
+        try licenseLifecycle(accessibility: false)
+    }
+
+    func testAccessibilityNativeModelLicenseReviewCancelsWithoutImport() throws {
+        try licenseLifecycle(accessibility: true)
+    }
+
     private func launch(theme: String, accessibility: Bool) -> XCUIApplication {
         continueAfterFailure = false
         actions = []
@@ -153,6 +161,60 @@ final class CompactSummaryInteractionTests: XCTestCase {
         assertComposerVisible(composer, in: app)
         try capture(app, theme: "dark", accessibility: accessibility, stage: "draft-returned")
         app.terminate()
+    }
+
+    private func licenseLifecycle(accessibility: Bool) throws {
+        let app = launch(theme: "dark", accessibility: accessibility)
+        tap(app.buttons["workspace-tab-models"], id: "workspace-tab-models")
+        let picker = app.buttons["model-selector-picker"]
+        tap(picker, id: "model-selector-picker")
+        tap(app.buttons["Gemma 3 1B"], id: "native-model-choice")
+        XCTAssertTrue(waitUntil { (picker.value as? String)?.contains("Gemma 3 1B") == true })
+        let selectedBefore = try XCTUnwrap(picker.value as? String)
+        XCTAssertTrue(selectedBefore.contains("missing"))
+        let importAction = app.buttons["model-artifact-action-importFiles"]
+        let scroll = app.scrollViews.containing(.button, identifier: "model-artifact-action-importFiles").firstMatch
+        revealHelpContent(importAction, in: scroll, app: app, isAction: true)
+        tap(importAction, id: "model-artifact-action-importFiles")
+        let cancel = app.buttons["model-license-cancel"]
+        let confirm = app.buttons["model-license-confirm-import"]
+        assertReachableAction(cancel, inside: app.frame)
+        assertReachableAction(confirm, inside: app.frame)
+        XCTAssertTrue(element(app, "model-license-model-name").label.contains("Gemma 3 1B"))
+        try captureLicense(app, accessibility: accessibility, stage: "license-open", selectedModel: selectedBefore)
+        // No automated test accepts a model license on the user's behalf or
+        // opens Files. Cancellation must leave the selected model unverified.
+        tap(cancel, id: "model-license-cancel")
+        XCTAssertTrue(waitUntil { !cancel.exists && picker.exists })
+        revealHelpContent(picker, in: scroll, app: app, isAction: true)
+        assertReachableAction(picker, inside: app.frame)
+        XCTAssertEqual(picker.value as? String, selectedBefore)
+        XCTAssertFalse(confirm.exists)
+        XCTAssertFalse(app.keyboards.firstMatch.exists)
+        try captureLicense(app, accessibility: accessibility, stage: "license-cancelled", selectedModel: selectedBefore)
+        app.terminate()
+    }
+
+    private func captureLicense(
+        _ app: XCUIApplication, accessibility: Bool, stage: String, selectedModel: String
+    ) throws {
+        let category = accessibility ? "accessibility5" : "large"
+        var frames: [String: [String: Double]] = [:]
+        for identifier in ["model-license-cancel", "model-license-confirm-import", "model-selector-picker"] {
+            let control = element(app, identifier)
+            if control.exists { frames[identifier] = helpFrame(control.frame) }
+        }
+        let document: [String: Any] = [
+            "schemaVersion": 1, "source": "public-XCUITest-production-app",
+            "name": "interaction-dark-\(category)-\(stage)", "theme": "dark",
+            "dynamicTypeSize": category, "stage": stage,
+            "systemContentSizeCategory": UIApplication.shared.preferredContentSizeCategory.rawValue,
+            "screenWidth": app.frame.width, "screenHeight": app.frame.height,
+            "keyboardVisible": app.keyboards.firstMatch.exists, "actions": actions, "frames": frames,
+            "selectedModel": selectedModel, "licenseReviewVisible": app.buttons["model-license-cancel"].exists,
+            "realInferenceVerified": false, "signedDistributionVerified": false
+        ]
+        try attachHelpSnapshot(XCUIScreen.main.screenshot(), document: document)
     }
 
     private func helpLifecycle(accessibility: Bool) throws {

@@ -60,8 +60,11 @@ struct LlamaTextMetrics: Equatable, Sendable {
     let finishReason: LlamaTextFinishReason
 
     var tokensPerSecond: Double {
-        guard generationSeconds > 0 else { return 0 }
-        return Double(outputTokens) / generationSeconds
+        // The first output token is computed during prefill. Include that work
+        // so a one-token answer cannot claim thousands of decode tokens/sec.
+        let inferenceSeconds = prefillSeconds + generationSeconds
+        guard inferenceSeconds.isFinite, inferenceSeconds > 0 else { return 0 }
+        return Double(outputTokens) / inferenceSeconds
     }
 }
 

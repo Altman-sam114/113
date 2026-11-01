@@ -39,6 +39,60 @@ def fingerprint(path):
     return {"bytes": len(data), "sha256": hashlib.sha256(data).hexdigest()}
 
 
+def native_macho_commands(data, filetype):
+    require(len(data) >= 32, "Truncated native Mach-O")
+    magic, cpu, _, actual_type, count, total = struct.unpack_from("<IIIIII", data)
+    require(magic == 0xFEEDFACF and cpu == 0x0100000C and actual_type == filetype,
+            "Native delivery must contain arm64 iOS Mach-O files")
+    require(count <= 4096 and 32 + total <= len(data), "Invalid native load command bounds")
+    offset, commands, platforms = 32, [], []
+    for _ in range(count):
+        require(offset + 8 <= 32 + total, "Truncated native load command")
+        command, size = struct.unpack_from("<II", data, offset)
+        require(size >= 8 and offset + size <= 32 + total, "Invalid native load command extent")
+        raw = data[offset:offset + size]
+        commands.append((command, raw))
+        if command == 0x32:
+            require(size >= 24, "Truncated native platform command")
+            platforms.append(struct.unpack_from("<I", raw, 8)[0])
+        offset += size
+    require(offset == 32 + total and platforms == [2], "Native delivery is not an iOS device slice")
+    return commands
+
+
+def native_command_string(raw):
+    require(len(raw) >= 12, "Truncated native path command")
+    offset = struct.unpack_from("<I", raw, 8)[0]
+    require(12 <= offset < len(raw) and b"\0" in raw[offset:], "Invalid native path offset")
+    return raw[offset:].split(b"\0", 1)[0].decode("utf-8")
+
+
+def validate_native_runtime(app, executable):
+    framework = app / "Frameworks/llama.framework"
+    files = [framework / name for name in ["llama", "Info.plist", "LICENSE", "THIRD_PARTY_NOTICES.txt"]]
+    require(not (app / "Frameworks").is_symlink() and not framework.is_symlink()
+            and all(path.is_file() and not path.is_symlink() for path in files),
+            "Missing or linked embedded native framework and legal notices")
+    info = plistlib.loads((framework / "Info.plist").read_bytes())
+    require(info.get("CFBundleExecutable") == "llama" and info.get("CFBundlePackageType") == "FMWK",
+            "Unexpected embedded native framework identity")
+    native_commands = native_macho_commands((framework / "llama").read_bytes(), 6)
+    install_name = "@rpath/llama.framework/llama"
+    require([native_command_string(raw) for cmd, raw in native_commands if cmd == 0xD] == [install_name],
+            "Embedded native framework has the wrong install name")
+    app_commands = native_macho_commands(executable.read_bytes(), 2)
+    require(install_name in [native_command_string(raw) for cmd, raw in app_commands if cmd == 0xC],
+            "App is not strongly linked to the embedded native framework")
+    require("@executable_path/Frameworks" in [native_command_string(raw) for cmd, raw in app_commands if cmd == 0x8000001C],
+            "App lacks its embedded framework runtime search path")
+    require("MIT" in (framework / "LICENSE").read_text()
+            and "dde879bc4f954b809892fd0d660515f42536394a" in (framework / "THIRD_PARTY_NOTICES.txt").read_text(),
+            "Missing pinned native dependency notices")
+    return {"platform": "iPhoneOS", "architecture": "arm64", "installName": install_name,
+            "linkedAndEmbedded": True, "inferenceVerified": False,
+            "files": {path.name: fingerprint(path) for path in files}}
+
+
 def png_size(path, opaque=False):
     data = path.read_bytes()
     require(data[:8] == b"\x89PNG\r\n\x1a\n", f"Not a PNG: {path.name}")
@@ -169,11 +223,13 @@ def validate_bundle(app):
     for path in icon_files:
         png_size(path)
     files.extend(icon_files)
+    native = validate_native_runtime(app, executable)
     return {
         "bundleIdentifier": info["CFBundleIdentifier"], "version": info["CFBundleShortVersionString"],
         "build": info["CFBundleVersion"], "minimumOS": info["MinimumOSVersion"],
         "platform": "iPhoneOS", "architecture": "arm64", "signingVerified": False,
         "files": {path.name: fingerprint(path) for path in files},
+        "nativeRuntime": native,
     }
 
 

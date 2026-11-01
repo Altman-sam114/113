@@ -306,6 +306,16 @@ final class RuntimeStreamingTests: XCTestCase {
         }
     }
 
+    func testNativeRateIncludesThePrefillThatComputesTheFirstToken() {
+        let single = LlamaTextMetrics(promptTokens: 24, outputTokens: 1, loadSeconds: 10,
+            prefillSeconds: 0.02, generationSeconds: 0.0005, finishReason: .outputLimit)
+        XCTAssertEqual(single.tokensPerSecond, 1 / 0.0205, accuracy: 0.0001)
+        XCTAssertLessThan(single.tokensPerSecond, 50, "Sampling-only time must not inflate short replies")
+        let zeroClock = LlamaTextMetrics(promptTokens: 24, outputTokens: 1, loadSeconds: 10,
+            prefillSeconds: 0, generationSeconds: 0, finishReason: .endOfGeneration)
+        XCTAssertEqual(zeroClock.tokensPerSecond, 0)
+    }
+
     func testLinkedNativeBackendRejectsBadGGUFAndActualHashMismatch() async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("NativeFixture-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
