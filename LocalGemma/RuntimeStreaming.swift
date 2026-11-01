@@ -30,6 +30,7 @@ enum StreamingInferenceError: Error, LocalizedError, Sendable {
     case unsupportedModel
     case backendUnavailable
     case incompleteStream
+    case emptyResponse
 
     var errorDescription: String? {
         switch self {
@@ -41,6 +42,8 @@ enum StreamingInferenceError: Error, LocalizedError, Sendable {
             return "此构建未包含本地推理后端，不能把模拟回复当作模型回答。"
         case .incompleteStream:
             return "本地推理未完整结束；已收到的文字仍保留，可重新发送。"
+        case .emptyResponse:
+            return "本地模型没有返回可显示的文字。问题仍保留，请重试或新建会话。"
         }
     }
 }

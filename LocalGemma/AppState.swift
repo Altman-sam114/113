@@ -1428,6 +1428,10 @@ final class InferenceEngine: ObservableObject {
                           metrics.tokensPerSecond.isFinite, metrics.tokensPerSecond >= 0 else {
                         throw StreamingInferenceError.incompleteStream
                     }
+                    guard metrics.outputTokens > 0,
+                          !messages[index].text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                        throw StreamingInferenceError.emptyResponse
+                    }
                     messages[index].tokens = metrics.outputTokens
                     currentTokensPerSecond = metrics.tokensPerSecond
                     recordNativeExecution(request)

@@ -146,6 +146,28 @@ final class RuntimeStreamingTests: XCTestCase {
         XCTAssertFalse(engine.isGenerating)
     }
 
+    func testEmptyNativeCompletionPreservesQuestionAndCannotClaimAnAnswer() async {
+        let entered = expectation(description: "empty native response requested")
+        let runtime = ControlledStreamingRuntime(onRequest: { _ in entered.fulfill() })
+        let engine = InferenceEngine(streamingRuntime: runtime)
+        engine.inputText = "Keep the unanswered question"
+        engine.send(using: PinnedTextModel.model, availability: .verified,
+                    artifactDirectoryURL: URL(fileURLWithPath: "/unused"))
+        let result = await XCTWaiter.fulfillment(of: [entered], timeout: 3)
+        XCTAssertEqual(result, .completed)
+        guard result == .completed else { engine.stop(); return }
+        runtime.emit(.completed(InferenceStreamMetrics(promptTokens: 8, outputTokens: 0,
+                                                      tokensPerSecond: 0, reachedOutputLimit: false)), request: 0)
+        runtime.finish(request: 0)
+        await engine.waitForCurrentGeneration()
+        XCTAssertFalse(engine.isGenerating)
+        XCTAssertTrue(engine.lastResultWasSimulated)
+        XCTAssertEqual(engine.generationError, StreamingInferenceError.emptyResponse.localizedDescription)
+        XCTAssertEqual(engine.messages.first?.text, "Keep the unanswered question")
+        XCTAssertFalse(engine.messages.contains { $0.role == .assistant })
+        XCTAssertEqual(engine.messages.last?.isRuntimeStatus, true)
+    }
+
     func testNativeRequestRejectsUntrustedAndUnboundedInputsWithoutTruncation() throws {
         let request = LlamaTextRequest(
             modelURL: URL(fileURLWithPath: "/unused/model.gguf"),
@@ -273,6 +295,15 @@ final class RuntimeStreamingTests: XCTestCase {
         }
         XCTAssertThrowsError(try LlamaTextMemoryPolicy.requiredAvailableBytes(modelBytes: UInt64.max, contextLength: 4096))
         XCTAssertThrowsError(try LlamaTextMemoryPolicy.requiredAvailableBytes(modelBytes: 1, contextLength: Int.max))
+        XCTAssertNoThrow(try LlamaTextMemoryPolicy.validatePhysicalMemory(
+            modelBytes: UInt64(PinnedTextModel.byteCount), contextLength: 4096, physicalBytes: required
+        ))
+        XCTAssertThrowsError(try LlamaTextMemoryPolicy.validatePhysicalMemory(
+            modelBytes: UInt64(PinnedTextModel.byteCount), contextLength: 4096, physicalBytes: required - 1
+        )) { error in
+            XCTAssertEqual(error as? LlamaTextRuntimeError,
+                           .insufficientPhysicalMemory(requiredBytes: required, physicalBytes: required - 1))
+        }
     }
 
     func testLinkedNativeBackendRejectsBadGGUFAndActualHashMismatch() async throws {

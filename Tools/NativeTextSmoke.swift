@@ -40,16 +40,17 @@ struct NativeTextSmoke {
             let firstMessages = [LlamaTextMessage(role: "user",
                 content: "The secret word is ORCHID. Reply with that word only.")]
             let first = try await generate(url, digest: digest, messages: firstMessages)
+            report["turns"] = [serialize(first)]
             try require(first.text.uppercased().contains("ORCHID"), "The real first answer did not follow the fixture instruction")
             let secondMessages = firstMessages + [
                 LlamaTextMessage(role: "assistant", content: first.text),
                 LlamaTextMessage(role: "user", content: "What is the secret word? Reply with the word only.")
             ]
             let second = try await generate(url, digest: digest, messages: secondMessages)
+            report["turns"] = [serialize(first), serialize(second)]
             try require(second.text.uppercased().contains("ORCHID"), "The real second answer did not retain the conversation word")
             try require(second.metrics.promptTokens > first.metrics.promptTokens,
                         "The second request must tokenize the complete multi-turn conversation")
-            report["turns"] = [serialize(first), serialize(second)]
 
             let limited = try await generate(url, digest: digest,
                 messages: [LlamaTextMessage(role: "user", content: "List the numbers from 1 to 20, one per line.")],

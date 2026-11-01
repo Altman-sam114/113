@@ -88,6 +88,7 @@ enum LlamaTextRuntimeError: Error, Equatable, LocalizedError, Sendable {
     case contextCreationFailed
     case allocationFailed
     case insufficientMemory(requiredBytes: UInt64, availableBytes: UInt64)
+    case insufficientPhysicalMemory(requiredBytes: UInt64, physicalBytes: UInt64)
     case decodeFailed
     case invalidOutputEncoding
 
@@ -112,6 +113,8 @@ enum LlamaTextRuntimeError: Error, Equatable, LocalizedError, Sendable {
         case .allocationFailed: "The local inference batch or sampler could not be allocated."
         case .insufficientMemory(let required, let available):
             "Local inference needs at least \(required / 1_048_576) MiB of conservative headroom; only \(available / 1_048_576) MiB is currently available. This preflight does not guarantee allocation or device support."
+        case .insufficientPhysicalMemory(let required, let physical):
+            "该 Mac 的物理内存约 \(physical / 1_048_576) MiB，低于本次推理的保守最低预算 \(required / 1_048_576) MiB；未加载模型。"
         case .decodeFailed: "The local model could not continue generation."
         case .invalidOutputEncoding: "The model produced an invalid UTF-8 sequence. Invalid bytes were not displayed."
         }
@@ -132,6 +135,13 @@ enum LlamaTextMemoryPolicy {
         let required = try requiredAvailableBytes(modelBytes: modelBytes, contextLength: contextLength)
         guard availableBytes >= required else {
             throw LlamaTextRuntimeError.insufficientMemory(requiredBytes: required, availableBytes: availableBytes)
+        }
+    }
+
+    static func validatePhysicalMemory(modelBytes: UInt64, contextLength: Int, physicalBytes: UInt64) throws {
+        let required = try requiredAvailableBytes(modelBytes: modelBytes, contextLength: contextLength)
+        guard physicalBytes >= required else {
+            throw LlamaTextRuntimeError.insufficientPhysicalMemory(requiredBytes: required, physicalBytes: physicalBytes)
         }
     }
 }
@@ -485,7 +495,15 @@ struct LlamaTextRuntime: Sendable {
     }
 
     private static func checkAvailableMemory(modelBytes: UInt64, contextLength: Int) throws {
-#if os(iOS) && !targetEnvironment(simulator)
+#if targetEnvironment(macCatalyst)
+        // Catalyst returns zero for os_proc_available_memory: it has no iOS
+        // jetsam allowance. Physical RAM is only an admission bound, not a
+        // current available-memory measurement or an allocation guarantee.
+        try LlamaTextMemoryPolicy.validatePhysicalMemory(
+            modelBytes: modelBytes, contextLength: contextLength,
+            physicalBytes: ProcessInfo.processInfo.physicalMemory
+        )
+#elseif os(iOS) && !targetEnvironment(simulator)
         // This API is a fresh app-limit snapshot, not device RAM. Zero fails closed.
         // Simulator has no representative jetsam limit; its runs do not validate this device gate.
         try LlamaTextMemoryPolicy.validate(
