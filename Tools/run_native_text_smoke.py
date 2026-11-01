@@ -27,6 +27,13 @@ def validate_draft_fixture(release, expected_tag):
     return assets[0]["id"]
 
 
+def find_draft_fixture(releases, expected_tag):
+    require(isinstance(releases, list), "Expected the authenticated release list")
+    matches = [release for release in releases if release.get("tag_name") == expected_tag]
+    require(len(matches) == 1, "The temporary fixture draft is missing or ambiguous")
+    return validate_draft_fixture(matches[0], expected_tag)
+
+
 def main():
     require_hosted_macos(os.environ)
     expected = os.environ["EXPECTED_SHA"]
@@ -40,9 +47,11 @@ def main():
     tag = os.environ["FIXTURE_RELEASE_TAG"]
     require(re.fullmatch(r"agentx-native-fixture-[a-z0-9-]{1,60}", tag) is not None,
             "Only a task-specific fixture draft is accepted")
-    release = json.loads(subprocess.check_output([
-        "gh", "api", f"repos/Altman-sam114/113/releases/tags/{tag}"], text=True))
-    asset_id = validate_draft_fixture(release, tag)
+    # The by-tag endpoint exposes published releases. Authenticated listing also
+    # includes drafts without creating a public git tag or publishing the model.
+    releases = json.loads(subprocess.check_output([
+        "gh", "api", "repos/Altman-sam114/113/releases?per_page=100"], text=True))
+    asset_id = find_draft_fixture(releases, tag)
     private = Path(os.environ["RUNNER_TEMP"]) / "localgemma-native-fixture"
     private.mkdir(mode=0o700)
     encrypted, model = private / "fixture.enc", private / "fixture.gguf"
@@ -84,4 +93,15 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as error:
+        require_hosted_macos(os.environ)
+        result = ROOT / "native-text-results"
+        result.mkdir(exist_ok=True)
+        (result / "failure.json").write_text(json.dumps({
+            "status": "failure", "commitSha": os.environ.get("GITHUB_SHA"),
+            "runId": os.environ.get("GITHUB_RUN_ID"), "runAttempt": os.environ.get("GITHUB_RUN_ATTEMPT"),
+            "error": str(error), "modelIncludedInArtifacts": False,
+        }, indent=2) + "\n")
+        raise

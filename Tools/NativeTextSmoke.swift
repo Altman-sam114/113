@@ -58,7 +58,7 @@ struct NativeTextSmoke {
                         "A one-token limit must be reported as a length limit, not EOS")
             report["outputLimit"] = serialize(limited)
 
-            let cancellation = Task {
+            let cancellation = Task<Void, Error> {
                 let request = LlamaTextRequest(modelURL: url, expectedSHA256: digest,
                     messages: [LlamaTextMessage(role: "user", content: "Write a long story about a quiet garden.")],
                     contextLength: 1024, maximumOutputTokens: 256)
