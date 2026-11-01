@@ -53,7 +53,7 @@ def export_evidence(root, category, device_id):
                             raise ValueError("Duplicated attachment or wrong exact simulator UDID")
                         indexed[key] = (source, entry.get("testIdentifier"))
     if set(indexed) != expected_captures(category) | {n + "-provenance" for n in expected_captures(category)}:
-        raise ValueError("All eleven original screenshots and their provenance are required")
+        raise ValueError("All thirteen original screenshots and their provenance are required")
     evidence = root / "evidence"
     evidence.mkdir(exist_ok=True)
     records = []
@@ -133,7 +133,7 @@ def main():
             print(f"{category}: {error}", flush=True)
         write_json(root / "manifest.json", manifest)
     write_json(root / "manifest.json", manifest)
-    if set(manifest["outcomes"].values()) != {"success"} or len(manifest["captures"]) != 22:
+    if set(manifest["outcomes"].values()) != {"success"} or len(manifest["captures"]) != 26:
         raise SystemExit("Required iPhone UI interactions or original screenshot evidence failed")
 
 

@@ -617,6 +617,105 @@ final class LocalGemmaTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: file), previous)
     }
 
+    func testConversationStoreExcludesNewMigratedAndRepairHistoryFromBackup() async throws {
+        let root = try conversationDirectory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let directory = root.appendingPathComponent("Conversations", isDirectory: true)
+        let file = directory.appendingPathComponent("history-v1.json")
+        func isExcluded() throws -> Bool? {
+            try URL(fileURLWithPath: directory.path, isDirectory: true)
+                .resourceValues(forKeys: [.isExcludedFromBackupKey]).isExcludedFromBackup
+        }
+        let archive = conversationFixture()
+        let store = LocalConversationStore(fileURL: file)
+        let missing = try await store.load()
+        XCTAssertNil(missing)
+        XCTAssertEqual(try isExcluded(), true)
+        try await store.save(archive)
+        let original = try Data(contentsOf: file)
+
+        var migratedDirectory = directory
+        var included = URLResourceValues()
+        included.isExcludedFromBackup = false
+        try migratedDirectory.setResourceValues(included)
+        XCTAssertEqual(try isExcluded(), false)
+        let restored = try await LocalConversationStore(fileURL: file).load()
+        XCTAssertEqual(restored, archive)
+        XCTAssertEqual(try Data(contentsOf: file), original, "Backup migration does not rewrite the archive")
+        XCTAssertEqual(try isExcluded(), true)
+
+        let unreadable = Data("{original unreadable archive".utf8)
+        try unreadable.write(to: file, options: .atomic)
+        do { _ = try await store.load(); XCTFail("Corrupt history must still be protected") } catch {}
+        try await store.repair(with: archive)
+        let backups = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
+            .filter { $0.lastPathComponent.hasPrefix("unreadable-") }
+        XCTAssertEqual(backups.count, 1)
+        XCTAssertEqual(try Data(contentsOf: XCTUnwrap(backups.first)), unreadable)
+        XCTAssertEqual(try isExcluded(), true,
+                       "The exclusion covers history, drafts and exact-byte repair backups")
+        let repaired = try await LocalConversationStore(fileURL: file).load()
+        XCTAssertEqual(repaired, archive)
+
+        let oversizedDirectory = root.appendingPathComponent("Oversized", isDirectory: true)
+        try FileManager.default.createDirectory(at: oversizedDirectory, withIntermediateDirectories: false)
+        let oversizedFile = oversizedDirectory.appendingPathComponent("history-v1.json")
+        let prefix = Data("preserve original bytes".utf8)
+        try prefix.write(to: oversizedFile)
+        let handle = try FileHandle(forWritingTo: oversizedFile)
+        try handle.truncate(atOffset: UInt64(ConversationArchive.maximumBytes + 1))
+        try handle.close()
+        var includedOversizedDirectory = oversizedDirectory
+        try includedOversizedDirectory.setResourceValues(included)
+        do {
+            _ = try await LocalConversationStore(fileURL: oversizedFile).load()
+            XCTFail("Oversized history must still be rejected without overwriting it")
+        } catch ConversationStoreError.archiveTooLarge {}
+        XCTAssertEqual(try oversizedDirectory.resourceValues(forKeys: [.isExcludedFromBackupKey]).isExcludedFromBackup, true)
+        XCTAssertEqual(try FileManager.default.attributesOfItem(atPath: oversizedFile.path)[.size] as? Int,
+                       ConversationArchive.maximumBytes + 1)
+        let reader = try FileHandle(forReadingFrom: oversizedFile)
+        XCTAssertEqual(try reader.read(upToCount: prefix.count), prefix)
+        try reader.close()
+    }
+
+    func testConversationBackupPolicyFailuresNeverReportSavedOrReplaceHistory() async throws {
+        let directory = try conversationDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let file = directory.appendingPathComponent("history-v1.json")
+        let archive = conversationFixture()
+        let store = LocalConversationStore(fileURL: file)
+        _ = try await store.load()
+        try await store.save(archive)
+        let original = try Data(contentsOf: file)
+        let failedLoad = LocalConversationStore(fileURL: file, backupExcluder: { _ in
+            throw CocoaError(.fileWriteNoPermission)
+        })
+        do { _ = try await failedLoad.load(); XCTFail("Backup policy failure must fail loading") } catch {}
+        do { try await failedLoad.save(archive); XCTFail("Failed loading cannot authorize writes") } catch {}
+        let unreadableEngine = InferenceEngine(conversationStorage: failedLoad)
+        await unreadableEngine.waitForConversationRestore()
+        XCTAssertEqual(unreadableEngine.conversationPersistenceState, .readFailed)
+        await unreadableEngine.repairConversationHistory()
+        XCTAssertEqual(unreadableEngine.conversationPersistenceState, .readFailed)
+        XCTAssertEqual(try Data(contentsOf: file), original)
+        XCTAssertFalse(try FileManager.default.contentsOfDirectory(atPath: directory.path)
+            .contains { $0.hasPrefix("unreadable-") }, "Policy failure happens before making repair backups")
+
+        let deny = directory.appendingPathComponent("deny-backup-policy")
+        let failedWrite = LocalConversationStore(fileURL: file, backupExcluder: { _ in
+            if FileManager.default.fileExists(atPath: deny.path) { throw CocoaError(.fileWriteNoPermission) }
+        })
+        let engine = InferenceEngine(conversationStorage: failedWrite)
+        await engine.waitForConversationRestore()
+        XCTAssertEqual(engine.conversationPersistenceState, .saved)
+        try Data().write(to: deny)
+        engine.inputText = "This draft must stay in memory until policy enforcement succeeds"
+        await assertConversationFlush(engine, succeeds: false)
+        XCTAssertEqual(engine.conversationPersistenceState, .writeFailed)
+        XCTAssertEqual(try Data(contentsOf: file), original)
+    }
+
     func testConversationEngineRestoresSelectionDraftsAndStoppedOutput() async throws {
         let directory = try conversationDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -960,6 +1059,7 @@ final class LocalGemmaTests: XCTestCase {
         let unsafe = ModelArtifactManifest(
             modelFileName: "../model.bin", tokenizerFileName: "tokenizer.model", fileFormat: "test",
             storageDirectory: fixture.destination.path, expectedSHA256: "manual-import-required",
+            expectedTokenizerSHA256: ArtifactImportFixture.tokenizerSHA256,
             allowsNetworkDownload: false, importInstruction: ""
         )
         XCTAssertThrowsError(try ModelArtifactStore.importArtifacts(
@@ -1832,6 +1932,27 @@ final class LocalGemmaTests: XCTestCase {
         XCTAssertEqual(WorkbenchVisualStylePolicy.hairlineWidth, 1)
     }
 
+    func testWorkbenchPaletteMatchesAITRANSReferenceWithoutChangingInteractionContracts() {
+        let expected: [(AppThemeMode, UInt32, UInt32, UInt32, UInt32)] = [
+            (.light, 0xF8F8F7, 0xFFFFFF, 0x252729, 0xA44D37),
+            (.dark, 0x1C1D1F, 0x252628, 0xF1F2F3, 0xD9A08B)
+        ]
+        for (mode, canvas, surface, text, accent) in expected {
+            let theme = AppThemePalette(mode: mode)
+            for (color, hex) in [(theme.canvas, canvas), (theme.surface, surface), (theme.primaryText, text), (theme.accent, accent)] {
+                let components = workbenchColorComponents(color)
+                for (index, shift) in [16, 8, 0].enumerated() {
+                    XCTAssertEqual(components[index], Double((hex >> shift) & 0xFF) / 255, accuracy: 0.001)
+                }
+            }
+            XCTAssertGreaterThanOrEqual(workbenchContrast(theme.inverseText, on: theme.accent, base: theme.surface), 4.5)
+        }
+        XCTAssertEqual(WorkbenchVisualStylePolicy.panelPadding, 14)
+        XCTAssertEqual(WorkbenchVisualStylePolicy.panelCornerRadius, 8)
+        XCTAssertEqual(CompactWorkbenchPolicy.surfaceCornerRadius, 20)
+        XCTAssertGreaterThanOrEqual(CompactWorkbenchPolicy.minimumTouchTarget, 44)
+    }
+
     func testWorkbenchProductionControlsSupportDynamicType() throws {
         let catalog = ModelCatalog(autoScanLocalArtifacts: false)
         let model = catalog.selectedModel
@@ -2332,6 +2453,7 @@ final class LocalGemmaTests: XCTestCase {
             fileFormat: "Core ML compiled package",
             storageDirectory: "Application Support/LocalModels",
             expectedSHA256: expectedHash,
+            expectedTokenizerSHA256: ArtifactImportFixture.tokenizerSHA256,
             allowsNetworkDownload: false,
             importInstruction: "手动导入测试模型。"
         )
@@ -2361,7 +2483,8 @@ final class LocalGemmaTests: XCTestCase {
         let validation = LocalArtifactValidator.validate(
             manifest: manifest,
             presentFiles: Set(manifest.requiredFiles),
-            observedSHA256: expectedHash
+            observedSHA256: expectedHash,
+            observedTokenizerSHA256: manifest.expectedTokenizerSHA256
         )
         let report = LocalRuntimePlanner.preparationReport(for: model, validation: validation)
 
@@ -2390,9 +2513,10 @@ final class LocalGemmaTests: XCTestCase {
         let manifest = ModelArtifactManifest(
             modelFileName: modelFileName,
             tokenizerFileName: tokenizerFileName,
-            fileFormat: "Core ML compiled package",
+            fileFormat: "Raw binary",
             storageDirectory: directoryURL.path,
             expectedSHA256: "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+            expectedTokenizerSHA256: ArtifactImportFixture.tokenizerSHA256,
             allowsNetworkDownload: false,
             importInstruction: "手动导入测试模型。"
         )
@@ -2430,9 +2554,10 @@ final class LocalGemmaTests: XCTestCase {
         let manifest = ModelArtifactManifest(
             modelFileName: modelFileName,
             tokenizerFileName: tokenizerFileName,
-            fileFormat: "Core ML compiled package",
+            fileFormat: "Raw binary",
             storageDirectory: destinationDirectoryURL.path,
             expectedSHA256: "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+            expectedTokenizerSHA256: ArtifactImportFixture.tokenizerSHA256,
             allowsNetworkDownload: false,
             importInstruction: "手动导入测试模型。"
         )
@@ -2466,9 +2591,10 @@ final class LocalGemmaTests: XCTestCase {
         let manifest = ModelArtifactManifest(
             modelFileName: modelFileName,
             tokenizerFileName: tokenizerFileName,
-            fileFormat: "Core ML compiled package",
+            fileFormat: "Raw binary",
             storageDirectory: directoryURL.path,
             expectedSHA256: String(repeating: "d", count: 64),
+            expectedTokenizerSHA256: ArtifactImportFixture.tokenizerSHA256,
             allowsNetworkDownload: false,
             importInstruction: "手动导入测试模型。"
         )
@@ -2482,6 +2608,360 @@ final class LocalGemmaTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: directoryURL.appendingPathComponent(modelFileName).path))
         XCTAssertFalse(FileManager.default.fileExists(atPath: directoryURL.appendingPathComponent(tokenizerFileName).path))
         XCTAssertEqual(validation.missingFiles, manifest.requiredFiles)
+    }
+
+    func testArtifactDirectoryHashUsesUnambiguousVersionedEntries() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("LocalGemmaHashBoundary-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let oneFile = root.appendingPathComponent("one", isDirectory: true)
+        let twoFiles = root.appendingPathComponent("two", isDirectory: true)
+        try FileManager.default.createDirectory(at: oneFile, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: twoFiles, withIntermediateDirectories: true)
+        try Data("Xpath:b\nY".utf8).write(to: oneFile.appendingPathComponent("a"))
+        try Data("X".utf8).write(to: twoFiles.appendingPathComponent("a"))
+        try Data("Y".utf8).write(to: twoFiles.appendingPathComponent("b"))
+
+        let original = try XCTUnwrap(ModelArtifactHasher.sha256Hex(for: oneFile))
+        XCTAssertEqual(original, "ec9f5c56f0a14ed20029c5f038e7590a8bc1363d8a34834f36b8ccbd323dad45")
+        XCTAssertNotEqual(original, try XCTUnwrap(ModelArtifactHasher.sha256Hex(for: twoFiles)),
+                          "File contents must not impersonate the next path header")
+        try FileManager.default.createDirectory(at: oneFile.appendingPathComponent("empty"), withIntermediateDirectories: false)
+        XCTAssertNotEqual(original, try XCTUnwrap(ModelArtifactHasher.sha256Hex(for: oneFile)),
+                          "Empty package directories are part of the versioned tree")
+
+        let rawFile = root.appendingPathComponent("raw.bin")
+        try Data("abc".utf8).write(to: rawFile)
+        XCTAssertEqual(ModelArtifactHasher.sha256Hex(for: rawFile),
+                       "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+                       "Regular files retain their standard SHA-256 format")
+    }
+
+    func testArtifactDirectoryHashIncludesHiddenEntriesAndRejectsHiddenLinks() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("LocalGemmaHiddenHash-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.createDirectory(at: root.appendingPathComponent(".assets"), withIntermediateDirectories: true)
+        let visible = root.appendingPathComponent("model.mil")
+        let hidden = root.appendingPathComponent(".weights")
+        let nested = root.appendingPathComponent(".assets/data.bin")
+        try Data("model".utf8).write(to: visible)
+        try Data("first".utf8).write(to: hidden)
+        try Data("nested".utf8).write(to: nested)
+        let original = try XCTUnwrap(ModelArtifactHasher.sha256Hex(for: root))
+        try Data("changed".utf8).write(to: hidden)
+        let changed = try XCTUnwrap(ModelArtifactHasher.sha256Hex(for: root))
+        XCTAssertNotEqual(original, changed)
+        try Data("changed nested".utf8).write(to: nested)
+        XCTAssertNotEqual(changed, try XCTUnwrap(ModelArtifactHasher.sha256Hex(for: root)))
+        try FileManager.default.createSymbolicLink(at: root.appendingPathComponent(".unsafe"), withDestinationURL: visible)
+        XCTAssertThrowsError(try ModelArtifactHasher.hash(root, fileManager: .default, control: ArtifactImportControl())) {
+            XCTAssertEqual($0 as? ArtifactImportError, .unsafeFile(".unsafe"))
+        }
+        XCTAssertNil(ModelArtifactHasher.sha256Hex(for: root))
+    }
+
+    func testArtifactPackageHashBoundaryAttackKeepsPreviousGeneration() throws {
+        let fixture = try ArtifactImportFixture()
+        defer { fixture.clean() }
+        let source = fixture.root.appendingPathComponent("package.mlmodelc", isDirectory: true)
+        let previous = fixture.destination.appendingPathComponent("package.mlmodelc", isDirectory: true)
+        try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: previous, withIntermediateDirectories: true)
+        try Data("Xpath:b\nY".utf8).write(to: source.appendingPathComponent("a"))
+        try Data("previous package".utf8).write(to: previous.appendingPathComponent("a"))
+        let manifest = ModelArtifactManifest(
+            modelFileName: "package.mlmodelc", tokenizerFileName: fixture.manifest.tokenizerFileName,
+            fileFormat: "Core ML compiled package", storageDirectory: fixture.destination.path,
+            expectedSHA256: try XCTUnwrap(ModelArtifactHasher.sha256Hex(for: source)),
+            expectedTokenizerSHA256: ArtifactImportFixture.tokenizerSHA256,
+            allowsNetworkDownload: false, importInstruction: ""
+        )
+        try Data("X".utf8).write(to: source.appendingPathComponent("a"))
+        try Data("Y".utf8).write(to: source.appendingPathComponent("b"))
+        XCTAssertThrowsError(try ModelArtifactStore.importArtifacts(
+            manifest: manifest, sourceURLs: [source, fixture.sources[1]], destinationDirectoryURL: fixture.destination
+        )) { XCTAssertEqual($0 as? ArtifactImportError, .hashMismatch) }
+        try fixture.assertOldGeneration()
+        XCTAssertEqual(try Data(contentsOf: previous.appendingPathComponent("a")), Data("previous package".utf8))
+        try fixture.assertNoCandidate()
+
+        try FileManager.default.createSymbolicLink(
+            at: source.appendingPathComponent(".unsafe"), withDestinationURL: fixture.sources[0]
+        )
+        XCTAssertThrowsError(try ModelArtifactStore.importArtifacts(
+            manifest: manifest, sourceURLs: [source, fixture.sources[1]], destinationDirectoryURL: fixture.destination
+        )) { XCTAssertEqual($0 as? ArtifactImportError, .unsafeFile(".unsafe")) }
+        try fixture.assertOldGeneration()
+        XCTAssertEqual(try Data(contentsOf: previous.appendingPathComponent("a")), Data("previous package".utf8))
+        try fixture.assertNoCandidate()
+    }
+
+    func testArtifactPackageRootTypeRejectsItsSerializedHashPreimage() throws {
+        let fixture = try ArtifactImportFixture()
+        defer { fixture.clean() }
+        let source = fixture.root.appendingPathComponent("package.mlmodelc", isDirectory: true)
+        let previous = fixture.destination.appendingPathComponent("package.mlmodelc", isDirectory: true)
+        try FileManager.default.createDirectory(at: source, withIntermediateDirectories: false)
+        try FileManager.default.createDirectory(at: previous, withIntermediateDirectories: false)
+        try Data("Xpath:b\nY".utf8).write(to: source.appendingPathComponent("a"))
+        let oldBytes = Data("previous valid package".utf8)
+        try oldBytes.write(to: previous.appendingPathComponent("weights.bin"))
+        let expected = try XCTUnwrap(ModelArtifactHasher.sha256Hex(for: source))
+        let contentHash = try XCTUnwrap(ModelArtifactHasher.sha256Hex(for: source.appendingPathComponent("a")))
+        var impostor = Data("LocalGemma.DirectorySHA256.v1\0".utf8)
+        impostor.append(contentsOf: [0, 0, 0, 0, 0, 0, 0, 1, 0x46, 0, 0, 0, 0, 0, 0, 0, 1, 0x61])
+        for offset in stride(from: 0, to: contentHash.count, by: 2) {
+            let start = contentHash.index(contentHash.startIndex, offsetBy: offset)
+            let end = contentHash.index(start, offsetBy: 2)
+            impostor.append(try XCTUnwrap(UInt8(contentHash[start..<end], radix: 16)))
+        }
+        try FileManager.default.removeItem(at: source)
+        try impostor.write(to: source)
+        XCTAssertEqual(ModelArtifactHasher.sha256Hex(for: source), expected,
+                       "A standard raw-file hash can equal the versioned package encoding without a SHA collision")
+        let manifest = ModelArtifactManifest(
+            modelFileName: "package.mlmodelc", tokenizerFileName: fixture.manifest.tokenizerFileName,
+            fileFormat: "Core ML compiled package", storageDirectory: fixture.destination.path,
+            expectedSHA256: expected, expectedTokenizerSHA256: ArtifactImportFixture.replacementTokenizerSHA256,
+            allowsNetworkDownload: false, importInstruction: ""
+        )
+        let tokenizer = fixture.root.appendingPathComponent(manifest.tokenizerFileName)
+        try Data("new tokenizer".utf8).write(to: tokenizer)
+        let actualScan = ModelArtifactStore.validate(manifest: manifest, directoryURL: fixture.root)
+        XCTAssertEqual(actualScan.availability, .staged)
+        XCTAssertEqual(actualScan.invalidFiles, [manifest.modelFileName])
+        let scanned = LocalArtifactValidator.validate(
+            manifest: manifest,
+            fileStatuses: [
+                ArtifactFileStatus(fileName: manifest.modelFileName, exists: true, byteCount: Int64(impostor.count), isRegularFile: true),
+                ArtifactFileStatus(fileName: manifest.tokenizerFileName, exists: true, byteCount: 13, isRegularFile: true)
+            ], observedSHA256: expected,
+            observedTokenizerSHA256: ArtifactImportFixture.replacementTokenizerSHA256
+        )
+        XCTAssertEqual(scanned.availability, .staged)
+        XCTAssertEqual(scanned.invalidFiles, [manifest.modelFileName])
+        XCTAssertFalse(scanned.canPromoteToRealRuntime)
+        XCTAssertThrowsError(try ModelArtifactStore.importArtifacts(
+            manifest: manifest, sourceURLs: [source, tokenizer],
+            destinationDirectoryURL: fixture.destination
+        )) { XCTAssertEqual($0 as? ArtifactImportError, .unsafeFile(manifest.modelFileName)) }
+        XCTAssertEqual(try Data(contentsOf: previous.appendingPathComponent("weights.bin")), oldBytes)
+        try fixture.assertOldGeneration()
+        try fixture.assertNoCandidate()
+    }
+
+    func testArtifactExternalTokenizerRejectsEmptyDirectoryAndSymbolicLink() throws {
+        for kind in ["empty", "directory", "symbolic-link"] {
+            let fixture = try ArtifactImportFixture()
+            defer { fixture.clean() }
+            let tokenizer = fixture.sources[1]
+            try FileManager.default.removeItem(at: tokenizer)
+            switch kind {
+            case "empty": try Data().write(to: tokenizer)
+            case "directory": try FileManager.default.createDirectory(at: tokenizer, withIntermediateDirectories: false)
+            default: try FileManager.default.createSymbolicLink(at: tokenizer, withDestinationURL: fixture.sources[0])
+            }
+            let scanned = ModelArtifactStore.validate(
+                manifest: fixture.manifest, directoryURL: tokenizer.deletingLastPathComponent(),
+                observedSHA256: fixture.manifest.expectedSHA256,
+                observedTokenizerSHA256: fixture.manifest.expectedTokenizerSHA256
+            )
+            XCTAssertEqual(scanned.availability, .staged, kind)
+            XCTAssertEqual(scanned.invalidFiles, [fixture.manifest.tokenizerFileName], kind)
+            XCTAssertFalse(scanned.canPromoteToRealRuntime, kind)
+            XCTAssertThrowsError(try ModelArtifactStore.importArtifacts(
+                manifest: fixture.manifest, sourceURLs: fixture.sources, destinationDirectoryURL: fixture.destination
+            )) { XCTAssertEqual($0 as? ArtifactImportError, .unsafeFile(fixture.manifest.tokenizerFileName), kind) }
+            try fixture.assertOldGeneration()
+            try fixture.assertNoCandidate()
+        }
+    }
+
+    func testArtifactTokenizerTamperingFailsIndependentDigestAndPreservesPreviousFiles() throws {
+        let fixture = try ArtifactImportFixture()
+        defer { fixture.clean() }
+        try Data("tampered tokenizer".utf8).write(to: fixture.sources[1])
+        let scanned = ModelArtifactStore.validate(
+            manifest: fixture.manifest, directoryURL: fixture.sources[0].deletingLastPathComponent()
+        )
+        XCTAssertEqual(scanned.availability, .staged)
+        XCTAssertTrue(scanned.hasVerifiedHash, "The unchanged model digest alone cannot verify its tokenizer")
+        XCTAssertTrue(scanned.hasConcreteExpectedTokenizerHash)
+        XCTAssertFalse(scanned.hasVerifiedTokenizerHash)
+        XCTAssertFalse(scanned.canPromoteToRealRuntime)
+        XCTAssertTrue(scanned.summary.contains("tokenizer"))
+        XCTAssertThrowsError(try ModelArtifactStore.importArtifacts(
+            manifest: fixture.manifest, sourceURLs: fixture.sources, destinationDirectoryURL: fixture.destination
+        )) { XCTAssertEqual($0 as? ArtifactImportError, .hashMismatch) }
+        try fixture.assertOldGeneration()
+        try fixture.assertNoCandidate()
+    }
+
+    func testArtifactExternalTokenizerWithoutTrustedDigestRemainsStaged() throws {
+        let fixture = try ArtifactImportFixture()
+        defer { fixture.clean() }
+        let unregistered = ModelArtifactManifest(
+            modelFileName: fixture.manifest.modelFileName, tokenizerFileName: fixture.manifest.tokenizerFileName,
+            fileFormat: "Raw binary", storageDirectory: fixture.destination.path,
+            expectedSHA256: fixture.manifest.expectedSHA256,
+            allowsNetworkDownload: false, importInstruction: ""
+        )
+        let scanned = ModelArtifactStore.validate(
+            manifest: unregistered, directoryURL: fixture.sources[0].deletingLastPathComponent()
+        )
+        XCTAssertTrue(scanned.hasVerifiedHash)
+        XCTAssertFalse(scanned.hasConcreteExpectedTokenizerHash)
+        XCTAssertFalse(scanned.hasVerifiedTokenizerHash)
+        XCTAssertEqual(scanned.availability, .staged)
+        XCTAssertFalse(scanned.canPromoteToRealRuntime)
+        XCTAssertTrue(scanned.summary.contains("登记 tokenizer"))
+        let missingObservedDigest = LocalArtifactValidator.validate(
+            manifest: fixture.manifest, presentFiles: Set(fixture.manifest.requiredFiles),
+            observedSHA256: fixture.manifest.expectedSHA256
+        )
+        XCTAssertEqual(missingObservedDigest.availability, .staged)
+        XCTAssertFalse(missingObservedDigest.hasVerifiedTokenizerHash)
+        let imported = try ModelArtifactStore.importArtifacts(
+            manifest: unregistered, sourceURLs: fixture.sources, destinationDirectoryURL: fixture.destination
+        )
+        XCTAssertEqual(imported.availability, .staged, "Explicitly staged imports remain possible without pretending they are trusted")
+        XCTAssertFalse(imported.canPromoteToRealRuntime)
+        XCTAssertEqual(try Data(contentsOf: fixture.destination.appendingPathComponent(unregistered.modelFileName)), Data("abc".utf8))
+        XCTAssertEqual(try Data(contentsOf: fixture.destination.appendingPathComponent(unregistered.tokenizerFileName)), Data("new tokenizer".utf8))
+        try fixture.assertNoCandidate()
+    }
+
+    func testArtifactScanAndImportRejectSymbolicLinkedManagedRoot() throws {
+        let fixture = try ArtifactImportFixture()
+        defer { fixture.clean() }
+        let linked = fixture.root.appendingPathComponent("LinkedStore", isDirectory: true)
+        try FileManager.default.createSymbolicLink(at: linked, withDestinationURL: fixture.sources[0].deletingLastPathComponent())
+        let scanned = ModelArtifactStore.validate(manifest: fixture.manifest, directoryURL: linked)
+        XCTAssertEqual(scanned.availability, .missing)
+        XCTAssertFalse(scanned.hasVerifiedHash)
+        XCTAssertFalse(scanned.canPromoteToRealRuntime)
+        let suppliedDigests = LocalArtifactValidator.validate(
+            manifest: fixture.manifest, in: linked, observedSHA256: fixture.manifest.expectedSHA256,
+            observedTokenizerSHA256: fixture.manifest.expectedTokenizerSHA256
+        )
+        XCTAssertEqual(suppliedDigests.availability, .missing)
+        XCTAssertFalse(suppliedDigests.canPromoteToRealRuntime)
+        XCTAssertThrowsError(try ModelArtifactStore.importArtifacts(
+            manifest: fixture.manifest, sourceURLs: fixture.sources, destinationDirectoryURL: linked
+        )) { XCTAssertEqual($0 as? ArtifactImportError, .unsafeFile("LinkedStore")) }
+        XCTAssertEqual(try Data(contentsOf: fixture.sources[0]), Data("abc".utf8))
+        XCTAssertEqual(try Data(contentsOf: fixture.sources[1]), Data("new tokenizer".utf8))
+        try fixture.assertOldGeneration()
+        XCTAssertFalse(try FileManager.default.contentsOfDirectory(atPath: fixture.root.path).contains { $0.hasPrefix(".LinkedStore-import-") })
+    }
+
+    func testArtifactEmbeddedGGUFNeedsOnlyItsTrustedNonemptyRegularFile() throws {
+        let fixture = try ArtifactImportFixture()
+        defer { fixture.clean() }
+        let model = fixture.sources[0].deletingLastPathComponent().appendingPathComponent("embedded.gguf")
+        try Data("abc".utf8).write(to: model)
+        let manifest = ModelArtifactManifest(
+            modelFileName: "embedded.gguf", tokenizerFileName: "", fileFormat: "GGUF",
+            storageDirectory: fixture.destination.path, expectedSHA256: fixture.manifest.expectedSHA256,
+            tokenizerIsEmbedded: true, allowsNetworkDownload: false, importInstruction: ""
+        )
+        XCTAssertEqual(manifest.requiredFiles, ["embedded.gguf"])
+        XCTAssertEqual(manifest.modelFileKind, .regularFile)
+        let imported = try ModelArtifactStore.importArtifacts(
+            manifest: manifest, sourceURLs: [model], destinationDirectoryURL: fixture.destination
+        )
+        XCTAssertEqual(imported.availability, .verified)
+        XCTAssertTrue(imported.hasVerifiedTokenizerHash, "The trusted single-file digest also covers the embedded tokenizer")
+        XCTAssertNil(imported.observedTokenizerSHA256)
+        let current = fixture.destination.appendingPathComponent(manifest.modelFileName)
+        let previous = try Data(contentsOf: current)
+        XCTAssertEqual(ModelArtifactStore.validate(manifest: manifest, directoryURL: fixture.destination).availability, .verified)
+        for isDirectory in [false, true] {
+            try FileManager.default.removeItem(at: model)
+            if isDirectory {
+                try FileManager.default.createDirectory(at: model, withIntermediateDirectories: false)
+            } else {
+                try Data().write(to: model)
+            }
+            XCTAssertThrowsError(try ModelArtifactStore.importArtifacts(
+                manifest: manifest, sourceURLs: [model], destinationDirectoryURL: fixture.destination
+            )) { XCTAssertEqual($0 as? ArtifactImportError, .unsafeFile(manifest.modelFileName)) }
+            XCTAssertEqual(try Data(contentsOf: current), previous)
+            try fixture.assertOldGeneration()
+            try fixture.assertNoCandidate()
+        }
+    }
+
+    func testArtifactUnsupportedFormatsAndNonGGUFEmbeddedTokenizerFailClosed() throws {
+        let fixture = try ArtifactImportFixture()
+        defer { fixture.clean() }
+        let duplicate = ModelArtifactManifest(
+            modelFileName: "model.bin", tokenizerFileName: "model.bin", fileFormat: "Raw binary",
+            storageDirectory: fixture.destination.path, expectedSHA256: fixture.manifest.expectedSHA256,
+            expectedTokenizerSHA256: fixture.manifest.expectedSHA256,
+            allowsNetworkDownload: false, importInstruction: ""
+        )
+        XCTAssertFalse(duplicate.hasSafeConfiguration)
+        XCTAssertFalse(LocalArtifactValidator.validate(
+            manifest: duplicate, presentFiles: ["model.bin"],
+            observedSHA256: duplicate.expectedSHA256, observedTokenizerSHA256: duplicate.expectedTokenizerSHA256
+        ).canPromoteToRealRuntime, "Duplicate manifest names must fail closed instead of trapping")
+        let duplicateStatuses = [ArtifactFileStatus(fileName: "model.bin", exists: true, byteCount: 3, isRegularFile: true),
+                                 ArtifactFileStatus(fileName: "model.bin", exists: true, byteCount: 3, isRegularFile: true),
+                                 ArtifactFileStatus(fileName: "tokenizer.model", exists: true, byteCount: 9, isRegularFile: true)]
+        XCTAssertFalse(LocalArtifactValidator.validate(
+            manifest: fixture.manifest, fileStatuses: duplicateStatuses,
+            observedSHA256: fixture.manifest.expectedSHA256,
+            observedTokenizerSHA256: fixture.manifest.expectedTokenizerSHA256
+        ).canPromoteToRealRuntime)
+        for (format, embedded) in [("unsupported", false), ("Raw binary", true), ("Core ML compiled package", true)] {
+            let manifest = ModelArtifactManifest(
+                modelFileName: fixture.manifest.modelFileName, tokenizerFileName: fixture.manifest.tokenizerFileName,
+                fileFormat: format, storageDirectory: fixture.destination.path,
+                expectedSHA256: fixture.manifest.expectedSHA256,
+                expectedTokenizerSHA256: fixture.manifest.expectedTokenizerSHA256,
+                tokenizerIsEmbedded: embedded, allowsNetworkDownload: false, importInstruction: ""
+            )
+            XCTAssertFalse(manifest.hasSafeConfiguration)
+            XCTAssertFalse(ModelArtifactStore.validate(
+                manifest: manifest, directoryURL: fixture.sources[0].deletingLastPathComponent()
+            ).canPromoteToRealRuntime)
+            XCTAssertThrowsError(try ModelArtifactStore.importArtifacts(
+                manifest: manifest, sourceURLs: fixture.sources, destinationDirectoryURL: fixture.destination
+            )) { XCTAssertEqual($0 as? ArtifactImportError, .unsafeFile(manifest.modelFileName)) }
+            try fixture.assertOldGeneration()
+            try fixture.assertNoCandidate()
+        }
+    }
+
+    func testArtifactManagedGenerationsAreExcludedFromSystemBackup() throws {
+        let fixture = try ArtifactImportFixture()
+        defer { fixture.clean() }
+        let sourcePolicy = try fixture.sources[0].resourceValues(forKeys: [.isExcludedFromBackupKey]).isExcludedFromBackup
+        _ = ModelArtifactStore.validate(manifest: fixture.manifest, directoryURL: fixture.destination)
+        XCTAssertEqual(try fixture.destination.resourceValues(forKeys: [.isExcludedFromBackupKey]).isExcludedFromBackup, true)
+        let root = fixture.root
+        let validation = try ModelArtifactStore.importArtifacts(
+            manifest: fixture.manifest, sourceURLs: fixture.sources, destinationDirectoryURL: fixture.destination
+        ) { progress in
+            if progress.phase == .copying {
+                let candidates = try? FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)
+                    .filter { $0.lastPathComponent.hasPrefix(".LocalModels-import-") }
+                XCTAssertEqual(candidates?.count, 1)
+                for candidate in candidates ?? [] {
+                    XCTAssertEqual(try? candidate.resourceValues(forKeys: [.isExcludedFromBackupKey]).isExcludedFromBackup, true)
+                }
+            }
+        }
+        XCTAssertEqual(validation.availability, .verified)
+        XCTAssertEqual(try fixture.destination.resourceValues(forKeys: [.isExcludedFromBackupKey]).isExcludedFromBackup, true)
+        XCTAssertEqual(try fixture.sources[0].resourceValues(forKeys: [.isExcludedFromBackupKey]).isExcludedFromBackup, sourcePolicy,
+                       "The Files source is not part of the managed backup policy")
+        _ = try ModelArtifactStore.removeArtifacts(manifest: fixture.manifest, destinationDirectoryURL: fixture.destination)
+        XCTAssertEqual(try fixture.destination.resourceValues(forKeys: [.isExcludedFromBackupKey]).isExcludedFromBackup, true)
+        XCTAssertEqual(try Data(contentsOf: fixture.otherModelFile), Data("other weights".utf8))
+        try fixture.assertNoCandidate()
     }
 
     func testArtifactStoreImportsCoreMLPackageDirectory() throws {
@@ -2511,6 +2991,7 @@ final class LocalGemmaTests: XCTestCase {
             fileFormat: "Core ML compiled package",
             storageDirectory: destinationDirectoryURL.path,
             expectedSHA256: expectedHash,
+            expectedTokenizerSHA256: ArtifactImportFixture.tokenizerSHA256,
             allowsNetworkDownload: false,
             importInstruction: "手动导入测试模型。"
         )
@@ -2546,6 +3027,7 @@ final class LocalGemmaTests: XCTestCase {
             fileFormat: "Core ML compiled package",
             storageDirectory: destinationDirectoryURL.path,
             expectedSHA256: String(repeating: "c", count: 64),
+            expectedTokenizerSHA256: ArtifactImportFixture.tokenizerSHA256,
             allowsNetworkDownload: false,
             importInstruction: "手动导入测试模型。"
         )
@@ -2702,14 +3184,20 @@ final class LocalGemmaTests: XCTestCase {
 
     func testRealRuntimePlaceholderDoesNotRunWithoutVerifiedArtifacts() {
         let model = ModelCatalog.defaultModels[0]
-        let result = RealGemmaRuntimePlaceholder().generate(
-            InferenceRequest(prompt: "启动真实模型", model: model)
-        )
-
-        XCTAssertTrue(result.isSimulated)
-        XCTAssertEqual(result.backend, .metalPerformanceShaders)
-        XCTAssertTrue(result.text.contains("不会下载模型"))
-        XCTAssertFalse(result.preparationReport.canRunRealWeights)
+        for availability in [ArtifactAvailability.missing, .staged] {
+            let runtime = RealGemmaRuntimePlaceholder()
+            let result = runtime.generate(
+                InferenceRequest(prompt: "启动真实模型", model: model, artifactAvailability: availability)
+            )
+            XCTAssertTrue(result.isSimulated)
+            XCTAssertEqual(result.backend, model.deploymentProfile.fallbackBackend)
+            XCTAssertTrue(result.text.contains("不会下载模型"))
+            XCTAssertFalse(result.preparationReport.canRunRealWeights)
+            XCTAssertFalse(result.preparationReport.networkDownloadAllowed)
+            XCTAssertEqual(result.preparationReport.availability, availability)
+            XCTAssertEqual(result.preparationReport, runtime.prepare(for: model, availability: availability))
+            XCTAssertTrue(result.preparationReport.blockers.contains { $0.contains("后端尚未接入") })
+        }
     }
 
     func testRealRuntimePlaceholderHonorsVerifiedArtifacts() {
@@ -2718,9 +3206,15 @@ final class LocalGemmaTests: XCTestCase {
             InferenceRequest(prompt: "启动真实模型", model: model, artifactAvailability: .verified)
         )
 
-        XCTAssertFalse(result.isSimulated)
-        XCTAssertEqual(result.backend, .coreMLANE)
-        XCTAssertTrue(result.preparationReport.canRunRealWeights)
+        XCTAssertTrue(result.isSimulated, "A verified artifact cannot turn placeholder text into real inference")
+        XCTAssertEqual(result.backend, model.deploymentProfile.fallbackBackend)
+        XCTAssertEqual(result.preparationReport.availability, .verified)
+        XCTAssertFalse(result.preparationReport.canRunRealWeights)
+        XCTAssertFalse(result.preparationReport.networkDownloadAllowed)
+        XCTAssertFalse(result.preparationReport.blockers.isEmpty)
+        XCTAssertTrue(result.text.contains("模型文件已校验"))
+        XCTAssertTrue(result.text.contains("真实推理后端尚未接入"))
+        XCTAssertFalse(result.text.contains("接入点已就绪"))
     }
 
     func testOptimizerTogglesChangeReadiness() {
@@ -5085,6 +5579,45 @@ final class LocalGemmaTests: XCTestCase {
         XCTAssertEqual(try? String(contentsOf: exportURL ?? exportDirectory), exported)
     }
 
+    func testConversationExportsKeepIndependentSnapshotsAcrossWindowsAndEdits() throws {
+        let directory = try conversationDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let first = InferenceEngine()
+        let second = InferenceEngine()
+        first.createSession(title: "同名会话")
+        second.createSession(title: "同名会话")
+        let model = ModelCatalog.defaultModels[0]
+        first.inputText = "Original shared snapshot"
+        first.send(using: model)
+        first.stop()
+        second.inputText = "Private content from another window"
+        second.send(using: model)
+        second.stop()
+        let original = try first.exportActiveSessionMarkdownFile(directoryURL: directory)
+        let originalBytes = try Data(contentsOf: original)
+        let otherWindow = try second.exportActiveSessionMarkdownFile(directoryURL: directory)
+        first.inputText = "A later answer"
+        first.send(using: model)
+        first.stop()
+        let later = try first.exportActiveSessionMarkdownFile(directoryURL: directory)
+
+        XCTAssertEqual(Set([original, otherWindow, later]).count, 3)
+        XCTAssertEqual(original.lastPathComponent, otherWindow.lastPathComponent)
+        XCTAssertEqual(try Data(contentsOf: original), originalBytes)
+        XCTAssertFalse(String(decoding: originalBytes, as: UTF8.self).contains("Private content"))
+        XCTAssertFalse(String(decoding: originalBytes, as: UTF8.self).contains("A later answer"))
+        XCTAssertTrue(try String(contentsOf: otherWindow, encoding: .utf8).contains("Private content"))
+        XCTAssertTrue(try String(contentsOf: later, encoding: .utf8).contains("A later answer"))
+        for url in [original, otherWindow, later] {
+            XCTAssertTrue(try url.deletingLastPathComponent().resourceValues(forKeys: [.isExcludedFromBackupKey]).isExcludedFromBackup == true)
+            XCTAssertEqual(url.pathExtension, "md")
+        }
+        first.createSession(title: String(repeating: "长标题", count: 200))
+        let longTitle = try first.exportActiveSessionMarkdownFile(directoryURL: directory)
+        XCTAssertLessThanOrEqual(longTitle.lastPathComponent.utf8.count, 164)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: longTitle.path))
+    }
+
     func testInferenceResetConversationRestoresWelcomeState() {
         let engine = InferenceEngine()
         let model = ModelCatalog.defaultModels[0]
@@ -7297,6 +7830,7 @@ final class LocalGemmaTests: XCTestCase {
             fileFormat: "Core ML compiled package",
             storageDirectory: "Application Support/LocalModels",
             expectedSHA256: String(repeating: "a", count: 64),
+            expectedTokenizerSHA256: ArtifactImportFixture.tokenizerSHA256,
             allowsNetworkDownload: false,
             importInstruction: "仅用于本地 ImageRenderer 测试。"
         )
@@ -7320,7 +7854,8 @@ final class LocalGemmaTests: XCTestCase {
                 return LocalArtifactValidator.validate(
                     manifest: renderManifest,
                     presentFiles: Set(renderManifest.requiredFiles),
-                    observedSHA256: renderManifest.expectedSHA256
+                    observedSHA256: renderManifest.expectedSHA256,
+                    observedTokenizerSHA256: renderManifest.expectedTokenizerSHA256
                 )
             }
         }
@@ -7482,6 +8017,7 @@ final class LocalGemmaTests: XCTestCase {
             fileFormat: "Core ML compiled package",
             storageDirectory: "Application Support/LocalModels",
             expectedSHA256: String(repeating: "c", count: 64),
+            expectedTokenizerSHA256: ArtifactImportFixture.tokenizerSHA256,
             allowsNetworkDownload: false,
             importInstruction: "手动导入测试模型。"
         )
@@ -7490,7 +8026,8 @@ final class LocalGemmaTests: XCTestCase {
         let verifiedValidation = LocalArtifactValidator.validate(
             manifest: verifiedManifest,
             presentFiles: Set(verifiedManifest.requiredFiles),
-            observedSHA256: verifiedManifest.expectedSHA256
+            observedSHA256: verifiedManifest.expectedSHA256,
+            observedTokenizerSHA256: verifiedManifest.expectedTokenizerSHA256
         )
         let verifiedReport = LocalRuntimePlanner.preparationReport(
             for: verifiedModel,
@@ -7578,6 +8115,7 @@ final class LocalGemmaTests: XCTestCase {
             fileFormat: "Core ML compiled package",
             storageDirectory: "Application Support/LocalModels",
             expectedSHA256: String(repeating: "d", count: 64),
+            expectedTokenizerSHA256: ArtifactImportFixture.tokenizerSHA256,
             allowsNetworkDownload: false,
             importInstruction: "手动导入测试模型。"
         )
@@ -7586,7 +8124,8 @@ final class LocalGemmaTests: XCTestCase {
         let verifiedValidation = LocalArtifactValidator.validate(
             manifest: verifiedManifest,
             presentFiles: Set(verifiedManifest.requiredFiles),
-            observedSHA256: verifiedManifest.expectedSHA256
+            observedSHA256: verifiedManifest.expectedSHA256,
+            observedTokenizerSHA256: verifiedManifest.expectedTokenizerSHA256
         )
         let verifiedValue = ModelSummaryAccessibilityMetadata.value(
             model: verifiedModel,
@@ -7680,6 +8219,7 @@ final class LocalGemmaTests: XCTestCase {
             fileFormat: "Core ML compiled package with a long local manifest description",
             storageDirectory: "Application Support/LocalModels",
             expectedSHA256: String(repeating: "a", count: 64),
+            expectedTokenizerSHA256: ArtifactImportFixture.tokenizerSHA256,
             allowsNetworkDownload: false,
             importInstruction: "仅用于本地概要 ImageRenderer 测试，不下载模型权重。"
         )
@@ -7708,7 +8248,8 @@ final class LocalGemmaTests: XCTestCase {
                 return LocalArtifactValidator.validate(
                     manifest: renderManifest,
                     presentFiles: Set(renderManifest.requiredFiles),
-                    observedSHA256: renderManifest.expectedSHA256
+                    observedSHA256: renderManifest.expectedSHA256,
+                    observedTokenizerSHA256: renderManifest.expectedTokenizerSHA256
                 )
             }
         }
@@ -8160,6 +8701,7 @@ final class LocalGemmaTests: XCTestCase {
             fileFormat: model.artifactManifest.fileFormat,
             storageDirectory: model.artifactManifest.storageDirectory,
             expectedSHA256: verifiedHash,
+            expectedTokenizerSHA256: ArtifactImportFixture.tokenizerSHA256,
             allowsNetworkDownload: false,
             importInstruction: model.artifactManifest.importInstruction
         )
@@ -8168,7 +8710,8 @@ final class LocalGemmaTests: XCTestCase {
         let verifiedValidation = LocalArtifactValidator.validate(
             manifest: verifiedManifest,
             presentFiles: Set(verifiedManifest.requiredFiles),
-            observedSHA256: verifiedHash
+            observedSHA256: verifiedHash,
+            observedTokenizerSHA256: verifiedManifest.expectedTokenizerSHA256
         )
         XCTAssertEqual(missingValidation.availability, .missing)
         XCTAssertEqual(stagedValidation.availability, .staged)
@@ -8356,13 +8899,15 @@ final class LocalGemmaTests: XCTestCase {
             fileFormat: "Core ML compiled package",
             storageDirectory: "Application Support/LocalModels",
             expectedSHA256: String(repeating: "b", count: 64),
+            expectedTokenizerSHA256: ArtifactImportFixture.tokenizerSHA256,
             allowsNetworkDownload: false,
             importInstruction: "手动导入测试模型。"
         )
         let verifiedValidation = LocalArtifactValidator.validate(
             manifest: verifiedManifest,
             presentFiles: Set(verifiedManifest.requiredFiles),
-            observedSHA256: verifiedManifest.expectedSHA256
+            observedSHA256: verifiedManifest.expectedSHA256,
+            observedTokenizerSHA256: verifiedManifest.expectedTokenizerSHA256
         )
 
         XCTAssertEqual(
@@ -8529,13 +9074,15 @@ final class LocalGemmaTests: XCTestCase {
             fileFormat: "Core ML compiled package",
             storageDirectory: "Application Support/LocalModels",
             expectedSHA256: String(repeating: "a", count: 64),
+            expectedTokenizerSHA256: ArtifactImportFixture.tokenizerSHA256,
             allowsNetworkDownload: false,
             importInstruction: "手动导入测试模型。"
         )
         let verifiedValidation = LocalArtifactValidator.validate(
             manifest: verifiedManifest,
             presentFiles: Set(verifiedManifest.requiredFiles),
-            observedSHA256: verifiedManifest.expectedSHA256
+            observedSHA256: verifiedManifest.expectedSHA256,
+            observedTokenizerSHA256: verifiedManifest.expectedTokenizerSHA256
         )
 
         XCTAssertEqual(
@@ -8901,6 +9448,7 @@ final class LocalGemmaTests: XCTestCase {
             fileFormat: model.artifactManifest.fileFormat,
             storageDirectory: model.artifactManifest.storageDirectory,
             expectedSHA256: verifiedHash,
+            expectedTokenizerSHA256: ArtifactImportFixture.tokenizerSHA256,
             allowsNetworkDownload: false,
             importInstruction: model.artifactManifest.importInstruction
         )
@@ -8909,7 +9457,8 @@ final class LocalGemmaTests: XCTestCase {
         let verifiedValidation = LocalArtifactValidator.validate(
             manifest: verifiedManifest,
             presentFiles: Set(verifiedManifest.requiredFiles),
-            observedSHA256: verifiedHash
+            observedSHA256: verifiedHash,
+            observedTokenizerSHA256: verifiedManifest.expectedTokenizerSHA256
         )
 
         XCTAssertEqual(missingValidation.availability, .missing)
@@ -9123,13 +9672,15 @@ final class LocalGemmaTests: XCTestCase {
             fileFormat: "Core ML compiled package",
             storageDirectory: "Application Support/LocalModels",
             expectedSHA256: String(repeating: "e", count: 64),
+            expectedTokenizerSHA256: ArtifactImportFixture.tokenizerSHA256,
             allowsNetworkDownload: false,
             importInstruction: "手动导入测试模型。"
         )
         let verifiedValidation = LocalArtifactValidator.validate(
             manifest: verifiedManifest,
             presentFiles: Set(verifiedManifest.requiredFiles),
-            observedSHA256: verifiedManifest.expectedSHA256
+            observedSHA256: verifiedManifest.expectedSHA256,
+            observedTokenizerSHA256: verifiedManifest.expectedTokenizerSHA256
         )
         let verifiedValue = ModelArtifactPanelAccessibilityMetadata.value(
             validation: verifiedValidation
@@ -9298,6 +9849,92 @@ final class LocalGemmaTests: XCTestCase {
         )
     }
 
+
+    func testSettingsHelpContentKeepsSimulationPrivacyAndSharingBoundaries() {
+        let sections = SettingsHelpContent.sections
+        XCTAssertEqual(sections.map(\.id), ["capabilities", "privacy", "storage", "sharing", "deletion", "models", "support"])
+        XCTAssertEqual(Set(sections.map(\.id)).count, sections.count)
+        XCTAssertTrue(sections.allSatisfy { !$0.title.isEmpty && !$0.body.isEmpty })
+        XCTAssertTrue(sections[0].body.contains("模拟回复"))
+        XCTAssertTrue(sections[0].body.contains("不代表真实推理已接入"))
+        XCTAssertTrue(sections[1].body.contains("不收集使用分析"))
+        XCTAssertTrue(sections[1].body.contains("不自动下载模型权重"))
+        XCTAssertTrue(sections[2].body.contains("系统备份"))
+        XCTAssertTrue(sections[2].body.contains("由系统设置决定"))
+        XCTAssertTrue(sections[2].body.contains("会话目录（含修复原件）和托管模型目录设置不参与系统备份的标记"))
+        XCTAssertTrue(sections[2].body.contains("会话和新导入模型设置失败时会报错"))
+        XCTAssertTrue(sections[2].body.contains("系统拒绝设置时不能保证排除"))
+        XCTAssertTrue(sections[2].body.contains("卸载 App 会失去未导出的对话"))
+        XCTAssertTrue(sections[2].body.contains("壁纸会在本机压缩后与外观偏好保存，仍可能进入系统备份"))
+        XCTAssertTrue(sections[3].body.contains("只有你操作分享或复制后"))
+        XCTAssertTrue(sections[4].body.contains("不删除 Files 中的原始文件"))
+        XCTAssertTrue(sections[4].body.contains("原件备份仍保留"))
+        XCTAssertTrue(sections[4].body.contains("不参与系统备份的会话目录"))
+        XCTAssertTrue(sections[6].body.contains("App 不自动附带会话"))
+        XCTAssertTrue(sections[6].body.contains("仅在你点按后"))
+
+        let url = SettingsHelpContent.repositoryURL
+        XCTAssertEqual(url?.absoluteString, "https://github.com/Altman-sam114/113")
+        XCTAssertEqual(url?.scheme, "https")
+        XCTAssertNil(url?.query)
+        XCTAssertNil(url?.user)
+        XCTAssertNil(url?.password)
+        XCTAssertGreaterThanOrEqual(SettingsHelpContent.minimumTouchTarget, 44)
+        XCTAssertEqual(Set([SettingsHelpContent.buttonIdentifier, SettingsHelpContent.closeIdentifier,
+                            SettingsHelpContent.supportIdentifier]).count, 3)
+    }
+
+    func testSettingsHelpVersionUsesActualBundleValuesAndHonestFallbacks() {
+        XCTAssertEqual(SettingsHelpContent.versionDescription(info: [
+            "CFBundleShortVersionString": " 1.2.3 ", "CFBundleVersion": " 47 "
+        ]), "版本 1.2.3 · 构建 47")
+        XCTAssertEqual(SettingsHelpContent.versionDescription(info: [:]), "版本 未提供 · 构建 未提供")
+        XCTAssertEqual(SettingsHelpContent.versionDescription(info: [
+            "CFBundleShortVersionString": " \n", "CFBundleVersion": 1
+        ]), "版本 未提供 · 构建 未提供")
+    }
+
+    func testSettingsHelpProductionViewsGrowNaturallyForDynamicType() {
+        for width in [CGFloat(284), 724] {
+            for themeMode in AppThemeMode.allCases {
+                var bodyHeights: [CGFloat] = []
+                var buttonHeights: [CGFloat] = []
+                for textSize in [DynamicTypeSize.large, .accessibility3] {
+                    let bodyRenderer = ImageRenderer(
+                        content: SettingsHelpBody(versionDescription: "版本 1.0 · 构建 1")
+                            .environment(\.appTheme, AppThemePalette(mode: themeMode))
+                            .environment(\.colorScheme, themeMode.colorScheme)
+                            .environment(\.dynamicTypeSize, textSize)
+                            .frame(width: width)
+                    )
+                    bodyRenderer.scale = 1
+                    let bodyImage = bodyRenderer.uiImage
+                    XCTAssertNotNil(bodyImage)
+                    XCTAssertTrue(bodyImage?.size.height.isFinite ?? false)
+                    XCTAssertGreaterThan(bodyImage?.size.height ?? 0, 0)
+                    XCTAssertEqual(bodyImage?.size.width ?? 0, width, accuracy: 1)
+                    bodyHeights.append(bodyImage?.size.height ?? 0)
+
+                    let buttonRenderer = ImageRenderer(
+                        content: SettingsHelpButton(open: {})
+                            .environment(\.appTheme, AppThemePalette(mode: themeMode))
+                            .environment(\.colorScheme, themeMode.colorScheme)
+                            .environment(\.dynamicTypeSize, textSize)
+                            .frame(width: width)
+                    )
+                    buttonRenderer.scale = 1
+                    let buttonImage = buttonRenderer.uiImage
+                    XCTAssertNotNil(buttonImage)
+                    XCTAssertTrue(buttonImage?.size.height.isFinite ?? false)
+                    XCTAssertGreaterThanOrEqual(buttonImage?.size.height ?? 0, SettingsHelpContent.minimumTouchTarget)
+                    XCTAssertEqual(buttonImage?.size.width ?? 0, width, accuracy: 1)
+                    buttonHeights.append(buttonImage?.size.height ?? 0)
+                }
+                XCTAssertGreaterThan(bodyHeights[1], bodyHeights[0])
+                XCTAssertGreaterThanOrEqual(buttonHeights[1], buttonHeights[0])
+            }
+        }
+    }
 
     func testSettingsPreferenceTextLayoutPolicySupportsDynamicTypeRows() {
         XCTAssertEqual(SettingsPreferenceTextLayoutPolicy.verticalSpacing, 5)
@@ -10283,6 +10920,9 @@ private actor ConversationTestStorage: ConversationStorage {
 }
 
 private struct ArtifactImportFixture: Sendable {
+    static let tokenizerSHA256 = "5f97e3774c51edd1d63706c2ec3826c564a067794770cdab0f8c4797971cacf9"
+    static let replacementTokenizerSHA256 = "929fe9ede20f0ed1c8ac03d312dc692e34038a6e9cd12da9929fb38b4a1f218f"
+
     let root: URL
     let destination: URL
     let sources: [URL]
@@ -10299,6 +10939,7 @@ private struct ArtifactImportFixture: Sendable {
             modelFileName: "model.bin", tokenizerFileName: "tokenizer.model", fileFormat: "test",
             storageDirectory: destination.path,
             expectedSHA256: "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+            expectedTokenizerSHA256: Self.replacementTokenizerSHA256,
             allowsNetworkDownload: false, importInstruction: ""
         )
         try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)

@@ -42,15 +42,18 @@ protocol ConversationStorage: Sendable {
 
 actor LocalConversationStore: ConversationStorage {
     typealias AtomicWriter = @Sendable (Data, URL) throws -> Void
+    typealias BackupExcluder = @Sendable (URL) throws -> Void
 
     static let shared = LocalConversationStore(fileURL: defaultFileURL())
     private let fileURL: URL
     private let writer: AtomicWriter
+    private let backupExcluder: BackupExcluder
     private var writesAllowed = false
 
-    init(fileURL: URL, writer: AtomicWriter? = nil) {
+    init(fileURL: URL, writer: AtomicWriter? = nil, backupExcluder: BackupExcluder? = nil) {
         self.fileURL = fileURL
         self.writer = writer ?? Self.writeAtomically
+        self.backupExcluder = backupExcluder ?? Self.excludeDirectoryFromBackup
     }
 
     static func defaultFileURL() -> URL {
@@ -61,6 +64,7 @@ actor LocalConversationStore: ConversationStorage {
 
     func load() throws -> ConversationArchive? {
         writesAllowed = false
+        try prepareDirectory()
         guard let attributes = try attributesIfPresent() else {
             writesAllowed = true
             return nil
@@ -89,6 +93,7 @@ actor LocalConversationStore: ConversationStorage {
         // An unreadable/newer archive is never silently replaced by the seed.
         // Explicit repair first preserves its exact original bytes under a new name.
         _ = try encoded(archive)
+        try prepareDirectory()
         if try attributesIfPresent() != nil {
             let backup = fileURL.deletingLastPathComponent()
                 .appendingPathComponent("unreadable-\(UUID().uuidString).json")
@@ -110,8 +115,18 @@ actor LocalConversationStore: ConversationStorage {
 
     private func persist(_ archive: ConversationArchive) throws {
         let data = try encoded(archive)
-        try FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try prepareDirectory()
         try writer(data, fileURL)
+    }
+
+    private func prepareDirectory() throws {
+        let directory = fileURL.deletingLastPathComponent()
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let values = try directory.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
+        guard values.isDirectory == true, values.isSymbolicLink != true else {
+            throw ConversationStoreError.invalidArchive
+        }
+        try backupExcluder(directory)
     }
 
     private func encoded(_ archive: ConversationArchive) throws -> Data {
@@ -121,6 +136,13 @@ actor LocalConversationStore: ConversationStorage {
         let data = try encoder.encode(archive)
         guard data.count <= ConversationArchive.maximumBytes else { throw ConversationStoreError.archiveTooLarge }
         return data
+    }
+
+    private static func excludeDirectoryFromBackup(_ directory: URL) throws {
+        var url = directory
+        var values = URLResourceValues()
+        values.isExcludedFromBackup = true
+        try url.setResourceValues(values)
     }
 
     private static func writeAtomically(_ data: Data, _ destination: URL) throws {

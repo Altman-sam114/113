@@ -43,37 +43,45 @@ struct AppThemePalette {
     let mode: AppThemeMode
 
     var isDark: Bool { mode == .dark }
-    var primaryText: Color { isDark ? Color(red: 0.91, green: 0.95, blue: 0.97) : Color(red: 0.10, green: 0.16, blue: 0.20) }
-    var secondaryText: Color { isDark ? Color(red: 0.65, green: 0.73, blue: 0.79) : Color(red: 0.32, green: 0.40, blue: 0.45) }
+    // Match the owner's AITRANS palette without coupling either app's state or assets.
+    var primaryText: Color { color(light: 0x252729, dark: 0xF1F2F3) }
+    var secondaryText: Color { color(light: 0x666B70, dark: 0xB8BDC2) }
     var tertiaryText: Color { secondaryText }
-    var inverseText: Color { isDark ? Color(red: 0.03, green: 0.15, blue: 0.15) : .white }
-    var accent: Color { isDark ? Color(red: 0.46, green: 0.89, blue: 0.79) : Color(red: 0.02, green: 0.43, blue: 0.39) }
+    var inverseText: Color { color(light: 0xFFFFFF, dark: 0x202326) }
+    var accent: Color { color(light: 0xA44D37, dark: 0xD9A08B) }
     var secondaryAccent: Color { isDark ? Color(red: 0.50, green: 0.75, blue: 0.89) : Color(red: 0.20, green: 0.43, blue: 0.59) }
-    var success: Color { accent }
-    var warning: Color { isDark ? Color(red: 0.95, green: 0.76, blue: 0.44) : Color(red: 0.57, green: 0.34, blue: 0.07) }
-    var danger: Color { isDark ? Color(red: 0.99, green: 0.62, blue: 0.58) : Color(red: 0.65, green: 0.18, blue: 0.19) }
-    var canvas: Color { isDark ? Color(red: 0.039, green: 0.059, blue: 0.078) : Color(red: 0.95, green: 0.97, blue: 0.97) }
-    var surface: Color { isDark ? Color(red: 0.071, green: 0.098, blue: 0.125) : .white }
-    var recessedSurface: Color { isDark ? Color(red: 0.048, green: 0.074, blue: 0.094) : Color(red: 0.93, green: 0.95, blue: 0.95) }
-    var chipSurface: Color { isDark ? Color(red: 0.105, green: 0.14, blue: 0.17) : Color(red: 0.91, green: 0.94, blue: 0.94) }
-    var border: Color { isDark ? Color(red: 0.20, green: 0.26, blue: 0.30) : Color(red: 0.78, green: 0.83, blue: 0.84) }
+    var success: Color { color(light: 0x3F6E51, dark: 0x9BC3A4) }
+    var warning: Color { color(light: 0x8C641F, dark: 0xDFBB77) }
+    var danger: Color { color(light: 0xAC403C, dark: 0xEAA39D) }
+    var canvas: Color { color(light: 0xF8F8F7, dark: 0x1C1D1F) }
+    var surface: Color { color(light: 0xFFFFFF, dark: 0x252628) }
+    var recessedSurface: Color { color(light: 0xF0F0EE, dark: 0x202123) }
+    var chipSurface: Color { color(light: 0xF0F0EE, dark: 0x2F3033) }
+    var border: Color { color(light: 0xE1E3E4, dark: 0x42464A) }
     var subtleBorder: Color { border.opacity(0.55) }
     var grid: Color { accent.opacity(0.12) }
 
     var backgroundColors: [Color] { [canvas, canvas, recessedSurface] }
+
+    private func color(light: UInt32, dark: UInt32) -> Color {
+        let value = isDark ? dark : light
+        return Color(
+            .sRGB,
+            red: Double((value >> 16) & 0xFF) / 255,
+            green: Double((value >> 8) & 0xFF) / 255,
+            blue: Double(value & 0xFF) / 255,
+            opacity: 1
+        )
+    }
 
     func actionPalette(for role: WorkbenchActionRole) -> WorkbenchActionPalette {
         switch role {
         case .primary:
             return WorkbenchActionPalette(
                 foreground: accent,
-                fill: isDark
-                    ? Color(red: 0.075, green: 0.18, blue: 0.185)
-                    : Color(red: 0.90, green: 0.955, blue: 0.94),
+                fill: color(light: 0xFAF0EC, dark: 0x362B29),
                 border: accent.opacity(isDark ? 0.42 : 0.40),
-                iconSurface: isDark
-                    ? Color(red: 0.10, green: 0.27, blue: 0.25)
-                    : Color(red: 0.84, green: 0.91, blue: 0.89),
+                iconSurface: color(light: 0xF3DFD7, dark: 0x49352F),
                 prominentFill: accent,
                 prominentForeground: inverseText
             )

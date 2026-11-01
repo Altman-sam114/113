@@ -1,0 +1,53 @@
+name: Unsigned Release Archive
+
+"on":
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: 'Required exact 40-character main commit SHA'
+        required: true
+        type: string
+      marketing_version:
+        description: 'Marketing version, for example 1.0; cannot decrease from the checked-in version'
+        required: true
+        default: '1.0'
+        type: string
+      build_number:
+        description: 'Positive integer greater than the checked-in build; App Store history is not checked'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: unsigned-release-archive-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  archive:
+    name: Generic iOS Release archive without signing
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Validate unsigned archive evidence fixtures
+        run: PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s Tools/tests -p test_release_archive.py -v
+      - name: Archive and independently verify device bundle and dSYM
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          MARKETING_VERSION: ${{ inputs.marketing_version }}
+          BUILD_NUMBER: ${{ inputs.build_number }}
+        run: python3 Tools/cloud_release_archive.py
+      - name: Preserve unsigned archive and failure diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: localgemma-unsigned-release-${{ github.sha }}-run${{ github.run_id }}-attempt${{ github.run_attempt }}
+          path: |
+            release-archive-results/**
+            !release-archive-results/LocalGemma.xcarchive/**
+          if-no-files-found: error
+          retention-days: 30

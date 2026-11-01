@@ -389,17 +389,59 @@ enum ArtifactAvailability: String, Equatable, Sendable {
     }
 }
 
+enum ModelArtifactFileKind: Equatable, Sendable {
+    case compiledDirectory, regularFile
+}
+
 struct ModelArtifactManifest: Equatable, Sendable {
     let modelFileName: String
     let tokenizerFileName: String
     let fileFormat: String
     let storageDirectory: String
     let expectedSHA256: String
+    let expectedTokenizerSHA256: String?
+    let tokenizerIsEmbedded: Bool
     let allowsNetworkDownload: Bool
     let importInstruction: String
 
+    init(
+        modelFileName: String, tokenizerFileName: String, fileFormat: String,
+        storageDirectory: String, expectedSHA256: String,
+        expectedTokenizerSHA256: String? = nil, tokenizerIsEmbedded: Bool = false,
+        allowsNetworkDownload: Bool, importInstruction: String
+    ) {
+        self.modelFileName = modelFileName
+        self.tokenizerFileName = tokenizerFileName
+        self.fileFormat = fileFormat
+        self.storageDirectory = storageDirectory
+        self.expectedSHA256 = expectedSHA256
+        self.expectedTokenizerSHA256 = expectedTokenizerSHA256
+        self.tokenizerIsEmbedded = tokenizerIsEmbedded
+        self.allowsNetworkDownload = allowsNetworkDownload
+        self.importInstruction = importInstruction
+    }
+
+    var modelFileKind: ModelArtifactFileKind? {
+        switch fileFormat.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+        case "core ml compiled package": return .compiledDirectory
+        case let description where description.hasPrefix("core ml compiled package "): return .compiledDirectory
+        case "gguf", "raw binary", "test": return .regularFile
+        default: return nil
+        }
+    }
+
+    var hasSafeConfiguration: Bool {
+        guard modelFileKind != nil,
+              !tokenizerIsEmbedded || fileFormat.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "gguf",
+              Set(requiredFiles).count == requiredFiles.count else { return false }
+        return requiredFiles.allSatisfy {
+            !$0.isEmpty && $0 != "." && $0 != ".." && !$0.contains("/")
+                && !$0.contains("\\") && !$0.contains("\0")
+        }
+    }
+
     var requiredFiles: [String] {
-        [modelFileName, tokenizerFileName]
+        tokenizerIsEmbedded ? [modelFileName] : [modelFileName, tokenizerFileName]
     }
 }
 
@@ -408,12 +450,19 @@ struct ArtifactFileStatus: Equatable, Sendable {
     let exists: Bool
     let byteCount: Int64?
     let isDirectory: Bool
+    let isRegularFile: Bool
+    let isSymbolicLink: Bool
 
-    init(fileName: String, exists: Bool, byteCount: Int64? = nil, isDirectory: Bool = false) {
+    init(
+        fileName: String, exists: Bool, byteCount: Int64? = nil, isDirectory: Bool = false,
+        isRegularFile: Bool = false, isSymbolicLink: Bool = false
+    ) {
         self.fileName = fileName
         self.exists = exists
         self.byteCount = byteCount
         self.isDirectory = isDirectory
+        self.isRegularFile = isRegularFile
+        self.isSymbolicLink = isSymbolicLink
     }
 }
 
@@ -424,6 +473,11 @@ struct ArtifactValidationResult: Equatable, Sendable {
     let observedSHA256: String?
     let hasConcreteExpectedHash: Bool
     let hasVerifiedHash: Bool
+    let expectedTokenizerSHA256: String?
+    let observedTokenizerSHA256: String?
+    let hasConcreteExpectedTokenizerHash: Bool
+    let hasVerifiedTokenizerHash: Bool
+    let invalidFiles: [String]
     let networkDownloadAllowed: Bool
 
     var missingFiles: [String] {
@@ -447,6 +501,9 @@ struct ArtifactValidationResult: Equatable, Sendable {
         case .missing:
             return "缺少 \(missingFiles.joined(separator: ", "))"
         case .staged:
+            if !invalidFiles.isEmpty { return "文件类型不安全或格式不受支持：\(invalidFiles.joined(separator: ", "))" }
+            if hasVerifiedHash && !hasConcreteExpectedTokenizerHash { return "等待登记 tokenizer SHA-256" }
+            if hasVerifiedHash && !hasVerifiedTokenizerHash { return "等待 tokenizer SHA-256 校验通过" }
             return hasConcreteExpectedHash ? "等待 SHA-256 校验通过" : "等待登记官方 SHA-256"
         case .verified:
             return "本地 artifact 已通过校验"
@@ -458,16 +515,20 @@ enum LocalArtifactValidator {
     static func validate(
         manifest: ModelArtifactManifest,
         presentFiles: Set<String>,
-        observedSHA256: String? = nil
+        observedSHA256: String? = nil,
+        observedTokenizerSHA256: String? = nil
     ) -> ArtifactValidationResult {
         let fileStatuses = manifest.requiredFiles.map { fileName in
-            ArtifactFileStatus(fileName: fileName, exists: presentFiles.contains(fileName))
+            let isDirectory = fileName == manifest.modelFileName && manifest.modelFileKind == .compiledDirectory
+            return ArtifactFileStatus(fileName: fileName, exists: presentFiles.contains(fileName),
+                byteCount: isDirectory ? nil : 1, isDirectory: isDirectory, isRegularFile: !isDirectory)
         }
 
         return validate(
             manifest: manifest,
             fileStatuses: fileStatuses,
-            observedSHA256: observedSHA256
+            observedSHA256: observedSHA256,
+            observedTokenizerSHA256: observedTokenizerSHA256
         )
     }
 
@@ -475,33 +536,47 @@ enum LocalArtifactValidator {
         manifest: ModelArtifactManifest,
         in directoryURL: URL,
         observedSHA256: String? = nil,
+        observedTokenizerSHA256: String? = nil,
         fileManager: FileManager = .default
     ) -> ArtifactValidationResult {
-        let fileStatuses = manifest.requiredFiles.map { fileName in
-            let url = directoryURL.appendingPathComponent(fileName)
-            var isDirectory = ObjCBool(false)
-            let exists = fileManager.fileExists(atPath: url.path, isDirectory: &isDirectory)
-            let attributes = exists ? try? fileManager.attributesOfItem(atPath: url.path) : nil
-            let byteCount = (attributes?[.size] as? NSNumber)?.int64Value
-            return ArtifactFileStatus(
-                fileName: fileName,
-                exists: exists,
-                byteCount: byteCount,
-                isDirectory: isDirectory.boolValue
-            )
-        }
-
         return validate(
             manifest: manifest,
-            fileStatuses: fileStatuses,
-            observedSHA256: observedSHA256
+            fileStatuses: fileStatuses(manifest: manifest, in: directoryURL, fileManager: fileManager),
+            observedSHA256: observedSHA256,
+            observedTokenizerSHA256: observedTokenizerSHA256
         )
+    }
+
+    static func fileStatuses(
+        manifest: ModelArtifactManifest, in directoryURL: URL, fileManager: FileManager
+    ) -> [ArtifactFileStatus] {
+        let root = try? fileManager.attributesOfItem(atPath: directoryURL.path)
+        guard manifest.hasSafeConfiguration, root?[.type] as? FileAttributeType == .typeDirectory else {
+            return manifest.requiredFiles.map { ArtifactFileStatus(fileName: $0, exists: false) }
+        }
+        return manifest.requiredFiles.map { name in
+            let attributes = try? fileManager.attributesOfItem(atPath: directoryURL.appendingPathComponent(name).path)
+            let type = attributes?[.type] as? FileAttributeType
+            return ArtifactFileStatus(fileName: name, exists: attributes != nil,
+                byteCount: (attributes?[.size] as? NSNumber)?.int64Value,
+                isDirectory: type == .typeDirectory, isRegularFile: type == .typeRegular,
+                isSymbolicLink: type == .typeSymbolicLink)
+        }
+    }
+
+    static func hasExpectedFileType(_ status: ArtifactFileStatus, manifest: ModelArtifactManifest) -> Bool {
+        guard status.exists, !status.isSymbolicLink else { return false }
+        if status.fileName == manifest.modelFileName && manifest.modelFileKind == .compiledDirectory {
+            return status.isDirectory
+        }
+        return status.isRegularFile && (status.byteCount ?? 0) > 0
     }
 
     static func validate(
         manifest: ModelArtifactManifest,
         fileStatuses: [ArtifactFileStatus],
-        observedSHA256: String? = nil
+        observedSHA256: String? = nil,
+        observedTokenizerSHA256: String? = nil
     ) -> ArtifactValidationResult {
         let requiredFileNames = Set(manifest.requiredFiles)
         let relevantStatuses = fileStatuses.filter { requiredFileNames.contains($0.fileName) }
@@ -513,17 +588,26 @@ enum LocalArtifactValidator {
         let normalizedObservedHash = observedSHA256?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let hasConcreteExpectedHash = isConcreteSHA256(normalizedExpectedHash)
         let hasVerifiedHash = hasConcreteExpectedHash && normalizedObservedHash == normalizedExpectedHash
+        let normalizedTokenizerHash = manifest.expectedTokenizerSHA256?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let normalizedObservedTokenizerHash = observedTokenizerSHA256?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let hasConcreteExpectedTokenizerHash = manifest.tokenizerIsEmbedded || isConcreteSHA256(normalizedTokenizerHash ?? "")
+        let hasVerifiedTokenizerHash = manifest.tokenizerIsEmbedded
+            || (hasConcreteExpectedTokenizerHash && normalizedObservedTokenizerHash == normalizedTokenizerHash)
+        let uniqueStatuses = Set(relevantStatuses.map(\.fileName)).count == relevantStatuses.count
+        let invalidFiles = manifest.hasSafeConfiguration && uniqueStatuses
+            ? relevantStatuses.filter { $0.exists && !hasExpectedFileType($0, manifest: manifest) }.map(\.fileName)
+            : manifest.requiredFiles
 
         let availability: ArtifactAvailability
         if missingFileNames.isEmpty == false {
             availability = .missing
-        } else if hasVerifiedHash {
+        } else if invalidFiles.isEmpty && hasVerifiedHash && hasVerifiedTokenizerHash {
             availability = .verified
         } else {
             availability = .staged
         }
 
-        let statusesByName = Dictionary(uniqueKeysWithValues: relevantStatuses.map { ($0.fileName, $0) })
+        let statusesByName = Dictionary(relevantStatuses.map { ($0.fileName, $0) }, uniquingKeysWith: { first, _ in first })
         let orderedStatuses = manifest.requiredFiles.map { fileName in
             statusesByName[fileName] ?? ArtifactFileStatus(fileName: fileName, exists: false)
         }
@@ -535,6 +619,11 @@ enum LocalArtifactValidator {
             observedSHA256: observedSHA256,
             hasConcreteExpectedHash: hasConcreteExpectedHash,
             hasVerifiedHash: hasVerifiedHash,
+            expectedTokenizerSHA256: manifest.expectedTokenizerSHA256,
+            observedTokenizerSHA256: observedTokenizerSHA256,
+            hasConcreteExpectedTokenizerHash: hasConcreteExpectedTokenizerHash,
+            hasVerifiedTokenizerHash: hasVerifiedTokenizerHash,
+            invalidFiles: invalidFiles,
             networkDownloadAllowed: manifest.allowsNetworkDownload
         )
     }
@@ -650,9 +739,9 @@ enum LocalRuntimePlanner {
             ]
         case .staged:
             if validation.hasConcreteExpectedHash {
-                blockers = ["已找到模型文件，但 SHA-256 尚未匹配 \(validation.expectedSHA256)。"]
+                blockers = [validation.summary]
                 nextSteps = [
-                    "对 \(model.artifactManifest.modelFileName) 计算 SHA-256。",
+                    "核对模型文件类型、模型 SHA-256 及外置 tokenizer 的独立可信摘要。",
                     "校验通过后启用 \(model.deploymentProfile.primaryBackend.title)。"
                 ]
             } else {
@@ -1354,8 +1443,19 @@ final class InferenceEngine: ObservableObject {
     ) throws -> URL {
         let text = exportActiveSessionText(modelName: modelName)
         let title = sanitizedFileName(activeSessionTitle)
-        let fileURL = directoryURL.appendingPathComponent("\(title).md")
+        // A pending ShareLink must retain its snapshot when another window exports.
+        let snapshotDirectory = directoryURL.appendingPathComponent("LocalGemma-Export-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: snapshotDirectory, withIntermediateDirectories: true)
+        var excludedDirectory = snapshotDirectory
+        var resourceValues = URLResourceValues()
+        resourceValues.isExcludedFromBackup = true
+        try excludedDirectory.setResourceValues(resourceValues)
+        let fileURL = snapshotDirectory.appendingPathComponent("\(title).md")
+        #if os(iOS) && !targetEnvironment(macCatalyst)
+        try Data(text.utf8).write(to: fileURL, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+        #else
         try Data(text.utf8).write(to: fileURL, options: .atomic)
+        #endif
         return fileURL
     }
 
@@ -1468,7 +1568,13 @@ final class InferenceEngine: ObservableObject {
         let collapsed = String(scalars)
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .replacingOccurrences(of: " ", with: "-")
-        return collapsed.isEmpty ? "LocalGemma-Conversation" : collapsed
+        var bounded = ""
+        for scalar in collapsed.unicodeScalars {
+            let next = String(scalar)
+            guard bounded.utf8.count + next.utf8.count <= 160 else { break }
+            bounded += next
+        }
+        return bounded.isEmpty ? "LocalGemma-Conversation" : bounded
     }
 
     private func exportRoleTitle(for role: ChatMessage.Role) -> String {
@@ -1526,33 +1632,36 @@ struct RealGemmaRuntimePlaceholder: LocalInferenceRuntime {
     }
 
     func prepare(for model: LocalModel, availability: ArtifactAvailability = .missing) -> RuntimePreparationReport {
-        LocalRuntimePlanner.preparationReport(for: model, availability: availability)
+        let plan = LocalRuntimePlanner.preparationReport(for: model, availability: availability)
+        // Artifact integrity is necessary, but cannot make an unimplemented backend runnable.
+        return RuntimePreparationReport(
+            modelName: plan.modelName,
+            availability: plan.availability,
+            canRunRealWeights: false,
+            networkDownloadAllowed: false,
+            activeBackend: plan.fallbackBackend,
+            fallbackBackend: plan.fallbackBackend,
+            requiredFiles: plan.requiredFiles,
+            blockers: plan.blockers + ["真实推理后端尚未接入；文件校验通过不代表可执行推理。"],
+            nextSteps: (availability == .verified ? [] : plan.nextSteps)
+                + ["接入并验收本地 tokenizer、模型执行和可取消的流式生成后，再启用真实推理。"]
+        )
     }
 
     func generate(_ request: InferenceRequest) -> InferenceResult {
         let report = prepare(for: request.model, availability: request.artifactAvailability)
-        if report.canRunRealWeights == false {
-            return InferenceResult(
-                text: """
-                真实 Gemma 1.5B runtime 尚未启动。
-
-                当前缺少已校验的 \(request.model.artifactManifest.modelFileName) 和 \(request.model.artifactManifest.tokenizerFileName)，所以保持本地模拟模式，不会下载模型，也不会发起网络请求。
-
-                下一步：\(report.nextSteps.joined(separator: " "))
-                """,
-                isSimulated: true,
-                backend: report.fallbackBackend,
-                preparationReport: report
-            )
-        }
-
+        let artifactStatus = request.artifactAvailability == .verified
+            ? "模型文件已校验，但真实推理后端尚未接入。"
+            : "模型文件尚未完成导入与校验，真实推理后端也尚未接入。"
         return InferenceResult(
             text: """
-            真实 Gemma runtime 接入点已就绪：\(request.model.deploymentProfile.primaryBackend.title)。
+            真实 Gemma runtime 尚未启动。
 
-            这里是占位实现，用于保护工程边界。导入真实权重后，需要在此处接入 Core ML / ANE 执行图、tokenizer、paged KV cache 和热状态调度。
+            \(artifactStatus) 当前只是占位说明，保持模拟标记，不会下载模型，也不会发起网络请求。
+
+            下一步：\(report.nextSteps.joined(separator: " "))
             """,
-            isSimulated: false,
+            isSimulated: true,
             backend: report.activeBackend,
             preparationReport: report
         )

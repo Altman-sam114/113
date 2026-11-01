@@ -34,6 +34,14 @@ final class CompactSummaryInteractionTests: XCTestCase {
         try draftLifecycle(accessibility: true)
     }
 
+    func testHelpPreservesDraftAndWorkspace() throws {
+        try helpLifecycle(accessibility: false)
+    }
+
+    func testAccessibilityHelpPreservesDraftAndWorkspace() throws {
+        try helpLifecycle(accessibility: true)
+    }
+
     private func launch(theme: String, accessibility: Bool) -> XCUIApplication {
         continueAfterFailure = false
         actions = []
@@ -145,6 +153,172 @@ final class CompactSummaryInteractionTests: XCTestCase {
         assertComposerVisible(composer, in: app)
         try capture(app, theme: "dark", accessibility: accessibility, stage: "draft-returned")
         app.terminate()
+    }
+
+    private func helpLifecycle(accessibility: Bool) throws {
+        let app = launch(theme: "dark", accessibility: accessibility)
+        XCTAssertTrue(app.buttons["workspace-tab-chat"].isSelected)
+        tap(app.buttons["session-bar-action-createSession"], id: "session-bar-action-createSession")
+        let introduction = app.buttons["Continue"]
+        if introduction.waitForExistence(timeout: 3) && introduction.isHittable {
+            tap(introduction, id: "system-keyboard-introduction-continue")
+        }
+        let keyboardDone = app.buttons["收起键盘"]
+        if keyboardDone.exists && keyboardDone.isHittable {
+            tap(keyboardDone, id: "composer-keyboard-done")
+            XCTAssertTrue(waitUntil { !app.keyboards.firstMatch.exists })
+        }
+        let composer = app.textFields[composerID]
+        XCTAssertTrue(waitUntil { composer.exists && composer.isEnabled })
+        composer.tap()
+        actions.append("tap:\(composerID)")
+        composer.typeText("Keep this draft")
+        actions.append("type:local-draft-without-send")
+        assertComposerVisible(composer, in: app)
+        let initialDraft = try XCTUnwrap(composer.value as? String)
+
+        tap(keyboardDone, id: "composer-keyboard-done")
+        XCTAssertTrue(waitUntil { !app.keyboards.firstMatch.exists && app.buttons["workspace-tab-settings"].isHittable })
+        XCTAssertEqual(composer.value as? String, initialDraft)
+
+        tap(app.buttons["workspace-tab-settings"], id: "workspace-tab-settings")
+        XCTAssertTrue(waitUntil { app.buttons["workspace-tab-settings"].isSelected && !app.keyboards.firstMatch.exists })
+        let help = app.buttons["settings-help-open"]
+        let settingsScroll = app.scrollViews.containing(.button, identifier: "settings-help-open").firstMatch
+        revealHelpContent(help, in: settingsScroll, app: app, isAction: true)
+        assertReachableAction(help, inside: app.frame)
+        tap(help, id: "settings-help-open")
+        let close = app.buttons["settings-help-close"]
+        assertReachableAction(close, inside: app.frame)
+        let scroll = app.scrollViews.containing(.staticText, identifier: "当前能力").firstMatch
+        XCTAssertTrue(scroll.waitForExistence(timeout: 5))
+        let opened = helpSnapshot(app, accessibility: accessibility, stage: "help-open", initialDraft: initialDraft, sections: [])
+        try attachHelpSnapshot(opened.image, document: opened.document)
+
+        let sectionQueries = [
+            ("capabilities", "当前能力", "当前版本是本地 AI 工作台原型"),
+            ("privacy", "App 不主动上传", "App 不发起对话"),
+            ("storage", "本机保存与系统备份", "对话和逐会话草稿保存在"),
+            ("sharing", "分享由你决定", "导出生成本机 Markdown 文件"),
+            ("deletion", "删除、恢复与修复", "在会话记录中删除并确认"),
+            ("models", "模型与授权", "App 不附带可运行的真实模型权重"),
+            ("support", "帮助与反馈", "遇到问题时，可记录 App 版本")
+        ]
+        var observations: [[String: Any]] = []
+        for (id, title, prefix) in sectionQueries {
+            let heading = app.staticTexts[title].firstMatch
+            revealHelpContent(heading, in: scroll, app: app)
+            let body = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", prefix)).firstMatch
+            revealHelpContent(body, in: scroll, app: app)
+            XCTAssertTrue(body.label.hasPrefix(prefix))
+            observations.append(["id": id, "title": heading.label, "text": body.label,
+                                 "frame": helpFrame(body.frame), "viewport": helpFrame(helpViewport(scroll, app: app))])
+            actions.append("read:help-\(id)")
+        }
+        let repository = element(app, "settings-help-repository")
+        revealHelpContent(repository, in: scroll, app: app, isAction: true)
+        assertReachableAction(repository, inside: app.frame)
+        XCTAssertTrue(waitUntil { !app.keyboards.firstMatch.exists })
+        var bottom = helpSnapshot(app, accessibility: accessibility, stage: "help-bottom", initialDraft: initialDraft,
+                                  sections: observations)
+
+        tap(close, id: "settings-help-close")
+        XCTAssertTrue(waitUntil { !close.exists && app.buttons["workspace-tab-settings"].isSelected })
+        let settingsRestored = app.buttons["workspace-tab-settings"].isSelected
+        tap(app.buttons["workspace-tab-chat"], id: "workspace-tab-chat")
+        XCTAssertTrue(waitUntil { app.buttons["workspace-tab-chat"].isSelected && composer.exists && composer.isEnabled
+            && app.keyboards.firstMatch.exists })
+        XCTAssertFalse(close.exists)
+        XCTAssertEqual(composer.value as? String, "Keep this draft")
+        assertComposerVisible(composer, in: app)
+        // The image remains the original bottom-of-help screen; completion is
+        // explicitly a later live observation, not a different screenshot state.
+        bottom.document["completion"] = [
+            "source": "post-dismiss-live-XCUI-snapshot", "actions": actions,
+            "settingsRestoredAfterClose": settingsRestored,
+            "workspace": "chat", "workspaceSelected": app.buttons["workspace-tab-chat"].isSelected,
+            "draft": composer.value as? String ?? "", "keyboardVisible": app.keyboards.firstMatch.exists,
+            "helpVisible": close.exists, "composerFrame": helpFrame(composer.frame),
+            "keyboardFrame": helpFrame(app.keyboards.firstMatch.frame)
+        ]
+        try attachHelpSnapshot(bottom.image, document: bottom.document)
+        app.terminate()
+    }
+
+    private func helpViewport(_ scroll: XCUIElement, app: XCUIApplication) -> CGRect {
+        scroll.frame.intersection(app.frame).insetBy(dx: 0, dy: 8)
+    }
+
+    private func revealHelpContent(
+        _ target: XCUIElement, in scroll: XCUIElement, app: XCUIApplication, isAction: Bool = false
+    ) {
+        for _ in 0..<32 {
+            XCTAssertTrue(scroll.exists)
+            let viewport = helpViewport(scroll, app: app)
+            XCTAssertGreaterThan(viewport.height, 44)
+            var offset = viewport.height
+            if target.exists {
+                let frame = target.frame
+                let visible = frame.intersection(viewport)
+                if isAction {
+                    if viewport.contains(frame) && target.isHittable { return }
+                } else if frame.width > 0 && frame.height > 0
+                    && visible.width >= min(44, frame.width) && visible.height >= min(44, frame.height) {
+                    return
+                }
+                offset = frame.midY - viewport.midY
+            }
+            let distance = min(max(abs(offset), 20), viewport.height * 0.45)
+            let origin = app.coordinate(withNormalizedOffset: .zero)
+            let upper = origin.withOffset(CGVector(dx: viewport.midX, dy: viewport.midY - distance / 2))
+            let lower = origin.withOffset(CGVector(dx: viewport.midX, dy: viewport.midY + distance / 2))
+            if offset >= 0 {
+                lower.press(forDuration: 0.05, thenDragTo: upper, withVelocity: .slow, thenHoldForDuration: 0.2)
+            } else {
+                upper.press(forDuration: 0.05, thenDragTo: lower, withVelocity: .slow, thenHoldForDuration: 0.2)
+            }
+            actions.append(offset >= 0 ? "scroll:help-content-up" : "scroll:help-content-down")
+        }
+        attachDiagnostic("unreachable-help-content")
+        XCTFail("Help content must enter its real scroll viewport; static paragraphs are not tap targets")
+    }
+
+    private func helpFrame(_ frame: CGRect) -> [String: Double] {
+        ["x": frame.minX, "y": frame.minY, "width": frame.width, "height": frame.height]
+    }
+
+    private func helpSnapshot(
+        _ app: XCUIApplication, accessibility: Bool, stage: String, initialDraft: String, sections: [[String: Any]]
+    ) -> (image: XCUIScreenshot, document: [String: Any]) {
+        let category = accessibility ? "accessibility5" : "large"
+        var frames = ["settings-help-close": helpFrame(app.buttons["settings-help-close"].frame)]
+        let repository = element(app, "settings-help-repository")
+        if repository.exists { frames["settings-help-repository"] = helpFrame(repository.frame) }
+        let document: [String: Any] = [
+            "schemaVersion": 1, "source": "public-XCUITest-production-app",
+            "name": "interaction-dark-\(category)-\(stage)", "theme": "dark",
+            "dynamicTypeSize": category, "stage": stage,
+            "systemContentSizeCategory": UIApplication.shared.preferredContentSizeCategory.rawValue,
+            "screenWidth": app.frame.width, "screenHeight": app.frame.height,
+            "keyboardVisible": app.keyboards.firstMatch.exists, "actions": actions, "draft": "",
+            "frames": frames,
+            "helpFlow": ["originalWorkspace": "chat", "initialDraft": initialDraft, "sections": sections],
+            "realInferenceVerified": false, "signedDistributionVerified": false
+        ]
+        return (XCUIScreen.main.screenshot(), document)
+    }
+
+    private func attachHelpSnapshot(_ screenshot: XCUIScreenshot, document: [String: Any]) throws {
+        let name = try XCTUnwrap(document["name"] as? String)
+        let image = XCTAttachment(screenshot: screenshot)
+        image.name = name
+        image.lifetime = .keepAlways
+        add(image)
+        let provenance = XCTAttachment(data: try JSONSerialization.data(withJSONObject: document, options: [.sortedKeys]),
+                                       uniformTypeIdentifier: "public.json")
+        provenance.name = name + "-provenance"
+        provenance.lifetime = .keepAlways
+        add(provenance)
     }
 
     private func assertSheet(_ app: XCUIApplication, startsLarge: Bool) {

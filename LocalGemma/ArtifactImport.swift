@@ -87,6 +87,12 @@ final class ArtifactImportControl: @unchecked Sendable {
 }
 
 enum ModelArtifactHasher {
+    private struct DirectoryEntry {
+        let url: URL
+        let path: String
+        let isDirectory: Bool
+    }
+
     static func sha256Hex(for url: URL, fileManager: FileManager = .default) -> String? {
         try? hash(url, fileManager: fileManager, control: ArtifactImportControl())
     }
@@ -99,13 +105,23 @@ enum ModelArtifactHasher {
         guard values.isSymbolicLink != true else { throw ArtifactImportError.unsafeFile(url.lastPathComponent) }
         var hasher = SHA256()
         if values.isDirectory == true {
-            var files: [URL] = []
-            try collectFiles(in: url, fileManager: fileManager, control: control, into: &files)
-            let base = url.standardizedFileURL.path + "/"
-            for file in files.sorted(by: { $0.standardizedFileURL.path < $1.standardizedFileURL.path }) {
-                let relative = String(file.standardizedFileURL.path.dropFirst(base.count))
-                hasher.update(data: Data("path:\(relative)\n".utf8))
-                try update(&hasher, file: file, control: control)
+            var entries: [DirectoryEntry] = []
+            try collectEntries(in: url, path: "", fileManager: fileManager, control: control, into: &entries)
+            // Length-prefixed paths and fixed-size content digests cannot be
+            // reinterpreted as a different package with the same byte stream.
+            hasher.update(data: Data("LocalGemma.DirectorySHA256.v1\0".utf8))
+            update(&hasher, integer: UInt64(entries.count))
+            for entry in entries.sorted(by: { $0.path.utf8.lexicographicallyPrecedes($1.path.utf8) }) {
+                try control.checkCancellation()
+                hasher.update(data: Data([entry.isDirectory ? 0x44 : 0x46]))
+                let path = Data(entry.path.utf8)
+                update(&hasher, integer: UInt64(path.count))
+                hasher.update(data: path)
+                if !entry.isDirectory {
+                    var contentHasher = SHA256()
+                    try update(&contentHasher, file: entry.url, control: control)
+                    hasher.update(data: Data(contentHasher.finalize()))
+                }
             }
         } else if values.isRegularFile == true {
             try update(&hasher, file: url, control: control)
@@ -115,24 +131,31 @@ enum ModelArtifactHasher {
         return hasher.finalize().map { String(format: "%02x", $0) }.joined()
     }
 
-    private static func collectFiles(
-        in directory: URL, fileManager: FileManager, control: ArtifactImportControl, into files: inout [URL]
+    private static func collectEntries(
+        in directory: URL, path: String, fileManager: FileManager,
+        control: ArtifactImportControl, into entries: inout [DirectoryEntry]
     ) throws {
         for child in try fileManager.contentsOfDirectory(
-            at: directory, includingPropertiesForKeys: [.isDirectoryKey, .isRegularFileKey, .isSymbolicLinkKey],
-            options: [.skipsHiddenFiles]
+            at: directory, includingPropertiesForKeys: [.isDirectoryKey, .isRegularFileKey, .isSymbolicLinkKey]
         ) {
             try control.checkCancellation()
             let values = try child.resourceValues(forKeys: [.isDirectoryKey, .isRegularFileKey, .isSymbolicLinkKey])
             guard values.isSymbolicLink != true else { throw ArtifactImportError.unsafeFile(child.lastPathComponent) }
+            let relative = path.isEmpty ? child.lastPathComponent : path + "/" + child.lastPathComponent
             if values.isDirectory == true {
-                try collectFiles(in: child, fileManager: fileManager, control: control, into: &files)
+                entries.append(DirectoryEntry(url: child, path: relative, isDirectory: true))
+                try collectEntries(in: child, path: relative, fileManager: fileManager, control: control, into: &entries)
             } else if values.isRegularFile == true {
-                files.append(child)
+                entries.append(DirectoryEntry(url: child, path: relative, isDirectory: false))
             } else {
                 throw ArtifactImportError.unsafeFile(child.lastPathComponent)
             }
         }
+    }
+
+    private static func update(_ hasher: inout SHA256, integer: UInt64) {
+        var encoded = integer.bigEndian
+        withUnsafeBytes(of: &encoded) { hasher.update(data: Data($0)) }
     }
 
     private static func update(
@@ -161,33 +184,42 @@ struct ModelArtifactStore {
 
     static func validate(
         manifest: ModelArtifactManifest, observedSHA256: String? = nil,
+        observedTokenizerSHA256: String? = nil,
         fileManager: FileManager = .default
     ) -> ArtifactValidationResult {
         validate(manifest: manifest, directoryURL: defaultDirectoryURL(fileManager: fileManager),
-                 observedSHA256: observedSHA256, fileManager: fileManager)
+                 observedSHA256: observedSHA256, observedTokenizerSHA256: observedTokenizerSHA256,
+                 fileManager: fileManager)
     }
 
     static func validate(
         manifest: ModelArtifactManifest, directoryURL: URL, observedSHA256: String? = nil,
+        observedTokenizerSHA256: String? = nil,
         fileManager: FileManager = .default
     ) -> ArtifactValidationResult {
         lock.withLock {
-            let statuses = manifest.requiredFiles.map { name in
-                let url = directoryURL.appendingPathComponent(name)
-                var isDirectory = ObjCBool(false)
-                let exists = fileManager.fileExists(atPath: url.path, isDirectory: &isDirectory)
-                let attributes = exists ? try? fileManager.attributesOfItem(atPath: url.path) : nil
-                return ArtifactFileStatus(fileName: name, exists: exists,
-                    byteCount: (attributes?[.size] as? NSNumber)?.int64Value, isDirectory: isDirectory.boolValue)
+            if let values = try? directoryURL.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey]),
+               values.isDirectory == true, values.isSymbolicLink != true {
+                // Migrate an existing managed store without changing its files.
+                try? excludeFromBackup(directoryURL)
             }
+            let statuses = LocalArtifactValidator.fileStatuses(manifest: manifest, in: directoryURL, fileManager: fileManager)
+            let safeFiles = manifest.hasSafeConfiguration
+                && statuses.allSatisfy { LocalArtifactValidator.hasExpectedFileType($0, manifest: manifest) }
             let shouldHash = observedSHA256 == nil
                 && LocalArtifactValidator.isConcreteSHA256(manifest.expectedSHA256.trimmingCharacters(in: .whitespacesAndNewlines))
-                && statuses.allSatisfy(\.exists)
+                && safeFiles
             let computed = shouldHash ? ModelArtifactHasher.sha256Hex(
                 for: directoryURL.appendingPathComponent(manifest.modelFileName), fileManager: fileManager
             ) : nil
+            let shouldHashTokenizer = !manifest.tokenizerIsEmbedded && observedTokenizerSHA256 == nil && safeFiles
+                && LocalArtifactValidator.isConcreteSHA256(manifest.expectedTokenizerSHA256?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "")
+            let computedTokenizer = shouldHashTokenizer ? ModelArtifactHasher.sha256Hex(
+                for: directoryURL.appendingPathComponent(manifest.tokenizerFileName), fileManager: fileManager
+            ) : nil
             return LocalArtifactValidator.validate(manifest: manifest, fileStatuses: statuses,
-                                                   observedSHA256: observedSHA256 ?? computed)
+                observedSHA256: observedSHA256 ?? computed,
+                observedTokenizerSHA256: observedTokenizerSHA256 ?? computedTokenizer)
         }
     }
 
@@ -213,6 +245,15 @@ struct ModelArtifactStore {
             let selected = manifest.requiredFiles.compactMap { sources[$0]?.first }
             var total: Int64 = 0
             for source in selected {
+                let attributes = try fileManager.attributesOfItem(atPath: source.path)
+                let type = attributes[.type] as? FileAttributeType
+                let status = ArtifactFileStatus(fileName: source.lastPathComponent, exists: true,
+                    byteCount: (attributes[.size] as? NSNumber)?.int64Value,
+                    isDirectory: type == .typeDirectory, isRegularFile: type == .typeRegular,
+                    isSymbolicLink: type == .typeSymbolicLink)
+                guard LocalArtifactValidator.hasExpectedFileType(status, manifest: manifest) else {
+                    throw ArtifactImportError.unsafeFile(source.lastPathComponent)
+                }
                 total += try byteCount(source, fileManager: fileManager, control: control)
             }
             let stage = try snapshot(destinationDirectoryURL, excluding: Set(manifest.requiredFiles),
@@ -238,10 +279,16 @@ struct ModelArtifactStore {
             let hash = LocalArtifactValidator.isConcreteSHA256(manifest.expectedSHA256.trimmingCharacters(in: .whitespacesAndNewlines))
                 ? try ModelArtifactHasher.hash(stage.appendingPathComponent(manifest.modelFileName),
                                               fileManager: fileManager, control: control) : nil
+            let tokenizerHash = !manifest.tokenizerIsEmbedded
+                && LocalArtifactValidator.isConcreteSHA256(manifest.expectedTokenizerSHA256?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "")
+                ? try ModelArtifactHasher.hash(stage.appendingPathComponent(manifest.tokenizerFileName),
+                                              fileManager: fileManager, control: control) : nil
             let result = validate(manifest: manifest, directoryURL: stage,
-                                  observedSHA256: hash, fileManager: fileManager)
+                observedSHA256: hash, observedTokenizerSHA256: tokenizerHash, fileManager: fileManager)
             guard result.hasRequiredFiles else { throw ArtifactImportError.missingRequiredFiles(result.missingFiles) }
+            if let invalidFile = result.invalidFiles.first { throw ArtifactImportError.unsafeFile(invalidFile) }
             if result.hasConcreteExpectedHash && !result.hasVerifiedHash { throw ArtifactImportError.hashMismatch }
+            if result.hasConcreteExpectedTokenizerHash && !result.hasVerifiedTokenizerHash { throw ArtifactImportError.hashMismatch }
             try control.beginCommit()
             progress(ArtifactImportProgress(phase: .committing))
             try commit(stage, to: destinationDirectoryURL, fileManager: fileManager)
@@ -273,6 +320,7 @@ struct ModelArtifactStore {
         guard Set(manifest.requiredFiles).count == manifest.requiredFiles.count else {
             throw ArtifactImportError.ambiguousSelection(manifest.modelFileName)
         }
+        guard manifest.hasSafeConfiguration else { throw ArtifactImportError.unsafeFile(manifest.modelFileName) }
     }
 
     private static func byteCount(
@@ -332,11 +380,13 @@ struct ModelArtifactStore {
         let stage = parent.appendingPathComponent(".\(destination.lastPathComponent)-import-\(UUID().uuidString)", isDirectory: true)
         try fileManager.createDirectory(at: stage, withIntermediateDirectories: false)
         do {
+            try excludeFromBackup(stage)
             if fileManager.fileExists(atPath: destination.path) {
                 let values = try destination.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
                 guard values.isDirectory == true, values.isSymbolicLink != true else {
                     throw ArtifactImportError.unsafeFile(destination.lastPathComponent)
                 }
+                try excludeFromBackup(destination)
                 for child in try fileManager.contentsOfDirectory(at: destination, includingPropertiesForKeys: nil)
                     where !names.contains(child.lastPathComponent) {
                     try linkUnchanged(child, to: stage.appendingPathComponent(child.lastPathComponent),
@@ -348,6 +398,13 @@ struct ModelArtifactStore {
             try? fileManager.removeItem(at: stage)
             throw error
         }
+    }
+
+    private static func excludeFromBackup(_ directory: URL) throws {
+        var url = directory
+        var values = URLResourceValues()
+        values.isExcludedFromBackup = true
+        try url.setResourceValues(values)
     }
 
     // Unchanged artifacts are immutable during a store operation. Hard links

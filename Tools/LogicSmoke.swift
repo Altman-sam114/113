@@ -45,17 +45,24 @@ enum LogicSmoke {
             fileFormat: "Core ML compiled package",
             storageDirectory: "Application Support/LocalModels",
             expectedSHA256: concreteHash,
+            expectedTokenizerSHA256: "5f97e3774c51edd1d63706c2ec3826c564a067794770cdab0f8c4797971cacf9",
             allowsNetworkDownload: false,
             importInstruction: "手动导入测试模型。"
         )
         let verifiedValidation = LocalArtifactValidator.validate(
             manifest: concreteManifest,
             presentFiles: Set(concreteManifest.requiredFiles),
-            observedSHA256: concreteHash
+            observedSHA256: concreteHash,
+            observedTokenizerSHA256: concreteManifest.expectedTokenizerSHA256
         )
         expect(verifiedValidation.availability == .verified, "matching concrete hash should verify artifacts")
         expect(verifiedValidation.hasVerifiedHash == true, "verified validation should record hash success")
+        expect(verifiedValidation.hasVerifiedTokenizerHash, "verified external artifacts require their independent tokenizer digest")
         expect(verifiedValidation.canPromoteToRealRuntime == true, "verified validation should promote real runtime")
+        let modelOnlyValidation = LocalArtifactValidator.validate(
+            manifest: concreteManifest, presentFiles: Set(concreteManifest.requiredFiles), observedSHA256: concreteHash
+        )
+        expect(modelOnlyValidation.availability == .staged, "the model digest alone must not authenticate an external tokenizer")
 
         let diskDirectoryURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("LocalGemmaSmoke-\(UUID().uuidString)", isDirectory: true)
@@ -68,9 +75,10 @@ enum LogicSmoke {
             let diskManifest = ModelArtifactManifest(
                 modelFileName: modelFileName,
                 tokenizerFileName: tokenizerFileName,
-                fileFormat: "Core ML compiled package",
+                fileFormat: "Raw binary",
                 storageDirectory: diskDirectoryURL.path,
                 expectedSHA256: "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+                expectedTokenizerSHA256: "5f97e3774c51edd1d63706c2ec3826c564a067794770cdab0f8c4797971cacf9",
                 allowsNetworkDownload: false,
                 importInstruction: "手动导入测试模型。"
             )
@@ -80,7 +88,23 @@ enum LogicSmoke {
             )
             expect(diskValidation.availability == .verified, "disk scan should verify matching SHA-256")
             expect(diskValidation.observedSHA256 == diskManifest.expectedSHA256, "disk scan should record computed SHA-256")
+            expect(diskValidation.observedTokenizerSHA256 == diskManifest.expectedTokenizerSHA256, "disk scan should independently hash the tokenizer")
             expect(Set(diskValidation.presentFiles) == Set(diskManifest.requiredFiles), "disk scan should list present artifact files")
+            try Data("tampered tokenizer".utf8).write(to: diskDirectoryURL.appendingPathComponent(tokenizerFileName))
+            let tampered = ModelArtifactStore.validate(manifest: diskManifest, directoryURL: diskDirectoryURL)
+            expect(tampered.availability == .staged && tampered.hasVerifiedHash && !tampered.hasVerifiedTokenizerHash,
+                   "changing only the tokenizer must revoke verified availability")
+
+            let embeddedURL = diskDirectoryURL.appendingPathComponent("embedded.gguf")
+            try Data("abc".utf8).write(to: embeddedURL)
+            let embeddedManifest = ModelArtifactManifest(
+                modelFileName: "embedded.gguf", tokenizerFileName: "", fileFormat: "GGUF",
+                storageDirectory: diskDirectoryURL.path, expectedSHA256: diskManifest.expectedSHA256,
+                tokenizerIsEmbedded: true, allowsNetworkDownload: false, importInstruction: ""
+            )
+            let embedded = ModelArtifactStore.validate(manifest: embeddedManifest, directoryURL: diskDirectoryURL)
+            expect(embeddedManifest.requiredFiles == ["embedded.gguf"] && embedded.availability == .verified,
+                   "an embedded GGUF tokenizer is authenticated by the one required model file")
         } catch {
             failures.append("disk artifact smoke setup failed: \(error)")
         }
@@ -101,9 +125,10 @@ enum LogicSmoke {
             let importManifest = ModelArtifactManifest(
                 modelFileName: modelFileName,
                 tokenizerFileName: tokenizerFileName,
-                fileFormat: "Core ML compiled package",
+                fileFormat: "Raw binary",
                 storageDirectory: importDestinationURL.path,
                 expectedSHA256: "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+                expectedTokenizerSHA256: "5f97e3774c51edd1d63706c2ec3826c564a067794770cdab0f8c4797971cacf9",
                 allowsNetworkDownload: false,
                 importInstruction: "手动导入测试模型。"
             )
@@ -115,6 +140,19 @@ enum LogicSmoke {
             expect(importValidation.availability == .verified, "manual import should copy and verify matching artifacts")
             expect(FileManager.default.fileExists(atPath: importDestinationURL.appendingPathComponent(modelFileName).path), "manual import should copy model file")
             expect(FileManager.default.fileExists(atPath: importDestinationURL.appendingPathComponent(tokenizerFileName).path), "manual import should copy tokenizer file")
+
+            try Data("tampered tokenizer".utf8).write(to: tokenizerURL)
+            do {
+                _ = try ModelArtifactStore.importArtifacts(
+                    manifest: importManifest, sourceURLs: [modelURL, tokenizerURL], destinationDirectoryURL: importDestinationURL
+                )
+                failures.append("a tokenizer mismatch must not commit")
+            } catch {
+                expect(error as? ArtifactImportError == .hashMismatch, "a tokenizer mismatch should report hash failure")
+            }
+            let preservedTokenizer = try Data(contentsOf: importDestinationURL.appendingPathComponent(tokenizerFileName))
+            expect(preservedTokenizer == Data("tokenizer".utf8), "tokenizer verification failure must preserve the previous generation")
+            try Data("tokenizer".utf8).write(to: tokenizerURL)
 
             try Data("mismatched replacement".utf8).write(to: modelURL)
             do {
@@ -175,6 +213,7 @@ enum LogicSmoke {
                     fileFormat: "Core ML compiled package",
                     storageDirectory: packageDestinationURL.path,
                     expectedSHA256: expectedHash,
+                    expectedTokenizerSHA256: "5f97e3774c51edd1d63706c2ec3826c564a067794770cdab0f8c4797971cacf9",
                     allowsNetworkDownload: false,
                     importInstruction: "手动导入测试模型。"
                 )
@@ -269,8 +308,11 @@ enum LogicSmoke {
         let realVerifiedResult = RealGemmaRuntimePlaceholder().generate(
             InferenceRequest(prompt: "启动真实模型", model: catalog.selectedModel, artifactAvailability: .verified)
         )
-        expect(realVerifiedResult.isSimulated == false, "verified real runtime placeholder should expose real runtime readiness")
-        expect(realVerifiedResult.backend == .coreMLANE, "verified real runtime should use primary backend")
+        expect(realVerifiedResult.isSimulated == true, "verified artifacts cannot make placeholder text real inference")
+        expect(realVerifiedResult.preparationReport.canRunRealWeights == false, "placeholder backend must remain unavailable")
+        expect(realVerifiedResult.preparationReport.availability == .verified, "runtime blocking must preserve artifact integrity status")
+        expect(realVerifiedResult.preparationReport.blockers.isEmpty == false, "placeholder must explain its unavailable backend")
+        expect(realVerifiedResult.backend == .metalPerformanceShaders, "placeholder should report only the planned fallback")
 
         let provider = GemmaSimulationProvider()
         let deploymentAnswer = provider.response(for: "说明 iPhone 芯片部署优化和 Metal 路径", model: catalog.selectedModel)

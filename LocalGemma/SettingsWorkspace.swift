@@ -5,11 +5,14 @@ import UIKit
 import UniformTypeIdentifiers
 
 struct SettingsWorkspace: View {
+    @Environment(\.appTheme) private var theme
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.compactWorkbench) private var isCompact
+    @Environment(\.isEnabled) private var isEnabled
     @State private var selectedWallpaperItem: PhotosPickerItem?
     @State private var isImportingWallpaper = false
     @State private var wallpaperImportError: String?
+    @State private var showsHelp = false
 
     let themeMode: AppThemeMode
     let wallpaperData: Data
@@ -46,6 +49,8 @@ struct SettingsWorkspace: View {
                     } runtime: {
                         SettingsRuntimeSection(availableWidth: plan.runtimeWidth)
                     }
+
+                    SettingsHelpButton { showsHelp = true }
                 }
                 .frame(width: plan.contentWidth, alignment: .leading)
                 .frame(maxWidth: .infinity, alignment: .center)
@@ -97,6 +102,184 @@ struct SettingsWorkspace: View {
         } message: {
             Text(wallpaperImportError ?? "")
         }
+        .sheet(isPresented: $showsHelp) {
+            SettingsHelpSheet()
+                .environment(\.appTheme, theme)
+                .preferredColorScheme(theme.mode.colorScheme)
+        }
+        .onChange(of: isEnabled) { _, enabled in
+            if !enabled { showsHelp = false }
+        }
+    }
+}
+
+struct SettingsHelpSection: Identifiable, Sendable {
+    let id: String
+    let title: String
+    let body: String
+}
+
+enum SettingsHelpContent {
+    static let title = "关于、隐私与帮助"
+    static let minimumTouchTarget: CGFloat = 48
+    static let buttonIdentifier = "settings-help-open"
+    static let closeIdentifier = "settings-help-close"
+    static let supportIdentifier = "settings-help-repository"
+    static let repositoryURL = URL(string: "https://github.com/Altman-sam114/113")
+    static let sections = [
+        SettingsHelpSection(
+            id: "capabilities", title: "当前能力",
+            body: "当前版本是本地 AI 工作台原型，默认使用模拟回复，不会实际改写、翻译或总结输入。模型文件校验为 verified 只说明文件通过校验，不代表真实推理已接入；参考速度、内存和设备预算并非实测。"
+        ),
+        SettingsHelpSection(
+            id: "privacy", title: "App 不主动上传",
+            body: "App 不发起对话、草稿、模型或壁纸的网络上传，不收集使用分析，不用于广告跟踪，也不自动下载模型权重。运行策略中的隐私开关不代表开启任何云端服务。"
+        ),
+        SettingsHelpSection(
+            id: "storage", title: "本机保存与系统备份",
+            body: "对话和逐会话草稿保存在 App 的本机目录；App 为会话目录（含修复原件）和托管模型目录设置不参与系统备份的标记。会话和新导入模型设置失败时会报错；既有托管模型扫描时尝试迁移，系统拒绝设置时不能保证排除。卸载 App 会失去未导出的对话。壁纸会在本机压缩后与外观偏好保存，仍可能进入系统备份。系统备份、设备迁移与剪贴板同步由系统设置决定，“App 不主动上传”不等于关闭这些系统功能。"
+        ),
+        SettingsHelpSection(
+            id: "sharing", title: "分享由你决定",
+            body: "导出生成本机 Markdown 文件；文件不可用时可分享文本。只有你操作分享或复制后，内容才交给系统分享面板或剪贴板。接收 App 的网络行为和系统剪贴板能力不由本 App 控制；请勿分享不希望外传的内容。"
+        ),
+        SettingsHelpSection(
+            id: "deletion", title: "删除、恢复与修复",
+            body: "在会话记录中删除并确认，可移除相应本机对话和草稿；模型页卸载并确认只删除 App 托管副本，不删除 Files 中的原始文件。设置中恢复系统背景可移除 App 保存的自定义壁纸。读取失败时，只有明确选择“保留原件并修复”才会重建记录，原件备份仍保留在不参与系统备份的会话目录。已导出文件、既有系统备份和其他 App 的副本需分别管理。"
+        ),
+        SettingsHelpSection(
+            id: "models", title: "模型与授权",
+            body: "App 不附带可运行的真实模型权重。手动导入前请确认文件来源、格式和相应模型许可；模拟文件不是真实权重。模型名称与参数只用于本地部署计划展示，不代表相关模型提供方的认可。"
+        ),
+        SettingsHelpSection(
+            id: "support", title: "帮助与反馈",
+            body: "遇到问题时，可记录 App 版本、设备系统版本、操作步骤与错误提示。请自行去除对话、文件路径或图片中的敏感内容；App 不自动附带会话、草稿、模型文件或诊断信息。下方链接仅在你点按后由系统打开外部项目页面，网络访问遵循浏览器和网站的规则。"
+        )
+    ]
+
+    static func versionDescription(info: [String: Any]) -> String {
+        func value(_ key: String) -> String {
+            guard let text = info[key] as? String,
+                  !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return "未提供" }
+            return text.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        return "版本 \(value("CFBundleShortVersionString")) · 构建 \(value("CFBundleVersion"))"
+    }
+}
+
+struct SettingsHelpButton: View {
+    @Environment(\.appTheme) private var theme
+    let open: () -> Void
+
+    var body: some View {
+        Button(action: open) {
+            HStack(spacing: 12) {
+                Image(systemName: "info.circle")
+                    .font(.system(size: 18, weight: .medium))
+                    .accessibilityHidden(true)
+                Text(SettingsHelpContent.title)
+                    .font(.body)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .accessibilityHidden(true)
+            }
+            .foregroundStyle(theme.primaryText)
+            .frame(maxWidth: .infinity, minHeight: SettingsHelpContent.minimumTouchTarget, alignment: .leading)
+            .padding(.horizontal, 14)
+            .background(theme.surface, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(SettingsHelpContent.title)
+        .accessibilityHint("打开本地说明、隐私边界和版本信息，不发送内容或启动真实推理。")
+        .accessibilityInputLabels([SettingsHelpContent.title, "隐私与帮助", "关于"])
+        .accessibilityIdentifier(SettingsHelpContent.buttonIdentifier)
+    }
+}
+
+struct SettingsHelpSheet: View {
+    @Environment(\.appTheme) private var theme
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 12) {
+                Text(SettingsHelpContent.title)
+                    .font(.title2.weight(.semibold))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityAddTraits(.isHeader)
+                Button { dismiss() } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 16, weight: .semibold))
+                        .frame(width: SettingsHelpContent.minimumTouchTarget, height: SettingsHelpContent.minimumTouchTarget)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("关闭隐私与帮助")
+                .accessibilityInputLabels(["关闭隐私与帮助", "关闭"])
+                .accessibilityIdentifier(SettingsHelpContent.closeIdentifier)
+            }
+            .foregroundStyle(theme.primaryText)
+            .padding(.horizontal, 18)
+            .padding(.top, 12)
+
+            ScrollView {
+                SettingsHelpBody(versionDescription: SettingsHelpContent.versionDescription(info: Bundle.main.infoDictionary ?? [:]))
+                    .padding(18)
+                    .frame(maxWidth: 760, alignment: .leading)
+                    .frame(maxWidth: .infinity)
+            }
+        }
+        .background(theme.canvas)
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
+    }
+}
+
+struct SettingsHelpBody: View {
+    @Environment(\.appTheme) private var theme
+    let versionDescription: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 24) {
+            Text(versionDescription)
+                .font(.subheadline.monospaced())
+                .foregroundStyle(theme.secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
+
+            ForEach(SettingsHelpContent.sections) { section in
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(section.title)
+                        .font(.headline)
+                        .foregroundStyle(theme.primaryText)
+                        .accessibilityAddTraits(.isHeader)
+                    Text(section.body)
+                        .font(.body)
+                        .foregroundStyle(theme.secondaryText)
+                        .lineSpacing(3)
+                        .textSelection(.enabled)
+                }
+                .fixedSize(horizontal: false, vertical: true)
+            }
+
+            if let url = SettingsHelpContent.repositoryURL {
+                Link(destination: url) {
+                    Label("在浏览器中查看项目", systemImage: "arrow.up.right.square")
+                        .font(.body.weight(.medium))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, minHeight: SettingsHelpContent.minimumTouchTarget, alignment: .leading)
+                        .contentShape(Rectangle())
+                }
+                .foregroundStyle(theme.accent)
+                .accessibilityHint("由系统打开外部项目页面；不会自动附带对话、草稿、模型文件或诊断信息。")
+                .accessibilityInputLabels(["在浏览器中查看项目", "项目页面"])
+                .accessibilityIdentifier(SettingsHelpContent.supportIdentifier)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

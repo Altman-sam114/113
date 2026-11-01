@@ -4,7 +4,7 @@ import sys
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from iphone_interaction_evidence import TESTS, expected_captures, validate_capture, validate_results
+from iphone_interaction_evidence import HELP_SECTIONS, TESTS, expected_captures, validate_capture, validate_results
 
 
 class IPhoneInteractionEvidenceTests(unittest.TestCase):
@@ -28,7 +28,7 @@ class IPhoneInteractionEvidenceTests(unittest.TestCase):
         for category in TESTS:
             document = self.capture(category)
             validate_capture(document, category, (750, 1334))
-            self.assertEqual(len(expected_captures(category)), 11)
+            self.assertEqual(len(expected_captures(category)), 13)
             for key, value in (("source", "host-render"), ("screenWidth", 390),
                                ("realInferenceVerified", True), ("signedDistributionVerified", 0),
                                ("systemContentSizeCategory", "injected-font-size"), ("stage", "fixture")):
@@ -73,7 +73,7 @@ class IPhoneInteractionEvidenceTests(unittest.TestCase):
                 validate_capture(bad, "large", (750, 1334))
 
     def test_all_selected_tests_must_succeed_once_on_the_recorded_device(self):
-        summary = {"result": "Passed", "totalTestCount": 3, "passedTests": 3,
+        summary = {"result": "Passed", "totalTestCount": 4, "passedTests": 4,
                    "failedTests": 0, "skippedTests": 0, "expectedFailures": 0, "testFailures": []}
         for category, names in TESTS.items():
             tree = {"devices": [{"deviceId": "exact-udid"}], "testNodes": [
@@ -89,6 +89,122 @@ class IPhoneInteractionEvidenceTests(unittest.TestCase):
             duplicate["testNodes"][1] = duplicate["testNodes"][0]
             with self.assertRaises(ValueError):
                 validate_results(summary, duplicate, category, "exact-udid")
+
+    def help_capture(self, category="large", stage="help-bottom"):
+        document = self.capture(category, stage)
+        document["actions"] = ["tap:session-bar-action-createSession", "tap:composer-input-field",
+                               "type:local-draft-without-send", "tap:composer-keyboard-done",
+                               "tap:workspace-tab-settings", "tap:settings-help-open"]
+        document["frames"] = {
+            "settings-help-close": {"x": 309, "y": 55, "width": 48, "height": 48},
+            "settings-help-repository": {"x": 18, "y": 550, "width": 339, "height": 48},
+        }
+        document["helpFlow"] = {"originalWorkspace": "chat", "initialDraft": "Keep this draft", "sections": []}
+        if stage == "help-open":
+            return document
+        for identifier, title, prefix, required in HELP_SECTIONS:
+            document["actions"] += ["scroll:help-content-up", f"read:help-{identifier}"]
+            document["helpFlow"]["sections"].append({
+                "id": identifier, "title": title, "text": prefix + " " + " ".join(required),
+                "frame": {"x": 18, "y": 200, "width": 339, "height": 160},
+                "viewport": {"x": 0, "y": 140, "width": 375, "height": 500},
+            })
+        document["completion"] = {
+            "source": "post-dismiss-live-XCUI-snapshot", "settingsRestoredAfterClose": True,
+            "actions": document["actions"] + ["tap:settings-help-close", "tap:workspace-tab-chat"],
+            "workspace": "chat", "workspaceSelected": True, "draft": "Keep this draft",
+            "keyboardVisible": True, "helpVisible": False,
+            "composerFrame": {"x": 18, "y": 350, "width": 270, "height": 48},
+            "keyboardFrame": {"x": 0, "y": 420, "width": 375, "height": 247},
+        }
+        return document
+
+    def test_help_adds_evidence_without_replacing_original_tests_or_screens(self):
+        for category in TESTS:
+            for stage in ("help-open", "help-bottom"):
+                validate_capture(self.help_capture(category, stage), category, (750, 1334))
+            expected = expected_captures(category)
+            self.assertEqual(len(TESTS[category]), 4)
+            self.assertEqual(len(expected), 13)
+            for theme in ("light", "dark"):
+                for stage in ("open", "expanded", "managed-models", "returned-chat"):
+                    self.assertIn(f"interaction-{theme}-{category}-{stage}", expected)
+            for stage in ("draft-keyboard", "draft-sheet", "draft-returned", "help-open", "help-bottom"):
+                self.assertIn(f"interaction-dark-{category}-{stage}", expected)
+
+    def test_help_requires_real_ordered_production_navigation_and_all_complete_sections(self):
+        original = self.help_capture()
+        for action in ("tap:composer-keyboard-done", "tap:workspace-tab-settings", "tap:settings-help-open",
+                       "read:help-storage", "read:help-support"):
+            bad = copy.deepcopy(original)
+            bad["actions"].remove(action)
+            with self.assertRaises(ValueError):
+                validate_capture(bad, "large", (750, 1334))
+        bad = copy.deepcopy(original)
+        bad["actions"][4:6] = reversed(bad["actions"][4:6])
+        with self.assertRaises(ValueError):
+            validate_capture(bad, "large", (750, 1334))
+        for key, value in (("id", "placeholder"), ("title", "截断标题"), ("text", "摘要代替完整正文")):
+            bad = copy.deepcopy(original)
+            bad["helpFlow"]["sections"][2][key] = value
+            with self.assertRaises(ValueError):
+                validate_capture(bad, "large", (750, 1334))
+        bad = copy.deepcopy(original)
+        bad["helpFlow"]["sections"].pop()
+        with self.assertRaises(ValueError):
+            validate_capture(bad, "large", (750, 1334))
+
+    def test_help_keyboard_dismissal_must_follow_typing_even_when_an_earlier_dismissal_exists(self):
+        document = self.help_capture(stage="help-open")
+        document["actions"].insert(1, "tap:composer-keyboard-done")
+        validate_capture(document, "large", (750, 1334))
+        document["actions"].remove("type:local-draft-without-send")
+        document["actions"].append("type:local-draft-without-send")
+        with self.assertRaises(ValueError):
+            validate_capture(document, "large", (750, 1334))
+        document = self.help_capture(stage="help-open")
+        document["actions"].remove("tap:composer-keyboard-done")
+        document["actions"].insert(1, "tap:composer-keyboard-done")
+        with self.assertRaises(ValueError):
+            validate_capture(document, "large", (750, 1334))
+
+    def test_help_readonly_text_and_actions_need_actual_visible_geometry(self):
+        for identifier in ("settings-help-close", "settings-help-repository"):
+            for key, value in (("width", 43), ("height", 43), ("y", 650), ("x", float("nan"))):
+                bad = self.help_capture()
+                bad["frames"][identifier][key] = value
+                with self.assertRaises(ValueError):
+                    validate_capture(bad, "large", (750, 1334))
+        for key, value in (("y", 650), ("height", 0), ("x", float("inf")), ("width", True)):
+            bad = self.help_capture()
+            bad["helpFlow"]["sections"][3]["frame"][key] = value
+            with self.assertRaises(ValueError):
+                validate_capture(bad, "large", (750, 1334))
+        bad = self.help_capture()
+        bad["helpFlow"]["sections"][3]["frame"]["height"] = 2_000
+        bad["helpFlow"]["sections"][3]["frame"]["y"] = -500
+        validate_capture(bad, "large", (750, 1334))
+
+    def test_help_completion_must_be_later_real_close_and_original_chat_restore(self):
+        for key, value in (("source", "host-fixture"), ("settingsRestoredAfterClose", False),
+                           ("workspace", "models"), ("workspaceSelected", False), ("draft", "Keep this"),
+                           ("keyboardVisible", False), ("helpVisible", True), ("actions", [])):
+            bad = self.help_capture()
+            bad["completion"][key] = value
+            with self.assertRaises(ValueError):
+                validate_capture(bad, "large", (750, 1334))
+        bad = self.help_capture()
+        bad["completion"]["actions"][-2:] = reversed(bad["completion"]["actions"][-2:])
+        with self.assertRaises(ValueError):
+            validate_capture(bad, "large", (750, 1334))
+        bad = self.help_capture()
+        bad["completion"]["composerFrame"]["y"] = 410
+        with self.assertRaises(ValueError):
+            validate_capture(bad, "large", (750, 1334))
+        bad = self.help_capture()
+        bad["actions"].append("tap:settings-help-repository")
+        with self.assertRaises(ValueError):
+            validate_capture(bad, "large", (750, 1334))
 
 
 if __name__ == "__main__":
