@@ -4,7 +4,7 @@ import sys
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from iphone_interaction_evidence import HELP_SECTIONS, TESTS, expected_captures, validate_capture, validate_results
+from iphone_interaction_evidence import HELP_SECTIONS, TESTS, expected_captures, selected_tests, validate_capture, validate_results
 
 
 class IPhoneInteractionEvidenceTests(unittest.TestCase):
@@ -23,6 +23,23 @@ class IPhoneInteractionEvidenceTests(unittest.TestCase):
                 "header-action-open-model-library": {"x": 18, "y": 580, "width": 339, "height": 48},
             },
         }
+
+    def test_license_profile_is_explicit_and_cannot_pass_as_the_full_suite(self):
+        for category in TESTS:
+            names = selected_tests(category, "license")
+            self.assertEqual(len(names), 1)
+            self.assertEqual(len(expected_captures(category, "license")), 2)
+            summary = {"result": "Passed", "totalTestCount": 1, "passedTests": 1,
+                       "failedTests": 0, "skippedTests": 0, "expectedFailures": 0, "testFailures": []}
+            tree = {"devices": [{"deviceId": "exact"}], "testNodes": [
+                {"name": name + "()", "nodeType": "Test Case", "result": "Passed"} for name in names]}
+            validate_results(summary, tree, category, "exact", "license")
+            with self.assertRaises(ValueError):
+                validate_results(summary, tree, category, "exact")
+            with self.assertRaises(ValueError):
+                validate_capture(self.capture(category), category, (750, 1334), "license")
+        with self.assertRaises(ValueError):
+            selected_tests("large", "arbitrary-subset")
 
     def test_exact_original_small_phone_and_real_system_category_required(self):
         for category in TESTS:
@@ -134,9 +151,9 @@ class IPhoneInteractionEvidenceTests(unittest.TestCase):
 
     def test_native_license_review_requires_real_controls_and_cancel_without_acceptance(self):
         document = self.capture(stage="license-open")
-        document.update(selectedModel="Gemma 3 1B artifact missing", licenseReviewVisible=True,
+        document.update(selectedModel="Gemma 3 1B，缺少本地 artifact", licenseReviewVisible=True,
                         actions=["tap:workspace-tab-models", "tap:model-selector-picker", "tap:native-model-choice",
-                                 "tap:model-artifact-action-importFiles"], frames={
+                                 "tap:model-artifact-action-import"], frames={
                             "model-license-cancel": {"x": 290, "y": 50, "width": 60, "height": 48},
                             "model-license-confirm-import": {"x": 18, "y": 550, "width": 339, "height": 64}})
         validate_capture(document, "large", (750, 1334))

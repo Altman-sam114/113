@@ -4178,10 +4178,10 @@ final class LocalGemmaTests: XCTestCase {
             XCTAssertTrue(applyHint.contains("不会发送到云端服务"))
 
             let sendHint = PromptTemplateActionAccessibilityMetadata.hint(for: .send, template: template)
-            XCTAssertTrue(sendHint.contains("本地模拟 runtime"))
+            XCTAssertTrue(sendHint.contains("本地 runtime"))
             XCTAssertTrue(sendHint.contains("聚焦输入框"))
             XCTAssertTrue(sendHint.contains("不会下载模型权重"))
-            XCTAssertTrue(sendHint.contains("不会启动真实 runtime"))
+            XCTAssertTrue(sendHint.contains("仅已登记且 artifact verified 的模型可启动真实推理"))
             XCTAssertTrue(sendHint.contains("不会发送到云端服务"))
             XCTAssertTrue(sendHint.contains("verified 门禁"))
 
@@ -5282,10 +5282,13 @@ final class LocalGemmaTests: XCTestCase {
             ComposerInputMetadata.actionHint(text: "", isGenerating: true)
         ] {
             XCTAssertTrue(hint.contains("不会下载模型权重"))
-            XCTAssertTrue(hint.contains("不会启动真实 runtime"))
             XCTAssertTrue(hint.contains("不会发送到云端服务"))
             XCTAssertTrue(hint.contains("verified 门禁"))
         }
+        XCTAssertTrue(ComposerInputMetadata.actionHint(text: "说明端侧部署", isGenerating: false)
+            .contains("仅已登记且 artifact verified 的模型可启动真实推理"))
+        XCTAssertTrue(ComposerInputMetadata.actionHint(text: "", isGenerating: true)
+            .contains("模拟和真实任务都会取消"))
         XCTAssertTrue(ComposerInputMetadata.isActionDisabled(text: " \n", isGenerating: false))
         XCTAssertFalse(ComposerInputMetadata.isActionDisabled(text: "说明端侧部署", isGenerating: false))
         XCTAssertFalse(ComposerInputMetadata.isActionDisabled(text: "", isGenerating: true))
@@ -6653,11 +6656,12 @@ final class LocalGemmaTests: XCTestCase {
             ComposerInputMetadata.actionHint(text: "", isGenerating: true)
         ]
         XCTAssertTrue(composerActionHints[0].contains("输入内容后可发送"))
-        XCTAssertTrue(composerActionHints[1].contains("发送当前输入给本地模拟 runtime"))
-        XCTAssertTrue(composerActionHints[2].contains("停止当前模拟生成"))
+        XCTAssertTrue(composerActionHints[1].contains("发送当前输入给本地 runtime"))
+        XCTAssertTrue(composerActionHints[1].contains("仅已登记且 artifact verified 的模型可启动真实推理"))
+        XCTAssertTrue(composerActionHints[2].contains("停止当前本地生成"))
+        XCTAssertTrue(composerActionHints[0].contains("不会启动真实 runtime"))
         for hint in composerActionHints {
             XCTAssertTrue(hint.contains("不会下载模型权重"))
-            XCTAssertTrue(hint.contains("不会启动真实 runtime"))
             XCTAssertTrue(hint.contains("不会发送到云端服务"))
             XCTAssertTrue(hint.contains("verified 门禁"))
         }
@@ -7680,7 +7684,8 @@ final class LocalGemmaTests: XCTestCase {
         XCTAssertTrue(verifiedRealValue.contains("artifact verified"))
         XCTAssertTrue(verifiedRealValue.contains("生成状态 已就绪"))
         XCTAssertTrue(verifiedRealValue.contains("准备度 100%"))
-        XCTAssertTrue(verifiedRealValue.contains("需 artifact verified 后才可进入真实运行计划"))
+        XCTAssertTrue(verifiedRealValue.contains("已执行本机文本推理"))
+        XCTAssertTrue(verifiedRealValue.contains("仅 artifact verified 的模型可真实运行"))
     }
 
     func testModelCapsuleDeploymentStateAndBadgeReadability() {

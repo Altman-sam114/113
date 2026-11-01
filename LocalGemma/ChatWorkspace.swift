@@ -630,7 +630,7 @@ struct SessionBar: View {
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(theme.primaryText)
             } else {
-                Label("本地会话 · 模拟预览", systemImage: "circle.dotted")
+                Label("本地会话", systemImage: "circle.dotted")
                     .font(.caption)
                     .foregroundStyle(theme.secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
@@ -651,9 +651,9 @@ struct SessionBar: View {
 
     private var compactSessionSummary: String {
         guard let activeSession = sessions.first(where: { $0.id == activeSessionID }) else {
-            return "本地会话，当前没有选中的会话。模拟预览。"
+            return "本地会话，当前没有选中的会话。"
         }
-        return "当前会话 \(activeSession.title)，本地模拟预览。"
+        return "当前本地会话 \(activeSession.title)。"
     }
 
     private var actions: some View {

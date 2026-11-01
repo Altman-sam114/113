@@ -8,7 +8,7 @@ import shutil
 import struct
 import subprocess
 
-from iphone_interaction_evidence import TESTS, expected_captures, validate_capture, validate_results
+from iphone_interaction_evidence import TESTS, expected_captures, selected_tests, validate_capture, validate_results
 
 
 def write_json(path, value):
@@ -27,7 +27,7 @@ def command(args, log=None, check=True):
     return result
 
 
-def export_evidence(root, category, device_id):
+def export_evidence(root, category, device_id, scope="full"):
     bundle = root / f"{category}.xcresult"
     summary = json.loads(command(["xcrun", "xcresulttool", "get", "test-results", "summary",
                                   "--path", bundle, "--compact"], root / f"{category}-summary.json").stdout)
@@ -35,7 +35,7 @@ def export_evidence(root, category, device_id):
                                "--path", bundle, "--compact"], root / f"{category}-tests.json").stdout)
     exported = root / f"{category}-attachments"
     command(["xcrun", "xcresulttool", "export", "attachments", "--path", bundle, "--output-path", exported])
-    validate_results(summary, tree, category, device_id)
+    validate_results(summary, tree, category, device_id, scope)
     entries = json.loads((exported / "manifest.json").read_text())
     indexed = {}
     for entry in entries:
@@ -45,26 +45,27 @@ def export_evidence(root, category, device_id):
             if not filename or not source.resolve().is_relative_to(exported.resolve()):
                 raise ValueError("Unsafe exported attachment path")
             suggested = attachment.get("suggestedHumanReadableName", "")
-            for name in expected_captures(category):
+            for name in expected_captures(category, scope):
                 for suffix in ("", "-provenance"):
                     key = name + suffix
                     if suggested == key or suggested.startswith(key + "_") or suggested.startswith(key + "."):
                         if key in indexed or attachment.get("deviceId") != device_id:
                             raise ValueError("Duplicated attachment or wrong exact simulator UDID")
                         indexed[key] = (source, entry.get("testIdentifier"))
-    if set(indexed) != expected_captures(category) | {n + "-provenance" for n in expected_captures(category)}:
-        raise ValueError("All thirteen original screenshots and their provenance are required")
+    required = expected_captures(category, scope)
+    if set(indexed) != required | {n + "-provenance" for n in required}:
+        raise ValueError("Every selected original screenshot and its provenance are required")
     evidence = root / "evidence"
     evidence.mkdir(exist_ok=True)
     records = []
-    for name in sorted(expected_captures(category)):
+    for name in sorted(required):
         image, test = indexed[name]
         provenance, provenance_test = indexed[name + "-provenance"]
         header = image.read_bytes()[:24]
         if header[:8] != b"\x89PNG\r\n\x1a\n":
             raise ValueError("Original XCUIScreen attachment must be PNG")
         document = json.loads(provenance.read_text())
-        validate_capture(document, category, struct.unpack(">II", header[16:24]))
+        validate_capture(document, category, struct.unpack(">II", header[16:24]), scope)
         if test != provenance_test:
             raise ValueError("Screenshot and actions must come from the same actual test")
         shutil.copyfile(image, evidence / (name + ".png"))
@@ -78,6 +79,11 @@ def export_evidence(root, category, device_id):
 def main():
     if os.environ.get("GITHUB_ACTIONS") != "true" or os.environ.get("RUNNER_ENVIRONMENT") != "github-hosted":
         raise SystemExit("Only a real GitHub-hosted runner may build or operate a simulator")
+    scope = os.environ.get("VALIDATION_SCOPE", "full")
+    for category in TESTS:
+        selected_tests(category, scope)
+    if scope != "full" and not re.fullmatch(r"[0-9a-f]{40}", os.environ.get("EXPECTED_SHA", "")):
+        raise SystemExit("Targeted diagnostics require an explicit complete commit SHA")
     root = Path("iphone-interaction-results")
     root.mkdir(exist_ok=True)
     sha = command(["git", "rev-parse", "HEAD"]).stdout.strip()
@@ -87,6 +93,7 @@ def main():
                 "branch": os.environ["GITHUB_REF_NAME"], "runId": os.environ["GITHUB_RUN_ID"],
                 "runAttempt": os.environ["GITHUB_RUN_ATTEMPT"], "workflow": "iPhone Interaction",
                 "realInferenceVerified": False, "signedDistributionVerified": False,
+                "validationScope": scope, "fullInteractionSuite": scope == "full",
                 "outcomes": {}, "captures": []}
     write_json(root / "manifest.json", manifest)
     command(["xcodebuild", "-version"], root / "xcode-version.log")
@@ -118,11 +125,11 @@ def main():
             actual = command(["xcrun", "simctl", "ui", device_id, "content_size"], root / f"{category}-system-content-size.txt").stdout
             if setting not in actual:
                 raise ValueError("Actual simulator Dynamic Type setting must match requested category")
-            tests = [f"-only-testing:LocalGemmaUITests/CompactSummaryInteractionTests/{name}" for name in sorted(TESTS[category])]
+            tests = [f"-only-testing:LocalGemmaUITests/CompactSummaryInteractionTests/{name}" for name in sorted(selected_tests(category, scope))]
             test = command(base + ["-resultBundlePath", root / f"{category}.xcresult", "-parallel-testing-enabled", "NO",
                                    "-test-timeouts-enabled", "YES", "-maximum-test-execution-time-allowance", "240",
                                    *tests, "test-without-building"], root / f"{category}-test.log", check=False)
-            records = export_evidence(root, category, device_id)
+            records = export_evidence(root, category, device_id, scope)
             if test.returncode:
                 raise RuntimeError(f"xcodebuild test failed: {test.returncode}")
             manifest["captures"].extend(records)
@@ -133,7 +140,7 @@ def main():
             print(f"{category}: {error}", flush=True)
         write_json(root / "manifest.json", manifest)
     write_json(root / "manifest.json", manifest)
-    required_captures = sum(len(expected_captures(category)) for category in TESTS)
+    required_captures = sum(len(expected_captures(category, scope)) for category in TESTS)
     if set(manifest["outcomes"].values()) != {"success"} or len(manifest["captures"]) != required_captures:
         raise SystemExit("Required iPhone UI interactions or original screenshot evidence failed")
 

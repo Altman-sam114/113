@@ -168,14 +168,21 @@ final class CompactSummaryInteractionTests: XCTestCase {
         tap(app.buttons["workspace-tab-models"], id: "workspace-tab-models")
         let picker = app.buttons["model-selector-picker"]
         tap(picker, id: "model-selector-picker")
-        tap(app.buttons["Gemma 3 1B"], id: "native-model-choice")
+        let choice = app.buttons["Gemma 3 1B"]
+        if !choice.isHittable {
+            attachDiagnostic("native-model-menu-before-scroll")
+            let menu = app.menus.firstMatch
+            let scroll = app.scrollViews.containing(.button, identifier: "Gemma 3 1B").firstMatch
+            revealHelpContent(choice, in: menu.exists ? menu : scroll, app: app, isAction: true)
+        }
+        tap(choice, id: "native-model-choice")
         XCTAssertTrue(waitUntil { (picker.value as? String)?.contains("Gemma 3 1B") == true })
         let selectedBefore = try XCTUnwrap(picker.value as? String)
-        XCTAssertTrue(selectedBefore.contains("missing"))
-        let importAction = app.buttons["model-artifact-action-importFiles"]
-        let scroll = app.scrollViews.containing(.button, identifier: "model-artifact-action-importFiles").firstMatch
+        XCTAssertTrue(selectedBefore.contains("缺少本地 artifact"))
+        let importAction = app.buttons["model-artifact-action-import"]
+        let scroll = app.scrollViews.containing(.button, identifier: "model-artifact-action-import").firstMatch
         revealHelpContent(importAction, in: scroll, app: app, isAction: true)
-        tap(importAction, id: "model-artifact-action-importFiles")
+        tap(importAction, id: "model-artifact-action-import")
         let cancel = app.buttons["model-license-cancel"]
         let confirm = app.buttons["model-license-confirm-import"]
         assertReachableAction(cancel, inside: app.frame)
@@ -186,7 +193,7 @@ final class CompactSummaryInteractionTests: XCTestCase {
         // opens Files. Cancellation must leave the selected model unverified.
         tap(cancel, id: "model-license-cancel")
         XCTAssertTrue(waitUntil { !cancel.exists && picker.exists })
-        revealHelpContent(picker, in: scroll, app: app, isAction: true)
+        revealHelpContent(picker, in: scroll, app: app, isAction: true, preferPrevious: true)
         assertReachableAction(picker, inside: app.frame)
         XCTAssertEqual(picker.value as? String, selectedBefore)
         XCTAssertFalse(confirm.exists)
@@ -323,13 +330,14 @@ final class CompactSummaryInteractionTests: XCTestCase {
     }
 
     private func revealHelpContent(
-        _ target: XCUIElement, in scroll: XCUIElement, app: XCUIApplication, isAction: Bool = false
+        _ target: XCUIElement, in scroll: XCUIElement, app: XCUIApplication, isAction: Bool = false,
+        preferPrevious: Bool = false
     ) {
         for _ in 0..<32 {
             XCTAssertTrue(scroll.exists)
             let viewport = helpViewport(scroll, app: app)
             XCTAssertGreaterThan(viewport.height, 44)
-            var offset = viewport.height
+            var offset = preferPrevious ? -viewport.height : viewport.height
             if target.exists {
                 let frame = target.frame
                 let visible = frame.intersection(viewport)
@@ -339,7 +347,7 @@ final class CompactSummaryInteractionTests: XCTestCase {
                     && visible.width >= min(44, frame.width) && visible.height >= min(44, frame.height) {
                     return
                 }
-                offset = frame.midY - viewport.midY
+                if frame.width > 0 && frame.height > 0 { offset = frame.midY - viewport.midY }
             }
             let distance = min(max(abs(offset), 20), viewport.height * 0.45)
             let origin = app.coordinate(withNormalizedOffset: .zero)
@@ -425,6 +433,7 @@ final class CompactSummaryInteractionTests: XCTestCase {
         XCTAssertTrue(control.waitForExistence(timeout: 5), "Missing control: \(id)")
         if !control.isEnabled { attachDiagnostic("disabled-control-" + id) }
         XCTAssertTrue(control.isEnabled, "Disabled control: \(id)")
+        if !control.isHittable { attachDiagnostic("unreachable-control-" + id) }
         XCTAssertTrue(control.isHittable, "Unreachable control: \(id)")
         control.tap()
         actions.append("tap:\(id)")

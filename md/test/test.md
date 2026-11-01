@@ -2,6 +2,10 @@
 
 ## 原生文本验证入口
 
+### 手机许可流程定向诊断
+
+`iphone-interaction.yml` 手动输入 `validation_scope=license` 时，只运行普通/AX5 各一项许可审阅与取消方法，收集4张原始截图；必须给出完整 `expected_sha`。manifest 的 `validationScope=license` / `fullInteractionSuite=false` 明示范围，不能代替 full。默认 push 与手动 full 仍要求全部10项交互、30图和原始结果，scope 不能任意选择测试或降低门槛。定向成功后仍按影响完成完整手机门禁。
+
 `RuntimeStreamingTests` 随原 LocalGemma unit scheme 在云端执行，覆盖可信模型、verified 门禁、完整多轮请求、真实指标契约、取消迟到事件、失败/未完成流、内存预算、UTF-8 和实际链接的畸形 GGUF 拒绝。测试替身只验证状态契约，不代表权重推理成功。
 
 独立 `native-text-smoke.yml` 仅手动触发，使用用户明确提供且摘要固定的加密 270M 本地模型草稿，通过同一生产 LlamaTextRuntime 的 Catalyst CPU slice 执行真实生成、两轮记忆、输出限额、取消后重新加载、上下文拒绝。原模型和密钥不进结果包。全量与真实手机交互入口准备固定 native framework，unsigned archive 单独手动执行。结果仍须绑定精确 SHA/run/attempt 并核对完整产物；270M CPU 不覆盖生产 1B、真机 Metal/内存/辅助技术或签名发行。细节见[本地文本推理](../release/native-runtime.md)。

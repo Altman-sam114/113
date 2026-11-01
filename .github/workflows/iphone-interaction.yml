@@ -20,6 +20,12 @@ name: iPhone Interaction
         description: 'Optional exact commit SHA guard'
         required: false
         type: string
+      validation_scope:
+        description: Full suite, or license-only diagnostic evidence
+        required: true
+        type: choice
+        default: full
+        options: [full, license]
 
 permissions:
   contents: read
@@ -38,11 +44,12 @@ jobs:
       - name: Build and operate the production app
         env:
           EXPECTED_SHA: ${{ inputs.expected_sha }}
+          VALIDATION_SCOPE: ${{ inputs.validation_scope || 'full' }}
         run: python3 Tools/run_iphone_interaction.py
       - name: Upload original UI test results and screen evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: localgemma-iphone-interaction-${{ github.sha }}-run${{ github.run_id }}-attempt${{ github.run_attempt }}
+          name: localgemma-iphone-interaction-${{ inputs.validation_scope || 'full' }}-${{ github.sha }}-run${{ github.run_id }}-attempt${{ github.run_attempt }}
           path: iphone-interaction-results
           if-no-files-found: error

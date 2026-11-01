@@ -1348,7 +1348,7 @@ enum ModelCapsuleAccessibilityMetadata {
     static func runtimeModeDescription(isSimulated: Bool) -> String {
         isSimulated
             ? "运行标记 SIM，本地模拟输出"
-            : "运行标记 REAL，需 artifact verified 后才可进入真实运行计划"
+            : "运行标记 REAL，已执行本机文本推理；仅 artifact verified 的模型可真实运行"
     }
 
     static func artifactDescription(_ availability: ArtifactAvailability) -> String {
@@ -2319,7 +2319,7 @@ enum PromptTemplateActionAccessibilityMetadata {
         case .apply:
             return "将\(template.title)模板写入 composer，切回推理页并聚焦输入框；不会发送 prompt，不会下载模型权重，不会启动真实 runtime，也不会发送到云端服务。"
         case .send:
-            return "将\(template.title)模板作为当前输入发送到本地模拟 runtime，切回推理页并聚焦输入框；不会下载模型权重，不会启动真实 runtime，不会发送到云端服务，也不会绕过 verified 门禁。"
+            return "将\(template.title)模板作为当前输入发送到本地 runtime，切回推理页并聚焦输入框；仅已登记且 artifact verified 的模型可启动真实推理，其余为模拟预览。不会下载模型权重，不会发送到云端服务，也不会绕过 verified 门禁。"
         }
     }
 
@@ -2654,7 +2654,7 @@ enum ComposerInputMetadata {
     static let textFieldInputLabels = ["本地模型输入", "输入 prompt", "问本地模型"]
     static let textFieldIdentifier = "composer-input-field"
 
-    private static let localBoundaryHint = "本地边界：不会下载模型权重，不会启动真实 runtime，不会发送到云端服务，也不会绕过 artifact verified 门禁。"
+    private static let localBoundaryHint = "本地边界：不会下载模型权重，不会发送到云端服务，也不会绕过 artifact verified 门禁。"
 
     static func actionLabel(isGenerating: Bool) -> String {
         isGenerating ? "停止生成" : "发送提示词"
@@ -2680,12 +2680,12 @@ enum ComposerInputMetadata {
 
     static func actionHint(text: String, isGenerating: Bool) -> String {
         if isGenerating {
-            return "停止当前模拟生成。\(localBoundaryHint)"
+            return "停止当前本地生成；模拟和真实任务都会取消。\(localBoundaryHint)"
         }
         if isActionDisabled(text: text, isGenerating: isGenerating) {
-            return "输入内容后可发送。\(localBoundaryHint)"
+            return "输入内容后可发送。当前不会启动真实 runtime。\(localBoundaryHint)"
         }
-        return "发送当前输入给本地模拟 runtime。\(localBoundaryHint)"
+        return "发送当前输入给本地 runtime；仅已登记且 artifact verified 的模型可启动真实推理，其余为模拟预览。\(localBoundaryHint)"
     }
 
     static func isActionDisabled(text: String, isGenerating: Bool) -> Bool {

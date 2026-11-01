@@ -154,9 +154,9 @@ struct WorkbenchSidebarFooter: View {
                 .foregroundStyle(theme.accent)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 4) {
-                Text("私密，始终在本机")
+                Text("本地处理，由你掌控")
                     .foregroundStyle(theme.primaryText)
-                Text("模拟预览 · 无云端推理")
+                Text("本地对话 · 无云端推理")
                     .foregroundStyle(theme.secondaryText)
             }
         }
@@ -199,7 +199,7 @@ struct ChatWorkspaceHeading: View {
     }
 
     private var runtimeLabel: some View {
-        Label("本地模拟", systemImage: "circle.dotted")
+        Label("本地对话", systemImage: "circle.dotted")
             .font(.caption.weight(.medium))
             .foregroundStyle(theme.accent)
             .padding(.horizontal, 10)
@@ -340,7 +340,7 @@ private struct CompactIntelligenceMark: View {
 
 enum ChatWelcomeAccessibilityMetadata {
     static let label = "本地工作区欢迎页"
-    static let value = "当前为本地模拟预览，可选择润色文字、总结要点、中英互译或行动计划。模板只填入输入框并聚焦，不自动发送；尚未接入真实模型推理。"
+    static let value = "可选择润色文字、总结要点、中英互译或行动计划。模板只填入输入框并聚焦，不自动发送。默认模拟预览；手动导入已登记的 GGUF 并通过校验后可执行真实文本推理。"
     static let hint = "浏览本地欢迎内容或选择起始模板；不会发送 prompt，不会下载模型权重，不会启动真实 runtime，不会发送到云端服务，也不会绕过 artifact verified 门禁。"
     static let inputLabels = ["欢迎页", "本地工作区欢迎页", "开始本地会话"]
 }

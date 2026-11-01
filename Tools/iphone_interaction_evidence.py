@@ -33,14 +33,26 @@ HELP_SECTIONS = (
 )
 
 
-def expected_captures(category):
+def selected_tests(category, scope="full"):
+    if scope == "full":
+        return TESTS[category]
+    if scope == "license":
+        return {name for name in TESTS[category] if "NativeModelLicenseReview" in name}
+    raise ValueError("Unknown interaction validation scope")
+
+
+def expected_captures(category, scope="full"):
+    selected_tests(category, scope)
+    if scope == "license":
+        return {f"interaction-dark-{category}-{stage}" for stage in LICENSE_STAGES}
     return {f"interaction-{theme}-{category}-{stage}"
             for theme in ("light", "dark") for stage in LIFECYCLE_STAGES} | {
                 f"interaction-dark-{category}-{stage}" for stage in DRAFT_STAGES + HELP_STAGES + LICENSE_STAGES}
 
 
-def validate_results(summary, tree, category, device_id):
-    count = len(TESTS[category])
+def validate_results(summary, tree, category, device_id, scope="full"):
+    required = selected_tests(category, scope)
+    count = len(required)
     if (summary.get("result") != "Passed" or summary.get("totalTestCount") != count
             or summary.get("passedTests") != count or summary.get("failedTests") != 0
             or summary.get("skippedTests") != 0 or summary.get("expectedFailures") != 0
@@ -60,21 +72,21 @@ def validate_results(summary, tree, category, device_id):
 
     walk(tree.get("testNodes", []))
     names = [case.get("name", "").removesuffix("()") for case in cases]
-    if len(cases) != count or set(names) != TESTS[category] or any(c.get("result") != "Passed" for c in cases):
+    if len(cases) != count or set(names) != required or any(c.get("result") != "Passed" for c in cases):
         raise ValueError("UI test names, unique executions, and results must match the selected system category")
     devices = tree.get("devices", [])
     if len(devices) != 1 or devices[0].get("deviceId") != device_id:
         raise ValueError("UI tests must run on the recorded exact simulator UDID")
 
 
-def validate_capture(document, category, png_size):
+def validate_capture(document, category, png_size, scope="full"):
     name = document.get("name", "")
     stage = document.get("stage")
     theme = document.get("theme")
     expected_category = ("UICTContentSizeCategoryAccessibilityXXXL"
                          if category == "accessibility5" else "UICTContentSizeCategoryL")
     if (document.get("schemaVersion") != 1 or document.get("source") != "public-XCUITest-production-app"
-            or name not in expected_captures(category)
+            or name not in expected_captures(category, scope)
             or name != f"interaction-{theme}-{category}-{stage}"
             or document.get("dynamicTypeSize") != category
             or document.get("systemContentSizeCategory") != expected_category
@@ -122,9 +134,9 @@ def validate_capture(document, category, png_size):
 def validate_license_capture(document):
     actions = document.get("actions", [])
     require_action_sequence(actions, ["tap:workspace-tab-models", "tap:model-selector-picker",
-                                     "tap:native-model-choice", "tap:model-artifact-action-importFiles"])
+                                     "tap:native-model-choice", "tap:model-artifact-action-import"])
     if (document.get("keyboardVisible") is not False or "Gemma 3 1B" not in document.get("selectedModel", "")
-            or "missing" not in document.get("selectedModel", "")
+            or "缺少本地 artifact" not in document.get("selectedModel", "")
             or "tap:model-license-confirm-import" in actions):
         raise ValueError("License verification must not import, verify or run a model")
     if document["stage"] == "license-open":
@@ -133,7 +145,7 @@ def validate_license_capture(document):
         for identifier in ["model-license-cancel", "model-license-confirm-import"]:
             validate_screen_frame(document.get("frames", {}).get(identifier), 44)
     else:
-        require_action_sequence(actions, ["tap:model-artifact-action-importFiles", "tap:model-license-cancel"])
+        require_action_sequence(actions, ["tap:model-artifact-action-import", "tap:model-license-cancel"])
         if document.get("licenseReviewVisible") is not False:
             raise ValueError("Cancellation must dismiss the actual license review")
         validate_screen_frame(document.get("frames", {}).get("model-selector-picker"), 44)
