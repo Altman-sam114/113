@@ -1,0 +1,69 @@
+name: Native Runtime Dependency
+
+"on":
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: 'Exact main commit SHA to validate'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-runtime-dependency-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  dependency:
+    name: Verify pinned iOS and Catalyst runtime slices
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Guard the exact main revision
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: |
+          python3 - <<'PY'
+          import os, re, subprocess
+          expected = os.environ['EXPECTED_SHA']
+          assert re.fullmatch(r'[0-9a-f]{40}', expected), 'A complete SHA is required'
+          assert os.environ['GITHUB_REF'] == 'refs/heads/main', 'Only main is supported'
+          assert expected == os.environ['GITHUB_SHA'] == subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+          PY
+      - name: Pure dependency-verifier fixtures
+        run: PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s Tools/tests -p test_llama_dependency.py -v
+      - name: Identify the real cloud toolchain
+        id: toolchain
+        run: |
+          python3 - <<'PY'
+          import hashlib, os, subprocess
+          identity = subprocess.check_output(['xcodebuild', '-version'])
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write('cache-key=' + hashlib.sha256(identity).hexdigest()[:16] + '\n')
+          PY
+      - uses: actions/cache@v4
+        with:
+          path: |
+            .runtime/llama.xcframework
+            .runtime/manifest.json
+          key: ${{ runner.os }}-llama-b12032-catalyst-${{ steps.toolchain.outputs.cache-key }}-${{ hashFiles('Tools/prepare_llama_dependency.py') }}
+      - name: Prepare and validate the real dependency
+        run: python3 Tools/prepare_llama_dependency.py
+      - name: Preserve framework and build evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: localgemma-native-dependency-${{ github.sha }}-run${{ github.run_id }}-attempt${{ github.run_attempt }}
+          path: |
+            .runtime/llama.xcframework
+            .runtime/manifest.json
+            .runtime/logs
+            .runtime/failure.json
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14
