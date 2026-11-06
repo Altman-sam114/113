@@ -608,6 +608,7 @@ struct ModelSelectorPanel: View {
                         }
                     } label: {
                         CompactModelSelectionLabel(model: selectedModel)
+                            .frame(minHeight: ModelDeploymentControlLayoutPolicy.modelSelectorMinHeight)
                     }
                 } else {
                     Picker(selection: $selectedModelID) {
