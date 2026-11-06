@@ -171,9 +171,16 @@ final class CompactSummaryInteractionTests: XCTestCase {
         let choice = app.buttons["Gemma 3 1B"]
         if !choice.isHittable {
             attachDiagnostic("native-model-menu-before-scroll")
-            let menu = app.menus.firstMatch
-            let scroll = app.scrollViews.containing(.button, identifier: "Gemma 3 1B").firstMatch
-            revealHelpContent(choice, in: menu.exists ? menu : scroll, app: app, isAction: true)
+            // The system menu exposes a CollectionView on current iOS. Its
+            // content frame can extend below the clipped popup, so let UIKit
+            // scroll the actual menu rather than deriving a viewport from it.
+            let choices = app.collectionViews.containing(.button, identifier: "Gemma 3 1B").firstMatch
+            XCTAssertTrue(choices.waitForExistence(timeout: 5))
+            for _ in 0..<8 {
+                if choice.exists && choice.isHittable && app.frame.contains(choice.frame) { break }
+                choices.swipeUp(velocity: .slow)
+                actions.append("scroll:model-picker-up")
+            }
         }
         tap(choice, id: "native-model-choice")
         XCTAssertTrue(waitUntil { (picker.value as? String)?.contains("Gemma 3 1B") == true })
@@ -199,6 +206,16 @@ final class CompactSummaryInteractionTests: XCTestCase {
         XCTAssertFalse(confirm.exists)
         XCTAssertFalse(app.keyboards.firstMatch.exists)
         try captureLicense(app, accessibility: accessibility, stage: "license-cancelled", selectedModel: selectedBefore)
+
+        // Cancel must reset the review without granting permission to import.
+        revealHelpContent(importAction, in: scroll, app: app, isAction: true)
+        tap(importAction, id: "model-artifact-action-import")
+        assertReachableAction(cancel, inside: app.frame)
+        assertReachableAction(confirm, inside: app.frame)
+        XCTAssertTrue(element(app, "model-license-model-name").label.contains("Gemma 3 1B"))
+        tap(cancel, id: "model-license-cancel")
+        XCTAssertTrue(waitUntil { !cancel.exists && picker.exists })
+        XCTAssertEqual(picker.value as? String, selectedBefore)
         app.terminate()
     }
 

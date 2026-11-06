@@ -518,7 +518,9 @@ private struct ModelImportLicenseReview: View {
         .tint(theme.accent)
         .presentationDetents([.large])
         .presentationDragIndicator(.visible)
-        .accessibilityIdentifier("model-license-review")
+        // A container identifier propagates to ungrouped SwiftUI children and
+        // hides the cancel/confirm identifiers from public accessibility queries.
+        .accessibilityElement(children: .contain)
     }
 }
 
