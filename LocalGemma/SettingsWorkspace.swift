@@ -129,7 +129,7 @@ enum SettingsHelpContent {
     static let sections = [
         SettingsHelpSection(
             id: "capabilities", title: "当前能力",
-            body: "当前版本是本地 AI 工作台原型，默认使用模拟回复，模拟模式不会实际改写、翻译或总结输入。选择 Gemma 3 1B、手动导入指定 GGUF 并通过 verified 校验后，发送消息会执行本机文本推理。verified 只说明文件通过校验，不保证设备内存足够或生成成功；参考速度、内存和设备预算并非实测。"
+            body: "当前版本是本地 AI 工作台原型，默认使用模拟回复，模拟模式不会实际改写、翻译或总结输入。选择 Gemma 3 270M、手动导入指定 GGUF 并通过 verified 校验后，发送消息会执行本机文本推理。verified 只说明文件通过校验，不保证设备内存足够或生成成功；参考速度、内存和设备预算并非实测。"
         ),
         SettingsHelpSection(
             id: "privacy", title: "App 不主动上传",

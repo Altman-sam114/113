@@ -14,16 +14,17 @@ private struct NativeProbeResult {
 }
 
 @main
+@MainActor
 struct NativeTextSmoke {
     static func main() async {
         let environment = ProcessInfo.processInfo.environment
         var report: [String: Any] = [
-            "schemaVersion": 1, "source": "cloud-Catalyst-production-LlamaTextRuntime",
+            "schemaVersion": 2, "source": "cloud-Catalyst-production-state-and-LlamaTextRuntime",
             "commitSha": environment["GITHUB_SHA"] ?? "", "runId": environment["GITHUB_RUN_ID"] ?? "",
             "runAttempt": environment["GITHUB_RUN_ATTEMPT"] ?? "",
             "modelSHA256": "3626e245220ca4a1c5911eb4010b3ecb7bdbf5bc53c79403c21355354d1e2dc6",
             "modelBytes": 241_410_624,
-            "fixtureOnly": true, "production1BModelVerified": false,
+            "fixtureOnly": false, "productionModelVerified": false, "production1BModelVerified": false,
             "deviceMemoryOrMetalVerified": false, "signedDistributionVerified": false
         ]
         let output = URL(fileURLWithPath: environment["NATIVE_PROBE_OUTPUT"] ?? "/invalid/probe.json")
@@ -95,6 +96,10 @@ struct NativeTextSmoke {
                 report["contextRejection"] = ["inputTokens": input, "outputReservation": reserved,
                                                "capacity": capacity, "silentlyTruncated": false]
             }
+            report["productionFlow"] = try await NativeProductionSmoke.run(
+                modelURL: url, directory: url.deletingLastPathComponent().appendingPathComponent("managed-production-models")
+            )
+            report["productionModelVerified"] = true
             report["status"] = "success"
         } catch {
             report["status"] = "failure"

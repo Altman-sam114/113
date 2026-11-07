@@ -1,6 +1,7 @@
 """Cloud-only real inference using an explicitly supplied encrypted draft fixture."""
 import hashlib
 import json
+import math
 import os
 import platform
 import re
@@ -12,6 +13,41 @@ from prepare_llama_dependency import require, require_hosted_macos
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE_SHA256 = "3626e245220ca4a1c5911eb4010b3ecb7bdbf5bc53c79403c21355354d1e2dc6"
 FIXTURE_BYTES = 241_410_624
+PRODUCTION_MODEL_FILENAME = "gemma-3-270m-it-qat-Q4_0.gguf"
+PRODUCTION_MODEL_ID = "5D5BA6B9-6EBC-43A9-A7B6-21FA9332C270"
+
+
+def validate_production_report(report, expected_sha, run_id, attempt):
+    require(report.get("schemaVersion") == 2 and report.get("status") == "success"
+            and report.get("source") == "cloud-Catalyst-production-state-and-LlamaTextRuntime",
+            "Bottom-level fixture evidence cannot replace the production state flow")
+    require(report.get("commitSha") == expected_sha and report.get("runId") == run_id
+            and report.get("runAttempt") == attempt and report.get("modelSHA256") == FIXTURE_SHA256
+            and report.get("modelBytes") == FIXTURE_BYTES,
+            "Production inference evidence has the wrong source or model identity")
+    require(report.get("fixtureOnly") is False and report.get("productionModelVerified") is True
+            and report.get("deviceMemoryOrMetalVerified") is False
+            and report.get("signedDistributionVerified") is False,
+            "CPU production verification must retain its physical-device and signing limits")
+    flow = report.get("productionFlow", {})
+    require(flow.get("source") == "headless-production-ModelCatalog-VerifiedLlamaRuntime-InferenceEngine"
+            and flow.get("modelID") == PRODUCTION_MODEL_ID and flow.get("modelName") == "Gemma 3 270M"
+            and flow.get("fileName") == PRODUCTION_MODEL_FILENAME and flow.get("sha256") == FIXTURE_SHA256,
+            "The production catalogue, runtime and engine must use the same pinned model")
+    for key in ["importedAndVerified", "backupExcluded", "unverifiedDraftPreserved", "exportPreservesFullHistory",
+                "stoppedAfterActualText", "lateEventsIsolated", "changedManagedFileRejected", "sourceUnmodified",
+                "fullContextRejectedWithoutTruncation"]:
+        require(flow.get(key) is True, f"Missing actual production evidence: {key}")
+    require(flow.get("UIFilePickerExercised") is False and flow.get("deviceMemoryOrMetalVerified") is False,
+            "The headless probe cannot claim Files UI or physical-device verification")
+    turns = flow.get("turns")
+    require(isinstance(turns, list) and len(turns) == 2, "Two actual production conversation turns are required")
+    for turn in turns + [flow.get("reloadAfterStop", {}), flow.get("reimportRecovery", {})]:
+        rate = turn.get("tokensPerSecond")
+        require("ORCHID" in turn.get("text", "").upper() and type(turn.get("outputTokens")) is int
+                and turn["outputTokens"] > 0 and type(rate) in {int, float} and math.isfinite(rate) and rate > 0
+                and turn.get("simulated") is False and turn.get("backend") == "llamaCpp",
+                "Production responses must contain native text and actual metrics, never simulated success")
 
 
 def validate_draft_fixture(release, expected_tag):
@@ -54,7 +90,7 @@ def main():
     asset_id = find_draft_fixture(releases, tag)
     private = Path(os.environ["RUNNER_TEMP"]) / "localgemma-native-fixture"
     private.mkdir(mode=0o700)
-    encrypted, model = private / "fixture.enc", private / "fixture.gguf"
+    encrypted, model = private / "fixture.enc", private / PRODUCTION_MODEL_FILENAME
     with encrypted.open("wb") as stream:
         subprocess.run(["gh", "api", f"repos/Altman-sam114/113/releases/assets/{asset_id}",
                         "-H", "Accept: application/octet-stream"], stdout=stream, check=True, timeout=600)
@@ -69,18 +105,26 @@ def main():
     result.mkdir()
     (result / "identity.json").write_text(json.dumps({
         "commitSha": expected, "runId": os.environ["GITHUB_RUN_ID"], "runAttempt": os.environ["GITHUB_RUN_ATTEMPT"],
-        "modelSHA256": digest, "modelBytes": model.stat().st_size, "fixtureOnly": True,
+        "modelSHA256": digest, "modelBytes": model.stat().st_size, "fixtureOnly": False,
+        "modelRole": "registered-production-model", "modelFileName": PRODUCTION_MODEL_FILENAME,
         "modelIncludedInArtifacts": False, "signedDistributionVerified": False,
     }, indent=2) + "\n")
     sdk = subprocess.check_output(["xcrun", "--sdk", "macosx", "--show-sdk-path"], text=True).strip()
     architecture = platform.machine()
     require(architecture in {"arm64", "x86_64"}, "Unsupported hosted architecture")
     framework = ROOT / ".runtime/app-bundle/llama.xcframework/ios-arm64_x86_64-maccatalyst"
+    support = Path(sdk) / "System/iOSSupport"
     executable = private / "native-text-smoke"
     command = ["xcrun", "swiftc", "-swift-version", "6", "-sdk", sdk,
-               "-target", f"{architecture}-apple-ios17.0-macabi", "-F", str(framework),
+               "-target", f"{architecture}-apple-ios17.0-macabi",
+               "-F", str(support / "System/Library/Frameworks"),
+               "-I", str(support / "usr/include"), "-L", str(support / "usr/lib"), "-F", str(framework),
                "-framework", "llama", "-Xlinker", "-rpath", "-Xlinker", str(framework),
-               str(ROOT / "LocalGemma/LlamaTextRuntime.swift"), str(ROOT / "Tools/NativeTextSmoke.swift"),
+               *[str(ROOT / name) for name in [
+                   "LocalGemma/AppState.swift", "LocalGemma/ArtifactImport.swift",
+                   "LocalGemma/ConversationStore.swift", "LocalGemma/RuntimeStreaming.swift",
+                   "LocalGemma/LlamaTextRuntime.swift", "Tools/NativeProductionSmoke.swift", "Tools/NativeTextSmoke.swift"
+               ]],
                "-o", str(executable)]
     with (result / "build.log").open("w") as log:
         subprocess.run(command, stdout=log, stderr=subprocess.STDOUT, check=True, timeout=180)
@@ -89,6 +133,8 @@ def main():
     environment.pop("LOCALGEMMA_NATIVE_FIXTURE_KEY", None)
     with (result / "run.log").open("w") as log:
         subprocess.run([str(executable)], env=environment, stdout=log, stderr=subprocess.STDOUT, check=True, timeout=300)
+    validate_production_report(json.loads((result / "probe.json").read_text()), expected,
+                               os.environ["GITHUB_RUN_ID"], os.environ["GITHUB_RUN_ATTEMPT"])
     print("Real native fixture evidence saved; no weights or keys are in the result artifact")
 
 

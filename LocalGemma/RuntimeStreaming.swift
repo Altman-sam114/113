@@ -49,23 +49,26 @@ enum StreamingInferenceError: Error, LocalizedError, Sendable {
 }
 
 enum PinnedTextModel {
-    static let id = UUID(uuidString: "A6E8926E-E8A0-4FDB-9A34-E90C7475029B")!
-    static let fileName = "gemma-3-1b-it-Q4_K_M.gguf"
-    static let sha256 = "8ccc5cd1f1b3602548715ae25a66ed73fd5dc68a210412eea643eb20eb75a135"
-    static let byteCount: Int64 = 806_058_240
-    static let revision = "f9c28bcd85737ffc5aef028638d3341d49869c27"
-    static let sourceURL = URL(string: "https://huggingface.co/ggml-org/gemma-3-1b-it-GGUF/tree/\(revision)")!
+    // A new model identity prevents the former 1B entry from inheriting trust.
+    static let id = UUID(uuidString: "5D5BA6B9-6EBC-43A9-A7B6-21FA9332C270")!
+    static let fileName = "gemma-3-270m-it-qat-Q4_0.gguf"
+    static let sha256 = "3626e245220ca4a1c5911eb4010b3ecb7bdbf5bc53c79403c21355354d1e2dc6"
+    static let byteCount: Int64 = 241_410_624
+    static let revision = sha256
+    static let sourceName = "用户提供的本地 GGUF"
+    // This is model documentation, not a claimed download source for the bytes.
+    static let sourceURL = URL(string: "https://ai.google.dev/gemma/docs/core/model_card_3")!
     static let licenseURL = URL(string: "https://ai.google.dev/gemma/terms")!
     static let usePolicyURL = URL(string: "https://ai.google.dev/gemma/prohibited_use_policy")!
 
     static var model: LocalModel {
         LocalModel(
             id: id,
-            name: "Gemma 3 1B",
+            name: "Gemma 3 270M",
             family: "Gemma",
-            parameterCount: "1B",
-            quantization: "Q4_K_M",
-            sizeOnDisk: "806 MB",
+            parameterCount: "270M",
+            quantization: "QAT Q4_0",
+            sizeOnDisk: "241 MB",
             contextLength: 4096,
             tokensPerSecond: 0,
             memoryFootprint: "取决于设备与上下文；尚未实测",
@@ -84,7 +87,7 @@ enum PinnedTextModel {
             ),
             deploymentProfile: AppleSiliconDeploymentProfile(
                 preferredChipClass: "具备足够可用内存的 iPhone / iPad / Mac",
-                recommendedMemoryBudget: "模型约 806 MB，另需上下文及计算内存；以实机结果为准",
+                recommendedMemoryBudget: "模型约 241 MB，另需上下文及计算内存；以实机结果为准",
                 primaryBackend: .llamaCpp,
                 fallbackBackend: .llamaCpp,
                 kvCachePolicy: "单会话独立 KV cache；最多 4096 tokens",

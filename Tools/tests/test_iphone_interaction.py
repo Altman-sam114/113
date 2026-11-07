@@ -151,13 +151,13 @@ class IPhoneInteractionEvidenceTests(unittest.TestCase):
 
     def test_native_license_review_requires_real_controls_and_cancel_without_acceptance(self):
         document = self.capture(stage="license-open")
-        document.update(selectedModel="Gemma 3 1B，缺少本地 artifact", licenseReviewVisible=True,
+        document.update(selectedModel="Gemma 3 270M，缺少本地 artifact", licenseReviewVisible=True,
                         actions=["tap:workspace-tab-models", "tap:model-selector-picker", "tap:native-model-choice",
                                  "tap:model-artifact-action-import"], frames={
                             "model-license-cancel": {"x": 290, "y": 50, "width": 60, "height": 48},
                             "model-license-confirm-import": {"x": 18, "y": 550, "width": 339, "height": 64}})
         validate_capture(document, "large", (750, 1334))
-        for field, value in [("selectedModel", "Gemma 3 1B artifact verified"), ("licenseReviewVisible", False)]:
+        for field, value in [("selectedModel", "Gemma 3 270M artifact verified"), ("licenseReviewVisible", False)]:
             with self.assertRaises(ValueError):
                 validate_capture(dict(document, **{field: value}), "large", (750, 1334))
         with self.assertRaises(ValueError):

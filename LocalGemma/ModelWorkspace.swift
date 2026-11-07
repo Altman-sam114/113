@@ -416,8 +416,8 @@ private struct ModelImportLicenseLinks: View {
         VStack(alignment: .leading, spacing: 2) {
             sourceLink("Gemma 官方许可", destination: PinnedTextModel.licenseURL, identifier: "model-license-terms")
             sourceLink("Gemma 官方使用限制", destination: PinnedTextModel.usePolicyURL, identifier: "model-license-use-policy")
-            sourceLink("固定版本模型来源", destination: PinnedTextModel.sourceURL, identifier: "model-license-fixed-source")
-            Text("来源：Hugging Face · ggml-org/gemma-3-1b-it-GGUF\n版本：\(PinnedTextModel.revision)")
+            sourceLink("Gemma 模型说明", destination: PinnedTextModel.sourceURL, identifier: "model-license-fixed-source")
+            Text("来源：\(PinnedTextModel.sourceName)\n仅接受下方 SHA-256 对应的固定文件。模型说明链接不代表该文件的下载来源。")
                 .font(.caption)
                 .foregroundStyle(theme.secondaryText)
                 .fixedSize(horizontal: false, vertical: true)

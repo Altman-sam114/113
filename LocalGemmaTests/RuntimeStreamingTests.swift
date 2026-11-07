@@ -7,6 +7,12 @@ import XCTest
 final class RuntimeStreamingTests: XCTestCase {
     func testPinnedGGUFUsesOneTrustedFileWithoutNetworkDownload() {
         let model = PinnedTextModel.model
+        XCTAssertEqual(model.name, "Gemma 3 270M")
+        XCTAssertEqual(model.parameterCount, "270M")
+        XCTAssertEqual(model.quantization, "QAT Q4_0")
+        XCTAssertEqual(PinnedTextModel.byteCount, 241_410_624)
+        XCTAssertEqual(PinnedTextModel.fileName, "gemma-3-270m-it-qat-Q4_0.gguf")
+        XCTAssertEqual(PinnedTextModel.sha256, "3626e245220ca4a1c5911eb4010b3ecb7bdbf5bc53c79403c21355354d1e2dc6")
         XCTAssertEqual(model.artifactManifest.requiredFiles, [PinnedTextModel.fileName])
         XCTAssertEqual(model.artifactManifest.expectedSHA256, PinnedTextModel.sha256)
         XCTAssertTrue(model.artifactManifest.tokenizerIsEmbedded)
@@ -15,6 +21,7 @@ final class RuntimeStreamingTests: XCTestCase {
         XCTAssertFalse(VerifiedLlamaRuntime().supports(ModelCatalog.defaultModels[0]))
         var changed = model
         changed = LocalModel(
+            id: UUID(uuidString: "A6E8926E-E8A0-4FDB-9A34-E90C7475029B")!,
             name: changed.name, family: changed.family, parameterCount: changed.parameterCount,
             quantization: changed.quantization, sizeOnDisk: changed.sizeOnDisk,
             contextLength: changed.contextLength, tokensPerSecond: changed.tokensPerSecond,
@@ -23,8 +30,19 @@ final class RuntimeStreamingTests: XCTestCase {
             artifactManifest: changed.artifactManifest, deploymentProfile: changed.deploymentProfile
         )
         XCTAssertFalse(VerifiedLlamaRuntime().supports(changed), "Another catalogue identity cannot inherit native trust")
+        XCTAssertNotEqual(PinnedTextModel.id, changed.id, "The former 1B identity cannot become a 270M model")
+        var formerManifest = model
+        formerManifest.artifactManifest = ModelArtifactManifest(
+            modelFileName: "gemma-3-1b-it-Q4_K_M.gguf", tokenizerFileName: "", fileFormat: "GGUF",
+            storageDirectory: model.artifactManifest.storageDirectory,
+            expectedSHA256: "8ccc5cd1f1b3602548715ae25a66ed73fd5dc68a210412eea643eb20eb75a135",
+            tokenizerIsEmbedded: true, allowsNetworkDownload: false, importInstruction: "Former 1B file"
+        )
+        XCTAssertFalse(VerifiedLlamaRuntime().supports(formerManifest), "The new identity cannot trust the former 1B file")
         XCTAssertEqual(PinnedTextModel.sourceURL.scheme, "https")
-        XCTAssertTrue(PinnedTextModel.sourceURL.path.contains(PinnedTextModel.revision))
+        XCTAssertEqual(PinnedTextModel.sourceURL.host, "ai.google.dev")
+        XCTAssertEqual(PinnedTextModel.sourceURL.path, "/gemma/docs/core/model_card_3")
+        XCTAssertEqual(PinnedTextModel.revision, PinnedTextModel.sha256, "The local bytes are pinned by their digest, not an unverified upstream revision")
     }
 
     func testNativeSendRejectsUnverifiedFilesWithoutConsumingDraft() {
@@ -283,7 +301,7 @@ final class RuntimeStreamingTests: XCTestCase {
         let required = try LlamaTextMemoryPolicy.requiredAvailableBytes(
             modelBytes: UInt64(PinnedTextModel.byteCount), contextLength: 4096
         )
-        XCTAssertEqual(required, 1_611_364_608)
+        XCTAssertEqual(required, 1_046_716_992)
         XCTAssertNoThrow(try LlamaTextMemoryPolicy.validate(
             modelBytes: UInt64(PinnedTextModel.byteCount), contextLength: 4096, availableBytes: required
         ))

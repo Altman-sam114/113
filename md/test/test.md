@@ -1,5 +1,11 @@
 # 测试规范
 
+## 270M 正式模型的生产链路验收
+
+用户已确认既有270M作为首个正式可导入模型，新身份/文件名/可信SHA-256与原1B隔离。`RuntimeStreamingTests`保留全部原方法并锁定270M规格、旧身份/manifest不能继承信任和对应内存门槛；手机10项/30图保留并实际选择270M、审阅/取消许可，不替用户同意。
+
+`native-text-smoke.yml`在保留原底层真实多轮/限额/取消/上下文拒绝之外，编译`NativeProductionSmoke.swift`及同一生产AppState/ArtifactImport/ConversationStore/RuntimeStreaming/LlamaTextRuntime，以真实文件执行无UI的ModelCatalog导入、verified、InferenceEngine两轮原生正文/实际指标、完整导出、实际文字后停止/会话隔离/重载、校验后变更拒绝/源文件不变/重新导入恢复和完整超限问题拒绝。它不证明Files点按或真机；`productionFlow`必须完整且对应相同SHA/run/attempt/模型UUID。纯Python负夹具拒绝旧fixture结果、缺步骤、模拟回答或错误计数/速度。新SHA云端结果未出前不预写通过，旧d6532b7只绑定当时底层probe。
+
 ## 原生文本验证入口
 
 ### 手机许可流程定向诊断

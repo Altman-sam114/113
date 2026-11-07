@@ -168,13 +168,13 @@ final class CompactSummaryInteractionTests: XCTestCase {
         tap(app.buttons["workspace-tab-models"], id: "workspace-tab-models")
         let picker = app.buttons["model-selector-picker"]
         tap(picker, id: "model-selector-picker")
-        let choice = app.buttons["Gemma 3 1B"]
+        let choice = app.buttons["Gemma 3 270M"]
         if !choice.isHittable {
             attachDiagnostic("native-model-menu-before-scroll")
             // The system menu exposes a CollectionView on current iOS. Its
             // content frame can extend below the clipped popup, so let UIKit
             // scroll the actual menu rather than deriving a viewport from it.
-            let choices = app.collectionViews.containing(.button, identifier: "Gemma 3 1B").firstMatch
+            let choices = app.collectionViews.containing(.button, identifier: "Gemma 3 270M").firstMatch
             XCTAssertTrue(choices.waitForExistence(timeout: 5))
             for _ in 0..<8 {
                 if choice.exists && choice.isHittable && app.frame.contains(choice.frame) { break }
@@ -183,7 +183,7 @@ final class CompactSummaryInteractionTests: XCTestCase {
             }
         }
         tap(choice, id: "native-model-choice")
-        XCTAssertTrue(waitUntil { (picker.value as? String)?.contains("Gemma 3 1B") == true })
+        XCTAssertTrue(waitUntil { (picker.value as? String)?.contains("Gemma 3 270M") == true })
         let selectedBefore = try XCTUnwrap(picker.value as? String)
         XCTAssertTrue(selectedBefore.contains("缺少本地 artifact"))
         let importAction = app.buttons["model-artifact-action-import"]
@@ -194,7 +194,7 @@ final class CompactSummaryInteractionTests: XCTestCase {
         let confirm = app.buttons["model-license-confirm-import"]
         assertReachableAction(cancel, inside: app.frame)
         assertReachableAction(confirm, inside: app.frame)
-        XCTAssertTrue(element(app, "model-license-model-name").label.contains("Gemma 3 1B"))
+        XCTAssertTrue(element(app, "model-license-model-name").label.contains("Gemma 3 270M"))
         try captureLicense(app, accessibility: accessibility, stage: "license-open", selectedModel: selectedBefore)
         // No automated test accepts a model license on the user's behalf or
         // opens Files. Cancellation must leave the selected model unverified.
@@ -212,7 +212,7 @@ final class CompactSummaryInteractionTests: XCTestCase {
         tap(importAction, id: "model-artifact-action-import")
         assertReachableAction(cancel, inside: app.frame)
         assertReachableAction(confirm, inside: app.frame)
-        XCTAssertTrue(element(app, "model-license-model-name").label.contains("Gemma 3 1B"))
+        XCTAssertTrue(element(app, "model-license-model-name").label.contains("Gemma 3 270M"))
         tap(cancel, id: "model-license-cancel")
         XCTAssertTrue(waitUntil { !cancel.exists && picker.exists })
         XCTAssertEqual(picker.value as? String, selectedBefore)

@@ -135,7 +135,7 @@ def validate_license_capture(document):
     actions = document.get("actions", [])
     require_action_sequence(actions, ["tap:workspace-tab-models", "tap:model-selector-picker",
                                      "tap:native-model-choice", "tap:model-artifact-action-import"])
-    if (document.get("keyboardVisible") is not False or "Gemma 3 1B" not in document.get("selectedModel", "")
+    if (document.get("keyboardVisible") is not False or "Gemma 3 270M" not in document.get("selectedModel", "")
             or "缺少本地 artifact" not in document.get("selectedModel", "")
             or "tap:model-license-confirm-import" in actions):
         raise ValueError("License verification must not import, verify or run a model")
