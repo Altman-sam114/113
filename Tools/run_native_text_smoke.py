@@ -150,6 +150,8 @@ def main():
                                               os.environ["GITHUB_RUN_ID"], os.environ["GITHUB_RUN_ATTEMPT"])
         (result / "task-quality-cases.json").write_bytes(cases.read_bytes())
         (result / "task-quality-checks.json").write_text(json.dumps(review, indent=2) + "\n")
+        from native_reference_diagnostic import run_reference_diagnostic
+        run_reference_diagnostic(model, framework, sdk, architecture, private, result, environment, probe)
         require(review["automaticFailureCount"] == 0,
                 "Frozen task checks failed; all original answers and criteria remain in the artifact")
     print("Real native fixture evidence saved; no weights or keys are in the result artifact")
