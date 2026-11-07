@@ -1,5 +1,9 @@
 # 测试规范
 
+## 固定日常任务质量入口
+
+原生工作流include_task_quality=true在保留原生产smoke之外，运行[十个固定合成任务](../release/task-quality.md)：复用生产四个模板、ModelCatalog/VerifiedLlamaRuntime/InferenceEngine、4096/512预算，保存完整回答/实际指标/错误。身份、fixture摘要、原文和完整case集必须对应同SHA/run/attempt；自动事实失败使该run失败并保留原文。自动通过仍需逐例人工语义审读，不证明通用任务质量或真机。入口默认false，不改变既有生产smoke范围。
+
 ## 270M 正式模型的生产链路验收
 
 用户已确认既有270M作为首个正式可导入模型，新身份/文件名/可信SHA-256与原1B隔离。`RuntimeStreamingTests`保留全部原方法并锁定270M规格、旧身份/manifest不能继承信任和对应内存门槛；手机10项/30图保留并实际选择270M、审阅/取消许可，不替用户同意。

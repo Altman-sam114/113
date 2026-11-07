@@ -80,6 +80,9 @@ def main():
             "The exact current main SHA is required")
     key = os.environ.get("LOCALGEMMA_NATIVE_FIXTURE_KEY", "")
     require(len(key) >= 32, "The one-use decryption key is missing")
+    quality_input = os.environ.get("INCLUDE_TASK_QUALITY", "false")
+    require(quality_input in {"true", "false"}, "Task-quality mode must be an explicit boolean")
+    include_quality = quality_input == "true"
     tag = os.environ["FIXTURE_RELEASE_TAG"]
     require(re.fullmatch(r"agentx-native-fixture-[a-z0-9-]{1,60}", tag) is not None,
             "Only a task-specific fixture draft is accepted")
@@ -108,6 +111,7 @@ def main():
         "modelSHA256": digest, "modelBytes": model.stat().st_size, "fixtureOnly": False,
         "modelRole": "registered-production-model", "modelFileName": PRODUCTION_MODEL_FILENAME,
         "modelIncludedInArtifacts": False, "signedDistributionVerified": False,
+        "taskQualityRequested": include_quality,
     }, indent=2) + "\n")
     sdk = subprocess.check_output(["xcrun", "--sdk", "macosx", "--show-sdk-path"], text=True).strip()
     architecture = platform.machine()
@@ -129,12 +133,25 @@ def main():
     with (result / "build.log").open("w") as log:
         subprocess.run(command, stdout=log, stderr=subprocess.STDOUT, check=True, timeout=180)
     environment = dict(os.environ, NATIVE_FIXTURE_PATH=str(model), NATIVE_PROBE_OUTPUT=str(result / "probe.json"))
+    environment.pop("NATIVE_QUALITY_CASES_PATH", None)
+    if include_quality:
+        environment["NATIVE_QUALITY_CASES_PATH"] = str(ROOT / "Tools/fixtures/task_quality_270m.json")
     environment.pop("GH_TOKEN", None)
     environment.pop("LOCALGEMMA_NATIVE_FIXTURE_KEY", None)
     with (result / "run.log").open("w") as log:
-        subprocess.run([str(executable)], env=environment, stdout=log, stderr=subprocess.STDOUT, check=True, timeout=300)
-    validate_production_report(json.loads((result / "probe.json").read_text()), expected,
-                               os.environ["GITHUB_RUN_ID"], os.environ["GITHUB_RUN_ATTEMPT"])
+        subprocess.run([str(executable)], env=environment, stdout=log, stderr=subprocess.STDOUT,
+                       check=True, timeout=600 if include_quality else 300)
+    probe = json.loads((result / "probe.json").read_text())
+    validate_production_report(probe, expected, os.environ["GITHUB_RUN_ID"], os.environ["GITHUB_RUN_ATTEMPT"])
+    if include_quality:
+        from task_quality_evidence import validate_task_quality_report
+        cases = ROOT / "Tools/fixtures/task_quality_270m.json"
+        review = validate_task_quality_report(probe, cases, expected,
+                                              os.environ["GITHUB_RUN_ID"], os.environ["GITHUB_RUN_ATTEMPT"])
+        (result / "task-quality-cases.json").write_bytes(cases.read_bytes())
+        (result / "task-quality-checks.json").write_text(json.dumps(review, indent=2) + "\n")
+        require(review["automaticFailureCount"] == 0,
+                "Frozen task checks failed; all original answers and criteria remain in the artifact")
     print("Real native fixture evidence saved; no weights or keys are in the result artifact")
 
 

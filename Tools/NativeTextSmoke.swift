@@ -100,6 +100,12 @@ struct NativeTextSmoke {
                 modelURL: url, directory: url.deletingLastPathComponent().appendingPathComponent("managed-production-models")
             )
             report["productionModelVerified"] = true
+            if let casesPath = environment["NATIVE_QUALITY_CASES_PATH"] {
+                report["taskQuality"] = try await NativeProductionSmoke.evaluateTasks(
+                    modelURL: url, directory: url.deletingLastPathComponent().appendingPathComponent("managed-quality-models"),
+                    casesURL: URL(fileURLWithPath: casesPath)
+                )
+            }
             report["status"] = "success"
         } catch {
             report["status"] = "failure"

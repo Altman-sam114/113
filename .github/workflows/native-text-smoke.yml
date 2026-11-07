@@ -12,6 +12,12 @@ name: Real Native Text Smoke
         required: true
         type: string
 
+      include_task_quality:
+        description: Collect ten frozen production tasks and require their automatic fact checks
+        required: false
+        default: false
+        type: boolean
+
 permissions:
   contents: read
 
@@ -32,6 +38,7 @@ jobs:
       - name: Exercise real loading, context, generation, cancellation and reload
         env:
           EXPECTED_SHA: ${{ inputs.expected_sha }}
+          INCLUDE_TASK_QUALITY: ${{ inputs.include_task_quality && 'true' || 'false' }}
           FIXTURE_RELEASE_TAG: ${{ inputs.fixture_release_tag }}
           LOCALGEMMA_NATIVE_FIXTURE_KEY: ${{ secrets.LOCALGEMMA_NATIVE_FIXTURE_KEY }}
           GH_TOKEN: ${{ github.token }}

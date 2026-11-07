@@ -123,6 +123,81 @@ enum NativeProductionSmoke {
         ]
     }
 
+    private struct TaskQualityInput: Decodable {
+        let schemaVersion: Int
+        let caseCount: Int
+        let cases: [TaskQualityCase]
+    }
+
+    private struct TaskQualityCase: Decodable {
+        let id: String
+        let templateID: String?
+        let expectedTemplatePrompt: String
+        let input: String
+    }
+
+    // Collect complete answers using the actual production template and state
+    // flow. Semantic quality is assessed separately against frozen criteria.
+    static func evaluateTasks(modelURL: URL, directory: URL, casesURL: URL) async throws -> [String: Any] {
+        let definition = try JSONDecoder().decode(TaskQualityInput.self, from: Data(contentsOf: casesURL))
+        guard let casesDigest = ModelArtifactHasher.sha256Hex(for: casesURL) else {
+            throw NativeProductionFailure(description: "The frozen task cases could not be fingerprinted")
+        }
+        try require(definition.schemaVersion == 1 && definition.caseCount == 10
+                    && definition.cases.count == 10 && Set(definition.cases.map(\.id)).count == 10,
+                    "Exactly ten unique frozen task cases are required")
+        for item in definition.cases {
+            let template = PromptTemplateLibrary.everydayTemplates.first { $0.id == item.templateID }
+            try require(!item.input.isEmpty && (item.templateID == nil || template != nil)
+                        && (template?.prompt ?? "") == item.expectedTemplatePrompt,
+                        "A quality case differs from the actual production template")
+        }
+        let model = PinnedTextModel.model
+        let catalog = ModelCatalog(models: [model], artifactDirectoryURL: directory)
+        try await catalog.importArtifacts(for: model, sourceURLs: [modelURL])
+        try require(catalog.validation(for: model).availability == .verified,
+                    "Task quality requires the real production importer and verified bytes")
+        let engine = InferenceEngine(streamingRuntime: VerifiedLlamaRuntime())
+        var results: [[String: Any]] = []
+        for item in definition.cases {
+            engine.createSession()
+            if let template = PromptTemplateLibrary.everydayTemplates.first(where: { $0.id == item.templateID }) {
+                engine.applyTemplate(template)
+            }
+            engine.inputText += item.input
+            let prompt = engine.inputText
+            let start = Date()
+            engine.send(using: model, availability: catalog.validation(for: model).availability,
+                        artifactDirectoryURL: directory)
+            await engine.waitForCurrentGeneration()
+            let response = engine.messages.last { $0.role == .assistant }
+            let succeeded = !engine.isGenerating && engine.generationError == nil
+                && !engine.lastResultWasSimulated && engine.currentBackend == .llamaCpp
+                && (response?.tokens ?? 0) > 0
+            results.append([
+                "id": item.id, "templateID": item.templateID ?? "", "prompt": prompt,
+                "text": response?.text ?? "", "outputTokens": response?.tokens ?? 0,
+                "tokensPerSecond": engine.currentTokensPerSecond,
+                "elapsedSeconds": Date().timeIntervalSince(start),
+                "simulated": engine.lastResultWasSimulated, "backend": engine.currentBackend.rawValue,
+                "runtimeSucceeded": succeeded, "error": engine.generationError ?? "",
+                "runtimeStatusMessages": engine.messages.filter { $0.isRuntimeStatus == true }.map(\.text)
+            ])
+        }
+        try require(ModelArtifactHasher.sha256Hex(for: modelURL) == PinnedTextModel.sha256,
+                    "Task evaluation must retain the supplied source model")
+        return [
+            "schemaVersion": 1, "status": "collected",
+            "source": "headless-production-everyday-task-quality",
+            "modelID": model.id.uuidString, "modelSHA256": PinnedTextModel.sha256,
+            "casesSHA256": casesDigest, "caseCount": results.count,
+            "contextLength": model.contextLength, "maximumOutputTokens": 512,
+            "sourceModelUnmodified": true, "manualReviewRequired": true,
+            "generalTaskQualityVerified": false, "UIFilePickerExercised": false,
+            "deviceMemoryOrMetalVerified": false, "cases": results
+        ]
+    }
+
     private static func hasNativeText(_ engine: InferenceEngine) -> Bool {
         engine.messages.contains { $0.role == .assistant && !$0.text.isEmpty }
     }

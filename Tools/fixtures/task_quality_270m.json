@@ -1,0 +1,227 @@
+{
+  "schemaVersion": 1,
+  "caseCount": 10,
+  "purpose": "Fixed synthetic examples for production everyday tasks; automatic fact checks do not prove semantic quality.",
+  "generation": {
+    "contextLength": 4096,
+    "maximumOutputTokens": 512,
+    "sampler": "production-default-greedy"
+  },
+  "manualDimensions": [
+    "instructionFollowing",
+    "factualFaithfulness",
+    "noUnsupportedAdditions",
+    "readability"
+  ],
+  "cases": [
+    {
+      "id": "polish-zh",
+      "templateID": "everyday-polish",
+      "input": "王经理您好，我们原定周五下午3点开会，想改到下周一上午10点，请问您是否方便？",
+      "requiredConcepts": [
+        [
+          "周五",
+          "星期五"
+        ],
+        [
+          "周一",
+          "星期一"
+        ],
+        [
+          "3",
+          "三"
+        ],
+        [
+          "10",
+          "十"
+        ]
+      ],
+      "rubric": "保持请求改期的询问语气；原时间周五15点和目标下周一10点准确，不把待同意写成已确定。保留中文，给出自然的修改稿。",
+      "expectedTemplatePrompt": "请润色下面的文字，保留原意，让表达更自然、简洁。直接给出修改后的版本：\n\n"
+    },
+    {
+      "id": "polish-en",
+      "templateID": "everyday-polish",
+      "input": "Hi Maya, could you please send me the draft by Friday at 4 p.m.? I need to review it before the meeting. Thanks!",
+      "requiredConcepts": [
+        [
+          "Maya"
+        ],
+        [
+          "Friday"
+        ],
+        [
+          "4",
+          "four"
+        ]
+      ],
+      "rubric": "保留英文和礼貌请求；保留Maya、周五16点、会前审阅，不编造会议日期或声称已收到稿件。",
+      "expectedTemplatePrompt": "请润色下面的文字，保留原意，让表达更自然、简洁。直接给出修改后的版本：\n\n"
+    },
+    {
+      "id": "summary-zh",
+      "templateID": "everyday-summary",
+      "input": "项目测试已经完成，发现3个需要修复的问题。修复截止时间是周五，预算保持500元不变。只有这3个问题修复并复测通过后，才可以上线。",
+      "requiredConcepts": [
+        [
+          "3",
+          "三"
+        ],
+        [
+          "周五",
+          "星期五"
+        ],
+        [
+          "500",
+          "五百"
+        ]
+      ],
+      "rubric": "一句话概括后列要点；保留3个问题、周五、500元和修复复测通过后才上线的依赖，不将测试完成误写为问题已修复。",
+      "expectedTemplatePrompt": "请总结下面的内容：先用一句话概括，再列出关键要点。只依据原文，不补充未经证实的信息：\n\n"
+    },
+    {
+      "id": "summary-en",
+      "templateID": "everyday-summary",
+      "input": "Project Atlas starts on Monday. The team has 12 volunteers and a budget of 200 dollars. Grace will book the room before invitations are sent.",
+      "requiredConcepts": [
+        [
+          "Atlas"
+        ],
+        [
+          "Monday",
+          "周一",
+          "星期一"
+        ],
+        [
+          "12",
+          "十二"
+        ],
+        [
+          "200",
+          "两百",
+          "二百"
+        ],
+        [
+          "Grace"
+        ]
+      ],
+      "rubric": "概括并列要点，准确保留Atlas、周一、12名志愿者、200美元及Grace先订房再发邀请的顺序，无新增事实。",
+      "expectedTemplatePrompt": "请总结下面的内容：先用一句话概括，再列出关键要点。只依据原文，不补充未经证实的信息：\n\n"
+    },
+    {
+      "id": "translate-zh-en",
+      "templateID": "everyday-translate",
+      "input": "请在周五下午3点前发送报告，不要附上客户的电话号码。",
+      "requiredConcepts": [
+        [
+          "Friday"
+        ],
+        [
+          "3",
+          "three"
+        ],
+        [
+          "report"
+        ],
+        [
+          "phone",
+          "telephone"
+        ]
+      ],
+      "rubric": "只给英文译文，保留周五15点前发送的期限，以及不要附上客户电话号码的否定含义，不反转或遗漏。",
+      "expectedTemplatePrompt": "请将下面的中文翻译成英文，或将英文翻译成简体中文。保留原文的语气和格式，直接给出译文：\n\n"
+    },
+    {
+      "id": "translate-en-zh",
+      "templateID": "everyday-translate",
+      "input": "The meeting is postponed until Monday. Please bring two printed copies.",
+      "requiredConcepts": [
+        [
+          "周一",
+          "星期一"
+        ],
+        [
+          "两",
+          "二",
+          "2"
+        ],
+        [
+          "打印",
+          "纸质",
+          "印刷"
+        ]
+      ],
+      "rubric": "只给简体中文译文；保留延期至周一、两份打印件，不误译成取消或提前。",
+      "expectedTemplatePrompt": "请将下面的中文翻译成英文，或将英文翻译成简体中文。保留原文的语气和格式，直接给出译文：\n\n"
+    },
+    {
+      "id": "plan-specified",
+      "templateID": "everyday-plan",
+      "input": "目标：周六整理电脑上的照片，最多用90分钟。必须先备份再删除重复照片，每20分钟休息一次。不能购买新软件。",
+      "requiredConcepts": [
+        [
+          "90",
+          "九十"
+        ],
+        [
+          "备份"
+        ],
+        [
+          "20",
+          "二十"
+        ]
+      ],
+      "rubric": "列出优先级及第一步，明确先备份后删除、90分钟上限和每20分钟休息；不建议购买软件，不承诺直接操作用户文件。",
+      "expectedTemplatePrompt": "请根据下面的目标和限制，整理一份简洁可执行的行动计划，列出优先级和第一步。信息不足时先问必要的问题：\n\n"
+    },
+    {
+      "id": "plan-clarify",
+      "templateID": "everyday-plan",
+      "input": "我想组织一次聚会，但还没确定任何细节。请先问我必要的问题。",
+      "requiredConcepts": [
+        [
+          "？",
+          "?"
+        ],
+        [
+          "时间",
+          "日期"
+        ],
+        [
+          "预算",
+          "花费"
+        ],
+        [
+          "人数",
+          "多少人",
+          "几个人",
+          "几人"
+        ]
+      ],
+      "rubric": "先询问时间、人数、预算等必要信息，不能虚构已确定的日期场地、预算或参与者，也不能直接给出已经安排好的活动。",
+      "expectedTemplatePrompt": "请根据下面的目标和限制，整理一份简洁可执行的行动计划，列出优先级和第一步。信息不足时先问必要的问题：\n\n"
+    },
+    {
+      "id": "control-zh-exact",
+      "templateID": null,
+      "input": "请只输出“青竹”这两个汉字，不加标点，不解释。",
+      "requiredConcepts": [],
+      "acceptedExact": [
+        "青竹"
+      ],
+      "rubric": "严格只输出青竹，不加标点、前言或解释。",
+      "expectedTemplatePrompt": ""
+    },
+    {
+      "id": "control-en-arithmetic",
+      "templateID": null,
+      "input": "What is 2 + 3? Reply with the single digit only.",
+      "requiredConcepts": [],
+      "acceptedExact": [
+        "5"
+      ],
+      "rubric": "严格只输出5。",
+      "expectedTemplatePrompt": ""
+    }
+  ]
+}
