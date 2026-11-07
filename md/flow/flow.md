@@ -2,6 +2,8 @@
 
 ## 原生文本路径
 
+native失败在InferenceEngine中保存一次瞬态失败请求；44pt重试动作经当前会话/模型/verified门禁，在新会话复用失败前的完整消息，调用与send共享的native启动路径。原失败会话/部分回答/错误及草稿不改，retry不把部分回答回灌上下文，不重复插入user；换会话/模型/发送或reset清除旧请求，不持久化或自动重试。详细范围与待验状态见[失败恢复](../release/native-retry.md)。
+
 生产 App 注入 `VerifiedLlamaRuntime`，初始模拟模型不变。指定 Gemma 3 270M 的手动 GGUF 经 ModelCatalog 校验为 verified 后，InferenceEngine 以 generation/session identity 创建完整消息请求，经串行 LlamaTextRuntime 重新验证文件、内嵌模板/tokenizer 和预算，再回流真实文字/完成指标。停止、换会话/模型、文件失去 verified 和后台事件取消任务；迟到事件不写回。文件/上下文/解码错误保留问题与已收到正文并显式报告，不回退模拟输出。REAL 只由原生事件确认。详细边界见[本地文本推理](../release/native-runtime.md)。
 
 ## 手机运行摘要

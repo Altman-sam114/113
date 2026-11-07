@@ -1,5 +1,7 @@
 import CryptoKit
 import Foundation
+import SwiftUI
+import UIKit
 import XCTest
 @testable import LocalGemma
 
@@ -162,6 +164,211 @@ final class RuntimeStreamingTests: XCTestCase {
         XCTAssertTrue(engine.messages.contains(where: { $0.text == "Keep partial answer" }))
         XCTAssertEqual(engine.messages.last?.role, .system)
         XCTAssertFalse(engine.isGenerating)
+    }
+
+    func testFailedNativeRetryBranchesExactContextAndPreservesOriginalDraftAndPartialAnswer() async throws {
+        let started = (0..<3).map { expectation(description: "native attempt \($0)") }
+        let runtime = ControlledStreamingRuntime(onRequest: { index in
+            guard started.indices.contains(index) else { XCTFail("Unexpected attempt"); return }
+            started[index].fulfill()
+        })
+        let engine = InferenceEngine(streamingRuntime: runtime)
+        let model = PinnedTextModel.model
+        let directory = URL(fileURLWithPath: "/original-fixture")
+        engine.inputText = "Earlier question"
+        engine.send(using: model, availability: .verified, artifactDirectoryURL: directory)
+        var result = await XCTWaiter.fulfillment(of: [started[0]], timeout: 3)
+        XCTAssertEqual(result, .completed)
+        guard result == .completed else { engine.stop(); return }
+        runtime.emit(.text("Earlier answer"), request: 0)
+        runtime.emit(.completed(InferenceStreamMetrics(promptTokens: 3, outputTokens: 2,
+                                                      tokensPerSecond: 10, reachedOutputLimit: false)), request: 0)
+        runtime.finish(request: 0)
+        await engine.waitForCurrentGeneration()
+        engine.inputText = "Retry this question"
+        engine.send(using: model, availability: .verified, artifactDirectoryURL: directory)
+        result = await XCTWaiter.fulfillment(of: [started[1]], timeout: 3)
+        XCTAssertEqual(result, .completed)
+        guard result == .completed else { engine.stop(); return }
+        runtime.emit(.text("  Unfinished answer\n"), request: 1)
+        runtime.finish(request: 1, error: CocoaError(.fileReadCorruptFile))
+        await engine.waitForCurrentGeneration()
+        XCTAssertTrue(engine.canRetryNativeGeneration(using: model, availability: .verified))
+        engine.inputText = "  Another unsent draft\n"
+        let originalSession = try XCTUnwrap(engine.activeSession)
+        let originalExport = engine.exportActiveSessionText()
+        let originalRequest = runtime.requests[1]
+        let newDirectory = URL(fileURLWithPath: "/revalidated-fixture")
+        XCTAssertTrue(engine.retryNativeGeneration(using: model, availability: .verified,
+                                                   artifactDirectoryURL: newDirectory))
+        XCTAssertNotEqual(engine.activeSessionID, originalSession.id)
+        XCTAssertEqual(engine.sessions.first(where: { $0.id == originalSession.id }), originalSession)
+        XCTAssertEqual(engine.messages.dropLast(), originalRequest.messages[...])
+        XCTAssertEqual(engine.messages.filter { $0.role == .user }.count, 2)
+        XCTAssertFalse(engine.messages.contains { $0.text == "  Unfinished answer\n" || $0.isRuntimeStatus == true })
+        XCTAssertEqual(engine.inputText, "")
+        let retryMessages = engine.messages
+        XCTAssertFalse(engine.retryNativeGeneration(using: model, availability: .verified,
+                                                    artifactDirectoryURL: newDirectory), "A double activation cannot create another session")
+        XCTAssertEqual(engine.messages, retryMessages)
+        XCTAssertEqual(engine.sessions.count, 2)
+        result = await XCTWaiter.fulfillment(of: [started[2]], timeout: 3)
+        XCTAssertEqual(result, .completed)
+        guard result == .completed else { engine.stop(); return }
+        XCTAssertEqual(runtime.requests[2].messages, originalRequest.messages)
+        XCTAssertEqual(runtime.requests[2].modelFileURL, newDirectory.appendingPathComponent(PinnedTextModel.fileName))
+        runtime.emit(.text("Recovered answer"), request: 2)
+        runtime.emit(.completed(InferenceStreamMetrics(promptTokens: 12, outputTokens: 3,
+                                                      tokensPerSecond: 9, reachedOutputLimit: false)), request: 2)
+        runtime.finish(request: 2)
+        await engine.waitForCurrentGeneration()
+        XCTAssertNil(engine.generationError)
+        XCTAssertEqual(engine.messages.last?.text, "Recovered answer")
+        XCTAssertFalse(engine.canRetryNativeGeneration(using: model, availability: .verified))
+        engine.selectSession(originalSession)
+        XCTAssertEqual(engine.messages, originalSession.messages)
+        XCTAssertEqual(engine.inputText, "  Another unsent draft\n")
+        // Export time may advance, but every original message is still present.
+        for message in originalSession.messages { XCTAssertTrue(originalExport.contains(message.text)) }
+    }
+
+    func testFailedNativeRetryRequiresCurrentVerifiedModelAndInvalidatesAcrossSessionChanges() async throws {
+        let entered = expectation(description: "failed load")
+        let runtime = ControlledStreamingRuntime(onRequest: { _ in entered.fulfill() })
+        let engine = InferenceEngine(streamingRuntime: runtime)
+        let model = PinnedTextModel.model
+        let directory = URL(fileURLWithPath: "/fixture")
+        engine.inputText = "Original question"
+        engine.send(using: model, availability: .verified, artifactDirectoryURL: directory)
+        let result = await XCTWaiter.fulfillment(of: [entered], timeout: 3)
+        XCTAssertEqual(result, .completed)
+        guard result == .completed else { engine.stop(); return }
+        runtime.finish(request: 0, error: CocoaError(.fileReadCorruptFile))
+        await engine.waitForCurrentGeneration()
+        engine.inputText = "Keep this draft"
+        let original = try XCTUnwrap(engine.activeSession)
+        for availability in [ArtifactAvailability.missing, .staged] {
+            XCTAssertFalse(engine.retryNativeGeneration(using: model, availability: availability,
+                                                        artifactDirectoryURL: directory))
+        }
+        XCTAssertFalse(engine.retryNativeGeneration(using: model, availability: .verified, artifactDirectoryURL: nil))
+        XCTAssertFalse(engine.retryNativeGeneration(using: ModelCatalog.defaultModels[0], availability: .verified,
+                                                    artifactDirectoryURL: directory))
+        XCTAssertEqual(engine.sessions, [original])
+        XCTAssertEqual(engine.inputText, "Keep this draft")
+        XCTAssertEqual(runtime.requests.count, 1)
+        XCTAssertTrue(engine.canRetryNativeGeneration(using: model, availability: .verified))
+        engine.createSession()
+        engine.selectSession(original)
+        XCTAssertFalse(engine.canRetryNativeGeneration(using: model, availability: .verified), "A stale retry cannot follow navigation")
+        XCTAssertEqual(engine.inputText, "Keep this draft")
+        XCTAssertEqual(engine.messages, original.messages)
+    }
+
+    func testNativeRetryCanFailAgainAndDoesNotFollowModelChangeOrReset() async throws {
+        let first = expectation(description: "first failure")
+        let second = expectation(description: "retry failure")
+        let runtime = ControlledStreamingRuntime(onRequest: { index in
+            (index == 0 ? first : second).fulfill()
+        })
+        let engine = InferenceEngine(streamingRuntime: runtime)
+        let model = PinnedTextModel.model
+        let directory = URL(fileURLWithPath: "/fixture")
+        engine.inputText = "Question"
+        engine.send(using: model, availability: .verified, artifactDirectoryURL: directory)
+        let firstResult = await XCTWaiter.fulfillment(of: [first], timeout: 3)
+        XCTAssertEqual(firstResult, .completed)
+        guard firstResult == .completed else { engine.stop(); return }
+        runtime.finish(request: 0, error: CocoaError(.fileReadCorruptFile))
+        await engine.waitForCurrentGeneration()
+        XCTAssertTrue(engine.retryNativeGeneration(using: model, availability: .verified,
+                                                   artifactDirectoryURL: directory))
+        let secondResult = await XCTWaiter.fulfillment(of: [second], timeout: 3)
+        XCTAssertEqual(secondResult, .completed)
+        guard secondResult == .completed else { engine.stop(); return }
+        runtime.finish(request: 1, error: CocoaError(.fileReadCorruptFile))
+        await engine.waitForCurrentGeneration()
+        XCTAssertTrue(engine.canRetryNativeGeneration(using: model, availability: .verified))
+        XCTAssertEqual(engine.sessions.count, 2)
+        XCTAssertEqual(runtime.requests[0].messages, runtime.requests[1].messages)
+        engine.stopNativeGeneration(ifModelChangedTo: ModelCatalog.defaultModels[0].id)
+        engine.stopNativeGeneration(ifModelChangedTo: model.id)
+        XCTAssertFalse(engine.canRetryNativeGeneration(using: model, availability: .verified))
+        engine.resetConversation()
+        XCTAssertFalse(engine.retryNativeGeneration(using: model, availability: .verified,
+                                                    artifactDirectoryURL: directory))
+        XCTAssertEqual(runtime.requests.count, 2)
+    }
+
+    func testNativeFailureNoticeGrowsNaturallyOnSmallScreensAndLargeText() {
+        XCTAssertGreaterThanOrEqual(NativeGenerationFailureNotice.minimumActionHeight, 44)
+        XCTAssertEqual(NativeGenerationFailureNotice.retryLabel, "在新会话重试")
+        XCTAssertTrue(NativeGenerationFailureNotice.retryHint.contains("原会话、部分回答及草稿保留"))
+        var actions = 0
+        for theme in AppThemeMode.allCases {
+            for width: CGFloat in [248, 284, 720] {
+                var heights: [CGFloat] = []
+                for textSize in [DynamicTypeSize.large, .accessibility5] {
+                    let content = NativeGenerationFailureNotice(
+                        message: StreamingInferenceError.emptyResponse.localizedDescription,
+                        canRetry: true, retry: { actions += 1 }
+                    )
+                        .environment(\.appTheme, AppThemePalette(mode: theme))
+                        .environment(\.dynamicTypeSize, textSize)
+                        .frame(width: width)
+                        .background(AppThemePalette(mode: theme).canvas)
+                    let host = UIHostingController(rootView: content)
+                    host.loadViewIfNeeded()
+                    let natural = host.sizeThatFits(in: CGSize(width: width, height: 600))
+                    let tall = host.sizeThatFits(in: CGSize(width: width, height: 1800))
+                    XCTAssertTrue(natural.height.isFinite && natural.height > 44)
+                    XCTAssertEqual(natural.width, width, accuracy: 1)
+                    XCTAssertEqual(natural.height, tall.height, accuracy: 1)
+                    heights.append(natural.height)
+                    if width == 284 {
+                        let renderer = ImageRenderer(content: content.environment(\.colorScheme, theme.colorScheme))
+                        renderer.scale = 1
+                        if let data = renderer.uiImage?.pngData() {
+                            let attachment = XCTAttachment(data: data, uniformTypeIdentifier: "public.png")
+                            attachment.name = "native-retry-notice-\(theme.rawValue)-\(textSize == .large ? "large" : "accessibility5")"
+                            attachment.lifetime = .keepAlways
+                            add(attachment)
+                        } else { XCTFail("Could not render the production retry notice") }
+                    }
+                }
+                XCTAssertGreaterThan(heights[1], heights[0])
+            }
+        }
+        XCTAssertEqual(actions, 0, "Layout must not invoke retry")
+    }
+
+    func testLinkedNativeRetryRechecksActualFileInsteadOfTrustingUIAvailability() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("NativeRetry-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let file = directory.appendingPathComponent(PinnedTextModel.fileName)
+        let originalBytes = Data("Untrusted fixture; no model weights".utf8)
+        try originalBytes.write(to: file)
+        let engine = InferenceEngine(streamingRuntime: VerifiedLlamaRuntime())
+        engine.inputText = "Keep this question"
+        engine.send(using: PinnedTextModel.model, availability: .verified, artifactDirectoryURL: directory)
+        await engine.waitForCurrentGeneration()
+        XCTAssertEqual(engine.generationError, LlamaTextRuntimeError.hashMismatch.localizedDescription)
+        XCTAssertTrue(engine.lastResultWasSimulated, "No actual native output may be claimed")
+        let original = try XCTUnwrap(engine.activeSession)
+        engine.inputText = "  Unsent draft  "
+        let changedBytes = Data("Different untrusted fixture".utf8)
+        try changedBytes.write(to: file)
+        XCTAssertTrue(engine.retryNativeGeneration(using: PinnedTextModel.model, availability: .verified,
+                                                   artifactDirectoryURL: directory))
+        await engine.waitForCurrentGeneration()
+        XCTAssertEqual(engine.generationError, LlamaTextRuntimeError.hashMismatch.localizedDescription)
+        XCTAssertTrue(engine.lastResultWasSimulated)
+        XCTAssertEqual(engine.sessions.first(where: { $0.id == original.id }), original)
+        XCTAssertEqual(try Data(contentsOf: file), changedBytes)
+        engine.selectSession(original)
+        XCTAssertEqual(engine.inputText, "  Unsent draft  ")
+        XCTAssertEqual(engine.messages, original.messages)
     }
 
     func testEmptyNativeCompletionPreservesQuestionAndCannotClaimAnAnswer() async {

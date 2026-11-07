@@ -1,5 +1,9 @@
 # 测试规范
 
+## 本地推理失败恢复
+
+失败重试的五项直接测试与四张生产组件图在现有RuntimeStreamingTests中执行；原单元方法、full66图与手机12方法/36图不减。原始错误/完整上下文、原会话部分正文/草稿、双击拒绝、当前模型/verified门禁、再次失败和真实native文件摘要重验为本轮门槛，详见[失败恢复合同](../release/native-retry.md)。新图附在该方法原始xcresult/附件导出中，组件ImageRenderer图不冒充完整Simulator或真实模型推理；须读取新SHA自身原始结果并实际看图。
+
 ## 真实手机进程恢复入口
 
 full手机范围在原10项/30图之上新增普通/AX5各一项双会话草稿后台终止/重启验证，共12项/36图；原license定向不变。仅用公开生产UI和XCUIApplication生命周期，不写App容器，不发prompt；跨三图保持同一会话身份/事件历史及未经trim草稿，详见[限定范围与证据合同](../release/conversation-lifecycle.md)。新增代码须自身SHA云端完整原包/图审后才能写通过；不代替真机、SIGKILL/断电、磁盘满或270M任务质量门禁。

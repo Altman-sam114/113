@@ -1221,6 +1221,11 @@ final class InferenceEngine: ObservableObject {
     private var generationID: UUID?
     private var nativeGenerationModelID: UUID?
     private var nativeResultModelID: UUID?
+    private struct FailedNativeRequest {
+        let sessionID: UUID
+        let request: StreamingInferenceRequest
+    }
+    private var failedNativeRequest: FailedNativeRequest?
     private let runtime: LocalInferenceRuntime
     private let streamingRuntime: (any LocalStreamingInferenceRuntime)?
     private let conversationStorage: (any ConversationStorage)?
@@ -1296,6 +1301,7 @@ final class InferenceEngine: ObservableObject {
         guard trimmed.isEmpty == false, isGenerating == false,
               !conversationPersistenceState.blocksEditing else { return }
 
+        failedNativeRequest = nil
         let native = streamingRuntime.flatMap { $0.supports(model) ? $0 : nil }
         if native != nil && (availability != .verified || artifactDirectoryURL == nil) {
             clearNativeResultSummary()
@@ -1317,22 +1323,13 @@ final class InferenceEngine: ObservableObject {
         syncActiveSession(titlePrompt: trimmed)
         isGenerating = true
         if let native, let artifactDirectoryURL {
-            nativeGenerationModelID = model.id
-            currentTokensPerSecond = 0
-            memoryUsageMB = 0
-            cpuLoad = 0
-            lastResultWasSimulated = true
-            currentBackend = .llamaCpp
             let request = StreamingInferenceRequest(
                 model: model, availability: availability,
                 modelFileURL: artifactDirectoryURL.appendingPathComponent(model.artifactManifest.modelFileName),
                 messages: history, maximumOutputTokens: 512
             )
-            generationTask = Task { [weak self] in
-                guard let self else { return }
-                await self.consumeNativeStream(native, request: request, operationID: operationID,
-                                               sessionID: sessionID, placeholderID: placeholderID)
-            }
+            startNativeGeneration(native, request: request, operationID: operationID,
+                                  sessionID: sessionID, placeholderID: placeholderID)
             return
         }
         nativeGenerationModelID = nil
@@ -1385,12 +1382,14 @@ final class InferenceEngine: ObservableObject {
     }
 
     func stopNativeGeneration(ifModelChangedTo modelID: UUID) {
+        if failedNativeRequest?.request.model.id != modelID { failedNativeRequest = nil }
         if let nativeGenerationModelID, nativeGenerationModelID != modelID { stop() }
         if let nativeResultModelID, nativeResultModelID != modelID { clearNativeResultSummary() }
         generationError = nil
     }
 
     func stopNativeGenerationIfNeeded() {
+        failedNativeRequest = nil
         if nativeGenerationModelID != nil { stop() }
         if nativeResultModelID != nil { clearNativeResultSummary() }
     }
@@ -1403,6 +1402,62 @@ final class InferenceEngine: ObservableObject {
         memoryUsageMB = 0
         cpuLoad = 0
         currentBackend = .coreMLANE
+    }
+
+    func canRetryNativeGeneration(using model: LocalModel, availability: ArtifactAvailability) -> Bool {
+        guard let failedNativeRequest else { return false }
+        return !isGenerating && !conversationPersistenceState.blocksEditing
+            && failedNativeRequest.sessionID == activeSessionID
+            && failedNativeRequest.request.model.id == model.id
+            && failedNativeRequest.request.model.artifactManifest == model.artifactManifest
+            && failedNativeRequest.request.model.contextLength == model.contextLength
+            && availability == .verified
+            && streamingRuntime?.supports(model) == true
+    }
+
+    @discardableResult
+    func retryNativeGeneration(using model: LocalModel, availability: ArtifactAvailability,
+                               artifactDirectoryURL: URL?) -> Bool {
+        guard canRetryNativeGeneration(using: model, availability: availability),
+              let failed = failedNativeRequest, let artifactDirectoryURL,
+              let native = streamingRuntime else { return false }
+        // Keep the failed transcript and its draft intact. A separate session
+        // uses the exact pre-failure context, without feeding partial output back.
+        let title = Self.sessionTitle(from: failed.request.messages.last?.text ?? activeSessionTitle)
+        failedNativeRequest = nil
+        createSession(title: "\(title) · 重试")
+        messages = failed.request.messages
+        let placeholderID = UUID()
+        messages.append(ChatMessage(id: placeholderID, role: .assistant, text: "", tokens: 0))
+        syncActiveSession()
+        let operationID = UUID()
+        generationID = operationID
+        isGenerating = true
+        let request = StreamingInferenceRequest(
+            model: model, availability: availability,
+            modelFileURL: artifactDirectoryURL.appendingPathComponent(model.artifactManifest.modelFileName),
+            messages: failed.request.messages, maximumOutputTokens: failed.request.maximumOutputTokens
+        )
+        startNativeGeneration(native, request: request, operationID: operationID,
+                              sessionID: activeSessionID, placeholderID: placeholderID)
+        return true
+    }
+
+    private func startNativeGeneration(
+        _ native: any LocalStreamingInferenceRuntime, request: StreamingInferenceRequest,
+        operationID: UUID, sessionID: UUID, placeholderID: UUID
+    ) {
+        nativeGenerationModelID = request.model.id
+        currentTokensPerSecond = 0
+        memoryUsageMB = 0
+        cpuLoad = 0
+        lastResultWasSimulated = true
+        currentBackend = .llamaCpp
+        generationTask = Task { [weak self] in
+            guard let self else { return }
+            await self.consumeNativeStream(native, request: request, operationID: operationID,
+                                           sessionID: sessionID, placeholderID: placeholderID)
+        }
     }
 
     private func consumeNativeStream(
@@ -1449,6 +1504,7 @@ final class InferenceEngine: ObservableObject {
         } catch {
             guard !Task.isCancelled, generationID == operationID, activeSessionID == sessionID else { return }
             generationError = error.localizedDescription
+            failedNativeRequest = FailedNativeRequest(sessionID: sessionID, request: request)
             if let index = messages.firstIndex(where: { $0.id == placeholderID }), messages[index].text.isEmpty {
                 messages.remove(at: index)
             }
@@ -1478,6 +1534,7 @@ final class InferenceEngine: ObservableObject {
     func resetConversation() {
         guard !conversationPersistenceState.blocksEditing else { return }
         stop()
+        failedNativeRequest = nil
         generationError = nil
         nativeResultModelID = nil
         inputText = ""
@@ -1513,6 +1570,7 @@ final class InferenceEngine: ObservableObject {
     func createSession(title: String? = nil) -> UUID {
         guard !conversationPersistenceState.blocksEditing else { return activeSessionID }
         stop()
+        failedNativeRequest = nil
         generationError = nil
         nativeResultModelID = nil
         let session = ChatSession(
@@ -1536,6 +1594,7 @@ final class InferenceEngine: ObservableObject {
         guard !conversationPersistenceState.blocksEditing,
               let current = sessions.first(where: { $0.id == session.id }) else { return }
         stop()
+        failedNativeRequest = nil
         generationError = nil
         if nativeResultModelID != nil { clearNativeResultSummary() }
         activeSessionID = current.id
@@ -1549,6 +1608,7 @@ final class InferenceEngine: ObservableObject {
         let wasActive = session.id == activeSessionID
         if wasActive {
             stop()
+            failedNativeRequest = nil
             generationError = nil
             if nativeResultModelID != nil { clearNativeResultSummary() }
         }

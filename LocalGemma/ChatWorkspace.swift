@@ -250,15 +250,21 @@ struct ChatWorkspace: View {
             .padding(.top, isCompact ? 8 : 12)
             .padding(.bottom, ComposerBarLayoutPolicy.bottomPadding)
             if let error = inference.generationError {
-                Text(error)
-                    .font(.footnote)
-                    .foregroundStyle(theme.secondaryText)
-                    .fixedSize(horizontal: false, vertical: true)
+                NativeGenerationFailureNotice(
+                    message: error,
+                    canRetry: inference.canRetryNativeGeneration(
+                        using: selectedModel, availability: selectedValidation.availability
+                    ),
+                    retry: {
+                        inference.retryNativeGeneration(
+                            using: selectedModel, availability: selectedValidation.availability,
+                            artifactDirectoryURL: catalog.artifactDirectoryURL
+                        )
+                    }
+                )
                     .frame(maxWidth: ComposerBarLayoutPolicy.maximumContentWidth, alignment: .leading)
                     .padding(.horizontal, ComposerBarLayoutPolicy.horizontalPadding)
                     .padding(.bottom, ComposerBarLayoutPolicy.bottomPadding)
-                    .accessibilityLabel("本地推理提示：\(error)")
-                    .accessibilityIdentifier("native-generation-error")
             }
             if !isCompact {
                 Label(inference.lastResultWasSimulated ? "模拟预览 · 内容在本机生成" : "本地推理 · 请核实重要信息", systemImage: "lock")
@@ -286,6 +292,44 @@ struct ChatWorkspace: View {
             text: inference.exportActiveSessionText(modelName: selectedModel.name),
             fileURL: fileURL
         )
+    }
+}
+
+struct NativeGenerationFailureNotice: View {
+    @Environment(\.appTheme) private var theme
+    static let minimumActionHeight: CGFloat = 44
+    static let retryLabel = "在新会话重试"
+    static let retryHint = "使用相同上下文和问题重新请求当前本地模型；原会话、部分回答及草稿保留，不发送到云端。"
+    let message: String
+    let canRetry: Bool
+    let retry: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(canRetry ? "上次推理未完成" : message)
+                .font(.footnote)
+                .foregroundStyle(theme.secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityLabel("本地推理提示：\(message)")
+                .accessibilityIdentifier("native-generation-error")
+            if canRetry {
+                Button(action: retry) {
+                    Text(Self.retryLabel)
+                        .font(.subheadline.weight(.semibold))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .frame(minHeight: Self.minimumActionHeight)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(theme.accent)
+                .background(theme.chipSurface, in: RoundedRectangle(cornerRadius: 8))
+                .accessibilityHint(Self.retryHint)
+                .accessibilityInputLabels([Self.retryLabel, "重试上次问题"])
+                .accessibilityIdentifier("native-generation-retry")
+            }
+        }
     }
 }
 

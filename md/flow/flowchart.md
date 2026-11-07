@@ -20,6 +20,8 @@ flowchart TD
 
 ## 当前聊天呈现
 
+native失败重试的数据流为：当前会话的失败前请求 → 当前模型/manifest/context与verified校验 → 新建重试会话 → 同一native启动/文件重新校验。原会话正文与草稿保留；导航或新发送清除瞬态重试，不自动重试。详细合同见[失败恢复](../release/native-retry.md)。
+
 ```mermaid
 flowchart TD
     New[新建或重置] --> Empty[0条消息 / 虚拟欢迎不入档]
