@@ -1,5 +1,9 @@
 # 测试规范
 
+## 真实手机进程恢复入口
+
+full手机范围在原10项/30图之上新增普通/AX5各一项双会话草稿后台终止/重启验证，共12项/36图；原license定向不变。仅用公开生产UI和XCUIApplication生命周期，不写App容器，不发prompt；跨三图保持同一会话身份/事件历史及未经trim草稿，详见[限定范围与证据合同](../release/conversation-lifecycle.md)。新增代码须自身SHA云端完整原包/图审后才能写通过；不代替真机、SIGKILL/断电、磁盘满或270M任务质量门禁。
+
 ## 固定日常任务质量入口
 
 原生工作流include_task_quality=true在保留原生产smoke之外，运行[十个固定合成任务](../release/task-quality.md)：复用生产四个模板、ModelCatalog/VerifiedLlamaRuntime/InferenceEngine、4096/512预算，保存完整回答/实际指标/错误。身份、fixture摘要、原文和完整case集必须对应同SHA/run/attempt；自动事实失败使该run失败并保留原文。自动通过仍需逐例人工语义审读，不证明通用任务质量或真机。入口默认false，不改变既有生产smoke范围。

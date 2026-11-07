@@ -4,7 +4,8 @@ import sys
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from iphone_interaction_evidence import HELP_SECTIONS, TESTS, expected_captures, selected_tests, validate_capture, validate_results
+from iphone_interaction_evidence import (HELP_SECTIONS, PERSISTENCE_STAGES, TESTS, expected_captures, selected_tests,
+                                         validate_capture, validate_persistence_sequence, validate_results)
 
 
 class IPhoneInteractionEvidenceTests(unittest.TestCase):
@@ -45,7 +46,7 @@ class IPhoneInteractionEvidenceTests(unittest.TestCase):
         for category in TESTS:
             document = self.capture(category)
             validate_capture(document, category, (750, 1334))
-            self.assertEqual(len(expected_captures(category)), 15)
+            self.assertEqual(len(expected_captures(category)), 18)
             for key, value in (("source", "host-render"), ("screenWidth", 390),
                                ("realInferenceVerified", True), ("signedDistributionVerified", 0),
                                ("systemContentSizeCategory", "injected-font-size"), ("stage", "fixture")):
@@ -90,7 +91,7 @@ class IPhoneInteractionEvidenceTests(unittest.TestCase):
                 validate_capture(bad, "large", (750, 1334))
 
     def test_all_selected_tests_must_succeed_once_on_the_recorded_device(self):
-        summary = {"result": "Passed", "totalTestCount": 5, "passedTests": 5,
+        summary = {"result": "Passed", "totalTestCount": 6, "passedTests": 6,
                    "failedTests": 0, "skippedTests": 0, "expectedFailures": 0, "testFailures": []}
         for category, names in TESTS.items():
             tree = {"devices": [{"deviceId": "exact-udid"}], "testNodes": [
@@ -141,8 +142,8 @@ class IPhoneInteractionEvidenceTests(unittest.TestCase):
             for stage in ("help-open", "help-bottom"):
                 validate_capture(self.help_capture(category, stage), category, (750, 1334))
             expected = expected_captures(category)
-            self.assertEqual(len(TESTS[category]), 5)
-            self.assertEqual(len(expected), 15)
+            self.assertEqual(len(TESTS[category]), 6)
+            self.assertEqual(len(expected), 18)
             for theme in ("light", "dark"):
                 for stage in ("open", "expanded", "managed-models", "returned-chat"):
                     self.assertIn(f"interaction-{theme}-{category}-{stage}", expected)
@@ -243,6 +244,78 @@ class IPhoneInteractionEvidenceTests(unittest.TestCase):
         bad["actions"].append("tap:settings-help-repository")
         with self.assertRaises(ValueError):
             validate_capture(bad, "large", (750, 1334))
+
+    def persistence_capture(self, category="large", stage="persistence-first-restored"):
+        document = self.capture(category, stage)
+        first, second = "session-chip-select-1234abcd", "session-chip-select-5678efab"
+        actions = ["tap:session-bar-action-createSession", f"tap:{first}", "tap:composer-input-field",
+                   "type:persist-first-draft", "tap:session-bar-action-createSession", f"tap:{second}",
+                   "tap:composer-input-field", "type:persist-second-draft", f"tap:{first}",
+                   "type:persist-first-final-edit"]
+        before = stage == "persistence-before-background"
+        if not before:
+            actions += ["device:home", "terminate:production-app", "relaunch:production-app", f"tap:{first}"]
+        second_active = stage == "persistence-second-restored"
+        if second_active:
+            actions.append(f"tap:{second}")
+        document.update(actions=actions, firstSessionID=first, secondSessionID=second,
+                        activeSessionID=second if second_active else first,
+                        draft=" Draft B: independent " if second_active else " Draft A: keep spaces final edit",
+                        lifecycle=[] if before else ["observed:background", "observed:not-running", "observed:foreground"],
+                        appState="runningForeground", composerEnabled=True,
+                        terminationMethod="XCUIApplication.terminate-after-observed-background",
+                        containerModifiedByTest=False, promptSent=False, physicalDeviceDurabilityVerified=False,
+                        frames={"composer-input-field": {"x": 18, "y": 500, "width": 290, "height": 48}})
+        return document
+
+    def test_persistence_requires_actual_events_and_original_drafts_and_selection(self):
+        for category in TESTS:
+            for stage in ("persistence-before-background", "persistence-first-restored", "persistence-second-restored"):
+                document = self.persistence_capture(category, stage)
+                validate_capture(document, category, (750, 1334))
+                for field, value in [("draft", document["draft"].strip()), ("activeSessionID", "wrong"),
+                                     ("secondSessionID", document["firstSessionID"]), ("firstSessionID", "fixture-id"),
+                                     ("lifecycle", ["observed:foreground"]), ("composerEnabled", False),
+                                     ("containerModifiedByTest", True), ("promptSent", True),
+                                     ("physicalDeviceDurabilityVerified", True), ("appState", "notRunning"),
+                                     ("terminationMethod", "SIGKILL"), ("keyboardVisible", True)]:
+                    with self.assertRaises(ValueError):
+                        validate_capture(dict(document, **{field: value}), category, (750, 1334))
+                for action in set(document["actions"]):
+                    bad = copy.deepcopy(document)
+                    bad["actions"] = [a for a in bad["actions"] if a != action]
+                    with self.assertRaises(ValueError):
+                        validate_capture(bad, category, (750, 1334))
+
+    def test_persistence_stages_cannot_reorder_lifecycle_or_skip_initial_input(self):
+        original = self.persistence_capture()
+        for a, b in [("device:home", "terminate:production-app"),
+                     ("terminate:production-app", "relaunch:production-app"),
+                     ("type:persist-second-draft", "type:persist-first-final-edit")]:
+            bad = copy.deepcopy(original)
+            i, j = bad["actions"].index(a), bad["actions"].index(b)
+            bad["actions"][i], bad["actions"][j] = bad["actions"][j], bad["actions"][i]
+            with self.assertRaises(ValueError):
+                validate_capture(bad, "large", (750, 1334))
+        before = self.persistence_capture(stage="persistence-before-background")
+        before["actions"].append("device:home")
+        with self.assertRaises(ValueError):
+            validate_capture(before, "large", (750, 1334))
+
+    def test_persistence_sequence_preserves_identity_and_event_history_across_all_original_screens(self):
+        documents = [self.persistence_capture(stage=stage) for stage in PERSISTENCE_STAGES]
+        validate_persistence_sequence(documents)
+        for bad in [documents[:2], list(reversed(documents))]:
+            with self.assertRaises(ValueError):
+                validate_persistence_sequence(bad)
+        bad = copy.deepcopy(documents)
+        bad[1]["secondSessionID"] = "session-chip-select-9999abcd"
+        with self.assertRaises(ValueError):
+            validate_persistence_sequence(bad)
+        bad = copy.deepcopy(documents)
+        bad[2]["actions"].insert(0, "different-test-history")
+        with self.assertRaises(ValueError):
+            validate_persistence_sequence(bad)
 
 
 if __name__ == "__main__":

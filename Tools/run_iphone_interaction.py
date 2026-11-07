@@ -8,7 +8,8 @@ import shutil
 import struct
 import subprocess
 
-from iphone_interaction_evidence import TESTS, expected_captures, selected_tests, validate_capture, validate_results
+from iphone_interaction_evidence import (PERSISTENCE_STAGES, TESTS, expected_captures, selected_tests,
+                                         validate_capture, validate_persistence_sequence, validate_results)
 
 
 def write_json(path, value):
@@ -58,6 +59,7 @@ def export_evidence(root, category, device_id, scope="full"):
     evidence = root / "evidence"
     evidence.mkdir(exist_ok=True)
     records = []
+    persistence = {}
     for name in sorted(required):
         image, test = indexed[name]
         provenance, provenance_test = indexed[name + "-provenance"]
@@ -68,11 +70,19 @@ def export_evidence(root, category, device_id, scope="full"):
         validate_capture(document, category, struct.unpack(">II", header[16:24]), scope)
         if test != provenance_test:
             raise ValueError("Screenshot and actions must come from the same actual test")
+        if document["stage"] in PERSISTENCE_STAGES:
+            method = ("testAccessibilityDraftsAndSelectionSurviveBackgroundTermination"
+                      if category == "accessibility5" else "testDraftsAndSelectionSurviveBackgroundTermination")
+            if not isinstance(test, str) or test.split("/")[-1].removesuffix("()") != method:
+                raise ValueError("Lifecycle screenshots must come from the exact selected production UI test")
+            persistence[document["stage"]] = document
         shutil.copyfile(image, evidence / (name + ".png"))
         shutil.copyfile(provenance, evidence / (name + ".json"))
         records.append({"name": name, "testIdentifier": test,
                         "sha256": hashlib.sha256(image.read_bytes()).hexdigest(),
                         "provenanceSha256": hashlib.sha256(provenance.read_bytes()).hexdigest()})
+    if scope == "full":
+        validate_persistence_sequence([persistence[stage] for stage in PERSISTENCE_STAGES])
     return records
 
 

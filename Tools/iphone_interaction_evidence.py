@@ -1,5 +1,6 @@
 """Validate public UI-test evidence without running Apple tools on import."""
 import math
+import re
 
 
 TESTS = {
@@ -8,18 +9,21 @@ TESTS = {
         "testDraftSurvivesSummaryAndModelNavigation",
         "testHelpPreservesDraftAndWorkspace",
         "testNativeModelLicenseReviewCancelsWithoutImport",
+        "testDraftsAndSelectionSurviveBackgroundTermination",
     },
     "accessibility5": {
         "testAccessibilityLightSummaryLifecycle", "testAccessibilityDarkSummaryLifecycle",
         "testAccessibilityDraftSurvivesSummaryAndModelNavigation",
         "testAccessibilityHelpPreservesDraftAndWorkspace",
         "testAccessibilityNativeModelLicenseReviewCancelsWithoutImport",
+        "testAccessibilityDraftsAndSelectionSurviveBackgroundTermination",
     },
 }
 LIFECYCLE_STAGES = ("open", "expanded", "managed-models", "returned-chat")
 DRAFT_STAGES = ("draft-keyboard", "draft-sheet", "draft-returned")
 HELP_STAGES = ("help-open", "help-bottom")
 LICENSE_STAGES = ("license-open", "license-cancelled")
+PERSISTENCE_STAGES = ("persistence-before-background", "persistence-first-restored", "persistence-second-restored")
 HELP_SECTIONS = (
     ("capabilities", "当前能力", "当前版本是本地 AI 工作台原型", ("模拟回复", "发送消息会执行本机文本推理", "不保证设备内存足够或生成成功")),
     ("privacy", "App 不主动上传", "App 不发起对话", ("不收集使用分析", "不自动下载模型权重")),
@@ -47,7 +51,7 @@ def expected_captures(category, scope="full"):
         return {f"interaction-dark-{category}-{stage}" for stage in LICENSE_STAGES}
     return {f"interaction-{theme}-{category}-{stage}"
             for theme in ("light", "dark") for stage in LIFECYCLE_STAGES} | {
-                f"interaction-dark-{category}-{stage}" for stage in DRAFT_STAGES + HELP_STAGES + LICENSE_STAGES}
+                f"interaction-dark-{category}-{stage}" for stage in DRAFT_STAGES + HELP_STAGES + LICENSE_STAGES + PERSISTENCE_STAGES}
 
 
 def validate_results(summary, tree, category, device_id, scope="full"):
@@ -100,7 +104,7 @@ def validate_capture(document, category, png_size, scope="full"):
         if not {"tap:session-bar-action-createSession", "tap:composer-input-field",
                 "type:local-draft-without-send"} <= set(actions):
             raise ValueError("The initial keyboard capture must follow real session creation and input events")
-    elif stage not in HELP_STAGES + LICENSE_STAGES and "tap:compact-model-summary" not in actions:
+    elif stage not in HELP_STAGES + LICENSE_STAGES + PERSISTENCE_STAGES and "tap:compact-model-summary" not in actions:
         raise ValueError("The production summary button must be tapped")
     if stage == "expanded" and "tap:compact-model-runtime-details" not in actions:
         raise ValueError("Details must be opened through the production disclosure control")
@@ -129,6 +133,53 @@ def validate_capture(document, category, png_size, scope="full"):
         validate_help_capture(document)
     if stage in LICENSE_STAGES:
         validate_license_capture(document)
+    if stage in PERSISTENCE_STAGES:
+        validate_persistence_capture(document)
+
+
+def validate_persistence_capture(document):
+    actions = document.get("actions", [])
+    first, second = document.get("firstSessionID"), document.get("secondSessionID")
+    if (not isinstance(first, str) or not isinstance(second, str) or first == second
+            or not all(re.fullmatch(r"session-chip-select-[0-9a-f]{8}", value) for value in (first, second))):
+        raise ValueError("Two distinct actual production session identities are required")
+    initial = ["tap:session-bar-action-createSession", f"tap:{first}", "tap:composer-input-field",
+               "type:persist-first-draft", "tap:session-bar-action-createSession", f"tap:{second}",
+               "tap:composer-input-field", "type:persist-second-draft", f"tap:{first}",
+               "type:persist-first-final-edit"]
+    require_action_sequence(actions, initial)
+    stage = document["stage"]
+    restored = stage != "persistence-before-background"
+    lifecycle = ["observed:background", "observed:not-running", "observed:foreground"] if restored else []
+    if (document.get("lifecycle") != lifecycle or document.get("appState") != "runningForeground"
+            or document.get("composerEnabled") is not True or document.get("keyboardVisible") is not False
+            or document.get("terminationMethod") != "XCUIApplication.terminate-after-observed-background"
+            or document.get("containerModifiedByTest") is not False or document.get("promptSent") is not False
+            or document.get("physicalDeviceDurabilityVerified") is not False):
+        raise ValueError("Real background, terminated and relaunched states must remain explicit and limited")
+    second_active = stage == "persistence-second-restored"
+    expected_draft = " Draft B: independent " if second_active else " Draft A: keep spaces final edit"
+    if (document.get("draft") != expected_draft
+            or document.get("activeSessionID") != (second if second_active else first)):
+        raise ValueError("The original active selection and untrimmed per-session drafts must survive")
+    if restored:
+        require_action_sequence(actions, initial + ["device:home", "terminate:production-app",
+                                                    "relaunch:production-app", f"tap:{first}"]
+                                + ([f"tap:{second}"] if second_active else []))
+    elif any(event in actions for event in ("device:home", "terminate:production-app", "relaunch:production-app")):
+        raise ValueError("The pre-background screenshot cannot contain future lifecycle actions")
+    validate_screen_frame(document.get("frames", {}).get("composer-input-field"))
+
+
+def validate_persistence_sequence(documents):
+    if [d.get("stage") for d in documents] != list(PERSISTENCE_STAGES):
+        raise ValueError("All three ordered original lifecycle screenshots are required")
+    first = documents[0]
+    for previous, current in zip(documents, documents[1:]):
+        if (current.get("firstSessionID") != first.get("firstSessionID")
+                or current.get("secondSessionID") != first.get("secondSessionID")
+                or current.get("actions", [])[:len(previous["actions"])] != previous["actions"]):
+            raise ValueError("Original session identities and actual action history must remain continuous across restart")
 
 
 def validate_license_capture(document):

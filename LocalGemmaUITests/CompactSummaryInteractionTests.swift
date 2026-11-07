@@ -50,6 +50,146 @@ final class CompactSummaryInteractionTests: XCTestCase {
         try licenseLifecycle(accessibility: true)
     }
 
+    func testDraftsAndSelectionSurviveBackgroundTermination() throws {
+        try persistedDraftLifecycle(accessibility: false)
+    }
+
+    func testAccessibilityDraftsAndSelectionSurviveBackgroundTermination() throws {
+        try persistedDraftLifecycle(accessibility: true)
+    }
+
+    private func persistedDraftLifecycle(accessibility: Bool) throws {
+        let app = launch(theme: "dark", accessibility: accessibility)
+        let firstDraft = " Draft A: keep spaces "
+        let finalDraft = firstDraft + "final edit"
+        let secondDraft = " Draft B: independent "
+        var lifecycle: [String] = []
+
+        func dismissKeyboard() {
+            let done = app.buttons["收起键盘"]
+            if done.exists && done.isHittable { tap(done, id: "composer-keyboard-done") }
+            XCTAssertTrue(waitUntil { !app.keyboards.firstMatch.exists })
+        }
+        func selectHistorySession(_ identifier: String) {
+            let row = app.buttons[identifier]
+            revealHelpContent(row, in: app.scrollViews.firstMatch, app: app, isAction: true)
+            assertReachableAction(row, inside: app.frame)
+            tap(row, id: identifier)
+            XCTAssertTrue(waitUntil { app.textFields[self.composerID].exists
+                && app.keyboards.firstMatch.exists && !app.buttons[identifier].exists })
+        }
+        func currentSession() throws -> String {
+            dismissKeyboard()
+            tap(app.buttons["compact-session-history"], id: "compact-session-history")
+            let rows = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "session-chip-select-"))
+            XCTAssertTrue(waitUntil { rows.allElementsBoundByIndex.filter(\.isSelected).count == 1 })
+            let selected = try XCTUnwrap(rows.allElementsBoundByIndex.first(where: \.isSelected))
+            let identifier = selected.identifier
+            XCTAssertTrue((selected.value as? String ?? "").contains("包含 0 条消息"))
+            selectHistorySession(identifier)
+            return identifier
+        }
+        func typeDraft(_ text: String, action: String, tapField: Bool = true) {
+            let composer = app.textFields[composerID]
+            XCTAssertTrue(waitUntil { composer.exists && composer.isEnabled })
+            if tapField {
+                composer.tap()
+                actions.append("tap:\(composerID)")
+            }
+            composer.typeText(text)
+            actions.append(action)
+            XCTAssertTrue(app.keyboards.firstMatch.exists)
+        }
+
+        tap(app.buttons["session-bar-action-createSession"], id: "session-bar-action-createSession")
+        let introduction = app.buttons["Continue"]
+        if introduction.waitForExistence(timeout: 3) && introduction.isHittable {
+            tap(introduction, id: "system-keyboard-introduction-continue")
+        }
+        dismissKeyboard()
+        let firstID = try currentSession()
+        typeDraft(firstDraft, action: "type:persist-first-draft")
+        XCTAssertEqual(app.textFields[composerID].value as? String, firstDraft)
+        dismissKeyboard()
+        tap(app.buttons["session-bar-action-createSession"], id: "session-bar-action-createSession")
+        let secondID = try currentSession()
+        XCTAssertNotEqual(firstID, secondID)
+        typeDraft(secondDraft, action: "type:persist-second-draft")
+        XCTAssertEqual(app.textFields[composerID].value as? String, secondDraft)
+        dismissKeyboard()
+        tap(app.buttons["compact-session-history"], id: "compact-session-history")
+        selectHistorySession(firstID)
+        XCTAssertTrue(waitUntil { app.textFields[self.composerID].value as? String == firstDraft })
+        // Append through the real field; no container writes or state injection.
+        typeDraft("final edit", action: "type:persist-first-final-edit", tapField: false)
+        XCTAssertEqual(app.textFields[composerID].value as? String, finalDraft)
+        dismissKeyboard()
+        XCTAssertEqual(try currentSession(), firstID)
+        dismissKeyboard()
+        try capturePersistence(app, accessibility: accessibility, stage: "persistence-before-background",
+                               firstID: firstID, secondID: secondID, activeID: firstID,
+                               draft: finalDraft, lifecycle: lifecycle)
+
+        XCUIDevice.shared.press(.home)
+        actions.append("device:home")
+        XCTAssertTrue(waitUntil { app.state == .runningBackground || app.state == .runningBackgroundSuspended })
+        lifecycle.append("observed:background")
+        app.terminate()
+        actions.append("terminate:production-app")
+        XCTAssertTrue(app.wait(for: .notRunning, timeout: 5))
+        lifecycle.append("observed:not-running")
+        app.launch()
+        actions.append("relaunch:production-app")
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+        lifecycle.append("observed:foreground")
+        XCTAssertTrue(waitUntil { app.textFields[self.composerID].isEnabled
+            && app.textFields[self.composerID].value as? String == finalDraft })
+        XCTAssertEqual(try currentSession(), firstID)
+        dismissKeyboard()
+        try capturePersistence(app, accessibility: accessibility, stage: "persistence-first-restored",
+                               firstID: firstID, secondID: secondID, activeID: firstID,
+                               draft: finalDraft, lifecycle: lifecycle)
+        tap(app.buttons["compact-session-history"], id: "compact-session-history")
+        selectHistorySession(secondID)
+        XCTAssertTrue(waitUntil { app.textFields[self.composerID].isEnabled
+            && app.textFields[self.composerID].value as? String == secondDraft })
+        XCTAssertEqual(try currentSession(), secondID)
+        dismissKeyboard()
+        try capturePersistence(app, accessibility: accessibility, stage: "persistence-second-restored",
+                               firstID: firstID, secondID: secondID, activeID: secondID,
+                               draft: secondDraft, lifecycle: lifecycle)
+        app.terminate()
+    }
+
+    private func capturePersistence(
+        _ app: XCUIApplication, accessibility: Bool, stage: String,
+        firstID: String, secondID: String, activeID: String, draft: String, lifecycle: [String]
+    ) throws {
+        let category = accessibility ? "accessibility5" : "large"
+        let composer = app.textFields[composerID]
+        XCTAssertEqual(app.state, .runningForeground)
+        XCTAssertEqual(composer.value as? String, draft)
+        XCTAssertTrue(composer.isEnabled)
+        XCTAssertFalse(app.keyboards.firstMatch.exists)
+        XCTAssertTrue(app.frame.contains(composer.frame))
+        let document: [String: Any] = [
+            "schemaVersion": 1, "source": "public-XCUITest-production-app",
+            "name": "interaction-dark-\(category)-\(stage)", "theme": "dark", "stage": stage,
+            "dynamicTypeSize": category,
+            "systemContentSizeCategory": UIApplication.shared.preferredContentSizeCategory.rawValue,
+            "screenWidth": app.frame.width, "screenHeight": app.frame.height,
+            "keyboardVisible": false, "actions": actions, "frames": [composerID: helpFrame(composer.frame)],
+            "draft": composer.value as? String ?? "", "firstSessionID": firstID, "secondSessionID": secondID,
+            "activeSessionID": activeID, "lifecycle": lifecycle,
+            "appState": "runningForeground", "composerEnabled": composer.isEnabled,
+            "terminationMethod": "XCUIApplication.terminate-after-observed-background",
+            "containerModifiedByTest": false, "promptSent": false,
+            "physicalDeviceDurabilityVerified": false, "realInferenceVerified": false,
+            "signedDistributionVerified": false
+        ]
+        try attachHelpSnapshot(XCUIScreen.main.screenshot(), document: document)
+    }
+
     private func launch(theme: String, accessibility: Bool) -> XCUIApplication {
         continueAfterFailure = false
         actions = []
