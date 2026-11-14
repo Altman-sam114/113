@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Predeclared sampling diagnostic; no production default or quality criterion changes.",
+  "runtimeSHA256": "64477baea1cacee4f56447a6e3479acd6d0c3dd721e43d71eb330858d3455930",
+  "casesSHA256": "faea8e8be6f458f496a4c51b26718764c04c23019c8e651ee155411d7ca9ed46",
+  "reference": {
+    "project": "AITRANS",
+    "commit": "8e57e2cffe1686766c1169e58cca78a0e639cb4d",
+    "profilePath": "AITRANS/Models/TranscriptModels.swift",
+    "profileSHA256": "24cdb3a75b9273caad8432bbae7ccb5ce408c5711e739b7e78ad8e2c3d5f9f2c",
+    "factoryPath": "AITRANS/Services/LlamaRuntime.swift",
+    "factorySHA256": "af47bb89cd5f2af5e0c825b162d3bce92aedeeea1d62c27bba25a6f0240f691c",
+    "profile": "ModelDecodingProfile.sampled",
+    "samplerOrder": ["topK", "topP", "minP", "temperature", "dist"],
+    "repetitionPenalty": null,
+    "seedDifference": "AITRANS chooses a random seed; this diagnostic predeclares three fixed seeds."
+  },
+  "profiles": [
+    {"id": "greedy", "mode": "greedy", "seed": null, "temperature": null, "topK": null, "topP": null, "minP": null},
+    {"id": "aitrans-seed42", "mode": "sampled", "seed": 42, "temperature": 0.2, "topK": 40, "topP": 0.90, "minP": 0.05},
+    {"id": "aitrans-seed1337", "mode": "sampled", "seed": 1337, "temperature": 0.2, "topK": 40, "topP": 0.90, "minP": 0.05},
+    {"id": "aitrans-seed2026", "mode": "sampled", "seed": 2026, "temperature": 0.2, "topK": 40, "topP": 0.90, "minP": 0.05}
+  ]
+}
