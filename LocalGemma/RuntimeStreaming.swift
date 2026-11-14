@@ -48,6 +48,56 @@ enum StreamingInferenceError: Error, LocalizedError, Sendable {
     }
 }
 
+enum NativeGenerationRecovery: Equatable, Sendable {
+    case retry
+    case editLastQuestion
+
+    static func resolve(for error: Error) -> Self {
+        if let nativeError = error as? LlamaTextRuntimeError,
+           case .contextBudgetExceeded = nativeError {
+            return .editLastQuestion
+        }
+        return .retry
+    }
+
+    var statusText: String {
+        switch self {
+        case .retry: "上次推理未完成"
+        case .editLastQuestion: "对话太长，可在新会话缩短问题后再发送"
+        }
+    }
+
+    var actionLabel: String {
+        switch self {
+        case .retry: "在新会话重试"
+        case .editLastQuestion: "在新会话编辑问题"
+        }
+    }
+
+    var actionHint: String {
+        switch self {
+        case .retry:
+            "使用相同上下文和问题重新请求当前本地模型；原会话、部分回答及草稿保留，不发送到云端。"
+        case .editLastQuestion:
+            "将最后一个问题填入空白新会话，不携带旧上下文；原会话、部分回答及草稿保留。编辑后由你发送，此操作不启动推理。"
+        }
+    }
+
+    var actionIdentifier: String {
+        switch self {
+        case .retry: "native-generation-retry"
+        case .editLastQuestion: "native-generation-edit-question"
+        }
+    }
+
+    var inputLabels: [String] {
+        switch self {
+        case .retry: [actionLabel, "重试上次问题"]
+        case .editLastQuestion: [actionLabel, "编辑上次问题"]
+        }
+    }
+}
+
 enum PinnedTextModel {
     // A new model identity prevents the former 1B entry from inheriting trust.
     static let id = UUID(uuidString: "5D5BA6B9-6EBC-43A9-A7B6-21FA9332C270")!

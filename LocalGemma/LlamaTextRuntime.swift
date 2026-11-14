@@ -111,7 +111,7 @@ enum LlamaTextRuntimeError: Error, Equatable, LocalizedError, Sendable {
         case .unsupportedChatTemplate: "The native backend cannot safely apply this model's chat template."
         case .tokenizationFailed: "The model tokenizer could not encode the complete conversation."
         case .contextBudgetExceeded(let input, let output, let capacity):
-            "The complete conversation needs \(input) input plus \(output) output tokens, exceeding the \(capacity)-token context. Nothing was truncated."
+            "完整对话需要 \(input) 个输入 token，并预留 \(output) 个输出 token，超过当前模型 \(capacity) token 的上下文上限。原文未被截断；可在新会话编辑最后一个问题后再发送。"
         case .contextCreationFailed: "The local inference context could not be allocated."
         case .allocationFailed: "The local inference batch or sampler could not be allocated."
         case .insufficientMemory(let required, let available):

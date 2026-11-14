@@ -252,14 +252,24 @@ struct ChatWorkspace: View {
             if let error = inference.generationError {
                 NativeGenerationFailureNotice(
                     message: error,
-                    canRetry: inference.canRetryNativeGeneration(
+                    canRetry: inference.canRecoverNativeGeneration(
                         using: selectedModel, availability: selectedValidation.availability
                     ),
+                    recovery: inference.nativeFailureRecovery ?? .retry,
                     retry: {
-                        inference.retryNativeGeneration(
-                            using: selectedModel, availability: selectedValidation.availability,
-                            artifactDirectoryURL: catalog.artifactDirectoryURL
-                        )
+                        guard isActive else { return }
+                        if inference.nativeFailureRecovery == .editLastQuestion {
+                            if inference.editFailedNativeQuestionInNewSession(
+                                using: selectedModel, availability: selectedValidation.availability
+                            ) {
+                                requestComposerFocus(.createSession)
+                            }
+                        } else {
+                            inference.retryNativeGeneration(
+                                using: selectedModel, availability: selectedValidation.availability,
+                                artifactDirectoryURL: catalog.artifactDirectoryURL
+                            )
+                        }
                     }
                 )
                     .frame(maxWidth: ComposerBarLayoutPolicy.maximumContentWidth, alignment: .leading)
@@ -298,15 +308,16 @@ struct ChatWorkspace: View {
 struct NativeGenerationFailureNotice: View {
     @Environment(\.appTheme) private var theme
     static let minimumActionHeight: CGFloat = 44
-    static let retryLabel = "在新会话重试"
-    static let retryHint = "使用相同上下文和问题重新请求当前本地模型；原会话、部分回答及草稿保留，不发送到云端。"
+    static let retryLabel = NativeGenerationRecovery.retry.actionLabel
+    static let retryHint = NativeGenerationRecovery.retry.actionHint
     let message: String
     let canRetry: Bool
+    var recovery: NativeGenerationRecovery = .retry
     let retry: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(canRetry ? "上次推理未完成" : message)
+            Text(canRetry ? recovery.statusText : message)
                 .font(.footnote)
                 .foregroundStyle(theme.secondaryText)
                 .fixedSize(horizontal: false, vertical: true)
@@ -314,7 +325,7 @@ struct NativeGenerationFailureNotice: View {
                 .accessibilityIdentifier("native-generation-error")
             if canRetry {
                 Button(action: retry) {
-                    Text(Self.retryLabel)
+                    Text(recovery.actionLabel)
                         .font(.subheadline.weight(.semibold))
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(.horizontal, 12)
@@ -325,9 +336,9 @@ struct NativeGenerationFailureNotice: View {
                 .buttonStyle(.plain)
                 .foregroundStyle(theme.accent)
                 .background(theme.chipSurface, in: RoundedRectangle(cornerRadius: 8))
-                .accessibilityHint(Self.retryHint)
-                .accessibilityInputLabels([Self.retryLabel, "重试上次问题"])
-                .accessibilityIdentifier("native-generation-retry")
+                .accessibilityHint(recovery.actionHint)
+                .accessibilityInputLabels(recovery.inputLabels)
+                .accessibilityIdentifier(recovery.actionIdentifier)
             }
         }
     }

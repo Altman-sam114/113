@@ -20,6 +20,8 @@ flowchart TD
 
 ## 当前聊天呈现
 
+上下文超限的数据流为：真实contextBudgetExceeded → 明确的“在新会话编辑问题” → 空白会话+最后问题草稿 → 同步composer聚焦 → 用户编辑后自行发送；旧上下文、错误与另写草稿留在原会话，不自动发请求。
+
 native失败重试的数据流为：当前会话的失败前请求 → 当前模型/manifest/context与verified校验 → 新建重试会话 → 同一native启动/文件重新校验。原会话正文与草稿保留；导航或新发送清除瞬态重试，不自动重试。详细合同见[失败恢复](../release/native-retry.md)。
 
 ```mermaid

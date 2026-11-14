@@ -300,6 +300,115 @@ final class RuntimeStreamingTests: XCTestCase {
         XCTAssertEqual(runtime.requests.count, 2)
     }
 
+    func testContextFailureCreatesEditableQuestionWithoutResendingOrLosingOriginalDraft() async throws {
+        let started = [expectation(description: "previous turn"), expectation(description: "overlong conversation")]
+        let runtime = ControlledStreamingRuntime(onRequest: { index in
+            guard started.indices.contains(index) else { XCTFail("Recovery must not send automatically"); return }
+            started[index].fulfill()
+        })
+        let engine = InferenceEngine(streamingRuntime: runtime)
+        let model = PinnedTextModel.model
+        let directory = URL(fileURLWithPath: "/unused-context-fixture")
+        engine.inputText = "Earlier question"
+        engine.send(using: model, availability: .verified, artifactDirectoryURL: directory)
+        var result = await XCTWaiter.fulfillment(of: [started[0]], timeout: 3)
+        XCTAssertEqual(result, .completed)
+        guard result == .completed else { engine.stop(); return }
+        runtime.emit(.text("Earlier answer"), request: 0)
+        runtime.emit(.completed(InferenceStreamMetrics(promptTokens: 3, outputTokens: 2,
+                                                      tokensPerSecond: 10, reachedOutputLimit: false)), request: 0)
+        runtime.finish(request: 0)
+        await engine.waitForCurrentGeneration()
+        engine.inputText = "Last question\nKeep every line"
+        engine.send(using: model, availability: .verified, artifactDirectoryURL: directory)
+        result = await XCTWaiter.fulfillment(of: [started[1]], timeout: 3)
+        XCTAssertEqual(result, .completed)
+        guard result == .completed else { engine.stop(); return }
+        let failure = LlamaTextRuntimeError.contextBudgetExceeded(input: 3900, output: 512, capacity: 4096)
+        runtime.finish(request: 1, error: failure)
+        await engine.waitForCurrentGeneration()
+        engine.inputText = "  Another unsent draft\n"
+        let original = try XCTUnwrap(engine.activeSession)
+        XCTAssertEqual(engine.nativeFailureRecovery, .editLastQuestion)
+        XCTAssertEqual(engine.generationError, failure.localizedDescription)
+        XCTAssertTrue(engine.canRecoverNativeGeneration(using: model, availability: .verified))
+        XCTAssertFalse(engine.canRetryNativeGeneration(using: model, availability: .verified))
+        XCTAssertFalse(engine.retryNativeGeneration(using: model, availability: .verified,
+                                                    artifactDirectoryURL: directory), "The unchanged overlong context cannot be resubmitted")
+        for availability in [ArtifactAvailability.missing, .staged] {
+            XCTAssertFalse(engine.editFailedNativeQuestionInNewSession(using: model, availability: availability))
+        }
+        XCTAssertFalse(engine.editFailedNativeQuestionInNewSession(using: ModelCatalog.defaultModels[0], availability: .verified))
+        XCTAssertEqual(engine.sessions, [original])
+        XCTAssertTrue(engine.editFailedNativeQuestionInNewSession(using: model, availability: .verified))
+        XCTAssertNotEqual(engine.activeSessionID, original.id)
+        XCTAssertTrue(engine.messages.isEmpty, "Old context is not silently copied or truncated")
+        XCTAssertEqual(engine.inputText, "Last question\nKeep every line")
+        XCTAssertFalse(engine.isGenerating)
+        XCTAssertNil(engine.generationError)
+        XCTAssertNil(engine.nativeFailureRecovery)
+        XCTAssertEqual(runtime.requests.count, 2, "Editing requires another explicit send")
+        XCTAssertEqual(engine.sessions.first(where: { $0.id == original.id }), original)
+        XCTAssertFalse(engine.editFailedNativeQuestionInNewSession(using: model, availability: .verified), "Double activation cannot create a third session")
+        engine.selectSession(original)
+        XCTAssertEqual(engine.messages, original.messages)
+        XCTAssertEqual(engine.inputText, "  Another unsent draft\n")
+        XCTAssertNil(engine.nativeFailureRecovery, "Recovery cannot follow navigation")
+        XCTAssertEqual(runtime.requests.count, 2)
+        XCTAssertEqual(NativeGenerationRecovery.resolve(for: LlamaTextRuntimeError.hashMismatch), .retry)
+        XCTAssertEqual(NativeGenerationRecovery.resolve(for: StreamingInferenceError.emptyResponse), .retry)
+        XCTAssertTrue(failure.localizedDescription.contains("3900"))
+        XCTAssertTrue(failure.localizedDescription.contains("512"))
+        XCTAssertTrue(failure.localizedDescription.contains("4096"))
+        XCTAssertTrue(failure.localizedDescription.contains("原文未被截断"))
+    }
+
+    func testContextRecoveryNoticeKeepsEditActionReadableAtSmallWidthAndLargestText() {
+        let recovery = NativeGenerationRecovery.editLastQuestion
+        XCTAssertEqual(recovery.actionLabel, "在新会话编辑问题")
+        XCTAssertTrue(recovery.actionHint.contains("不携带旧上下文"))
+        XCTAssertTrue(recovery.actionHint.contains("此操作不启动推理"))
+        XCTAssertTrue(recovery.inputLabels.contains(recovery.actionLabel))
+        XCTAssertNotEqual(recovery.actionIdentifier, NativeGenerationRecovery.retry.actionIdentifier)
+        let failure = LlamaTextRuntimeError.contextBudgetExceeded(input: 3900, output: 512, capacity: 4096)
+        var actions = 0
+        for theme in AppThemeMode.allCases {
+            for width: CGFloat in [248, 284, 720] {
+                var heights: [CGFloat] = []
+                for textSize in [DynamicTypeSize.large, .accessibility5] {
+                    let content = NativeGenerationFailureNotice(
+                        message: failure.localizedDescription, canRetry: true,
+                        recovery: recovery, retry: { actions += 1 }
+                    )
+                        .environment(\.appTheme, AppThemePalette(mode: theme))
+                        .environment(\.dynamicTypeSize, textSize)
+                        .frame(width: width)
+                        .background(AppThemePalette(mode: theme).canvas)
+                    let host = UIHostingController(rootView: content)
+                    host.loadViewIfNeeded()
+                    let natural = host.sizeThatFits(in: CGSize(width: width, height: 600))
+                    let tall = host.sizeThatFits(in: CGSize(width: width, height: 1800))
+                    XCTAssertTrue(natural.height.isFinite && natural.height > 44)
+                    XCTAssertEqual(natural.width, width, accuracy: 1)
+                    XCTAssertEqual(natural.height, tall.height, accuracy: 1)
+                    heights.append(natural.height)
+                    if width == 284 {
+                        let renderer = ImageRenderer(content: content.environment(\.colorScheme, theme.colorScheme))
+                        renderer.scale = 1
+                        if let data = renderer.uiImage?.pngData() {
+                            let attachment = XCTAttachment(data: data, uniformTypeIdentifier: "public.png")
+                            attachment.name = "native-context-notice-\(theme.rawValue)-\(textSize == .large ? "large" : "accessibility5")"
+                            attachment.lifetime = .keepAlways
+                            add(attachment)
+                        } else { XCTFail("Could not render the production context recovery notice") }
+                    }
+                }
+                XCTAssertGreaterThan(heights[1], heights[0])
+            }
+        }
+        XCTAssertEqual(actions, 0, "Measuring the notice must not create a session")
+    }
+
     func testNativeFailureNoticeGrowsNaturallyOnSmallScreensAndLargeText() {
         XCTAssertGreaterThanOrEqual(NativeGenerationFailureNotice.minimumActionHeight, 44)
         XCTAssertEqual(NativeGenerationFailureNotice.retryLabel, "在新会话重试")

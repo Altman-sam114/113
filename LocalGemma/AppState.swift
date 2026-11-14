@@ -1224,6 +1224,7 @@ final class InferenceEngine: ObservableObject {
     private struct FailedNativeRequest {
         let sessionID: UUID
         let request: StreamingInferenceRequest
+        let recovery: NativeGenerationRecovery
     }
     private var failedNativeRequest: FailedNativeRequest?
     private let runtime: LocalInferenceRuntime
@@ -1404,7 +1405,11 @@ final class InferenceEngine: ObservableObject {
         currentBackend = .coreMLANE
     }
 
-    func canRetryNativeGeneration(using model: LocalModel, availability: ArtifactAvailability) -> Bool {
+    var nativeFailureRecovery: NativeGenerationRecovery? {
+        failedNativeRequest?.recovery
+    }
+
+    func canRecoverNativeGeneration(using model: LocalModel, availability: ArtifactAvailability) -> Bool {
         guard let failedNativeRequest else { return false }
         return !isGenerating && !conversationPersistenceState.blocksEditing
             && failedNativeRequest.sessionID == activeSessionID
@@ -1413,6 +1418,24 @@ final class InferenceEngine: ObservableObject {
             && failedNativeRequest.request.model.contextLength == model.contextLength
             && availability == .verified
             && streamingRuntime?.supports(model) == true
+    }
+
+    func canRetryNativeGeneration(using model: LocalModel, availability: ArtifactAvailability) -> Bool {
+        nativeFailureRecovery == .retry
+            && canRecoverNativeGeneration(using: model, availability: availability)
+    }
+
+    @discardableResult
+    func editFailedNativeQuestionInNewSession(using model: LocalModel, availability: ArtifactAvailability) -> Bool {
+        guard nativeFailureRecovery == .editLastQuestion,
+              canRecoverNativeGeneration(using: model, availability: availability),
+              let question = failedNativeRequest?.request.messages.last,
+              question.role == .user else { return false }
+        // The user explicitly starts an empty conversation to edit the question.
+        // Keep the old context, partial answer and unsent draft in the old session.
+        createSession(title: "\(Self.sessionTitle(from: question.text)) · 编辑")
+        inputText = question.text
+        return true
     }
 
     @discardableResult
@@ -1504,7 +1527,9 @@ final class InferenceEngine: ObservableObject {
         } catch {
             guard !Task.isCancelled, generationID == operationID, activeSessionID == sessionID else { return }
             generationError = error.localizedDescription
-            failedNativeRequest = FailedNativeRequest(sessionID: sessionID, request: request)
+            failedNativeRequest = FailedNativeRequest(
+                sessionID: sessionID, request: request, recovery: NativeGenerationRecovery.resolve(for: error)
+            )
             if let index = messages.firstIndex(where: { $0.id == placeholderID }), messages[index].text.isEmpty {
                 messages.remove(at: index)
             }
