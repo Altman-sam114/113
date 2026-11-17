@@ -112,7 +112,8 @@ struct NativeSamplingProbe {
             let data = try Data(contentsOf: URL(fileURLWithPath: casesPath))
             let tasks = try JSONDecoder().decode(SamplingTasks.self, from: data)
             report["casesSHA256"] = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
-            report["profilesSHA256"] = SHA256.hash(data: Data(contentsOf: URL(fileURLWithPath: profilesPath)))
+            let profilesData = try Data(contentsOf: URL(fileURLWithPath: profilesPath))
+            report["profilesSHA256"] = SHA256.hash(data: profilesData)
                 .map { String(format: "%02x", $0) }.joined()
             report["status"] = "running"
             for task in tasks.cases {
