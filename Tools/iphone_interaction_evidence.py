@@ -10,6 +10,7 @@ TESTS = {
         "testHelpPreservesDraftAndWorkspace",
         "testNativeModelLicenseReviewCancelsWithoutImport",
         "testDraftsAndSelectionSurviveBackgroundTermination",
+        "testDraftToolsAndTemplatePreview",
     },
     "accessibility5": {
         "testAccessibilityLightSummaryLifecycle", "testAccessibilityDarkSummaryLifecycle",
@@ -17,6 +18,7 @@ TESTS = {
         "testAccessibilityHelpPreservesDraftAndWorkspace",
         "testAccessibilityNativeModelLicenseReviewCancelsWithoutImport",
         "testAccessibilityDraftsAndSelectionSurviveBackgroundTermination",
+        "testAccessibilityDraftToolsAndTemplatePreview",
     },
 }
 LIFECYCLE_STAGES = ("open", "expanded", "managed-models", "returned-chat")
@@ -24,6 +26,25 @@ DRAFT_STAGES = ("draft-keyboard", "draft-sheet", "draft-returned")
 HELP_STAGES = ("help-open", "help-bottom")
 LICENSE_STAGES = ("license-open", "license-cancelled")
 PERSISTENCE_STAGES = ("persistence-before-background", "persistence-first-restored", "persistence-second-restored")
+UX_STAGES = ("ux-template-preview", "ux-draft-tools")
+UX_TEMPLATE_PROMPT = "请润色下面的文字，保留原意，让表达更自然、简洁。直接给出修改后的版本：\n\n"
+UX_INITIAL_ACTIONS = (
+    "tap:session-bar-action-createSession", "tap:composer-input-field", "type:ux-original-draft",
+    "tap:composer-keyboard-done", "tap:workspace-tab-prompts", "tap:prompt-library-search",
+    "type:ux-no-result-query", "submit:ux-search", "observed:ux-empty-results",
+    "tap:prompt-library-reset-search", "tap:prompt-library-search", "type:ux-template-query",
+    "submit:ux-search", "tap:prompt-preview-everyday-polish", "tap:prompt-preview-copy",
+    "observed:ux-copy-confirmed",
+)
+UX_COMPLETION_ACTIONS = (
+    "tap:prompt-preview-apply", "observed:ux-draft-replacement-confirmation",
+    "tap:ux-cancel-draft-replacement", "tap:prompt-library-search-clear", "tap:prompt-collection-technical",
+    "tap:prompt-template-iphone-deployment-plan-send", "observed:ux-direct-send-confirmation",
+    "tap:ux-cancel-direct-send", "tap:workspace-tab-chat", "observed:ux-cancel-preserved-draft",
+    "tap:composer-clear", "observed:ux-cleared-draft", "tap:composer-undo-clear",
+    "observed:ux-restored-draft", "tap:composer-paste", "observed:ux-pasted-original-template",
+    "observed:ux-no-auto-send",
+)
 HELP_SECTIONS = (
     ("capabilities", "当前能力", "当前版本是本地 AI 工作台原型", ("模拟回复", "发送消息会执行本机文本推理", "不保证设备内存足够或生成成功")),
     ("privacy", "App 不主动上传", "App 不发起对话", ("不收集使用分析", "不自动下载模型权重")),
@@ -51,7 +72,7 @@ def expected_captures(category, scope="full"):
         return {f"interaction-dark-{category}-{stage}" for stage in LICENSE_STAGES}
     return {f"interaction-{theme}-{category}-{stage}"
             for theme in ("light", "dark") for stage in LIFECYCLE_STAGES} | {
-                f"interaction-dark-{category}-{stage}" for stage in DRAFT_STAGES + HELP_STAGES + LICENSE_STAGES + PERSISTENCE_STAGES}
+                f"interaction-dark-{category}-{stage}" for stage in DRAFT_STAGES + HELP_STAGES + LICENSE_STAGES + PERSISTENCE_STAGES + UX_STAGES}
 
 
 def validate_results(summary, tree, category, device_id, scope="full"):
@@ -104,7 +125,7 @@ def validate_capture(document, category, png_size, scope="full"):
         if not {"tap:session-bar-action-createSession", "tap:composer-input-field",
                 "type:local-draft-without-send"} <= set(actions):
             raise ValueError("The initial keyboard capture must follow real session creation and input events")
-    elif stage not in HELP_STAGES + LICENSE_STAGES + PERSISTENCE_STAGES and "tap:compact-model-summary" not in actions:
+    elif stage not in HELP_STAGES + LICENSE_STAGES + PERSISTENCE_STAGES + UX_STAGES and "tap:compact-model-summary" not in actions:
         raise ValueError("The production summary button must be tapped")
     if stage == "expanded" and "tap:compact-model-runtime-details" not in actions:
         raise ValueError("Details must be opened through the production disclosure control")
@@ -135,6 +156,52 @@ def validate_capture(document, category, png_size, scope="full"):
         validate_license_capture(document)
     if stage in PERSISTENCE_STAGES:
         validate_persistence_capture(document)
+    if stage in UX_STAGES:
+        validate_ux_capture(document)
+
+
+def validate_ux_capture(document):
+    actions = document.get("actions", [])
+    require_action_sequence(actions, UX_INITIAL_ACTIONS)
+    flow = document.get("uxFlow")
+    if (not isinstance(flow, dict) or flow.get("initialDraft") != "Keep this draft"
+            or flow.get("noResultsObserved") is not True or flow.get("searchResetObserved") is not True
+            or flow.get("previewPrompt") != UX_TEMPLATE_PROMPT or flow.get("copyConfirmed") is not True
+            or document.get("keyboardVisible") is not False or document.get("promptSent") is not False
+            or document.get("containerModifiedByTest") is not False):
+        raise ValueError("Template preview must preserve the real search, raw prompt, explicit copy and original draft observations")
+    if any(action in actions for action in ("tap:composer-send-button", "tap:composer-stop-button")):
+        raise ValueError("Draft tools must never send a prompt or start inference")
+    frames = document.get("frames", {})
+    if document["stage"] == "ux-template-preview":
+        for identifier in ("prompt-preview-copy", "prompt-preview-close", "prompt-preview-apply"):
+            validate_screen_frame(frames.get(identifier), 44)
+        validate_frame(frames.get("prompt-preview-full-text"))
+        if any(action in actions for action in UX_COMPLETION_ACTIONS):
+            raise ValueError("The original preview capture cannot include future draft-tool actions")
+    else:
+        require_action_sequence(actions, UX_INITIAL_ACTIONS + UX_COMPLETION_ACTIONS)
+        if (flow.get("replacementConfirmationObserved") is not True
+                or flow.get("directSendConfirmationObserved") is not True
+                or flow.get("cancelledDirectSendDraft") != "Keep this draft"
+                or flow.get("cancelledReplacementDraft") != "Keep this draft"
+                or flow.get("clearedDraft") != "" or flow.get("undoRestoredDraft") != "Keep this draft"
+                or flow.get("pastedDraft") != "Keep this draft\n" + UX_TEMPLATE_PROMPT
+                or type(flow.get("messageCount")) is not int or flow["messageCount"] != 0):
+            raise ValueError("Cancel, clear, undo and native paste must retain exact observed drafts without creating a message")
+        for identifier in ("composer-paste", "composer-clear", "composer-undo-clear"):
+            validate_screen_frame(frames.get(identifier), 44)
+        validate_screen_frame(frames.get("composer-input-field"))
+        validate_screen_frame(frames.get("composer-draft-count"))
+
+
+def validate_ux_sequence(documents):
+    if [d.get("stage") for d in documents] != list(UX_STAGES):
+        raise ValueError("Both ordered original preview and draft-tool captures are required")
+    first, last = documents
+    if (last.get("actions", [])[:len(first["actions"])] != first["actions"]
+            or any(last.get("uxFlow", {}).get(key) != value for key, value in first["uxFlow"].items())):
+        raise ValueError("Preview and draft tools must share the same original observations and continuous actual action history")
 
 
 def validate_persistence_capture(document):

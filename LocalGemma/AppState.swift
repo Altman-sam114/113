@@ -1188,6 +1188,12 @@ final class DeviceOptimizer: ObservableObject {
     }
 }
 
+struct ComposerDraftSnapshot: Equatable {
+    let sessionID: UUID
+    let revision: UInt64
+    let text: String
+}
+
 @MainActor
 final class InferenceEngine: ObservableObject {
     @Published var sessions: [ChatSession]
@@ -1203,6 +1209,7 @@ final class InferenceEngine: ObservableObject {
                 isApplyingArchive = false
                 return
             }
+            draftRevision &+= 1
             drafts[activeSessionID] = inputText
             requestConversationSave()
         }
@@ -1231,6 +1238,28 @@ final class InferenceEngine: ObservableObject {
     private let streamingRuntime: (any LocalStreamingInferenceRuntime)?
     private let conversationStorage: (any ConversationStorage)?
     private var drafts: [UUID: String] = [:]
+    private var draftRevision: UInt64 = 0
+
+    var composerDraftSnapshot: ComposerDraftSnapshot {
+        ComposerDraftSnapshot(sessionID: activeSessionID, revision: draftRevision, text: inputText)
+    }
+
+    @discardableResult
+    func replaceComposerDraft(_ text: String, matching snapshot: ComposerDraftSnapshot) -> Bool {
+        guard !isGenerating, !conversationPersistenceState.blocksEditing,
+              snapshot == composerDraftSnapshot else { return false }
+        inputText = text
+        return true
+    }
+
+    @discardableResult
+    func pasteIntoComposer(_ values: [String], matching snapshot: ComposerDraftSnapshot) -> Bool {
+        let payload = values.filter { !$0.isEmpty }.joined(separator: "\n")
+        guard !payload.isEmpty else { return false }
+        let separator = snapshot.text.isEmpty || snapshot.text.hasSuffix("\n") ? "" : "\n"
+        return replaceComposerDraft(snapshot.text + separator + payload, matching: snapshot)
+    }
+
     private var restoreTask: Task<Void, Never>?
     private var saveTask: Task<Void, Never>?
     private var pendingArchive: ConversationArchive?

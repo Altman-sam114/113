@@ -48,11 +48,16 @@ struct CompactSessionHistory: View {
                     let filtered = sessions.filter { ConversationHistoryPolicy.matches($0, query: query) }
                     LazyVStack(spacing: 8) {
                         if filtered.isEmpty {
-                            Label("没有匹配的对话", systemImage: "text.magnifyingglass")
-                                .font(.subheadline)
-                                .foregroundStyle(theme.secondaryText)
-                                .frame(maxWidth: .infinity, minHeight: 100)
-                                .accessibilityIdentifier("conversation-history-no-results")
+                            VStack(spacing: 12) {
+                                Label("没有匹配的对话", systemImage: "text.magnifyingglass")
+                                    .font(.subheadline)
+                                    .foregroundStyle(theme.secondaryText)
+                                    .accessibilityIdentifier("conversation-history-no-results")
+                                Button("清除搜索") { query = "" }
+                                    .frame(minHeight: 44)
+                                    .accessibilityIdentifier("conversation-history-reset-search")
+                            }
+                            .frame(maxWidth: .infinity, minHeight: 140)
                         }
                         ForEach(filtered) { session in
                             ConversationHistoryRow(session: session, isActive: session.id == activeSessionID,
@@ -101,7 +106,12 @@ struct CompactSessionHistory: View {
 
 struct ConversationHistorySearchField: View {
     @Environment(\.appTheme) private var theme
+    @Environment(\.isEnabled) private var isEnabled
+    @FocusState private var isSearchFocused: Bool
     @Binding var query: String
+    var title = "搜索对话"
+    var hint = "仅搜索本机对话标题和正文，不会联网。"
+    var identifier = "conversation-history-search"
 
     var body: some View {
         HStack(spacing: 10) {
@@ -118,16 +128,19 @@ struct ConversationHistorySearchField: View {
                 .hidden()
                 .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                 .overlay {
-                    TextField("搜索对话", text: $query)
+                    TextField(title, text: $query)
                         .font(.body)
+                        .focused($isSearchFocused)
+                        .submitLabel(.search)
+                        .onSubmit { isSearchFocused = false }
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .foregroundStyle(theme.primaryText)
                         .padding(.vertical, 6)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .accessibilityLabel("搜索对话")
-                        .accessibilityHint("仅搜索本机对话标题和正文，不会联网。")
-                        .accessibilityIdentifier("conversation-history-search")
+                        .accessibilityLabel(title)
+                        .accessibilityHint(hint)
+                        .accessibilityIdentifier(identifier)
                 }
             if !query.isEmpty {
                 Button { query = "" } label: {
@@ -135,15 +148,19 @@ struct ConversationHistorySearchField: View {
                         .font(.system(size: 16))
                         .frame(width: 44, height: 44)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(WorkbenchPressFeedbackStyle())
                 .foregroundStyle(theme.secondaryText)
                 .accessibilityLabel("清除搜索")
+                .accessibilityIdentifier(identifier + "-clear")
             }
         }
         .padding(.leading, 14)
         .padding(.trailing, 4)
         .frame(minHeight: 48)
         .background(theme.surface, in: RoundedRectangle(cornerRadius: 14))
+        .onChange(of: isEnabled) { _, enabled in
+            if !enabled { isSearchFocused = false }
+        }
     }
 }
 
@@ -195,7 +212,7 @@ struct ConversationHistoryRow: View {
                 .padding(.vertical, 12)
                 .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(WorkbenchPressFeedbackStyle())
             .accessibilityLabel(SessionChipActionAccessibilityMetadata.label(for: .select, session: session))
             .accessibilityValue(SessionChipActionAccessibilityMetadata.value(for: .select, session: session, isActive: isActive, canDelete: canDelete))
             .accessibilityHint(SessionChipActionAccessibilityMetadata.hint(for: .select, session: session, isActive: isActive, canDelete: canDelete))
@@ -207,7 +224,7 @@ struct ConversationHistoryRow: View {
                 Image(systemName: "trash").font(.system(size: 16)).foregroundStyle(theme.secondaryText)
                     .frame(width: 44, height: 44)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(WorkbenchPressFeedbackStyle())
             .disabled(!canDelete)
             .opacity(canDelete ? 1 : 0.3)
             .accessibilityLabel(SessionChipActionAccessibilityMetadata.label(for: .delete, session: session))

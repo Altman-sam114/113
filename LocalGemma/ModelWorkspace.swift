@@ -190,7 +190,7 @@ struct ModelLibraryView: View {
                         .frame(minHeight: ModelImportLicensePolicy.minimumActionHeight)
                         .contentShape(Rectangle())
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(WorkbenchPressFeedbackStyle())
                     .accessibilityValue(showsModelLicenseLinks ? "已展开" : "已折叠")
                     .accessibilityHint("展开后可主动打开官方许可、使用限制和固定版本来源；不会自动下载或加载模型。")
                     .accessibilityInputLabels(["模型许可与固定版本来源", "模型许可"])
@@ -232,6 +232,8 @@ struct ModelLibraryView: View {
                 }
                 .tint(theme.secondaryText)
                 .accessibilityIdentifier("compact-model-details")
+                .accessibilityValue(showsModelDetails ? "已展开" : "已折叠")
+                .help("查看模型规格、参考预算与运行准备状态")
             } else if layoutMode == .twoColumn {
                 let controlColumnWidth = layoutMode.controlColumnWidth(for: size)
                 let detailColumnWidth = ModelDetailColumnLayoutPolicy.width(
@@ -434,7 +436,7 @@ private struct ModelImportLicenseLinks: View {
                 .frame(maxWidth: .infinity, minHeight: ModelImportLicensePolicy.minimumActionHeight, alignment: .leading)
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(WorkbenchPressFeedbackStyle())
         .foregroundStyle(theme.accent)
         .accessibilityHint("仅在你点按后打开外部网页；不会附带对话、草稿或模型文件，不会在 App 中自动下载模型。")
         .accessibilityInputLabels([title])
@@ -463,7 +465,7 @@ private struct ModelImportLicenseReview: View {
                         .frame(minWidth: 48, minHeight: ModelImportLicensePolicy.minimumActionHeight)
                         .contentShape(Rectangle())
                 }
-                    .buttonStyle(.plain)
+                    .buttonStyle(WorkbenchPressFeedbackStyle())
                     .accessibilityLabel("取消模型导入许可确认")
                     .accessibilityHint("关闭说明，不选择文件，不修改或加载模型。")
                     .accessibilityIdentifier("model-license-cancel")
@@ -508,7 +510,7 @@ private struct ModelImportLicenseReview: View {
                     .background(theme.accent, in: RoundedRectangle(cornerRadius: 12))
                     .foregroundStyle(theme.canvas)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(WorkbenchPressFeedbackStyle())
             .accessibilityHint("确认你已自行阅读并同意模型许可后，打开系统 Files 选择器；不自动下载、不启动推理，不绕过文件校验。")
             .accessibilityInputLabels(["同意并选择文件", "选择本地文件"])
             .accessibilityIdentifier("model-license-confirm-import")
@@ -667,6 +669,7 @@ struct ModelSelectorPanel: View {
                 ModelDeploymentControlAccessibilityMetadata.modelSelectorInputLabels(selectedModel: selectedModel)
             )
             .accessibilityIdentifier(ModelDeploymentControlAccessibilityMetadata.modelSelectorIdentifier)
+            .help("选择模型；切换不会下载文件或启动推理")
 
             badgesLayout {
                 StatusBadge(
@@ -844,7 +847,7 @@ struct DeploymentPowerButton: View {
                     .stroke(isCompact ? theme.border : palette.border, lineWidth: 1)
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(WorkbenchPressFeedbackStyle())
         .accessibilityLabel(
             ModelDeploymentControlAccessibilityMetadata.powerLabel(
                 model: model,
@@ -1069,7 +1072,7 @@ struct ArtifactActionButton: View {
                     .stroke(palette.border, lineWidth: 1)
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(WorkbenchPressFeedbackStyle())
         .accessibilityLabel(
             ModelDeploymentControlAccessibilityMetadata.artifactActionLabel(metadataAction)
         )

@@ -58,6 +58,171 @@ final class CompactSummaryInteractionTests: XCTestCase {
         try persistedDraftLifecycle(accessibility: true)
     }
 
+    func testDraftToolsAndTemplatePreview() throws {
+        try draftToolsAndTemplatePreview(accessibility: false)
+    }
+
+    func testAccessibilityDraftToolsAndTemplatePreview() throws {
+        try draftToolsAndTemplatePreview(accessibility: true)
+    }
+
+    private func draftToolsAndTemplatePreview(accessibility: Bool) throws {
+        let app = launch(theme: "dark", accessibility: accessibility)
+        let originalDraft = "Keep this draft"
+        let expectedPrompt = "请润色下面的文字，保留原意，让表达更自然、简洁。直接给出修改后的版本：\n\n"
+        let category = accessibility ? "accessibility5" : "large"
+        var observations: [String: Any] = [:]
+
+        func dismissComposerKeyboard() {
+            let done = app.buttons["收起键盘"]
+            if done.exists && done.isHittable { tap(done, id: "composer-keyboard-done") }
+            XCTAssertTrue(waitUntil { !app.keyboards.firstMatch.exists })
+        }
+        func search(_ query: String, action: String) {
+            let field = app.textFields["prompt-library-search"]
+            revealHelpContent(field, in: app.scrollViews.firstMatch, app: app, isAction: true, preferPrevious: true)
+            tap(field, id: "prompt-library-search")
+            field.typeText(query)
+            actions.append(action)
+            field.typeText("\n")
+            actions.append("submit:ux-search")
+            XCTAssertTrue(waitUntil { !app.keyboards.firstMatch.exists })
+        }
+        func captureUX(_ stage: String, controlIDs: [String]) throws {
+            var frames: [String: [String: Double]] = [:]
+            for identifier in controlIDs {
+                let control = element(app, identifier)
+                XCTAssertTrue(control.exists)
+                frames[identifier] = helpFrame(control.frame)
+            }
+            let document: [String: Any] = [
+                "schemaVersion": 1, "source": "public-XCUITest-production-app",
+                "name": "interaction-dark-\(category)-\(stage)", "theme": "dark",
+                "dynamicTypeSize": category, "stage": stage,
+                "systemContentSizeCategory": UIApplication.shared.preferredContentSizeCategory.rawValue,
+                "screenWidth": app.frame.width, "screenHeight": app.frame.height,
+                "keyboardVisible": app.keyboards.firstMatch.exists,
+                "actions": actions, "frames": frames, "uxFlow": observations,
+                "promptSent": false, "containerModifiedByTest": false,
+                "realInferenceVerified": false, "signedDistributionVerified": false
+            ]
+            try attachHelpSnapshot(XCUIScreen.main.screenshot(), document: document)
+        }
+
+        tap(app.buttons["session-bar-action-createSession"], id: "session-bar-action-createSession")
+        let introduction = app.buttons["Continue"]
+        if introduction.waitForExistence(timeout: 3) && introduction.isHittable {
+            tap(introduction, id: "system-keyboard-introduction-continue")
+        }
+        let composer = app.textFields[composerID]
+        XCTAssertTrue(waitUntil { composer.exists && composer.isEnabled })
+        tap(composer, id: composerID)
+        composer.typeText(originalDraft)
+        actions.append("type:ux-original-draft")
+        XCTAssertEqual(composer.value as? String, originalDraft)
+        observations["initialDraft"] = composer.value as? String ?? ""
+        dismissComposerKeyboard()
+        tap(app.buttons["workspace-tab-prompts"], id: "workspace-tab-prompts")
+        search("NoMatchingTemplate9842", action: "type:ux-no-result-query")
+        let empty = element(app, "prompt-library-empty-results")
+        XCTAssertTrue(empty.waitForExistence(timeout: 5))
+        observations["noResultsObserved"] = empty.exists
+        actions.append("observed:ux-empty-results")
+        let reset = app.buttons["prompt-library-reset-search"]
+        revealHelpContent(reset, in: app.scrollViews.firstMatch, app: app, isAction: true)
+        assertReachableAction(reset, inside: app.frame)
+        tap(reset, id: "prompt-library-reset-search")
+        XCTAssertTrue(waitUntil { app.buttons["prompt-preview-everyday-polish"].exists })
+        observations["searchResetObserved"] = app.buttons["prompt-preview-everyday-polish"].exists
+        search("润色", action: "type:ux-template-query")
+        let preview = app.buttons["prompt-preview-everyday-polish"]
+        revealHelpContent(preview, in: app.scrollViews.firstMatch, app: app, isAction: true)
+        assertReachableAction(preview, inside: app.frame)
+        tap(preview, id: "prompt-preview-everyday-polish")
+        let body = element(app, "prompt-preview-full-text")
+        XCTAssertTrue(body.waitForExistence(timeout: 5))
+        revealHelpContent(body, in: app.scrollViews.firstMatch, app: app)
+        let actualPrompt = body.value as? String ?? ""
+        XCTAssertEqual(actualPrompt, expectedPrompt, "The preview must expose the complete original payload, including newlines")
+        observations["previewPrompt"] = actualPrompt
+        for identifier in ["prompt-preview-copy", "prompt-preview-close", "prompt-preview-apply"] {
+            assertReachableAction(app.buttons[identifier], inside: app.frame)
+        }
+        tap(app.buttons["prompt-preview-copy"], id: "prompt-preview-copy")
+        XCTAssertTrue(waitUntil { app.buttons["prompt-preview-copy"].label == "提示词已复制" })
+        observations["copyConfirmed"] = app.buttons["prompt-preview-copy"].label == "提示词已复制"
+        actions.append("observed:ux-copy-confirmed")
+        try captureUX("ux-template-preview", controlIDs: [
+            "prompt-preview-copy", "prompt-preview-close", "prompt-preview-apply", "prompt-preview-full-text"
+        ])
+
+        tap(app.buttons["prompt-preview-apply"], id: "prompt-preview-apply")
+        let replacement = app.buttons["替换草稿"]
+        XCTAssertTrue(replacement.waitForExistence(timeout: 5))
+        observations["replacementConfirmationObserved"] = replacement.exists
+        actions.append("observed:ux-draft-replacement-confirmation")
+        tap(app.buttons["取消"], id: "ux-cancel-draft-replacement")
+        XCTAssertTrue(waitUntil { !replacement.exists && !app.buttons["prompt-preview-close"].exists })
+        let clearSearch = app.buttons["prompt-library-search-clear"]
+        revealHelpContent(clearSearch, in: app.scrollViews.firstMatch, app: app, isAction: true, preferPrevious: true)
+        tap(clearSearch, id: "prompt-library-search-clear")
+        let technical = app.buttons["prompt-collection-technical"]
+        revealHelpContent(technical, in: app.scrollViews.firstMatch, app: app, isAction: true, preferPrevious: true)
+        tap(technical, id: "prompt-collection-technical")
+        let directSend = app.buttons["prompt-template-iphone-deployment-plan-send"]
+        revealHelpContent(directSend, in: app.scrollViews.firstMatch, app: app, isAction: true)
+        assertReachableAction(directSend, inside: app.frame)
+        tap(directSend, id: "prompt-template-iphone-deployment-plan-send")
+        let sendConfirmation = app.buttons["替换草稿并发送"]
+        XCTAssertTrue(sendConfirmation.waitForExistence(timeout: 5))
+        observations["directSendConfirmationObserved"] = sendConfirmation.exists
+        actions.append("observed:ux-direct-send-confirmation")
+        tap(app.buttons["取消"], id: "ux-cancel-direct-send")
+        XCTAssertTrue(waitUntil { !sendConfirmation.exists })
+        tap(app.buttons["workspace-tab-chat"], id: "workspace-tab-chat")
+        XCTAssertTrue(waitUntil { composer.exists && composer.value as? String == originalDraft })
+        observations["cancelledReplacementDraft"] = composer.value as? String ?? ""
+        observations["cancelledDirectSendDraft"] = composer.value as? String ?? ""
+        actions.append("observed:ux-cancel-preserved-draft")
+        dismissComposerKeyboard()
+        let clear = app.buttons["composer-clear"]
+        let undo = app.buttons["composer-undo-clear"]
+        assertReachableAction(clear, inside: app.frame)
+        tap(clear, id: "composer-clear")
+        XCTAssertTrue(waitUntil {
+            let value = composer.value as? String ?? ""
+            return value.isEmpty || value == "输入消息"
+        })
+        observations["clearedDraft"] = ""
+        actions.append("observed:ux-cleared-draft")
+        assertReachableAction(undo, inside: app.frame)
+        tap(undo, id: "composer-undo-clear")
+        XCTAssertTrue(waitUntil { composer.value as? String == originalDraft })
+        observations["undoRestoredDraft"] = composer.value as? String ?? ""
+        actions.append("observed:ux-restored-draft")
+        let paste = element(app, "composer-paste")
+        assertReachableAction(paste, inside: app.frame)
+        tap(paste, id: "composer-paste")
+        let expectedPastedDraft = originalDraft + "\n" + expectedPrompt
+        XCTAssertTrue(waitUntil { composer.value as? String == expectedPastedDraft },
+                      "A real native paste must append the exact payload copied through the preview")
+        observations["pastedDraft"] = composer.value as? String ?? ""
+        actions.append("observed:ux-pasted-original-template")
+        dismissComposerKeyboard()
+        let messages = app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH %@", "chat-message-"))
+        XCTAssertEqual(messages.count, 0)
+        XCTAssertFalse(app.buttons["composer-stop-button"].exists)
+        observations["messageCount"] = messages.count
+        actions.append("observed:ux-no-auto-send")
+        for identifier in ["composer-clear", "composer-undo-clear", "composer-paste"] {
+            assertReachableAction(element(app, identifier), inside: app.frame)
+        }
+        try captureUX("ux-draft-tools", controlIDs: [
+            composerID, "composer-paste", "composer-clear", "composer-undo-clear", "composer-draft-count"
+        ])
+        app.terminate()
+    }
+
     private func persistedDraftLifecycle(accessibility: Bool) throws {
         let app = launch(theme: "dark", accessibility: accessibility)
         let firstDraft = " Draft A: keep spaces "

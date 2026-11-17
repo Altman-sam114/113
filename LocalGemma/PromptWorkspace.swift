@@ -9,6 +9,11 @@ struct PromptTemplatesWorkspace: View {
     @EnvironmentObject private var inference: InferenceEngine
     @Environment(\.appTheme) private var theme
     @Environment(\.compactWorkbench) private var isCompact
+    @Environment(\.isEnabled) private var isEnabled
+    @State private var query = ""
+    @State private var previewTemplate: PresetPromptTemplate?
+    @State private var pendingPreviewApplication: PresetPromptTemplate?
+    @State private var pendingDraftReplacement: PendingTemplateAction?
     @State private var selectedCategory: PromptTemplateCategory?
     @State private var selectedCollection: CompactPromptCollection
 
@@ -23,9 +28,8 @@ struct PromptTemplatesWorkspace: View {
     }
 
     var body: some View {
-        let model = catalog.selectedModel
-        let validation = catalog.validation(for: model)
-        let templates = isCompact ? selectedCollection.templates : PromptTemplateLibrary.templates(in: selectedCategory)
+        let collection = isCompact ? selectedCollection.templates : PromptTemplateLibrary.templates(in: selectedCategory)
+        let templates = collection.filter { PromptTemplateSearchPolicy.matches($0, query: query) }
 
         GeometryReader { proxy in
             ScrollView {
@@ -42,27 +46,47 @@ struct PromptTemplatesWorkspace: View {
                         PromptCategorySelector(selectedCategory: $selectedCategory)
                     }
 
+                    ConversationHistorySearchField(
+                        query: $query, title: "搜索模板",
+                        hint: "仅搜索当前分类的模板标题、说明和完整提示词，不会联网。",
+                        identifier: "prompt-library-search"
+                    )
+                    HStack {
+                        Text("\(templates.count) 个模板")
+                            .font(.caption)
+                            .foregroundStyle(theme.secondaryText)
+                        Spacer(minLength: 0)
+                        Text("先预览，再使用")
+                            .font(.caption)
+                            .foregroundStyle(theme.secondaryText)
+                    }
+                    if templates.isEmpty {
+                        VStack(spacing: 12) {
+                            Image(systemName: "doc.text.magnifyingglass")
+                                .font(.title2)
+                                .foregroundStyle(theme.secondaryText)
+                                .accessibilityHidden(true)
+                            Text("没有找到模板").font(.headline)
+                            Text("试试其他关键词，或切换上方分类。")
+                                .font(.subheadline)
+                                .foregroundStyle(theme.secondaryText)
+                            Button("清除搜索") { query = "" }
+                                .frame(minHeight: 44)
+                                .accessibilityIdentifier("prompt-library-reset-search")
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 180)
+                        .accessibilityIdentifier("prompt-library-empty-results")
+                    }
+
                     PromptTemplateGrid(
                         templates: templates,
                         availableWidth: PromptTemplatesWorkspaceLayoutPolicy.contentWidth(
                             forContainerWidth: proxy.size.width
                         ),
                         isGenerating: inference.isGenerating,
-                        apply: { template in
-                            guard !inference.conversationPersistenceState.blocksEditing else { return }
-                            inference.applyTemplate(template)
-                            openChat(.applyTemplate)
-                        },
-                        send: { template in
-                            guard !inference.conversationPersistenceState.blocksEditing else { return }
-                            inference.useTemplate(
-                                template,
-                                model: model,
-                                availability: validation.availability,
-                                artifactDirectoryURL: catalog.artifactDirectoryURL
-                            )
-                            openChat(.sendTemplate)
-                        }
+                        apply: requestTemplateApplication,
+                        send: { requestTemplateAction($0, sendsImmediately: true) },
+                        preview: { previewTemplate = $0 }
                     )
                     .disabled(inference.conversationPersistenceState.blocksEditing)
                 }
@@ -78,7 +102,89 @@ struct PromptTemplatesWorkspace: View {
                 .padding(.bottom, 28)
             }
             .scrollIndicators(.hidden)
+            .scrollDismissesKeyboard(.interactively)
         }
+        .sheet(item: $previewTemplate, onDismiss: finishPreviewApplication) { template in
+            PromptTemplatePreviewSheet(template: template,
+                canApply: !inference.isGenerating && !inference.conversationPersistenceState.blocksEditing,
+                apply: { pendingPreviewApplication = template })
+                .environment(\.appTheme, theme)
+                .preferredColorScheme(theme.mode.colorScheme)
+        }
+        .confirmationDialog(pendingDraftReplacement?.sendsImmediately == true ? "替换草稿并发送？" : "替换当前草稿？", isPresented: Binding(
+            get: { pendingDraftReplacement != nil },
+            set: { if !$0 { pendingDraftReplacement = nil } }
+        ), titleVisibility: .visible, presenting: pendingDraftReplacement) { request in
+            Button(request.sendsImmediately ? "替换草稿并发送" : "替换草稿") { performTemplateAction(request) }
+            Button("取消", role: .cancel) { pendingDraftReplacement = nil }
+        } message: { request in
+            Text(request.sendsImmediately
+                 ? "确认后用模板替换当前未发送的文字，并立即发送。取消会保留原草稿。"
+                 : "模板将替换当前未发送的文字。取消会保留原草稿。")
+        }
+        .onChange(of: isEnabled) { _, enabled in
+            if !enabled {
+                previewTemplate = nil
+                pendingPreviewApplication = nil
+                pendingDraftReplacement = nil
+            }
+        }
+    }
+
+    private func finishPreviewApplication() {
+        let template = pendingPreviewApplication
+        pendingPreviewApplication = nil
+        guard isEnabled, let template else { return }
+        requestTemplateApplication(template)
+    }
+
+    private struct PendingTemplateAction {
+        let template: PresetPromptTemplate
+        let sendsImmediately: Bool
+        let draft: ComposerDraftSnapshot
+    }
+
+    private func requestTemplateApplication(_ template: PresetPromptTemplate) {
+        requestTemplateAction(template, sendsImmediately: false)
+    }
+
+    private func requestTemplateAction(_ template: PresetPromptTemplate, sendsImmediately: Bool) {
+        guard isEnabled, !inference.isGenerating,
+              !inference.conversationPersistenceState.blocksEditing,
+              !sendsImmediately || !template.requiresInput else { return }
+        let request = PendingTemplateAction(template: template, sendsImmediately: sendsImmediately,
+                                            draft: inference.composerDraftSnapshot)
+        if !inference.inputText.isEmpty && inference.inputText != template.prompt {
+            pendingDraftReplacement = request
+        } else {
+            performTemplateAction(request)
+        }
+    }
+
+    private func performTemplateAction(_ request: PendingTemplateAction) {
+        pendingDraftReplacement = nil
+        guard isEnabled, !inference.isGenerating,
+              !inference.conversationPersistenceState.blocksEditing,
+              request.draft == inference.composerDraftSnapshot else { return }
+        if request.sendsImmediately {
+            guard !request.template.requiresInput else { return }
+            let model = catalog.selectedModel
+            inference.useTemplate(request.template, model: model,
+                                  availability: catalog.validation(for: model).availability,
+                                  artifactDirectoryURL: catalog.artifactDirectoryURL)
+            openChat(.sendTemplate)
+        } else {
+            inference.applyTemplate(request.template)
+            openChat(.applyTemplate)
+        }
+    }
+}
+
+enum PromptTemplateSearchPolicy {
+    static func matches(_ template: PresetPromptTemplate, query: String) -> Bool {
+        let words = query.split(whereSeparator: \.isWhitespace)
+        let content = [template.title, template.subtitle, template.category.title, template.prompt].joined(separator: "\n")
+        return words.allSatisfy { content.localizedStandardContains(String($0)) }
     }
 }
 
@@ -113,6 +219,7 @@ struct PromptTemplateGrid: View {
     let isGenerating: Bool
     let apply: (PresetPromptTemplate) -> Void
     let send: (PresetPromptTemplate) -> Void
+    var preview: ((PresetPromptTemplate) -> Void)? = nil
 
     var body: some View {
         templateGrid(
@@ -132,7 +239,8 @@ struct PromptTemplateGrid: View {
                     template: template,
                     isGenerating: isGenerating,
                     apply: { apply(template) },
-                    send: { send(template) }
+                    send: { send(template) },
+                    preview: preview.map { action in { action(template) } }
                 )
             }
         }
@@ -234,7 +342,7 @@ struct PromptCategorySelector: View {
                 .background(isSelected ? primary.prominentFill : secondary.fill, in: Capsule())
                 .overlay(Capsule().stroke(isSelected ? primary.border : secondary.border, lineWidth: 1))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(WorkbenchPressFeedbackStyle())
         .accessibilityLabel(PromptCategoryAccessibilityMetadata.label(for: category))
         .accessibilityValue(PromptCategoryAccessibilityMetadata.value(isSelected: isSelected))
         .accessibilityHint(PromptCategoryAccessibilityMetadata.hint(for: category))
@@ -327,11 +435,12 @@ struct PromptTemplateCard: View {
     let isGenerating: Bool
     let apply: () -> Void
     let send: () -> Void
+    var preview: (() -> Void)? = nil
 
     var body: some View {
         Group {
             if isCompact {
-                CompactPromptTemplateRow(template: template, isGenerating: isGenerating, apply: apply, send: send)
+                CompactPromptTemplateRow(template: template, isGenerating: isGenerating, apply: apply, send: send, preview: preview)
             } else {
                 expandedCard
             }
@@ -391,6 +500,9 @@ struct PromptTemplateCard: View {
             Spacer(minLength: 0)
 
             HStack(spacing: PromptTemplateActionLayoutPolicy.spacing) {
+                if let preview {
+                    PromptTemplatePreviewButton(template: template, action: preview)
+                }
                 Button(action: apply) {
                     Label("填入", systemImage: "text.cursor")
                         .font(.subheadline)
@@ -405,7 +517,7 @@ struct PromptTemplateCard: View {
                                 .stroke(secondary.border, lineWidth: 1)
                         }
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(WorkbenchPressFeedbackStyle())
                 .accessibilityLabel(
                     PromptTemplateActionAccessibilityMetadata.label(for: .apply, template: template)
                 )
@@ -435,7 +547,7 @@ struct PromptTemplateCard: View {
                             .background(primary.prominentFill, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                             .foregroundStyle(primary.prominentForeground)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(WorkbenchPressFeedbackStyle())
                     .accessibilityLabel(
                         PromptTemplateActionAccessibilityMetadata.label(for: .send, template: template)
                     )
@@ -535,7 +647,7 @@ struct CompactPromptCollectionPicker: View {
                         }
                         .contentShape(Capsule())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(WorkbenchPressFeedbackStyle())
                 .accessibilityLabel("\(collection.title)模板")
                 .accessibilityValue(PromptCategoryAccessibilityMetadata.value(isSelected: selection == collection))
                 .accessibilityHint(collection.accessibilityHint)
@@ -556,6 +668,7 @@ struct CompactPromptTemplateRow: View {
     let isGenerating: Bool
     let apply: () -> Void
     let send: () -> Void
+    var preview: (() -> Void)? = nil
 
     var body: some View {
         HStack(spacing: 8) {
@@ -591,13 +704,17 @@ struct CompactPromptTemplateRow: View {
                        alignment: .leading)
                 .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(WorkbenchPressFeedbackStyle())
             .accessibilityLabel(PromptTemplateActionAccessibilityMetadata.label(for: .apply, template: template))
             .accessibilityValue(PromptTemplateActionAccessibilityMetadata.value(for: .apply, isGenerating: isGenerating))
             .accessibilityHint(PromptTemplateActionAccessibilityMetadata.hint(for: .apply, template: template))
             .accessibilityInputLabels(PromptTemplateActionAccessibilityMetadata.inputLabels(for: .apply, template: template)
                 + ["使用模板", template.title])
             .accessibilityIdentifier(PromptTemplateActionAccessibilityMetadata.identifier(for: .apply, template: template))
+
+            if let preview {
+                PromptTemplatePreviewButton(template: template, action: preview)
+            }
 
             if PromptTemplateInteractionPolicy.showsDirectSend(for: template) {
                 Button(action: send) {
@@ -609,7 +726,7 @@ struct CompactPromptTemplateRow: View {
                         .background(theme.chipSurface, in: RoundedRectangle(cornerRadius: 13))
                         .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(WorkbenchPressFeedbackStyle())
                 .accessibilityLabel(PromptTemplateActionAccessibilityMetadata.label(for: .send, template: template))
                 .accessibilityValue(PromptTemplateActionAccessibilityMetadata.value(for: .send, isGenerating: isGenerating))
                 .accessibilityHint(PromptTemplateActionAccessibilityMetadata.hint(for: .send, template: template))
@@ -657,5 +774,124 @@ enum PromptTemplateActionLayoutPolicy {
 
     static func actionRowFits(inCardWidth cardWidth: CGFloat) -> Bool {
         cardWidth >= minimumCardWidthForActionRow()
+    }
+}
+
+struct PromptTemplatePreviewButton: View {
+    @Environment(\.appTheme) private var theme
+    let template: PresetPromptTemplate
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "doc.text.magnifyingglass")
+                .font(.system(size: 18, weight: .medium))
+                .foregroundStyle(theme.secondaryText)
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(WorkbenchPressFeedbackStyle())
+        .accessibilityLabel("预览\(template.title)")
+        .accessibilityHint("打开完整提示词，不改变草稿，也不发送消息。")
+        .accessibilityInputLabels(["预览\(template.title)", "预览提示词", "预览模板"])
+        .accessibilityIdentifier("prompt-preview-\(template.id)")
+        .help("预览完整提示词")
+    }
+}
+
+struct PromptTemplatePreviewSheet: View {
+    @Environment(\.appTheme) private var theme
+    @Environment(\.dismiss) private var dismiss
+    @State private var copied = false
+    let template: PresetPromptTemplate
+    let canApply: Bool
+    let apply: () -> Void
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    Label(template.title, systemImage: template.icon)
+                        .font(.title2.weight(.semibold))
+                        .foregroundStyle(theme.primaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(template.subtitle)
+                        .font(.subheadline)
+                        .foregroundStyle(theme.secondaryText)
+                    Text(template.prompt)
+                        .font(.body)
+                        .foregroundStyle(theme.primaryText)
+                        .lineSpacing(4)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(18)
+                        .background(theme.surface, in: RoundedRectangle(cornerRadius: 16))
+                        .accessibilityLabel("完整提示词")
+                        .accessibilityValue(template.prompt)
+                        .accessibilityIdentifier("prompt-preview-full-text")
+                    Label(
+                        template.requiresInput
+                            ? "使用后补充你的内容，再自行发送。"
+                            : "先填入对话，确认后再自行发送。",
+                        systemImage: "text.cursor"
+                    )
+                    .font(.footnote)
+                    .foregroundStyle(theme.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(18)
+                .frame(maxWidth: 760, alignment: .leading)
+                .frame(maxWidth: .infinity)
+            }
+            .background(theme.canvas)
+            .navigationTitle("模板预览")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        UIPasteboard.general.string = template.prompt
+                        copied = true
+                    } label: {
+                        Label(copied ? "已复制" : "复制", systemImage: copied ? "checkmark" : "doc.on.doc")
+                            .frame(minWidth: 44, minHeight: 44)
+                    }
+                    .accessibilityLabel(copied ? "提示词已复制" : "复制完整提示词")
+                    .accessibilityHint("只复制到系统剪贴板，不改变草稿或发送消息。")
+                    .accessibilityIdentifier("prompt-preview-copy")
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { dismiss() } label: {
+                        Image(systemName: "xmark").frame(width: 44, height: 44)
+                    }
+                    .accessibilityLabel("关闭模板预览")
+                    .accessibilityIdentifier("prompt-preview-close")
+                }
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                Button {
+                    guard canApply else { return }
+                    apply()
+                    dismiss()
+                } label: {
+                    Label("使用模板", systemImage: "text.cursor")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                }
+                .buttonStyle(.borderedProminent)
+                .buttonBorderShape(.capsule)
+                .tint(theme.accent)
+                .disabled(!canApply)
+                .accessibilityHint("关闭预览并填入对话；已有草稿时先确认替换，不自动发送。")
+                .accessibilityIdentifier("prompt-preview-apply")
+                .padding(18)
+                .frame(maxWidth: 760)
+                .frame(maxWidth: .infinity)
+                .background(theme.canvas)
+            }
+        }
+        .tint(theme.accent)
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
     }
 }

@@ -94,49 +94,61 @@ struct CompactWorkbenchHeader: View {
     let openSummary: () -> Void
     let toggleTheme: () -> Void
     var chatActions: CompactChatHeaderActions? = nil
+    var condensesForEditing = false
 
     var body: some View {
-        let layout = CompactWorkbenchPolicy.stacksHeaderControls(dynamicTypeSize: dynamicTypeSize)
+        let stacksControls = !condensesForEditing
+            && CompactWorkbenchPolicy.stacksHeaderControls(dynamicTypeSize: dynamicTypeSize)
+        let layout = stacksControls
             ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
             : AnyLayout(HStackLayout(spacing: 8))
 
         layout {
             Button(action: openSummary) {
                 HStack(spacing: 6) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(CompactWorkbenchPolicy.modelTitle(model))
-                            .font(.headline.weight(.semibold))
-                            .foregroundStyle(theme.primaryText)
-                            .lineLimit(2)
-                        HStack(spacing: 5) {
-                            Circle().fill(theme.accent).frame(width: 4, height: 4)
-                                .accessibilityHidden(true)
-                            Text(CompactWorkbenchPolicy.runtimeTitle(isSimulated: isSimulated))
-                                .font(.caption)
-                                .foregroundStyle(theme.secondaryText)
+                    if condensesForEditing {
+                        Image(systemName: "cpu")
+                            .font(.system(size: CompactWorkbenchPolicy.headerActionSymbolSize, weight: .medium))
+                            .foregroundStyle(theme.accent)
+                            .frame(width: CompactWorkbenchPolicy.minimumTouchTarget,
+                                   height: CompactWorkbenchPolicy.minimumTouchTarget)
+                            .accessibilityHidden(true)
+                    } else {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(CompactWorkbenchPolicy.modelTitle(model))
+                                .font(.headline.weight(.semibold))
+                                .foregroundStyle(theme.primaryText)
+                                .lineLimit(2)
+                            HStack(spacing: 5) {
+                                Circle().fill(theme.accent).frame(width: 4, height: 4)
+                                    .accessibilityHidden(true)
+                                Text(CompactWorkbenchPolicy.runtimeTitle(isSimulated: isSimulated))
+                                    .font(.caption)
+                                    .foregroundStyle(theme.secondaryText)
+                            }
                         }
+                        .fixedSize(horizontal: false, vertical: true)
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: CompactWorkbenchPolicy.headerChevronSymbolSize, weight: .semibold))
+                            .foregroundStyle(theme.secondaryText)
+                            .accessibilityHidden(true)
                     }
-                    .fixedSize(horizontal: false, vertical: true)
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: CompactWorkbenchPolicy.headerChevronSymbolSize, weight: .semibold))
-                        .foregroundStyle(theme.secondaryText)
-                        .accessibilityHidden(true)
                 }
                 .frame(minHeight: CompactWorkbenchPolicy.minimumTouchTarget, alignment: .leading)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(WorkbenchPressFeedbackStyle())
             .accessibilityLabel("当前模型，\(model.name)")
             .accessibilityValue(CompactWorkbenchPolicy.runtimeAccessibilityValue(isSimulated: isSimulated))
             .accessibilityHint("打开当前模型运行摘要；只展示本地状态，不下载权重或启动真实 runtime。")
             .accessibilityInputLabels(["当前模型", "模型摘要", model.name])
             .accessibilityIdentifier("compact-model-summary")
+            .help("查看当前模型、文件校验与运行摘要")
 
             if let chatActions {
                 CompactChatTools(actions: chatActions, themeMode: themeMode, toggleTheme: toggleTheme)
-                    .frame(maxWidth: CompactWorkbenchPolicy.stacksHeaderControls(dynamicTypeSize: dynamicTypeSize)
-                           ? .infinity : nil, alignment: .trailing)
+                    .frame(maxWidth: stacksControls ? .infinity : nil, alignment: .trailing)
             } else {
                 Button(action: toggleTheme) {
                     Image(systemName: themeMode.icon)
@@ -152,7 +164,7 @@ struct CompactWorkbenchHeader: View {
             }
         }
         .padding(.horizontal, 18)
-        .padding(.vertical, 8)
+        .padding(.vertical, condensesForEditing ? 4 : 8)
     }
 }
 
@@ -175,6 +187,7 @@ private struct CompactChatTools: View {
             .accessibilityHint("打开本机会话列表，可选择或删除会话，不会发送到云端服务。")
             .accessibilityInputLabels(["会话记录", "历史会话", actions.sessionTitle])
             .accessibilityIdentifier("compact-session-history")
+            .help("查找和管理本机会话")
 
             Button(action: actions.create) {
                 Image(systemName: "square.and.pencil")
@@ -183,6 +196,7 @@ private struct CompactChatTools: View {
                     .contentShape(Rectangle())
             }
             .modifier(CompactSessionActionAccessibility(action: .createSession))
+            .help("新建对话（⌘N）")
 
             Menu {
                 Button(action: actions.export) {
@@ -207,9 +221,10 @@ private struct CompactChatTools: View {
             .accessibilityHint("导出当前会话或切换外观。")
             .accessibilityInputLabels(["更多会话操作", "更多", "导出会话"])
             .accessibilityIdentifier("compact-chat-more")
+            .help("导出会话或切换外观")
         }
         .font(.body.weight(.medium))
-        .buttonStyle(.plain)
+        .buttonStyle(WorkbenchPressFeedbackStyle())
         .foregroundStyle(theme.secondaryText)
     }
 }
@@ -262,7 +277,7 @@ struct CompactWorkspaceNavigation: View {
                     .foregroundStyle(selection == tab ? theme.accent : theme.secondaryText)
                     .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(WorkbenchPressFeedbackStyle())
                 .keyboardShortcut(KeyEquivalent(tab.shortcutKey), modifiers: [.command])
                 .accessibilityLabel(WorkspaceNavigationAccessibilityMetadata.label(for: tab))
                 .accessibilityValue(WorkspaceNavigationAccessibilityMetadata.value(isSelected: selection == tab))
@@ -314,13 +329,14 @@ struct CompactSessionToolbar: View {
                 .frame(minHeight: 44, alignment: .leading)
                 .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(WorkbenchPressFeedbackStyle())
             .foregroundStyle(theme.secondaryText)
             .accessibilityLabel("会话记录")
             .accessibilityValue("当前会话，\(title)")
             .accessibilityHint("打开本机会话列表，可选择或删除会话，不会发送到云端服务。")
             .accessibilityInputLabels(["会话记录", "历史会话", title])
             .accessibilityIdentifier("compact-session-history")
+            .help("查找和管理本机会话")
 
             Spacer(minLength: 0)
             sessionAction(.exportSession, icon: "square.and.arrow.up", action: export)
@@ -336,7 +352,7 @@ struct CompactSessionToolbar: View {
                 .frame(width: 44, height: 44)
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(WorkbenchPressFeedbackStyle())
         .foregroundStyle(theme.primaryText)
         .accessibilityLabel(SessionBarActionAccessibilityMetadata.label(for: item))
         .accessibilityValue(SessionBarActionAccessibilityMetadata.value(for: item))
@@ -348,6 +364,7 @@ struct CompactSessionToolbar: View {
 
 struct CompactModelFilesPanel: View {
     @Environment(\.appTheme) private var theme
+    @Environment(\.isEnabled) private var isEnabled
     let validation: ArtifactValidationResult
     let download: () -> Void
     let uninstall: () -> Void
@@ -359,11 +376,14 @@ struct CompactModelFilesPanel: View {
             fileAction(.importFiles, title: "导入模型文件", icon: "square.and.arrow.down", action: importFiles)
                 .frame(maxWidth: .infinity, minHeight: 48)
                 .foregroundStyle(theme.inverseText)
-                .background(theme.accent, in: RoundedRectangle(cornerRadius: 13))
+                .background(theme.accent, in: Capsule())
+                .help("选择本地模型文件并校验，不自动下载")
 
             HStack(spacing: 12) {
                 fileAction(.scan, title: "扫描本地", icon: "folder", action: scan)
                     .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                    .background(theme.chipSurface, in: Capsule())
+                    .help("重新检查 App 托管目录中的本地文件")
                 Menu {
                     fileAction(.download, title: "模拟暂存", icon: "shippingbox", action: download)
                     Button(role: .destructive, action: uninstall) {
@@ -379,16 +399,35 @@ struct CompactModelFilesPanel: View {
                 .accessibilityHint("可模拟暂存或打开卸载确认，不会联网下载权重。")
                 .accessibilityInputLabels(["更多文件操作", "更多"])
                 .accessibilityIdentifier("compact-model-files-more")
+                .help("模拟暂存或确认卸载本地文件")
             }
             .foregroundStyle(theme.secondaryText)
+
+            Text(fileWorkflowHint)
+                .font(.footnote)
+                .foregroundStyle(theme.secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("compact-model-files-guidance")
         }
         .panelStyle()
+        .opacity(isEnabled ? 1 : 0.55)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(ModelArtifactPanelAccessibilityMetadata.label)
         .accessibilityValue(ModelArtifactPanelAccessibilityMetadata.value(validation: validation))
         .accessibilityHint(ModelArtifactPanelAccessibilityMetadata.hint)
         .accessibilityInputLabels(ModelArtifactPanelAccessibilityMetadata.inputLabels)
         .accessibilityIdentifier(ModelArtifactPanelAccessibilityMetadata.identifier)
+    }
+
+    private var fileWorkflowHint: String {
+        switch validation.availability {
+        case .missing:
+            return "导入已取得的模型文件，原文件仍保留在“文件”中。"
+        case .staged:
+            return "文件尚未通过完整校验，不能用于真实推理。"
+        case .verified:
+            return "文件校验通过；是否可运行仍取决于模型和设备。"
+        }
     }
 
     private func fileAction(
@@ -405,7 +444,7 @@ struct CompactModelFilesPanel: View {
                 .frame(maxWidth: .infinity, minHeight: 44, alignment: .center)
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(WorkbenchPressFeedbackStyle())
         .modifier(CompactArtifactAccessibility(action: action, availability: validation.availability))
     }
 }

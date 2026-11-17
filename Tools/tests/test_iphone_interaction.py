@@ -4,8 +4,8 @@ import sys
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from iphone_interaction_evidence import (HELP_SECTIONS, PERSISTENCE_STAGES, TESTS, expected_captures, selected_tests,
-                                         validate_capture, validate_persistence_sequence, validate_results)
+from iphone_interaction_evidence import (HELP_SECTIONS, PERSISTENCE_STAGES, UX_STAGES, UX_TEMPLATE_PROMPT, UX_INITIAL_ACTIONS, UX_COMPLETION_ACTIONS, TESTS, expected_captures, selected_tests,
+                                         validate_capture, validate_persistence_sequence, validate_ux_sequence, validate_results)
 
 
 class IPhoneInteractionEvidenceTests(unittest.TestCase):
@@ -46,7 +46,7 @@ class IPhoneInteractionEvidenceTests(unittest.TestCase):
         for category in TESTS:
             document = self.capture(category)
             validate_capture(document, category, (750, 1334))
-            self.assertEqual(len(expected_captures(category)), 18)
+            self.assertEqual(len(expected_captures(category)), 20)
             for key, value in (("source", "host-render"), ("screenWidth", 390),
                                ("realInferenceVerified", True), ("signedDistributionVerified", 0),
                                ("systemContentSizeCategory", "injected-font-size"), ("stage", "fixture")):
@@ -91,7 +91,7 @@ class IPhoneInteractionEvidenceTests(unittest.TestCase):
                 validate_capture(bad, "large", (750, 1334))
 
     def test_all_selected_tests_must_succeed_once_on_the_recorded_device(self):
-        summary = {"result": "Passed", "totalTestCount": 6, "passedTests": 6,
+        summary = {"result": "Passed", "totalTestCount": 7, "passedTests": 7,
                    "failedTests": 0, "skippedTests": 0, "expectedFailures": 0, "testFailures": []}
         for category, names in TESTS.items():
             tree = {"devices": [{"deviceId": "exact-udid"}], "testNodes": [
@@ -142,8 +142,8 @@ class IPhoneInteractionEvidenceTests(unittest.TestCase):
             for stage in ("help-open", "help-bottom"):
                 validate_capture(self.help_capture(category, stage), category, (750, 1334))
             expected = expected_captures(category)
-            self.assertEqual(len(TESTS[category]), 6)
-            self.assertEqual(len(expected), 18)
+            self.assertEqual(len(TESTS[category]), 7)
+            self.assertEqual(len(expected), 20)
             for theme in ("light", "dark"):
                 for stage in ("open", "expanded", "managed-models", "returned-chat"):
                     self.assertIn(f"interaction-{theme}-{category}-{stage}", expected)
@@ -316,6 +316,110 @@ class IPhoneInteractionEvidenceTests(unittest.TestCase):
         bad[2]["actions"].insert(0, "different-test-history")
         with self.assertRaises(ValueError):
             validate_persistence_sequence(bad)
+
+
+    def ux_capture(self, category="large", stage="ux-template-preview"):
+        document = self.capture(category, stage)
+        document["actions"] = list(UX_INITIAL_ACTIONS)
+        document["uxFlow"] = {
+            "initialDraft": "Keep this draft", "noResultsObserved": True, "searchResetObserved": True,
+            "previewPrompt": UX_TEMPLATE_PROMPT, "copyConfirmed": True,
+        }
+        document.update(promptSent=False, containerModifiedByTest=False)
+        document["frames"] = {
+            "prompt-preview-copy": {"x": 18, "y": 40, "width": 80, "height": 44},
+            "prompt-preview-close": {"x": 310, "y": 40, "width": 44, "height": 44},
+            "prompt-preview-apply": {"x": 18, "y": 580, "width": 339, "height": 64},
+            "prompt-preview-full-text": {"x": 18, "y": 180, "width": 339, "height": 700},
+        }
+        if stage == "ux-draft-tools":
+            document["actions"] += list(UX_COMPLETION_ACTIONS)
+            document["uxFlow"].update({
+                "replacementConfirmationObserved": True, "cancelledReplacementDraft": "Keep this draft",
+                "directSendConfirmationObserved": True, "cancelledDirectSendDraft": "Keep this draft",
+                "clearedDraft": "", "undoRestoredDraft": "Keep this draft",
+                "pastedDraft": "Keep this draft\n" + UX_TEMPLATE_PROMPT, "messageCount": 0,
+            })
+            document["frames"] = {
+                "composer-paste": {"x": 18, "y": 560, "width": 44, "height": 44},
+                "composer-clear": {"x": 66, "y": 560, "width": 44, "height": 44},
+                "composer-undo-clear": {"x": 114, "y": 560, "width": 44, "height": 44},
+                "composer-input-field": {"x": 18, "y": 350, "width": 260, "height": 180},
+                "composer-draft-count": {"x": 200, "y": 560, "width": 140, "height": 44},
+            }
+        return document
+
+    def test_ux_adds_both_real_interactions_without_replacing_any_original_capture(self):
+        for category in TESTS:
+            expected = expected_captures(category)
+            self.assertEqual(len(TESTS[category]), 7)
+            ux = {f"interaction-dark-{category}-{stage}" for stage in UX_STAGES}
+            self.assertEqual(len(expected - ux), 18)
+            self.assertTrue(ux <= expected)
+            documents = [self.ux_capture(category, stage) for stage in UX_STAGES]
+            for document in documents:
+                validate_capture(document, category, (750, 1334))
+            validate_ux_sequence(documents)
+            self.assertEqual(len(expected_captures(category, "license")), 2)
+
+    def test_ux_rejects_missing_or_reordered_actual_ui_actions_and_future_preview_events(self):
+        for stage in UX_STAGES:
+            document = self.ux_capture(stage=stage)
+            for action in set(document["actions"]):
+                bad = copy.deepcopy(document)
+                bad["actions"] = [a for a in bad["actions"] if a != action]
+                with self.assertRaises(ValueError): validate_capture(bad, "large", (750, 1334))
+            bad = copy.deepcopy(document)
+            bad["actions"] = list(reversed(bad["actions"]))
+            with self.assertRaises(ValueError): validate_capture(bad, "large", (750, 1334))
+        preview = self.ux_capture()
+        preview["actions"].append("tap:composer-clear")
+        with self.assertRaises(ValueError): validate_capture(preview, "large", (750, 1334))
+
+    def test_ux_rejects_changed_drafts_truncated_prompt_and_false_success_claims(self):
+        for stage in UX_STAGES:
+            original = self.ux_capture(stage=stage)
+            for key, value in (("keyboardVisible", True), ("promptSent", True),
+                               ("containerModifiedByTest", True), ("source", "hosted-render"),
+                               ("realInferenceVerified", True), ("signedDistributionVerified", True)):
+                bad = dict(original, **{key: value})
+                with self.assertRaises(ValueError): validate_capture(bad, "large", (750, 1334))
+            fields = [("initialDraft", "Keep this"), ("noResultsObserved", False),
+                      ("searchResetObserved", False), ("copyConfirmed", "true"),
+                      ("previewPrompt", UX_TEMPLATE_PROMPT.rstrip())]
+            if stage == "ux-draft-tools":
+                fields += [("replacementConfirmationObserved", False), ("cancelledReplacementDraft", "lost"),
+                           ("directSendConfirmationObserved", False), ("cancelledDirectSendDraft", "lost"),
+                           ("clearedDraft", "not cleared"), ("undoRestoredDraft", "wrong"),
+                           ("pastedDraft", "Keep this draft\n" + UX_TEMPLATE_PROMPT.rstrip()),
+                           ("messageCount", 1), ("messageCount", False)]
+            for key, value in fields:
+                bad = copy.deepcopy(original); bad["uxFlow"][key] = value
+                with self.assertRaises(ValueError): validate_capture(bad, "large", (750, 1334))
+            bad = copy.deepcopy(original); bad["actions"].append("tap:composer-send-button")
+            with self.assertRaises(ValueError): validate_capture(bad, "large", (750, 1334))
+
+    def test_ux_requires_visible_full_size_buttons_and_original_screen_geometry(self):
+        for stage in UX_STAGES:
+            original = self.ux_capture(stage=stage)
+            identifiers = (["prompt-preview-copy", "prompt-preview-close", "prompt-preview-apply"]
+                           if stage == "ux-template-preview" else ["composer-paste", "composer-clear", "composer-undo-clear"])
+            for identifier in identifiers:
+                for key, value in (("width", 43), ("height", 43), ("y", 650),
+                                   ("x", -1), ("x", float("nan"))):
+                    bad = copy.deepcopy(original); bad["frames"][identifier][key] = value
+                    with self.assertRaises(ValueError): validate_capture(bad, "large", (750, 1334))
+                bad = copy.deepcopy(original); del bad["frames"][identifier]
+                with self.assertRaises(ValueError): validate_capture(bad, "large", (750, 1334))
+
+    def test_ux_capture_pair_must_retain_ordered_continuous_same_flow_observations(self):
+        documents = [self.ux_capture(stage=stage) for stage in UX_STAGES]
+        for invalid in [documents[:1], list(reversed(documents))]:
+            with self.assertRaises(ValueError): validate_ux_sequence(invalid)
+        bad = copy.deepcopy(documents); bad[1]["actions"].insert(0, "different-test-history")
+        with self.assertRaises(ValueError): validate_ux_sequence(bad)
+        bad = copy.deepcopy(documents); bad[1]["uxFlow"]["previewPrompt"] += " changed"
+        with self.assertRaises(ValueError): validate_ux_sequence(bad)
 
 
 if __name__ == "__main__":

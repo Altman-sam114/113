@@ -8,8 +8,8 @@ import shutil
 import struct
 import subprocess
 
-from iphone_interaction_evidence import (PERSISTENCE_STAGES, TESTS, expected_captures, selected_tests,
-                                         validate_capture, validate_persistence_sequence, validate_results)
+from iphone_interaction_evidence import (PERSISTENCE_STAGES, UX_STAGES, TESTS, expected_captures, selected_tests,
+                                         validate_capture, validate_persistence_sequence, validate_ux_sequence, validate_results)
 
 
 def write_json(path, value):
@@ -60,6 +60,7 @@ def export_evidence(root, category, device_id, scope="full"):
     evidence.mkdir(exist_ok=True)
     records = []
     persistence = {}
+    ux = {}
     for name in sorted(required):
         image, test = indexed[name]
         provenance, provenance_test = indexed[name + "-provenance"]
@@ -76,6 +77,12 @@ def export_evidence(root, category, device_id, scope="full"):
             if not isinstance(test, str) or test.split("/")[-1].removesuffix("()") != method:
                 raise ValueError("Lifecycle screenshots must come from the exact selected production UI test")
             persistence[document["stage"]] = document
+        if document["stage"] in UX_STAGES:
+            method = ("testAccessibilityDraftToolsAndTemplatePreview"
+                      if category == "accessibility5" else "testDraftToolsAndTemplatePreview")
+            if not isinstance(test, str) or test.split("/")[-1].removesuffix("()") != method:
+                raise ValueError("UX screenshots must come from their exact selected production UI test")
+            ux[document["stage"]] = document
         shutil.copyfile(image, evidence / (name + ".png"))
         shutil.copyfile(provenance, evidence / (name + ".json"))
         records.append({"name": name, "testIdentifier": test,
@@ -83,6 +90,7 @@ def export_evidence(root, category, device_id, scope="full"):
                         "provenanceSha256": hashlib.sha256(provenance.read_bytes()).hexdigest()})
     if scope == "full":
         validate_persistence_sequence([persistence[stage] for stage in PERSISTENCE_STAGES])
+        validate_ux_sequence([ux[stage] for stage in UX_STAGES])
     return records
 
 

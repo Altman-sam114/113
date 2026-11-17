@@ -676,6 +676,191 @@ final class RuntimeStreamingTests: XCTestCase {
     }
 }
 
+extension RuntimeStreamingTests {
+    func testComposerPastePreservesPayloadAndSeparatesExistingDraftWithoutSending() {
+        let engine = InferenceEngine()
+        let originalMessages = engine.messages
+        let snapshot = engine.composerDraftSnapshot
+        XCTAssertFalse(engine.pasteIntoComposer([], matching: snapshot))
+        XCTAssertFalse(engine.pasteIntoComposer(["", ""], matching: snapshot))
+        XCTAssertEqual(engine.composerDraftSnapshot, snapshot, "An empty provider cannot consume the draft revision")
+        XCTAssertTrue(engine.pasteIntoComposer(["  first\n", "\tsecond  "], matching: snapshot))
+        XCTAssertEqual(engine.inputText, "  first\n\n\tsecond  ", "Payload whitespace and order are not trimmed")
+        XCTAssertTrue(engine.pasteIntoComposer([" tail\n"], matching: engine.composerDraftSnapshot))
+        XCTAssertEqual(engine.inputText, "  first\n\n\tsecond  \n tail\n")
+        XCTAssertTrue(engine.pasteIntoComposer(["last"], matching: engine.composerDraftSnapshot))
+        XCTAssertEqual(engine.inputText, "  first\n\n\tsecond  \n tail\nlast", "An existing trailing newline is not duplicated")
+        XCTAssertEqual(engine.messages, originalMessages)
+        XCTAssertFalse(engine.isGenerating, "Pasting only edits a local draft")
+    }
+
+    func testLateComposerPasteCannotFollowEditsOrRoundTripSessionSelection() throws {
+        let engine = InferenceEngine()
+        engine.inputText = "Original draft"
+        let firstSession = try XCTUnwrap(engine.activeSession)
+        let beforeEditing = engine.composerDraftSnapshot
+        engine.inputText = "Temporary edit"
+        engine.inputText = "Original draft"
+        XCTAssertFalse(engine.pasteIntoComposer(["late clipboard"], matching: beforeEditing),
+                       "Equal text after editing does not restore a provider's authority")
+        let beforeSwitching = engine.composerDraftSnapshot
+        engine.createSession()
+        engine.inputText = "Second session draft"
+        XCTAssertFalse(engine.pasteIntoComposer(["late clipboard"], matching: beforeSwitching))
+        engine.selectSession(firstSession)
+        XCTAssertEqual(engine.inputText, "Original draft")
+        XCTAssertFalse(engine.pasteIntoComposer(["late clipboard"], matching: beforeSwitching),
+                       "Returning to the same session must not revive a late callback")
+        XCTAssertTrue(engine.pasteIntoComposer(["current clipboard"], matching: engine.composerDraftSnapshot))
+        XCTAssertEqual(engine.inputText, "Original draft\ncurrent clipboard")
+        let second = try XCTUnwrap(engine.sessions.first { $0.id != firstSession.id })
+        engine.selectSession(second)
+        XCTAssertEqual(engine.inputText, "Second session draft", "Paste must not alter another session's persisted draft")
+        XCTAssertTrue(engine.messages.isEmpty)
+    }
+
+    func testClearDraftUndoOnlyRestoresTheUntouchedClearedRevision() {
+        let engine = InferenceEngine()
+        let original = "  Keep exact text\nincluding lines  "
+        engine.inputText = original
+        let beforeClear = engine.composerDraftSnapshot
+        XCTAssertTrue(engine.replaceComposerDraft("", matching: beforeClear))
+        let cleared = engine.composerDraftSnapshot
+        XCTAssertEqual(engine.inputText, "")
+        XCTAssertFalse(engine.replaceComposerDraft("stale overwrite", matching: beforeClear))
+        XCTAssertTrue(engine.replaceComposerDraft(original, matching: cleared))
+        XCTAssertEqual(engine.inputText, original)
+        XCTAssertFalse(engine.replaceComposerDraft(original, matching: cleared), "Undo is single-use")
+        XCTAssertTrue(engine.replaceComposerDraft("", matching: engine.composerDraftSnapshot))
+        let secondClear = engine.composerDraftSnapshot
+        engine.inputText = "New input"
+        engine.inputText = ""
+        XCTAssertFalse(engine.replaceComposerDraft(original, matching: secondClear),
+                       "Typing then clearing must not allow undo to overwrite the newer draft lifetime")
+        XCTAssertEqual(engine.inputText, "")
+        XCTAssertTrue(engine.messages.isEmpty)
+    }
+
+    func testComposerDraftToolsRejectChangesDuringGenerationAndRestore() async throws {
+        let entered = expectation(description: "controlled generation entered")
+        let runtime = ControlledStreamingRuntime(onRequest: { _ in entered.fulfill() })
+        let engine = InferenceEngine(streamingRuntime: runtime)
+        engine.inputText = "Question to keep"
+        engine.send(using: PinnedTextModel.model, availability: .verified,
+                    artifactDirectoryURL: URL(fileURLWithPath: "/unused-draft-tools-fixture"))
+        defer { engine.stop() }
+        let started = await XCTWaiter.fulfillment(of: [entered], timeout: 3)
+        XCTAssertEqual(started, .completed)
+        guard started == .completed else { return }
+        engine.inputText = "Next unsent draft"
+        let generating = engine.composerDraftSnapshot
+        let messages = engine.messages
+        XCTAssertTrue(engine.isGenerating)
+        XCTAssertFalse(engine.replaceComposerDraft("", matching: generating))
+        XCTAssertFalse(engine.pasteIntoComposer(["late clipboard"], matching: generating))
+        XCTAssertEqual(engine.inputText, "Next unsent draft")
+        XCTAssertEqual(engine.messages, messages)
+        XCTAssertEqual(runtime.requests.count, 1)
+
+        let restoring = InferenceEngine(conversationStorage: DraftToolsReadOnlyStorage())
+        XCTAssertEqual(restoring.conversationPersistenceState, .loading)
+        let loading = restoring.composerDraftSnapshot
+        XCTAssertFalse(restoring.replaceComposerDraft("overwrite while restoring", matching: loading))
+        XCTAssertFalse(restoring.pasteIntoComposer(["clipboard while restoring"], matching: loading))
+        XCTAssertEqual(restoring.composerDraftSnapshot, loading)
+        await restoring.waitForConversationRestore()
+        XCTAssertFalse(restoring.conversationPersistenceState.blocksEditing)
+        XCTAssertTrue(restoring.pasteIntoComposer(["After restore"], matching: restoring.composerDraftSnapshot))
+        XCTAssertEqual(restoring.inputText, "After restore")
+        XCTAssertTrue(restoring.messages.isEmpty)
+    }
+
+    func testTemplateSearchUsesFullLocalContentAndEveryQueryTerm() {
+        let template = PresetPromptTemplate(
+            id: "search-only-fixture", title: "润色 Atlas", subtitle: "保留原意，简洁表达",
+            category: .writing, icon: "pencil", prompt: "Keep EXACT facts.\n不要编造日期。", requiresInput: true
+        )
+        let original = template
+        for query in ["", " \n\t", "润色", "简洁", "不要编造日期", "atlas", "exact", "ATLAS facts", "日期 润色", "写作"] {
+            XCTAssertTrue(PromptTemplateSearchPolicy.matches(template, query: query), query)
+        }
+        for query in ["missing", "Atlas missing", "facts 不存在", "翻译"] {
+            XCTAssertFalse(PromptTemplateSearchPolicy.matches(template, query: query), query)
+        }
+        XCTAssertEqual(template, original, "Search does not edit prompt contents or invoke a template")
+    }
+
+    func testProductionDraftToolbarKeepsNaturalWidthAndDoesNotChangeDraftState() {
+        let engine = InferenceEngine()
+        engine.inputText = "  中文 draft\nwith exact spaces  "
+        let original = engine.composerDraftSnapshot
+        let messages = engine.messages
+        for theme in AppThemeMode.allCases {
+            for width: CGFloat in [248, 284, 320, 720] {
+                for textSize in [DynamicTypeSize.large, .accessibility5] {
+                    let content = ComposerDraftTools(isChatActive: true)
+                        .environmentObject(engine)
+                        .environment(\.appTheme, AppThemePalette(mode: theme))
+                        .environment(\.dynamicTypeSize, textSize)
+                        .frame(width: width)
+                    let host = UIHostingController(rootView: content)
+                    host.loadViewIfNeeded()
+                    let natural = host.sizeThatFits(in: CGSize(width: width, height: 400))
+                    let tall = host.sizeThatFits(in: CGSize(width: width, height: 1600))
+                    XCTAssertEqual(natural.width, width, accuracy: 1)
+                    XCTAssertTrue(natural.height.isFinite && natural.height >= 44)
+                    XCTAssertLessThanOrEqual(natural.height, 180, "An icon action row should remain readable without filling the pane")
+                    XCTAssertEqual(natural.height, tall.height, accuracy: 1)
+                    XCTAssertEqual(engine.composerDraftSnapshot, original)
+                    XCTAssertEqual(engine.messages, messages)
+                    XCTAssertFalse(engine.isGenerating)
+                }
+            }
+        }
+    }
+
+    func testEditingHeaderKeepsAccessibilityActionsWithinCompactNaturalHeight() {
+        var actionCount = 0
+        for theme in AppThemeMode.allCases {
+            for width: CGFloat in [284, 339] {
+                for textSize in [DynamicTypeSize.accessibility1, .accessibility5] {
+                    let header = CompactWorkbenchHeader(
+                        model: PinnedTextModel.model, isSimulated: true, themeMode: theme,
+                        openSummary: { actionCount += 1 }, toggleTheme: { actionCount += 1 },
+                        chatActions: CompactChatHeaderActions(
+                            sessionTitle: "当前本地会话", showHistory: { actionCount += 1 },
+                            create: { actionCount += 1 }, export: { actionCount += 1 }
+                        ),
+                        condensesForEditing: true
+                    )
+                    let content = header
+                        .environment(\.appTheme, AppThemePalette(mode: theme))
+                        .environment(\.dynamicTypeSize, textSize)
+                        .frame(width: width)
+                    let host = UIHostingController(rootView: content)
+                    host.loadViewIfNeeded()
+                    let natural = host.sizeThatFits(in: CGSize(width: width, height: 400))
+                    let tall = host.sizeThatFits(in: CGSize(width: width, height: 1600))
+                    XCTAssertTrue(natural.width.isFinite && natural.height.isFinite)
+                    XCTAssertEqual(natural.width, width, accuracy: 1)
+                    XCTAssertGreaterThanOrEqual(natural.height, 44)
+                    XCTAssertLessThan(natural.height, 120,
+                                      "Editing chrome must leave room for the large-text input and software keyboard")
+                    XCTAssertEqual(natural.height, tall.height, accuracy: 1,
+                                   "The actual header must keep its natural height under a tall pane proposal")
+                }
+            }
+        }
+        XCTAssertEqual(actionCount, 0, "Measuring the production header must not navigate, create, export or change theme")
+    }
+}
+
+private actor DraftToolsReadOnlyStorage: ConversationStorage {
+    func load() async throws -> ConversationArchive? { nil }
+    func save(_ archive: ConversationArchive) async throws {}
+    func repair(with archive: ConversationArchive) async throws {}
+}
+
 private final class ControlledStreamingRuntime: LocalStreamingInferenceRuntime, @unchecked Sendable {
     private let lock = NSLock()
     private var storedRequests: [StreamingInferenceRequest] = []

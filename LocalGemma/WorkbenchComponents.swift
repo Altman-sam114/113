@@ -131,6 +131,19 @@ struct WorkbenchBrandHeader: View {
     }
 }
 
+// The label owns its 44pt target and surface. Feedback never shrinks the hit region.
+struct WorkbenchPressFeedbackStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .symbolRenderingMode(.hierarchical)
+            .saturation(isEnabled ? 1 : 0)
+            .opacity(configuration.isPressed ? 0.72 : 1)
+            .hoverEffect(.highlight)
+    }
+}
+
 struct WorkbenchIconButtonStyle: ButtonStyle {
     @Environment(\.appTheme) private var theme
 

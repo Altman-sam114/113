@@ -15,6 +15,7 @@ struct ChatWorkspace: View {
     @State private var isShowingModelSummary = false
     @State private var shouldOpenModelsAfterSummary = false
     @State private var pendingHistoryFocus: ComposerFocusReason?
+    @State private var usesCompactEditorHeader = false
 
     let isActive: Bool
     let composerFocusRequest: ComposerFocusRequest
@@ -83,7 +84,8 @@ struct ChatWorkspace: View {
                                 requestComposerFocus(.createSession)
                             },
                             export: prepareExport
-                        )
+                        ),
+                        condensesForEditing: usesCompactEditorHeader
                     )
                 } else {
                     SessionBar(
@@ -179,6 +181,7 @@ struct ChatWorkspace: View {
         .onChange(of: isActive) { _, active in
             guard !active else { return }
             pendingHistoryFocus = nil
+            usesCompactEditorHeader = false
             isShowingHistory = false
             isShowingModelSummary = false
             shouldOpenModelsAfterSummary = false
@@ -241,7 +244,9 @@ struct ChatWorkspace: View {
                     )
                 },
                 stop: inference.stop,
-                editingChanged: composerEditingChanged
+                editingChanged: composerEditingChanged,
+                showsDraftTools: true,
+                compactEditingChanged: { usesCompactEditorHeader = $0 }
             )
             .disabled(inference.conversationPersistenceState.blocksEditing)
             .frame(maxWidth: ComposerBarLayoutPolicy.maximumContentWidth)
