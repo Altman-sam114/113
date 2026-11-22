@@ -26,7 +26,7 @@ DRAFT_STAGES = ("draft-keyboard", "draft-sheet", "draft-returned")
 HELP_STAGES = ("help-open", "help-bottom")
 LICENSE_STAGES = ("license-open", "license-cancelled")
 PERSISTENCE_STAGES = ("persistence-before-background", "persistence-first-restored", "persistence-second-restored")
-UX_STAGES = ("ux-template-preview", "ux-draft-tools")
+UX_STAGES = ("ux-template-preview", "ux-long-draft-keyboard", "ux-draft-tools")
 UX_TEMPLATE_PROMPT = "请润色下面的文字，保留原意，让表达更自然、简洁。直接给出修改后的版本：\n\n"
 UX_INITIAL_ACTIONS = (
     "tap:session-bar-action-createSession", "tap:composer-input-field", "type:ux-original-draft",
@@ -36,14 +36,20 @@ UX_INITIAL_ACTIONS = (
     "submit:ux-search", "tap:prompt-preview-everyday-polish", "tap:prompt-preview-copy",
     "observed:ux-copy-confirmed",
 )
-UX_COMPLETION_ACTIONS = (
+UX_DRAFT_ACTIONS = (
     "tap:prompt-preview-apply", "observed:ux-draft-replacement-confirmation",
     "tap:ux-cancel-draft-replacement", "tap:prompt-library-search-clear", "tap:prompt-collection-technical",
     "tap:prompt-template-iphone-deployment-plan-send", "observed:ux-direct-send-confirmation",
     "tap:ux-cancel-direct-send", "tap:workspace-tab-chat", "observed:ux-cancel-preserved-draft",
     "tap:composer-clear", "observed:ux-cleared-draft", "tap:composer-undo-clear",
     "observed:ux-restored-draft", "tap:composer-paste", "observed:ux-pasted-original-template",
-    "observed:ux-no-auto-send",
+)
+UX_KEYBOARD_ACTIONS = UX_DRAFT_ACTIONS + (
+    "tap:composer-input-field", "observed:ux-long-draft-keyboard",
+)
+UX_COMPLETION_ACTIONS = UX_KEYBOARD_ACTIONS + (
+    "tap:composer-clear", "observed:ux-keyboard-cleared-draft", "tap:composer-keyboard-done",
+    "tap:composer-undo-clear", "observed:ux-cross-toolbar-restored-draft", "observed:ux-no-auto-send",
 )
 HELP_SECTIONS = (
     ("capabilities", "当前能力", "当前版本是本地 AI 工作台原型", ("模拟回复", "发送消息会执行本机文本推理", "不保证设备内存足够或生成成功")),
@@ -167,7 +173,8 @@ def validate_ux_capture(document):
     if (not isinstance(flow, dict) or flow.get("initialDraft") != "Keep this draft"
             or flow.get("noResultsObserved") is not True or flow.get("searchResetObserved") is not True
             or flow.get("previewPrompt") != UX_TEMPLATE_PROMPT or flow.get("copyConfirmed") is not True
-            or document.get("keyboardVisible") is not False or document.get("promptSent") is not False
+            or document.get("keyboardVisible") is not (document["stage"] == "ux-long-draft-keyboard")
+            or document.get("promptSent") is not False
             or document.get("containerModifiedByTest") is not False):
         raise ValueError("Template preview must preserve the real search, raw prompt, explicit copy and original draft observations")
     if any(action in actions for action in ("tap:composer-send-button", "tap:composer-stop-button")):
@@ -177,31 +184,52 @@ def validate_ux_capture(document):
         for identifier in ("prompt-preview-copy", "prompt-preview-close", "prompt-preview-apply"):
             validate_screen_frame(frames.get(identifier), 44)
         validate_frame(frames.get("prompt-preview-full-text"))
-        if any(action in actions for action in UX_COMPLETION_ACTIONS):
+        if any(action in actions for action in ("tap:prompt-preview-apply", "tap:composer-clear",
+                                               "tap:composer-paste", "observed:ux-long-draft-keyboard",
+                                               "observed:ux-no-auto-send")):
             raise ValueError("The original preview capture cannot include future draft-tool actions")
     else:
-        require_action_sequence(actions, UX_INITIAL_ACTIONS + UX_COMPLETION_ACTIONS)
+        expected_actions = UX_KEYBOARD_ACTIONS if document["stage"] == "ux-long-draft-keyboard" else UX_COMPLETION_ACTIONS
+        require_action_sequence(actions, UX_INITIAL_ACTIONS + expected_actions)
         if (flow.get("replacementConfirmationObserved") is not True
                 or flow.get("directSendConfirmationObserved") is not True
                 or flow.get("cancelledDirectSendDraft") != "Keep this draft"
                 or flow.get("cancelledReplacementDraft") != "Keep this draft"
                 or flow.get("clearedDraft") != "" or flow.get("undoRestoredDraft") != "Keep this draft"
                 or flow.get("pastedDraft") != "Keep this draft\n" + UX_TEMPLATE_PROMPT
-                or type(flow.get("messageCount")) is not int or flow["messageCount"] != 0):
+                or flow.get("keyboardLongDraft") != "Keep this draft\n" + UX_TEMPLATE_PROMPT):
             raise ValueError("Cancel, clear, undo and native paste must retain exact observed drafts without creating a message")
         for identifier in ("composer-paste", "composer-clear", "composer-undo-clear"):
             validate_screen_frame(frames.get(identifier), 44)
         validate_screen_frame(frames.get("composer-input-field"))
-        validate_screen_frame(frames.get("composer-draft-count"))
+        keyboard = flow.get("keyboardFrame")
+        composer = flow.get("keyboardComposerFrame")
+        validate_screen_frame(keyboard)
+        validate_screen_frame(composer)
+        if composer["y"] + composer["height"] > keyboard["y"]:
+            raise ValueError("The observed long composer must stay above the real software keyboard")
+        keyboard_tools = flow.get("keyboardToolFrames", {})
+        for identifier in ("composer-paste", "composer-clear", "composer-undo-clear"):
+            validate_screen_frame(keyboard_tools.get(identifier), 44)
+        if document["stage"] == "ux-long-draft-keyboard":
+            if any(action in actions for action in ("observed:ux-keyboard-cleared-draft",
+                                                   "observed:ux-cross-toolbar-restored-draft", "observed:ux-no-auto-send")):
+                raise ValueError("The keyboard screenshot cannot include later clear/inline-undo actions")
+        else:
+            if (flow.get("keyboardClearedDraft") != ""
+                    or flow.get("crossToolbarRestoredDraft") != "Keep this draft\n" + UX_TEMPLATE_PROMPT
+                    or type(flow.get("messageCount")) is not int or flow["messageCount"] != 0):
+                raise ValueError("Keyboard clear and inline undo must restore the entire draft without sending")
+            validate_screen_frame(frames.get("composer-draft-count"))
 
 
 def validate_ux_sequence(documents):
     if [d.get("stage") for d in documents] != list(UX_STAGES):
-        raise ValueError("Both ordered original preview and draft-tool captures are required")
-    first, last = documents
-    if (last.get("actions", [])[:len(first["actions"])] != first["actions"]
-            or any(last.get("uxFlow", {}).get(key) != value for key, value in first["uxFlow"].items())):
-        raise ValueError("Preview and draft tools must share the same original observations and continuous actual action history")
+        raise ValueError("All three ordered original preview, long-keyboard and draft-tool captures are required")
+    for previous, current in zip(documents, documents[1:]):
+        if (current.get("actions", [])[:len(previous["actions"])] != previous["actions"]
+                or any(current.get("uxFlow", {}).get(key) != value for key, value in previous["uxFlow"].items())):
+            raise ValueError("Preview, long-keyboard and draft tools must share original observations and continuous actual action history")
 
 
 def validate_persistence_capture(document):

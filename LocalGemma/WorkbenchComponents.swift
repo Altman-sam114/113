@@ -82,13 +82,12 @@ struct WorkbenchBrandHeader: View {
             HStack(spacing: 10) {
                 WorkbenchBrandMark()
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("LOCAL INTELLIGENCE")
-                        .font(.caption2.weight(.medium).monospaced())
-                        .tracking(0.8)
-                        .foregroundStyle(theme.secondaryText)
-                    Text("Gemma")
+                    Text("AgentX")
                         .font(.title2.weight(.semibold))
                         .foregroundStyle(theme.primaryText)
+                    Text("本地对话")
+                        .font(.caption)
+                        .foregroundStyle(theme.secondaryText)
                 }
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -119,13 +118,7 @@ struct WorkbenchBrandHeader: View {
                 .accessibilityInputLabels(HeaderActionAccessibilityMetadata.modelLibraryInputLabels)
                 .accessibilityIdentifier(HeaderActionAccessibilityMetadata.modelLibraryIdentifier)
                 .help("打开本地模型库 · ⌘2")
-                if isSidebar {
-                    Spacer(minLength: 0)
-                    Text("ON DEVICE")
-                        .font(.caption2.monospaced())
-                        .foregroundStyle(theme.secondaryText)
-                        .accessibilityHidden(true)
-                }
+
             }
         }
     }
@@ -139,7 +132,7 @@ struct WorkbenchPressFeedbackStyle: ButtonStyle {
         configuration.label
             .symbolRenderingMode(.hierarchical)
             .saturation(isEnabled ? 1 : 0)
-            .opacity(configuration.isPressed ? 0.72 : 1)
+            .opacity(configuration.isPressed ? 0.85 : 1)
             .hoverEffect(.highlight)
     }
 }

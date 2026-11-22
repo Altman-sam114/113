@@ -78,6 +78,17 @@ final class CompactSummaryInteractionTests: XCTestCase {
             if done.exists && done.isHittable { tap(done, id: "composer-keyboard-done") }
             XCTAssertTrue(waitUntil { !app.keyboards.firstMatch.exists })
         }
+        func focusComposer(_ composer: XCUIElement) {
+            XCTAssertTrue(waitUntil { composer.exists && composer.isEnabled })
+            // UIKit's multiline TextField can report no hit region on this SDK
+            // even when an actual element tap puts it in editing mode.
+            composer.tap()
+            actions.append("tap:\(composerID)")
+            XCTAssertTrue(waitUntil { composer.isEnabled && app.keyboards.firstMatch.exists
+                && composer.frame.width > 0 && composer.frame.height > 0
+                && app.frame.contains(composer.frame)
+                && composer.frame.maxY <= app.keyboards.firstMatch.frame.minY })
+        }
         func search(_ query: String, action: String) {
             let field = app.textFields["prompt-library-search"]
             revealHelpContent(field, in: app.scrollViews.firstMatch, app: app, isAction: true, preferPrevious: true)
@@ -115,8 +126,7 @@ final class CompactSummaryInteractionTests: XCTestCase {
             tap(introduction, id: "system-keyboard-introduction-continue")
         }
         let composer = app.textFields[composerID]
-        XCTAssertTrue(waitUntil { composer.exists && composer.isEnabled })
-        tap(composer, id: composerID)
+        focusComposer(composer)
         composer.typeText(originalDraft)
         actions.append("type:ux-original-draft")
         XCTAssertEqual(composer.value as? String, originalDraft)
@@ -208,7 +218,40 @@ final class CompactSummaryInteractionTests: XCTestCase {
                       "A real native paste must append the exact payload copied through the preview")
         observations["pastedDraft"] = composer.value as? String ?? ""
         actions.append("observed:ux-pasted-original-template")
+        focusComposer(composer)
+        XCTAssertTrue(waitUntil { app.keyboards.firstMatch.exists
+            && composer.value as? String == expectedPastedDraft
+            && app.frame.contains(composer.frame)
+            && composer.frame.maxY <= app.keyboards.firstMatch.frame.minY },
+            "The complete long draft must remain inside the real phone above its actual keyboard")
+        observations["keyboardLongDraft"] = composer.value as? String ?? ""
+        observations["keyboardComposerFrame"] = helpFrame(composer.frame)
+        observations["keyboardFrame"] = helpFrame(app.keyboards.firstMatch.frame)
+        var keyboardToolFrames: [String: [String: Double]] = [:]
+        for identifier in ["composer-clear", "composer-undo-clear", "composer-paste"] {
+            let tool = element(app, identifier)
+            assertReachableAction(tool, inside: app.frame)
+            keyboardToolFrames[identifier] = helpFrame(tool.frame)
+        }
+        observations["keyboardToolFrames"] = keyboardToolFrames
+        actions.append("observed:ux-long-draft-keyboard")
+        try captureUX("ux-long-draft-keyboard", controlIDs: [
+            composerID, "composer-paste", "composer-clear", "composer-undo-clear"
+        ])
+        tap(element(app, "composer-clear"), id: "composer-clear")
+        XCTAssertTrue(waitUntil {
+            let value = composer.value as? String ?? ""
+            return value.isEmpty || value == "输入消息"
+        })
+        observations["keyboardClearedDraft"] = ""
+        actions.append("observed:ux-keyboard-cleared-draft")
         dismissComposerKeyboard()
+        let inlineUndo = element(app, "composer-undo-clear")
+        assertReachableAction(inlineUndo, inside: app.frame)
+        tap(inlineUndo, id: "composer-undo-clear")
+        XCTAssertTrue(waitUntil { composer.value as? String == expectedPastedDraft })
+        observations["crossToolbarRestoredDraft"] = composer.value as? String ?? ""
+        actions.append("observed:ux-cross-toolbar-restored-draft")
         let messages = app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH %@", "chat-message-"))
         XCTAssertEqual(messages.count, 0)
         XCTAssertFalse(app.buttons["composer-stop-button"].exists)

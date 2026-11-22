@@ -537,7 +537,7 @@
 				DEVELOPMENT_TEAM = C9YV46L3GA;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "Local Gemma";
+				INFOPLIST_KEY_CFBundleDisplayName = AgentX;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "用于从相册选择图片作为应用背景壁纸。";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -572,7 +572,7 @@
 				DEVELOPMENT_TEAM = C9YV46L3GA;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "Local Gemma";
+				INFOPLIST_KEY_CFBundleDisplayName = AgentX;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "用于从相册选择图片作为应用背景壁纸。";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;

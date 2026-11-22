@@ -9,7 +9,6 @@ struct ComposerBar: View {
     @Environment(\.compactWorkbench) private var isCompact
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.isEnabled) private var isEnabled
-    @State private var softwareKeyboardVisible = false
     @State private var clearedDraft: ComposerClearedDraft?
     @FocusState private var focusedField: ComposerFocusedField?
 
@@ -94,15 +93,19 @@ struct ComposerBar: View {
                 .accessibilityInputLabels(ComposerInputMetadata.actionInputLabels(isGenerating: isGenerating))
                 .accessibilityIdentifier(ComposerInputMetadata.actionIdentifier(isGenerating: isGenerating))
             }
-            if showsDraftTools && !movesToolsToKeyboard {
-                ComposerDraftTools(isChatActive: isChatActive, sharedUndo: $clearedDraft)
-                    .padding(.horizontal, 4)
+            if showsDraftTools && (isInputFocused || !text.isEmpty || clearedDraft != nil) {
+                ComposerDraftTools(
+                    isChatActive: isChatActive,
+                    sharedUndo: $clearedDraft,
+                    dismissKeyboard: isInputFocused && isChatActive ? { focusedField = nil } : nil
+                )
+                .padding(.horizontal, 4)
             }
         }
         .padding(8)
-        .background(theme.surface, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .background(theme.surface, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
                 .stroke(
                     inputFieldBorderColor,
                     lineWidth: ComposerFocusGlowStylePolicy.lineWidth(isFocused: isInputFocused)
@@ -120,39 +123,21 @@ struct ComposerBar: View {
         .onChange(of: isInputFocused) { _, isFocused in
             editingChanged(isFocused)
         }
-        .onDisappear { editingChanged(false); compactEditingChanged(false) }
-        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) { note in
-            if let frame = note.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect {
-                softwareKeyboardVisible = frame.height > 100
-            }
+        .onDisappear {
+            editingChanged(false)
+            compactEditingChanged(false)
         }
-        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
-            softwareKeyboardVisible = false
-        }
-        .onChange(of: movesToolsToKeyboard) { _, compact in
-            compactEditingChanged(compact)
+        .onChange(of: condensesHeaderForEditing, initial: true) { _, condenses in
+            compactEditingChanged(condenses)
         }
         .onChange(of: isChatActive) { _, active in
-            if !active { clearedDraft = nil; softwareKeyboardVisible = false }
+            if !active { clearedDraft = nil }
         }
         .onChange(of: isEnabled) { _, enabled in
             if !enabled { clearedDraft = nil }
         }
         .onChange(of: isGenerating) { _, generating in
             if generating { clearedDraft = nil }
-        }
-        .toolbar {
-            ToolbarItemGroup(placement: .keyboard) {
-                if isChatActive {
-                    if movesToolsToKeyboard {
-                        ComposerDraftTools(isChatActive: isChatActive, sharedUndo: $clearedDraft, showsCount: false)
-                    }
-                    Spacer()
-                    Button("完成") { focusedField = nil }
-                        .accessibilityLabel("收起键盘")
-                        .accessibilityInputLabels(["完成", "收起键盘"])
-                }
-            }
         }
         .onChange(
             of: ComposerFocusLifecycleID(
@@ -164,12 +149,11 @@ struct ComposerBar: View {
         }
     }
 
-    private var movesToolsToKeyboard: Bool {
+    private var condensesHeaderForEditing: Bool {
 #if targetEnvironment(macCatalyst)
         false
 #else
-        showsDraftTools && isCompact && dynamicTypeSize.isAccessibilitySize
-            && isInputFocused && isChatActive && softwareKeyboardVisible
+        isCompact && dynamicTypeSize.isAccessibilitySize && isInputFocused && isChatActive
 #endif
     }
 
@@ -301,7 +285,7 @@ struct ComposerDraftTools: View {
 
     let isChatActive: Bool
     var sharedUndo: Binding<ComposerClearedDraft?>? = nil
-    var showsCount = true
+    var dismissKeyboard: (() -> Void)? = nil
 
     private var undo: ComposerClearedDraft? {
         get {
@@ -323,21 +307,11 @@ struct ComposerDraftTools: View {
         let snapshot = inference.composerDraftSnapshot
         let epoch = pasteEpoch
         HStack(spacing: 4) {
-            PasteButton(payloadType: String.self) { values in
+            ComposerPasteControl(isEnabled: canEdit) { value in
                 guard acceptsPaste, pasteEpoch == epoch else { return }
-                _ = inference.pasteIntoComposer(values, matching: snapshot)
+                _ = inference.pasteIntoComposer([value], matching: snapshot)
             }
-            .labelStyle(.iconOnly)
-            // This control is icon-only; keep the native glyph inside its 44pt target.
-            .dynamicTypeSize(.large)
-            .buttonBorderShape(.capsule)
-            .tint(theme.accent)
             .frame(width: 44, height: 44)
-            .disabled(!canEdit)
-            .accessibilityLabel("粘贴文字")
-            .accessibilityHint("点按后读取系统粘贴的文字，追加到当前草稿，不自动发送。")
-            .accessibilityInputLabels(["粘贴文字", "粘贴"])
-            .accessibilityIdentifier("composer-paste")
             .help("粘贴文字到当前草稿")
 
             Button {
@@ -348,6 +322,7 @@ struct ComposerDraftTools: View {
                 Image(systemName: "xmark.circle")
                     .font(.system(size: 18, weight: .medium))
                     .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
             .disabled(!canEdit || snapshot.text.isEmpty)
             .opacity(canEdit && !snapshot.text.isEmpty ? 1 : 0.4)
@@ -366,6 +341,7 @@ struct ComposerDraftTools: View {
                 Image(systemName: "arrow.uturn.backward")
                     .font(.system(size: 18, weight: .medium))
                     .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
             .disabled(!canEdit || undo?.emptySnapshot != snapshot)
             .opacity(canEdit && undo?.emptySnapshot == snapshot ? 1 : 0.4)
@@ -375,8 +351,19 @@ struct ComposerDraftTools: View {
             .accessibilityIdentifier("composer-undo-clear")
             .help("恢复刚清空的草稿")
 
-            if showsCount {
-                Spacer(minLength: 4)
+            Spacer(minLength: 4)
+            if let dismissKeyboard {
+                Button(action: dismissKeyboard) {
+                    Image(systemName: "keyboard.chevron.compact.down")
+                        .font(.system(size: 18, weight: .medium))
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
+                .accessibilityLabel("收起键盘")
+                .accessibilityInputLabels(["完成", "收起键盘"])
+                .accessibilityIdentifier("composer-keyboard-done")
+                .help("收起键盘")
+            } else {
                 Text(snapshot.text.isEmpty ? "未发送草稿" : "\(snapshot.text.count) 字符")
                     .font(.caption)
                     .foregroundStyle(theme.secondaryText)
@@ -404,5 +391,67 @@ struct ComposerDraftTools: View {
     private func invalidatePaste() {
         pasteEpoch = UUID()
         acceptsPaste = false
+    }
+}
+
+/// The visible control and paste authorization both belong to UIKit. The
+/// receiver never reads the pasteboard outside an authorized paste action.
+private struct ComposerPasteControl: UIViewRepresentable {
+    let isEnabled: Bool
+    let onPaste: @MainActor @Sendable (String) -> Void
+
+    func makeUIView(context: Context) -> PasteTarget {
+        PasteTarget()
+    }
+
+    func updateUIView(_ view: PasteTarget, context: Context) {
+        view.onPaste = onPaste
+        view.control.target = isEnabled ? view : nil
+        view.control.isEnabled = isEnabled
+    }
+
+    static func dismantleUIView(_ view: PasteTarget, coordinator: ()) {
+        view.control.target = nil
+        view.onPaste = nil
+    }
+
+    final class PasteTarget: UIView {
+        let control: UIPasteControl
+        var onPaste: (@MainActor @Sendable (String) -> Void)?
+
+        init() {
+            let configuration = UIPasteControl.Configuration()
+            configuration.baseBackgroundColor = .secondarySystemFill
+            configuration.baseForegroundColor = .label
+            configuration.cornerStyle = .capsule
+            configuration.displayMode = .iconOnly
+            control = UIPasteControl(configuration: configuration)
+            super.init(frame: .zero)
+            traitOverrides.preferredContentSizeCategory = .large
+            pasteConfiguration = UIPasteConfiguration(forAccepting: NSString.self)
+            control.accessibilityIdentifier = "composer-paste"
+            control.accessibilityLabel = "粘贴文字"
+            control.accessibilityHint = "点按后读取系统粘贴的文字，追加到当前草稿，不自动发送。"
+            control.accessibilityUserInputLabels = ["粘贴文字", "粘贴"]
+            control.translatesAutoresizingMaskIntoConstraints = false
+            addSubview(control)
+            NSLayoutConstraint.activate([
+                control.leadingAnchor.constraint(equalTo: leadingAnchor),
+                control.trailingAnchor.constraint(equalTo: trailingAnchor),
+                control.topAnchor.constraint(equalTo: topAnchor),
+                control.bottomAnchor.constraint(equalTo: bottomAnchor),
+            ])
+        }
+
+        required init?(coder: NSCoder) { nil }
+
+        override func paste(itemProviders: [NSItemProvider]) {
+            guard let onPaste, control.isEnabled,
+                  let provider = itemProviders.first(where: { $0.canLoadObject(ofClass: NSString.self) }) else { return }
+            provider.loadObject(ofClass: NSString.self) { value, _ in
+                guard let text = value as? String else { return }
+                Task { @MainActor in onPaste(text) }
+            }
+        }
     }
 }

@@ -4,7 +4,7 @@ import sys
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from iphone_interaction_evidence import (HELP_SECTIONS, PERSISTENCE_STAGES, UX_STAGES, UX_TEMPLATE_PROMPT, UX_INITIAL_ACTIONS, UX_COMPLETION_ACTIONS, TESTS, expected_captures, selected_tests,
+from iphone_interaction_evidence import (HELP_SECTIONS, PERSISTENCE_STAGES, UX_STAGES, UX_TEMPLATE_PROMPT, UX_INITIAL_ACTIONS, UX_KEYBOARD_ACTIONS, UX_COMPLETION_ACTIONS, TESTS, expected_captures, selected_tests,
                                          validate_capture, validate_persistence_sequence, validate_ux_sequence, validate_results)
 
 
@@ -46,7 +46,7 @@ class IPhoneInteractionEvidenceTests(unittest.TestCase):
         for category in TESTS:
             document = self.capture(category)
             validate_capture(document, category, (750, 1334))
-            self.assertEqual(len(expected_captures(category)), 20)
+            self.assertEqual(len(expected_captures(category)), 21)
             for key, value in (("source", "host-render"), ("screenWidth", 390),
                                ("realInferenceVerified", True), ("signedDistributionVerified", 0),
                                ("systemContentSizeCategory", "injected-font-size"), ("stage", "fixture")):
@@ -143,7 +143,7 @@ class IPhoneInteractionEvidenceTests(unittest.TestCase):
                 validate_capture(self.help_capture(category, stage), category, (750, 1334))
             expected = expected_captures(category)
             self.assertEqual(len(TESTS[category]), 7)
-            self.assertEqual(len(expected), 20)
+            self.assertEqual(len(expected), 21)
             for theme in ("light", "dark"):
                 for stage in ("open", "expanded", "managed-models", "returned-chat"):
                     self.assertIn(f"interaction-{theme}-{category}-{stage}", expected)
@@ -332,21 +332,39 @@ class IPhoneInteractionEvidenceTests(unittest.TestCase):
             "prompt-preview-apply": {"x": 18, "y": 580, "width": 339, "height": 64},
             "prompt-preview-full-text": {"x": 18, "y": 180, "width": 339, "height": 700},
         }
-        if stage == "ux-draft-tools":
-            document["actions"] += list(UX_COMPLETION_ACTIONS)
+        if stage != "ux-template-preview":
+            document["actions"] += list(UX_KEYBOARD_ACTIONS if stage == "ux-long-draft-keyboard" else UX_COMPLETION_ACTIONS)
             document["uxFlow"].update({
                 "replacementConfirmationObserved": True, "cancelledReplacementDraft": "Keep this draft",
                 "directSendConfirmationObserved": True, "cancelledDirectSendDraft": "Keep this draft",
                 "clearedDraft": "", "undoRestoredDraft": "Keep this draft",
-                "pastedDraft": "Keep this draft\n" + UX_TEMPLATE_PROMPT, "messageCount": 0,
+                "pastedDraft": "Keep this draft\n" + UX_TEMPLATE_PROMPT,
+                "keyboardLongDraft": "Keep this draft\n" + UX_TEMPLATE_PROMPT,
+                "keyboardComposerFrame": {"x": 18, "y": 220, "width": 260, "height": 100},
+                "keyboardFrame": {"x": 0, "y": 367, "width": 375, "height": 300},
+                "keyboardToolFrames": {
+                    "composer-paste": {"x": 18, "y": 323, "width": 44, "height": 44},
+                    "composer-clear": {"x": 66, "y": 323, "width": 44, "height": 44},
+                    "composer-undo-clear": {"x": 114, "y": 323, "width": 44, "height": 44},
+                },
             })
-            document["frames"] = {
-                "composer-paste": {"x": 18, "y": 560, "width": 44, "height": 44},
-                "composer-clear": {"x": 66, "y": 560, "width": 44, "height": 44},
-                "composer-undo-clear": {"x": 114, "y": 560, "width": 44, "height": 44},
-                "composer-input-field": {"x": 18, "y": 350, "width": 260, "height": 180},
-                "composer-draft-count": {"x": 200, "y": 560, "width": 140, "height": 44},
-            }
+            if stage == "ux-long-draft-keyboard":
+                document["keyboardVisible"] = True
+                document["frames"] = dict(document["uxFlow"]["keyboardToolFrames"], **{
+                    "composer-input-field": document["uxFlow"]["keyboardComposerFrame"],
+                })
+            else:
+                document["uxFlow"].update({
+                    "keyboardClearedDraft": "", "crossToolbarRestoredDraft": "Keep this draft\n" + UX_TEMPLATE_PROMPT,
+                    "messageCount": 0,
+                })
+                document["frames"] = {
+                    "composer-paste": {"x": 18, "y": 560, "width": 44, "height": 44},
+                    "composer-clear": {"x": 66, "y": 560, "width": 44, "height": 44},
+                    "composer-undo-clear": {"x": 114, "y": 560, "width": 44, "height": 44},
+                    "composer-input-field": {"x": 18, "y": 350, "width": 260, "height": 180},
+                    "composer-draft-count": {"x": 200, "y": 560, "width": 140, "height": 44},
+                }
         return document
 
     def test_ux_adds_both_real_interactions_without_replacing_any_original_capture(self):
@@ -379,7 +397,7 @@ class IPhoneInteractionEvidenceTests(unittest.TestCase):
     def test_ux_rejects_changed_drafts_truncated_prompt_and_false_success_claims(self):
         for stage in UX_STAGES:
             original = self.ux_capture(stage=stage)
-            for key, value in (("keyboardVisible", True), ("promptSent", True),
+            for key, value in (("keyboardVisible", not original["keyboardVisible"]), ("promptSent", True),
                                ("containerModifiedByTest", True), ("source", "hosted-render"),
                                ("realInferenceVerified", True), ("signedDistributionVerified", True)):
                 bad = dict(original, **{key: value})
@@ -387,11 +405,15 @@ class IPhoneInteractionEvidenceTests(unittest.TestCase):
             fields = [("initialDraft", "Keep this"), ("noResultsObserved", False),
                       ("searchResetObserved", False), ("copyConfirmed", "true"),
                       ("previewPrompt", UX_TEMPLATE_PROMPT.rstrip())]
-            if stage == "ux-draft-tools":
+            if stage != "ux-template-preview":
                 fields += [("replacementConfirmationObserved", False), ("cancelledReplacementDraft", "lost"),
                            ("directSendConfirmationObserved", False), ("cancelledDirectSendDraft", "lost"),
                            ("clearedDraft", "not cleared"), ("undoRestoredDraft", "wrong"),
                            ("pastedDraft", "Keep this draft\n" + UX_TEMPLATE_PROMPT.rstrip()),
+                           ("keyboardLongDraft", "Keep this draft\n" + UX_TEMPLATE_PROMPT.rstrip())]
+            if stage == "ux-draft-tools":
+                fields += [("keyboardClearedDraft", "not cleared"),
+                           ("crossToolbarRestoredDraft", "Keep this draft"),
                            ("messageCount", 1), ("messageCount", False)]
             for key, value in fields:
                 bad = copy.deepcopy(original); bad["uxFlow"][key] = value
@@ -420,6 +442,22 @@ class IPhoneInteractionEvidenceTests(unittest.TestCase):
         with self.assertRaises(ValueError): validate_ux_sequence(bad)
         bad = copy.deepcopy(documents); bad[1]["uxFlow"]["previewPrompt"] += " changed"
         with self.assertRaises(ValueError): validate_ux_sequence(bad)
+
+
+    def test_ux_keyboard_geometry_and_cross_toolbar_payload_cannot_be_faked(self):
+        for stage in ("ux-long-draft-keyboard", "ux-draft-tools"):
+            original = self.ux_capture(stage=stage)
+            for key in ("keyboardComposerFrame", "keyboardFrame", "keyboardToolFrames"):
+                bad = copy.deepcopy(original); del bad["uxFlow"][key]
+                with self.assertRaises(ValueError): validate_capture(bad, "large", (750, 1334))
+            bad = copy.deepcopy(original); bad["uxFlow"]["keyboardComposerFrame"]["height"] = 200
+            with self.assertRaises(ValueError): validate_capture(bad, "large", (750, 1334))
+            for key, value in (("width", 43), ("height", 43), ("y", 650), ("x", float("nan"))):
+                bad = copy.deepcopy(original); bad["uxFlow"]["keyboardToolFrames"]["composer-clear"][key] = value
+                with self.assertRaises(ValueError): validate_capture(bad, "large", (750, 1334))
+        keyboard = self.ux_capture(stage="ux-long-draft-keyboard")
+        keyboard["actions"].append("observed:ux-cross-toolbar-restored-draft")
+        with self.assertRaises(ValueError): validate_capture(keyboard, "large", (750, 1334))
 
 
 if __name__ == "__main__":

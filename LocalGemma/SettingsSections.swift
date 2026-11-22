@@ -101,9 +101,7 @@ struct SettingsAppearanceSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: isCompact ? 12 : 16) {
-            if !isCompact {
-                SettingsSectionHeading(eyebrow: "01 / PERSONALIZATION", title: "外观与背景")
-            }
+            SettingsSectionHeading(eyebrow: "", title: "外观与背景")
             if showsPreview {
                 SettingsAppearancePreview(wallpaperData: wallpaperData)
             }
@@ -165,7 +163,7 @@ struct SettingsRuntimeSection: View {
                 .accessibilityIdentifier("compact-device-details")
             } else {
                 SettingsSectionHeading(
-                    eyebrow: "02 / APPLE SILICON", title: "芯片运行计划",
+                    eyebrow: "APPLE SILICON", title: "芯片运行计划",
                     subtitle: "Apple Silicon 运行计划与模拟预算，非实时设备性能测量。"
                 )
                 deviceDetails
@@ -200,7 +198,7 @@ private struct SettingsSectionHeading: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            if !isCompact {
+            if !isCompact && !eyebrow.isEmpty {
                 Text(eyebrow)
                     .font(.caption2.monospaced().weight(.medium))
                     .tracking(0.8)

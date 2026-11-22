@@ -51,15 +51,6 @@ struct PromptTemplatesWorkspace: View {
                         hint: "仅搜索当前分类的模板标题、说明和完整提示词，不会联网。",
                         identifier: "prompt-library-search"
                     )
-                    HStack {
-                        Text("\(templates.count) 个模板")
-                            .font(.caption)
-                            .foregroundStyle(theme.secondaryText)
-                        Spacer(minLength: 0)
-                        Text("先预览，再使用")
-                            .font(.caption)
-                            .foregroundStyle(theme.secondaryText)
-                    }
                     if templates.isEmpty {
                         VStack(spacing: 12) {
                             Image(systemName: "doc.text.magnifyingglass")
@@ -663,6 +654,7 @@ struct CompactPromptCollectionPicker: View {
 
 struct CompactPromptTemplateRow: View {
     @Environment(\.appTheme) private var theme
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     let template: PresetPromptTemplate
     let isGenerating: Bool
@@ -671,15 +663,21 @@ struct CompactPromptTemplateRow: View {
     var preview: (() -> Void)? = nil
 
     var body: some View {
-        HStack(spacing: 8) {
+        let stacksActions = dynamicTypeSize.isAccessibilitySize
+        let layout = stacksActions
+            ? AnyLayout(VStackLayout(alignment: .trailing, spacing: 0))
+            : AnyLayout(HStackLayout(spacing: 8))
+        layout {
             Button(action: apply) {
                 HStack(spacing: 10) {
-                    Image(systemName: template.icon)
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(theme.categoryTint(for: template.category))
-                        .frame(width: 34, height: 34)
-                        .background(theme.chipSurface, in: RoundedRectangle(cornerRadius: 10))
-                        .accessibilityHidden(true)
+                    if !stacksActions {
+                        Image(systemName: template.icon)
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(theme.categoryTint(for: template.category))
+                            .frame(width: 34, height: 34)
+                            .background(theme.chipSurface, in: RoundedRectangle(cornerRadius: 10))
+                            .accessibilityHidden(true)
+                    }
                     VStack(alignment: .leading, spacing: 4) {
                         Text(template.title)
                             .font(.headline.weight(.semibold))
@@ -692,7 +690,7 @@ struct CompactPromptTemplateRow: View {
                     }
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    if template.requiresInput {
+                    if template.requiresInput && !stacksActions {
                         Image(systemName: "arrow.up.left")
                             .font(.system(size: 14, weight: .medium))
                             .foregroundStyle(theme.accent)
@@ -712,10 +710,27 @@ struct CompactPromptTemplateRow: View {
                 + ["使用模板", template.title])
             .accessibilityIdentifier(PromptTemplateActionAccessibilityMetadata.identifier(for: .apply, template: template))
 
+            trailingActions
+        }
+        .padding(.horizontal, 14)
+        .padding(.bottom, stacksActions ? 8 : 0)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(theme.surface, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .stroke(theme.border, lineWidth: 1)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        }
+        .disabled(isGenerating)
+        .opacity(isGenerating ? 0.5 : 1)
+    }
+
+    private var trailingActions: some View {
+        HStack(spacing: 8) {
             if let preview {
                 PromptTemplatePreviewButton(template: template, action: preview)
             }
-
             if PromptTemplateInteractionPolicy.showsDirectSend(for: template) {
                 Button(action: send) {
                     Image(systemName: "paperplane")
@@ -734,17 +749,6 @@ struct CompactPromptTemplateRow: View {
                 .accessibilityIdentifier(PromptTemplateActionAccessibilityMetadata.identifier(for: .send, template: template))
             }
         }
-        .padding(.horizontal, 14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(theme.surface, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .stroke(theme.border, lineWidth: 1)
-                .allowsHitTesting(false)
-                .accessibilityHidden(true)
-        }
-        .disabled(isGenerating)
-        .opacity(isGenerating ? 0.5 : 1)
     }
 }
 

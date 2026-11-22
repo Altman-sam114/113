@@ -262,12 +262,8 @@ struct CompactWorkspaceNavigation: View {
                         Image(systemName: tab.icon)
                             .font(.system(size: 18, weight: .medium))
                             .frame(width: 42, height: 24)
+                            .symbolVariant(selection == tab ? .fill : .none)
                             .accessibilityHidden(true)
-                            .background {
-                                if selection == tab {
-                                    Capsule().fill(theme.accent.opacity(theme.isDark ? 0.12 : 0.08))
-                                }
-                            }
                         Text(CompactWorkbenchPolicy.title(for: tab))
                             .font(.caption.weight(selection == tab ? .semibold : .regular))
                             .lineLimit(2)
@@ -288,22 +284,18 @@ struct CompactWorkspaceNavigation: View {
                 .accessibilityIdentifier(WorkspaceNavigationAccessibilityMetadata.compactIdentifier(for: tab))
             }
         }
-        .padding(.horizontal, 6)
-        .padding(.vertical, 5)
-        .background {
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(theme.surface)
-                .shadow(color: .black.opacity(theme.isDark ? 0.18 : 0.06), radius: 12, y: 4)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(alignment: .top) {
+            theme.surface.ignoresSafeArea(edges: .bottom)
         }
-        .overlay {
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .stroke(theme.subtleBorder, lineWidth: 0.5)
+        .overlay(alignment: .top) {
+            Rectangle()
+                .fill(theme.subtleBorder)
+                .frame(height: 0.5)
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
         }
-        .padding(.horizontal, 18)
-        .padding(.top, 4)
-        .padding(.bottom, 6)
     }
 }
 
@@ -376,13 +368,13 @@ struct CompactModelFilesPanel: View {
             fileAction(.importFiles, title: "导入模型文件", icon: "square.and.arrow.down", action: importFiles)
                 .frame(maxWidth: .infinity, minHeight: 48)
                 .foregroundStyle(theme.inverseText)
-                .background(theme.accent, in: Capsule())
+                .background(theme.accent, in: RoundedRectangle(cornerRadius: 18))
                 .help("选择本地模型文件并校验，不自动下载")
 
             HStack(spacing: 12) {
                 fileAction(.scan, title: "扫描本地", icon: "folder", action: scan)
                     .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                    .background(theme.chipSurface, in: Capsule())
+                    .background(theme.chipSurface, in: RoundedRectangle(cornerRadius: 12))
                     .help("重新检查 App 托管目录中的本地文件")
                 Menu {
                     fileAction(.download, title: "模拟暂存", icon: "shippingbox", action: download)

@@ -50,7 +50,18 @@ struct SettingsWorkspace: View {
                         SettingsRuntimeSection(availableWidth: plan.runtimeWidth)
                     }
 
-                    SettingsHelpButton { showsHelp = true }
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("支持")
+                            .font(.headline)
+                            .foregroundStyle(theme.secondaryText)
+                            .accessibilityAddTraits(.isHeader)
+                        SettingsHelpButton { showsHelp = true }
+                        Text(SettingsHelpContent.versionDescription(info: Bundle.main.infoDictionary ?? [:]))
+                            .font(.footnote)
+                            .foregroundStyle(theme.secondaryText)
+                            .frame(maxWidth: .infinity)
+                            .textSelection(.enabled)
+                    }
                 }
                 .frame(width: plan.contentWidth, alignment: .leading)
                 .frame(maxWidth: .infinity, alignment: .center)
@@ -175,7 +186,11 @@ struct SettingsHelpButton: View {
         Button(action: open) {
             HStack(spacing: 12) {
                 Image(systemName: "info.circle")
-                    .font(.system(size: 18, weight: .medium))
+                    .font(.body.weight(.medium))
+                    .foregroundStyle(theme.accent)
+                    .frame(width: 32, height: 32)
+                    .background(theme.actionPalette(for: .primary).iconSurface,
+                                in: RoundedRectangle(cornerRadius: 10))
                     .accessibilityHidden(true)
                 Text(SettingsHelpContent.title)
                     .font(.body)
@@ -188,10 +203,10 @@ struct SettingsHelpButton: View {
             .foregroundStyle(theme.primaryText)
             .frame(maxWidth: .infinity, minHeight: SettingsHelpContent.minimumTouchTarget, alignment: .leading)
             .padding(.horizontal, 14)
-            .background(theme.surface, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .background(theme.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(WorkbenchPressFeedbackStyle())
         .accessibilityLabel(SettingsHelpContent.title)
         .accessibilityHint("打开本地说明、隐私边界和版本信息，不发送内容或启动真实推理。")
         .accessibilityInputLabels([SettingsHelpContent.title, "隐私与帮助", "关于"])
