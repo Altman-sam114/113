@@ -72,6 +72,7 @@ final class CompactSummaryInteractionTests: XCTestCase {
         let expectedPrompt = "请润色下面的文字，保留原意，让表达更自然、简洁。直接给出修改后的版本：\n\n"
         let category = accessibility ? "accessibility5" : "large"
         var observations: [String: Any] = [:]
+        let promptScroll = app.scrollViews["prompt-library-scroll"]
 
         func dismissComposerKeyboard() {
             let done = app.buttons["composer-keyboard-done"]
@@ -94,13 +95,14 @@ final class CompactSummaryInteractionTests: XCTestCase {
         }
         func search(_ query: String, action: String) {
             let field = app.textFields["prompt-library-search"]
-            revealHelpContent(field, in: app.scrollViews.firstMatch, app: app, isAction: true, preferPrevious: true)
+            revealHelpContent(field, in: promptScroll, app: app, isAction: true, preferPrevious: true)
             tap(field, id: "prompt-library-search")
             field.typeText(query)
             actions.append(action)
             field.typeText("\n")
             actions.append("submit:ux-search")
             XCTAssertTrue(waitUntil { !app.keyboards.firstMatch.exists })
+            XCTAssertEqual(field.value as? String, query)
         }
         func captureUX(_ stage: String, controlIDs: [String]) throws {
             var frames: [String: [String: Double]] = [:]
@@ -142,19 +144,19 @@ final class CompactSummaryInteractionTests: XCTestCase {
         observations["noResultsObserved"] = empty.exists
         actions.append("observed:ux-empty-results")
         let reset = app.buttons["prompt-library-reset-search"]
-        revealHelpContent(reset, in: app.scrollViews.firstMatch, app: app, isAction: true)
+        revealHelpContent(reset, in: promptScroll, app: app, isAction: true)
         assertReachableAction(reset, inside: app.frame)
         tap(reset, id: "prompt-library-reset-search")
         XCTAssertTrue(waitUntil { app.buttons["prompt-preview-everyday-polish"].exists })
         observations["searchResetObserved"] = app.buttons["prompt-preview-everyday-polish"].exists
         search("润色", action: "type:ux-template-query")
         let preview = app.buttons["prompt-preview-everyday-polish"]
-        revealHelpContent(preview, in: app.scrollViews.firstMatch, app: app, isAction: true)
+        revealHelpContent(preview, in: promptScroll, app: app, isAction: true)
         assertReachableAction(preview, inside: app.frame)
         tap(preview, id: "prompt-preview-everyday-polish")
         let body = element(app, "prompt-preview-full-text")
         XCTAssertTrue(body.waitForExistence(timeout: 5))
-        revealHelpContent(body, in: app.scrollViews.firstMatch, app: app)
+        revealHelpContent(body, in: app.scrollViews["prompt-preview-scroll"], app: app)
         let actualPrompt = body.value as? String ?? ""
         XCTAssertEqual(actualPrompt, expectedPrompt, "The preview must expose the complete original payload, including newlines")
         observations["previewPrompt"] = actualPrompt
@@ -177,13 +179,14 @@ final class CompactSummaryInteractionTests: XCTestCase {
         tap(app.buttons["取消"], id: "ux-cancel-draft-replacement")
         XCTAssertTrue(waitUntil { !replacement.exists && !app.buttons["prompt-preview-close"].exists })
         let clearSearch = app.buttons["prompt-library-search-clear"]
-        revealHelpContent(clearSearch, in: app.scrollViews.firstMatch, app: app, isAction: true, preferPrevious: true)
+        revealHelpContent(clearSearch, in: promptScroll, app: app, isAction: true, preferPrevious: true)
+        assertReachableAction(clearSearch, inside: app.frame)
         tap(clearSearch, id: "prompt-library-search-clear")
         let technical = app.buttons["prompt-collection-technical"]
-        revealHelpContent(technical, in: app.scrollViews.firstMatch, app: app, isAction: true, preferPrevious: true)
+        revealHelpContent(technical, in: promptScroll, app: app, isAction: true, preferPrevious: true)
         tap(technical, id: "prompt-collection-technical")
         let directSend = app.buttons["prompt-template-iphone-deployment-plan-send"]
-        revealHelpContent(directSend, in: app.scrollViews.firstMatch, app: app, isAction: true)
+        revealHelpContent(directSend, in: promptScroll, app: app, isAction: true)
         assertReachableAction(directSend, inside: app.frame)
         tap(directSend, id: "prompt-template-iphone-deployment-plan-send")
         let sendConfirmation = app.buttons["替换草稿并发送"]

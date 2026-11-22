@@ -147,6 +147,7 @@ struct ConversationHistorySearchField: View {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 16))
                         .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(WorkbenchPressFeedbackStyle())
                 .foregroundStyle(theme.secondaryText)

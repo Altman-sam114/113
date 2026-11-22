@@ -23,6 +23,10 @@ def command(args, log=None, check=True):
         Path(log).write_text(result.stdout, encoding="utf-8")
     if result.returncode or not log:
         print(result.stdout[-18000:], flush=True)
+    if result.returncode and log:
+        diagnostic = [line for line in result.stdout.splitlines() if " error: " in line]
+        if diagnostic:
+            print("Original error lines:\n" + "\n".join(diagnostic[-40:]), flush=True)
     if check:
         result.check_returncode()
     return result

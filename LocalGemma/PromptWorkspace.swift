@@ -57,16 +57,26 @@ struct PromptTemplatesWorkspace: View {
                                 .font(.title2)
                                 .foregroundStyle(theme.secondaryText)
                                 .accessibilityHidden(true)
-                            Text("没有找到模板").font(.headline)
+                            Text("没有找到模板")
+                                .font(.headline)
+                                .accessibilityIdentifier("prompt-library-empty-results")
                             Text("试试其他关键词，或切换上方分类。")
                                 .font(.subheadline)
                                 .foregroundStyle(theme.secondaryText)
-                            Button("清除搜索") { query = "" }
-                                .frame(minHeight: 44)
-                                .accessibilityIdentifier("prompt-library-reset-search")
+                            Button { query = "" } label: {
+                                Text("清除搜索")
+                                    .font(.subheadline.weight(.semibold))
+                                    .padding(.horizontal, 16)
+                                    .frame(minWidth: 44, minHeight: 44)
+                                    .background(theme.actionPalette(for: .primary).fill, in: Capsule())
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(WorkbenchPressFeedbackStyle())
+                            .foregroundStyle(theme.accent)
+                            .accessibilityIdentifier("prompt-library-reset-search")
                         }
+                        .multilineTextAlignment(.center)
                         .frame(maxWidth: .infinity, minHeight: 180)
-                        .accessibilityIdentifier("prompt-library-empty-results")
                     }
 
                     PromptTemplateGrid(
@@ -94,6 +104,8 @@ struct PromptTemplatesWorkspace: View {
             }
             .scrollIndicators(.hidden)
             .scrollDismissesKeyboard(.interactively)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("prompt-library-scroll")
         }
         .sheet(item: $previewTemplate, onDismiss: finishPreviewApplication) { template in
             PromptTemplatePreviewSheet(template: template,
@@ -848,6 +860,8 @@ struct PromptTemplatePreviewSheet: View {
                 .frame(maxWidth: 760, alignment: .leading)
                 .frame(maxWidth: .infinity)
             }
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("prompt-preview-scroll")
             .background(theme.canvas)
             .navigationTitle("模板预览")
             .navigationBarTitleDisplayMode(.inline)
@@ -857,8 +871,9 @@ struct PromptTemplatePreviewSheet: View {
                         UIPasteboard.general.string = template.prompt
                         copied = true
                     } label: {
-                        Label(copied ? "已复制" : "复制", systemImage: copied ? "checkmark" : "doc.on.doc")
-                            .frame(minWidth: 44, minHeight: 44)
+                        Image(systemName: copied ? "checkmark" : "doc.on.doc")
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
                     }
                     .accessibilityLabel(copied ? "提示词已复制" : "复制完整提示词")
                     .accessibilityHint("只复制到系统剪贴板，不改变草稿或发送消息。")
@@ -866,7 +881,9 @@ struct PromptTemplatePreviewSheet: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { dismiss() } label: {
-                        Image(systemName: "xmark").frame(width: 44, height: 44)
+                        Image(systemName: "xmark")
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
                     }
                     .accessibilityLabel("关闭模板预览")
                     .accessibilityIdentifier("prompt-preview-close")
