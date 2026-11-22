@@ -44,7 +44,11 @@ final class RuntimeStreamingTests: XCTestCase {
         XCTAssertEqual(PinnedTextModel.sourceURL.scheme, "https")
         XCTAssertEqual(PinnedTextModel.sourceURL.host, "ai.google.dev")
         XCTAssertEqual(PinnedTextModel.sourceURL.path, "/gemma/docs/core/model_card_3")
-        XCTAssertEqual(PinnedTextModel.revision, PinnedTextModel.sha256, "The local bytes are pinned by their digest, not an unverified upstream revision")
+        XCTAssertEqual(PinnedTextModel.revision, PinnedTextModel.sha256, "The imported bytes must match the trusted digest")
+        XCTAssertEqual(PinnedTextModel.filePageURL.scheme, "https")
+        XCTAssertEqual(PinnedTextModel.filePageURL.host, "huggingface.co")
+        XCTAssertEqual(PinnedTextModel.filePageURL.path,
+            "/ggml-org/gemma-3-270m-it-qat-GGUF/blob/7dba9faa7cdb58c7dc44b238c7dbb00e391fbf65/\(PinnedTextModel.fileName)")
     }
 
     func testNativeSendRejectsUnverifiedFilesWithoutConsumingDraft() {

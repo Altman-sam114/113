@@ -5,10 +5,10 @@
 ## 手动导入
 
 1. 在模型页选择 `Gemma 3 270M`，阅读官方许可与使用限制并确认有权使用。
-2. 使用已取得的 `gemma-3-270m-it-qat-Q4_0.gguf`，通过 Files 导入。App 不下载模型，GGUF 不随安装包提供。
+2. 从模型库打开固定文件页，在浏览器保存 `gemma-3-270m-it-qat-Q4_0.gguf`，再通过“文件”手动导入。App 不下载模型，GGUF 不随安装包提供。
 3. 等待本机复制和 SHA-256 校验为 `verified`，再回到聊天发送消息。模拟部署开关只影响预览计划，不加载模型。
 
-固定文件来自用户明确提供的 AITRANS `llm/` 目录，只读核对 SHA-256 `3626e245220ca4a1c5911eb4010b3ecb7bdbf5bc53c79403c21355354d1e2dc6` 和大小 `241410624` 字节。该摘要是受信的本地文件版本，不伪称已追溯的官方 GGUF 发布 revision。App 的 [Gemma 模型说明](https://ai.google.dev/gemma/docs/core/model_card_3)是背景文档，不是该文件下载来源。许可：[Gemma Terms](https://ai.google.dev/gemma/terms)，[使用限制](https://ai.google.dev/gemma/prohibited_use_policy)。这些链接仅由用户主动打开，不附带对话或文件；确认是否有权使用仍由用户负责。
+AITRANS `llm/` 文件的实际 SHA-256 是 `3626e245220ca4a1c5911eb4010b3ecb7bdbf5bc53c79403c21355354d1e2dc6`，大小为 `241410624` 字节。两值均与 ggml-org 的固定上游 Git LFS 元数据一致。模型库提供用户主动打开的固定网页，导入时仍以实际 SHA-256 校验为准。[固定文件页](https://huggingface.co/ggml-org/gemma-3-270m-it-qat-GGUF/blob/7dba9faa7cdb58c7dc44b238c7dbb00e391fbf65/gemma-3-270m-it-qat-Q4_0.gguf) · [Gemma 许可](https://ai.google.dev/gemma/terms) · [使用限制](https://ai.google.dev/gemma/prohibited_use_policy)
 
 ## 实现与失败边界
 

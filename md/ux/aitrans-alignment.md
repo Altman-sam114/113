@@ -22,3 +22,16 @@
 本机仅做相关静态检查，所有Swift/Xcode/Simulator/XCTest/实际界面操作均GitHub-hosted云端。保留既有219个单元与12个手机测试；新增直接草稿/搜索/自然布局测试及普通/AX5手机工具、模板操作。结果须绑定本轮提交，核对原始xcresult、全部必选阶段与完整截图，不能继承此前SHA的绿色。
 
 本轮验证尚待新提交云端结果。UI与工程通过也不证明270M通用任务质量、真机Metal/内存/辅助技术、签名或发行通过；用户已选择保留270M、暂不发布。
+
+
+## 2026-11-22 界面对齐
+
+| AgentX 界面 | AITRANS 参考 | AgentX 的实现 |
+| --- | --- | --- |
+| 工作区导航 | `ContentView.swift` 的手机底部标签和大屏侧栏 | 底部全宽标签面、图标与文字显示选择状态。保留大屏侧栏、四页身份和快捷键。 |
+| 对话 | `TextWorkspacePasteButton.swift` 和 `KeyboardDismissControl.swift` | 同一行保留系统粘贴、清空和撤销。输入时提供收键盘动作，大字使用紧凑聊天头部。 |
+| 模板 | `PromptLibraryView.swift` 和 `PromptCard.swift` | 先显示模板内容，再摆放预览和发送。辅助字号下操作移到下一行，正文可用整行。 |
+| 模型 | `ModelManagementView.swift` | 安装相关操作居前，突出手动导入，保留扫描、其他操作及独立的许可和来源入口。 |
+| 设置 | `SettingsView.swift` | 按外观、运行策略和支持组织页面。帮助采用带图标和箭头的入口，版本信息可直接查看。 |
+
+AITRANS 参考版本为 `7317a3fc133591754a89ffe1a6c98bde3af84871`。AgentX 的会话、模型校验和本地数据仍由自身状态层管理。当前通过范围以绑定源码 SHA 的云端证据为准。

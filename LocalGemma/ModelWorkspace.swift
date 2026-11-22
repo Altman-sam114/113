@@ -196,9 +196,12 @@ struct ModelLibraryView: View {
                     .accessibilityInputLabels(["模型许可与固定版本来源", "模型许可"])
                     .accessibilityIdentifier("model-license-sources")
                     if showsModelLicenseLinks {
-                        ModelImportLicenseLinks().padding(.top, 8)
+                        Divider().overlay(theme.subtleBorder)
+                        ModelImportLicenseLinks().padding(.vertical, 8)
                     }
                 }
+                .padding(.horizontal, 14)
+                .background(theme.surface, in: RoundedRectangle(cornerRadius: 16))
             }
 
             if isCompact {
@@ -418,8 +421,9 @@ private struct ModelImportLicenseLinks: View {
         VStack(alignment: .leading, spacing: 2) {
             sourceLink("Gemma 官方许可", destination: PinnedTextModel.licenseURL, identifier: "model-license-terms")
             sourceLink("Gemma 官方使用限制", destination: PinnedTextModel.usePolicyURL, identifier: "model-license-use-policy")
-            sourceLink("Gemma 模型说明", destination: PinnedTextModel.sourceURL, identifier: "model-license-fixed-source")
-            Text("来源：\(PinnedTextModel.sourceName)\n仅接受下方 SHA-256 对应的固定文件。模型说明链接不代表该文件的下载来源。")
+            sourceLink("在浏览器中获取指定 GGUF", destination: PinnedTextModel.filePageURL, identifier: "model-license-fixed-source")
+            sourceLink("Gemma 模型说明", destination: PinnedTextModel.sourceURL, identifier: "model-license-documentation")
+            Text("来源：\(PinnedTextModel.sourceName)。保存 \(PinnedTextModel.fileName) 到“文件”后，回到 AgentX 手动导入。")
                 .font(.caption)
                 .foregroundStyle(theme.secondaryText)
                 .fixedSize(horizontal: false, vertical: true)

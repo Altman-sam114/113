@@ -137,6 +137,7 @@ enum SettingsHelpContent {
     static let closeIdentifier = "settings-help-close"
     static let supportIdentifier = "settings-help-repository"
     static let repositoryURL = URL(string: "https://github.com/Altman-sam114/113")
+    static let privacyPolicyURL = URL(string: "https://github.com/Altman-sam114/113/blob/main/md/release/privacy.md")!
     static let sections = [
         SettingsHelpSection(
             id: "capabilities", title: "当前能力",
@@ -280,21 +281,29 @@ struct SettingsHelpBody: View {
                 .fixedSize(horizontal: false, vertical: true)
             }
 
-            if let url = SettingsHelpContent.repositoryURL {
-                Link(destination: url) {
-                    Label("在浏览器中查看项目", systemImage: "arrow.up.right.square")
-                        .font(.body.weight(.medium))
-                        .fixedSize(horizontal: false, vertical: true)
-                        .frame(maxWidth: .infinity, minHeight: SettingsHelpContent.minimumTouchTarget, alignment: .leading)
-                        .contentShape(Rectangle())
+            VStack(alignment: .leading, spacing: 4) {
+                externalLink("在线隐私政策", url: SettingsHelpContent.privacyPolicyURL)
+                    .accessibilityIdentifier("settings-help-privacy-policy")
+                if let url = SettingsHelpContent.repositoryURL?.appendingPathComponent("issues") {
+                    externalLink("在项目问题区反馈", url: url)
+                        .accessibilityInputLabels(["反馈", "项目问题区"])
+                        .accessibilityIdentifier(SettingsHelpContent.supportIdentifier)
                 }
-                .foregroundStyle(theme.accent)
-                .accessibilityHint("由系统打开外部项目页面；不会自动附带对话、草稿、模型文件或诊断信息。")
-                .accessibilityInputLabels(["在浏览器中查看项目", "项目页面"])
-                .accessibilityIdentifier(SettingsHelpContent.supportIdentifier)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func externalLink(_ title: String, url: URL) -> some View {
+        Link(destination: url) {
+            Label(title, systemImage: "arrow.up.right.square")
+                .font(.body.weight(.medium))
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, minHeight: SettingsHelpContent.minimumTouchTarget, alignment: .leading)
+                .contentShape(Rectangle())
+        }
+        .foregroundStyle(theme.accent)
+        .accessibilityHint("由系统打开外部网页；不会自动附带对话、草稿、模型文件或诊断信息。")
     }
 }
 

@@ -105,9 +105,10 @@ enum PinnedTextModel {
     static let sha256 = "3626e245220ca4a1c5911eb4010b3ecb7bdbf5bc53c79403c21355354d1e2dc6"
     static let byteCount: Int64 = 241_410_624
     static let revision = sha256
-    static let sourceName = "用户提供的本地 GGUF"
-    // This is model documentation, not a claimed download source for the bytes.
+    static let sourceName = "Hugging Face · ggml-org"
+    static let upstreamRevision = "7dba9faa7cdb58c7dc44b238c7dbb00e391fbf65"
     static let sourceURL = URL(string: "https://ai.google.dev/gemma/docs/core/model_card_3")!
+    static let filePageURL = URL(string: "https://huggingface.co/ggml-org/gemma-3-270m-it-qat-GGUF/blob/\(upstreamRevision)/\(fileName)")!
     static let licenseURL = URL(string: "https://ai.google.dev/gemma/terms")!
     static let usePolicyURL = URL(string: "https://ai.google.dev/gemma/prohibited_use_policy")!
 
@@ -133,7 +134,7 @@ enum PinnedTextModel {
                 expectedSHA256: sha256,
                 tokenizerIsEmbedded: true,
                 allowsNetworkDownload: false,
-                importInstruction: "阅读 Gemma 许可与使用限制后，自行取得 \(fileName) 并从 Files 手动导入。仅接受登记摘要的版本；单个 GGUF 已包含 tokenizer。"
+                importInstruction: "阅读 Gemma 许可与使用限制后，从模型库的固定文件页面取得 \(fileName)，再从“文件”手动导入。仅接受登记摘要的版本；单个 GGUF 已包含 tokenizer。"
             ),
             deploymentProfile: AppleSiliconDeploymentProfile(
                 preferredChipClass: "具备足够可用内存的 iPhone / iPad / Mac",
