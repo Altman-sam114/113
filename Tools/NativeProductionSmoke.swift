@@ -106,7 +106,8 @@ enum NativeProductionSmoke {
                     artifactDirectoryURL: directory)
         await engine.waitForCurrentGeneration()
         try require(!engine.isGenerating && engine.lastResultWasSimulated
-                    && engine.generationError?.contains("Nothing was truncated") == true
+                    && engine.nativeFailureRecovery == .editLastQuestion
+                    && engine.generationError?.contains("原文未被截断") == true
                     && engine.messages.first?.text == longQuestion.trimmingCharacters(in: .whitespacesAndNewlines)
                     && !engine.messages.contains(where: { $0.role == .assistant }),
                     "Production context rejection must retain the complete question without a fake answer")

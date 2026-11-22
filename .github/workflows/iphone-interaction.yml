@@ -21,11 +21,11 @@ name: iPhone Interaction
         required: false
         type: string
       validation_scope:
-        description: Full suite, or license-only diagnostic evidence
+        description: Full suite, license diagnostic, or draft tools diagnostic
         required: true
         type: choice
         default: full
-        options: [full, license]
+        options: [full, license, draft-tools]
 
 permissions:
   contents: read

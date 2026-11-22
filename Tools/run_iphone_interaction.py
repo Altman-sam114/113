@@ -90,6 +90,7 @@ def export_evidence(root, category, device_id, scope="full"):
                         "provenanceSha256": hashlib.sha256(provenance.read_bytes()).hexdigest()})
     if scope == "full":
         validate_persistence_sequence([persistence[stage] for stage in PERSISTENCE_STAGES])
+    if scope in {"full", "draft-tools"}:
         validate_ux_sequence([ux[stage] for stage in UX_STAGES])
     return records
 

@@ -69,6 +69,8 @@ def selected_tests(category, scope="full"):
         return TESTS[category]
     if scope == "license":
         return {name for name in TESTS[category] if "NativeModelLicenseReview" in name}
+    if scope == "draft-tools":
+        return {name for name in TESTS[category] if "DraftToolsAndTemplatePreview" in name}
     raise ValueError("Unknown interaction validation scope")
 
 
@@ -76,6 +78,8 @@ def expected_captures(category, scope="full"):
     selected_tests(category, scope)
     if scope == "license":
         return {f"interaction-dark-{category}-{stage}" for stage in LICENSE_STAGES}
+    if scope == "draft-tools":
+        return {f"interaction-dark-{category}-{stage}" for stage in UX_STAGES}
     return {f"interaction-{theme}-{category}-{stage}"
             for theme in ("light", "dark") for stage in LIFECYCLE_STAGES} | {
                 f"interaction-dark-{category}-{stage}" for stage in DRAFT_STAGES + HELP_STAGES + LICENSE_STAGES + PERSISTENCE_STAGES + UX_STAGES}

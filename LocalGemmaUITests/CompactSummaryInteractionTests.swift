@@ -74,8 +74,11 @@ final class CompactSummaryInteractionTests: XCTestCase {
         var observations: [String: Any] = [:]
 
         func dismissComposerKeyboard() {
-            let done = app.buttons["收起键盘"]
-            if done.exists && done.isHittable { tap(done, id: "composer-keyboard-done") }
+            let done = app.buttons["composer-keyboard-done"]
+            if app.keyboards.firstMatch.exists {
+                assertReachableAction(done, inside: app.frame)
+                tap(done, id: "composer-keyboard-done")
+            }
             XCTAssertTrue(waitUntil { !app.keyboards.firstMatch.exists })
         }
         func focusComposer(_ composer: XCUIElement) {
@@ -274,8 +277,11 @@ final class CompactSummaryInteractionTests: XCTestCase {
         var lifecycle: [String] = []
 
         func dismissKeyboard() {
-            let done = app.buttons["收起键盘"]
-            if done.exists && done.isHittable { tap(done, id: "composer-keyboard-done") }
+            let done = app.buttons["composer-keyboard-done"]
+            if app.keyboards.firstMatch.exists {
+                assertReachableAction(done, inside: app.frame)
+                tap(done, id: "composer-keyboard-done")
+            }
             XCTAssertTrue(waitUntil { !app.keyboards.firstMatch.exists })
         }
         func selectHistorySession(_ identifier: String) {
@@ -471,7 +477,7 @@ final class CompactSummaryInteractionTests: XCTestCase {
         if keyboardIntroduction.waitForExistence(timeout: 3) && keyboardIntroduction.isHittable {
             tap(keyboardIntroduction, id: "system-keyboard-introduction-continue")
         }
-        let keyboardDone = app.buttons["收起键盘"]
+        let keyboardDone = app.buttons["composer-keyboard-done"]
         if keyboardDone.exists && keyboardDone.isHittable {
             tap(keyboardDone, id: "composer-keyboard-done")
             XCTAssertTrue(waitUntil { !app.keyboards.firstMatch.exists })
@@ -597,7 +603,7 @@ final class CompactSummaryInteractionTests: XCTestCase {
         if introduction.waitForExistence(timeout: 3) && introduction.isHittable {
             tap(introduction, id: "system-keyboard-introduction-continue")
         }
-        let keyboardDone = app.buttons["收起键盘"]
+        let keyboardDone = app.buttons["composer-keyboard-done"]
         if keyboardDone.exists && keyboardDone.isHittable {
             tap(keyboardDone, id: "composer-keyboard-done")
             XCTAssertTrue(waitUntil { !app.keyboards.firstMatch.exists })

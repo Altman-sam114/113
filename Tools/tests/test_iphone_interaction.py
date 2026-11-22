@@ -42,6 +42,16 @@ class IPhoneInteractionEvidenceTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             selected_tests("large", "arbitrary-subset")
 
+    def test_draft_tools_diagnostic_preserves_both_categories_and_exact_evidence(self):
+        for category in TESTS:
+            names = selected_tests(category, "draft-tools")
+            self.assertEqual(len(names), 1)
+            self.assertIn("DraftToolsAndTemplatePreview", next(iter(names)))
+            self.assertEqual(expected_captures(category, "draft-tools"),
+                             {f"interaction-dark-{category}-{stage}" for stage in UX_STAGES})
+            with self.assertRaises(ValueError):
+                validate_capture(self.capture(category), category, (750, 1334), "draft-tools")
+
     def test_exact_original_small_phone_and_real_system_category_required(self):
         for category in TESTS:
             document = self.capture(category)

@@ -103,19 +103,22 @@ struct ComposerBar: View {
             }
         }
         .padding(8)
-        .background(theme.surface, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .overlay {
+        .background {
             RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .stroke(
-                    inputFieldBorderColor,
-                    lineWidth: ComposerFocusGlowStylePolicy.lineWidth(isFocused: isInputFocused)
-                )
-                .shadow(
-                    color: theme.accent.opacity(ComposerFocusGlowStylePolicy.glowOpacity(
-                        isFocused: isInputFocused, isDark: theme.isDark
-                    )),
-                    radius: ComposerFocusGlowStylePolicy.glowRadius
-                )
+                .fill(theme.surface)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .stroke(
+                            inputFieldBorderColor,
+                            lineWidth: ComposerFocusGlowStylePolicy.lineWidth(isFocused: isInputFocused)
+                        )
+                        .shadow(
+                            color: theme.accent.opacity(ComposerFocusGlowStylePolicy.glowOpacity(
+                                isFocused: isInputFocused, isDark: theme.isDark
+                            )),
+                            radius: ComposerFocusGlowStylePolicy.glowRadius
+                        )
+                }
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
         }
@@ -314,54 +317,41 @@ struct ComposerDraftTools: View {
             .frame(width: 44, height: 44)
             .help("粘贴文字到当前草稿")
 
-            Button {
+            ComposerToolButton(
+                symbol: "xmark.circle", title: "清空草稿", identifier: "composer-clear",
+                hint: "只清空当前未发送文字，可用撤销恢复，不删除会话。",
+                inputLabels: ["清空草稿", "清空输入"], tint: UIColor(theme.secondaryText),
+                isEnabled: canEdit && !snapshot.text.isEmpty
+            ) {
                 guard canEdit, !snapshot.text.isEmpty,
                       inference.replaceComposerDraft("", matching: snapshot) else { return }
                 undo = ComposerClearedDraft(text: snapshot.text, emptySnapshot: inference.composerDraftSnapshot)
-            } label: {
-                Image(systemName: "xmark.circle")
-                    .font(.system(size: 18, weight: .medium))
-                    .frame(width: 44, height: 44)
-                    .contentShape(Rectangle())
             }
-            .disabled(!canEdit || snapshot.text.isEmpty)
-            .opacity(canEdit && !snapshot.text.isEmpty ? 1 : 0.4)
-            .accessibilityLabel("清空草稿")
-            .accessibilityHint("只清空当前未发送文字，可用撤销恢复，不删除会话。")
-            .accessibilityInputLabels(["清空草稿", "清空输入"])
-            .accessibilityIdentifier("composer-clear")
-            .help("清空草稿；可撤销")
+            .frame(width: 44, height: 44)
+            .help("清空草稿，可撤销")
 
-            Button {
+            ComposerToolButton(
+                symbol: "arrow.uturn.backward", title: "撤销清空", identifier: "composer-undo-clear",
+                hint: "恢复刚清空的草稿；切换会话或继续编辑后不覆盖新的输入。",
+                inputLabels: ["撤销清空", "恢复草稿"], tint: UIColor(theme.secondaryText),
+                isEnabled: canEdit && undo?.emptySnapshot == snapshot
+            ) {
                 guard canEdit, let previous = undo else { return }
                 if inference.replaceComposerDraft(previous.text, matching: previous.emptySnapshot) {
                     undo = nil
                 }
-            } label: {
-                Image(systemName: "arrow.uturn.backward")
-                    .font(.system(size: 18, weight: .medium))
-                    .frame(width: 44, height: 44)
-                    .contentShape(Rectangle())
             }
-            .disabled(!canEdit || undo?.emptySnapshot != snapshot)
-            .opacity(canEdit && undo?.emptySnapshot == snapshot ? 1 : 0.4)
-            .accessibilityLabel("撤销清空")
-            .accessibilityHint("恢复刚清空的草稿；切换会话或继续编辑后不覆盖新的输入。")
-            .accessibilityInputLabels(["撤销清空", "恢复草稿"])
-            .accessibilityIdentifier("composer-undo-clear")
+            .frame(width: 44, height: 44)
             .help("恢复刚清空的草稿")
 
             Spacer(minLength: 4)
             if let dismissKeyboard {
-                Button(action: dismissKeyboard) {
-                    Image(systemName: "keyboard.chevron.compact.down")
-                        .font(.system(size: 18, weight: .medium))
-                        .frame(width: 44, height: 44)
-                        .contentShape(Rectangle())
-                }
-                .accessibilityLabel("收起键盘")
-                .accessibilityInputLabels(["完成", "收起键盘"])
-                .accessibilityIdentifier("composer-keyboard-done")
+                ComposerToolButton(
+                    symbol: "keyboard.chevron.compact.down", title: "收起键盘", identifier: "composer-keyboard-done",
+                    hint: "收起键盘并保留当前草稿。", inputLabels: ["完成", "收起键盘"],
+                    tint: UIColor(theme.secondaryText), isEnabled: isEnabled, perform: dismissKeyboard
+                )
+                .frame(width: 44, height: 44)
                 .help("收起键盘")
             } else {
                 Text(snapshot.text.isEmpty ? "未发送草稿" : "\(snapshot.text.count) 字符")
@@ -375,7 +365,6 @@ struct ComposerDraftTools: View {
         }
         .font(.body)
         .foregroundStyle(theme.secondaryText)
-        .buttonStyle(WorkbenchPressFeedbackStyle())
         .onAppear { acceptsPaste = canEdit }
         .onDisappear { invalidatePaste() }
         .onChange(of: canEdit) { _, enabled in
@@ -391,6 +380,43 @@ struct ComposerDraftTools: View {
     private func invalidatePaste() {
         pasteEpoch = UUID()
         acceptsPaste = false
+    }
+}
+
+private struct ComposerToolButton: UIViewRepresentable {
+    let symbol: String
+    let title: String
+    let identifier: String
+    let hint: String
+    let inputLabels: [String]
+    let tint: UIColor
+    let isEnabled: Bool
+    let perform: () -> Void
+
+    func makeUIView(context: Context) -> ToolButton {
+        let button = ToolButton(type: .system)
+        button.addAction(UIAction { [weak button] _ in button?.perform?() }, for: .touchUpInside)
+        return button
+    }
+
+    func updateUIView(_ button: ToolButton, context: Context) {
+        var configuration = UIButton.Configuration.plain()
+        configuration.image = UIImage(systemName: symbol, withConfiguration: UIImage.SymbolConfiguration(
+            pointSize: 18, weight: .medium
+        ))
+        configuration.baseForegroundColor = tint
+        configuration.contentInsets = .zero
+        button.configuration = configuration
+        button.isEnabled = isEnabled
+        button.accessibilityLabel = title
+        button.accessibilityIdentifier = identifier
+        button.accessibilityHint = hint
+        button.accessibilityUserInputLabels = inputLabels
+        button.perform = perform
+    }
+
+    final class ToolButton: UIButton {
+        var perform: (() -> Void)?
     }
 }
 
